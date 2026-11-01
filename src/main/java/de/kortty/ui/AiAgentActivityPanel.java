@@ -25,6 +25,7 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -34,6 +35,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Alert;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -577,7 +579,12 @@ public class AiAgentActivityPanel extends VBox {
 
     /** True while this run is blocked waiting for the user (a sudo password or a command approval). */
     public boolean isAwaitingInput() {
-        return pendingApproval != null || pendingPassword != null;
+        return awaitsInput(pendingApproval != null, pendingPassword != null, pendingChoice != null);
+    }
+
+    /** Whether one of the three prompts waits for the user: a command approval, a password or the solution options. */
+    static boolean awaitsInput(boolean approvalPending, boolean passwordPending, boolean choicePending) {
+        return approvalPending || passwordPending || choicePending;
     }
 
     /** Toggles the run's paused state (used by the collapsed tabs-panel status bar). */
@@ -597,7 +604,7 @@ public class AiAgentActivityPanel extends VBox {
             toggleLastThinkingDetails();
             return true;
         }
-        if (isCancelKey(event)) {
+        if (isCancelKey(event) && !typingInSolutionCard(event)) {
             requestCancel();
             return true;
         }
@@ -755,7 +762,7 @@ public class AiAgentActivityPanel extends VBox {
 
     /** Disables the pause control while a blocking approval/password prompt is awaiting input. */
     private void updatePauseButtonAvailability() {
-        boolean blockedByPrompt = pendingApproval != null || pendingPassword != null;
+        boolean blockedByPrompt = awaitsInput(pendingApproval != null, pendingPassword != null, pendingChoice != null);
         pauseRunButton.setDisable(blockedByPrompt);
     }
 
@@ -1712,6 +1719,32 @@ public class AiAgentActivityPanel extends VBox {
             return TerminalAgentService.ApprovalDecision.CANCEL;
         }
         return null;
+    }
+
+    /**
+     * Whether the key is meant for the text field or combo box of the solution card that waits for an answer: Ctrl+C copies
+     * the text and Esc closes the popup there. The cancel key keeps working everywhere else in the panel.
+     */
+    private boolean typingInSolutionCard(KeyEvent event) {
+        CompletableFuture<TerminalAgentModels.SolutionChoice> choice = pendingChoice;
+        Object target = event.getTarget();
+        boolean editing = target instanceof TextInputControl || target instanceof ComboBoxBase<?>;
+        return keyGoesToSolutionCard(choice != null && !choice.isDone(), editing,
+            target instanceof Node node && isWithin(node, promptBox));
+    }
+
+    /** Whether a key goes to the card's own control: the card waits, the control edits, and the control is in the card. */
+    static boolean keyGoesToSolutionCard(boolean cardWaiting, boolean editingControl, boolean insideCard) {
+        return cardWaiting && editingControl && insideCard;
+    }
+
+    private static boolean isWithin(Node node, Node container) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == container) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isCancelKey(KeyEvent event) {

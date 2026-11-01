@@ -23,7 +23,8 @@ import java.util.Optional;
  *   <li>the topic is a known language or tool and no stored skill carries it: a new korTTY skill;</li>
  *   <li>otherwise the global memory.</li>
  * </ol>
- * Skills are chosen only when the policy allows skill creation, and memory targets only when the memory is writable.
+ * Existing skills are chosen when the policy allows learning into skills, a new skill only when it allows skill creation,
+ * and memory targets only when the memory is writable.
  * Disabled, hidden and external skills are never chosen: a rule saved to a disabled or hidden skill would not apply,
  * and a provider update could overwrite an external one. With nothing allowed, the suggestion is
  * {@link RuleTarget.None}.
@@ -40,11 +41,13 @@ public final class RuleRouter {
         if (policy.memoryWritable() && namesConnection(proposal)) {
             return RuleTarget.connection(proposal.connectionId());
         }
-        if (policy.skillCreationAllowed()) {
+        if (policy.existingSkillsAllowed()) {
             Optional<RuleTarget> skill = matchingSkill(context);
             if (skill.isPresent()) {
                 return skill.get();
             }
+        }
+        if (policy.skillCreationAllowed()) {
             Optional<RuleTarget> newSkill = newSkillFor(context);
             if (newSkill.isPresent()) {
                 return newSkill.get();
@@ -68,7 +71,7 @@ public final class RuleRouter {
             }
             targets.add(RuleTarget.global());
         }
-        if (policy.skillCreationAllowed()) {
+        if (policy.existingSkillsAllowed()) {
             for (AiSkill skill : context.userSkills()) {
                 targets.add(RuleTarget.skill(skill.getId()));
             }
@@ -76,6 +79,8 @@ public final class RuleRouter {
             if (builtin.isPresent() && !targets.contains(RuleTarget.skill(builtin.get().getId()))) {
                 targets.add(RuleTarget.skill(builtin.get().getId()));
             }
+        }
+        if (policy.skillCreationAllowed()) {
             newSkillFor(context).ifPresent(targets::add);
         }
         return List.copyOf(targets);
@@ -125,7 +130,12 @@ public final class RuleRouter {
             return Optional.empty();
         }
         String normalized = topic.get();
-        if (!RuleTopic.isLanguageOrTool(normalized, context.builtinTopics())) {
+        // A known language or tool, or the topic the detector named as one. A leading word of the text does not qualify
+        // on its own, so "Deploy: ..." does not create a skill for every word in front of a colon.
+        boolean namedByDetector = normalized.equals(RuleTopic.normalize(context.proposal().topicHint()));
+        boolean allowed = RuleTopic.isKnown(normalized, context.builtinTopics())
+            || (namedByDetector && RuleTopic.isLanguageOrTool(normalized, context.builtinTopics()));
+        if (!allowed) {
             return Optional.empty();
         }
         if (context.skills().stream().anyMatch(skill -> hasTag(skill, normalized))) {
@@ -201,12 +211,16 @@ public final class RuleRouter {
                 .findFirst();
         }
 
-        /** The user skills a rule may be added to, in stored order: not built-in, not external, enabled and visible. */
+        /**
+         * The user skills a rule may be added to, in stored order: not built-in, not external, enabled, visible and with
+         * content. A skill without content is never sent to the AI, so a rule saved to it would never be used.
+         */
         List<AiSkill> userSkills() {
             return skills.stream()
                 .filter(skill -> !skill.isBuiltin())
                 .filter(skill -> !skill.isExternal())
                 .filter(RuleRouter::eligible)
+                .filter(skill -> skill.getContent() != null && !skill.getContent().isBlank())
                 .toList();
         }
     }

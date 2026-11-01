@@ -272,15 +272,19 @@ public final class AiSkillRepository {
     private static List<List<Object>> rulesForm(List<AiSkillLearnedRule> rules) {
         List<List<Object>> forms = new ArrayList<>();
         for (AiSkillLearnedRule rule : rules) {
-            forms.add(Arrays.asList(
-                rule.getId(),
-                rule.getText(),
-                rule.getCreatedAt(),
-                rule.getSource(),
-                rule.getSha256(),
-                rule.isAcknowledged()));
+            forms.add(learnedRuleForm(rule));
         }
         return forms;
+    }
+
+    private static List<Object> learnedRuleForm(AiSkillLearnedRule rule) {
+        return Arrays.asList(
+            rule.getId(),
+            rule.getText(),
+            rule.getCreatedAt(),
+            rule.getSource(),
+            rule.getSha256(),
+            rule.isAcknowledged());
     }
 
     private static AiSkill mergeChanged(AiSkill original, AiSkill edited, AiSkill stored) {
@@ -296,16 +300,25 @@ public final class AiSkillRepository {
             editedRuleIds.add(rule.getId());
         }
         Set<String> originalRuleIds = new HashSet<>();
+        Map<String, AiSkillLearnedRule> originalRules = new LinkedHashMap<>();
         if (original != null) {
             for (AiSkillLearnedRule rule : original.getLearnedRules()) {
                 originalRuleIds.add(rule.getId());
+                originalRules.putIfAbsent(rule.getId(), rule);
             }
         }
+        Set<String> storedRuleIds = new HashSet<>();
         for (AiSkillLearnedRule rule : stored.getLearnedRules()) {
+            storedRuleIds.add(rule.getId());
             if (!editedRuleIds.contains(rule.getId()) && !originalRuleIds.contains(rule.getId())) {
                 merged.getLearnedRules().add(new AiSkillLearnedRule(rule));
             }
         }
+        // A rule korTTY removed meanwhile (an undo) must stay removed. The editor's copy still holds it, so drop
+        // it unless the editor changed that rule.
+        merged.getLearnedRules().removeIf(rule -> originalRules.containsKey(rule.getId())
+            && !storedRuleIds.contains(rule.getId())
+            && learnedRuleForm(originalRules.get(rule.getId())).equals(learnedRuleForm(rule)));
         return merged;
     }
 

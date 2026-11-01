@@ -7,6 +7,7 @@ import de.kortty.core.BuiltinAiSkillCatalog;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.memory.MemoryDocument.KorttyEntry;
 import de.kortty.memory.RuleSaveException.Reason;
+import de.kortty.memory.external.ExternalMemoryReader;
 import de.kortty.memory.SavedRule.UndoOutcome;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillLearnedRule;
@@ -108,9 +109,12 @@ public final class RuleProposalService {
         }
     }
 
-    /** The text as it is saved: one line, with the secret check run on the text the user sees. */
+    /**
+     * The text as it is saved: one line, without invisible characters, which could carry text the user does not see. The
+     * secret check runs on that same text.
+     */
     private static String checkedText(String finalText) {
-        String text = finalText == null ? "" : finalText.strip();
+        String text = ExternalMemoryReader.sanitize(finalText == null ? "" : finalText.strip()).text();
         String oneLine = text.replaceAll("\\s+", " ").strip();
         if (oneLine.isEmpty()) {
             throw new RuleSaveException(Reason.EMPTY);
@@ -130,7 +134,7 @@ public final class RuleProposalService {
         switch (target) {
             case RuleTarget.Global global -> requireMemory(current);
             case RuleTarget.Connection connection -> requireMemory(current);
-            case RuleTarget.Skill skill -> requireSkillCreation(current);
+            case RuleTarget.Skill skill -> requireExistingSkills(current);
             case RuleTarget.NewSkill newSkill -> requireSkillCreation(current);
             case RuleTarget.None none -> throw new RuleSaveException(Reason.NO_TARGET);
         }
@@ -139,6 +143,12 @@ public final class RuleProposalService {
     private static void requireMemory(RuleTargetPolicy current) {
         if (!current.memoryWritable()) {
             throw new RuleSaveException(Reason.READ_ONLY);
+        }
+    }
+
+    private static void requireExistingSkills(RuleTargetPolicy current) {
+        if (!current.existingSkillsAllowed()) {
+            throw new RuleSaveException(Reason.SKILL_CREATION_NOT_ALLOWED);
         }
     }
 
@@ -190,7 +200,7 @@ public final class RuleProposalService {
                 done.completeExceptionally(new RuleSaveException(Reason.FAILED));
             } else {
                 done.complete(new SavedRule(RuleTarget.skill(skillId), text, clock.instant(), clock,
-                    () -> undoSkillRule(skillId, rule.getId())));
+                    () -> undoSkillRule(skillId, rule.getId(), rule.getSha256())));
             }
         });
         return done;
@@ -225,7 +235,7 @@ public final class RuleProposalService {
                 return;
             }
             done.complete(new SavedRule(RuleTarget.newSkill(topic, name), text, clock.instant(), clock,
-                () -> undoNewSkill(created.getId(), rule.getId(), stored.get())));
+                () -> undoNewSkill(created.getId(), rule.getId(), rule.getSha256(), stored.get())));
         });
         return done;
     }
@@ -284,23 +294,40 @@ public final class RuleProposalService {
         return done;
     }
 
-    private CompletableFuture<UndoOutcome> undoSkillRule(String skillId, String ruleId) {
+    /**
+     * Removes the learned rule saved under {@code ruleId} while it still has the text that was saved. A rule the user
+     * edited in the meantime keeps its id, so it is recognised by its digest; an edited rule stays and is reported as
+     * not found.
+     */
+    private CompletableFuture<UndoOutcome> undoSkillRule(String skillId, String ruleId, String savedSha256) {
         AtomicBoolean removed = new AtomicBoolean();
+        AtomicBoolean changed = new AtomicBoolean();
         return skills.update(list -> {
             list.stream()
                 .filter(skill -> skillId.equals(skill.getId()))
                 .findFirst()
-                .ifPresent(skill -> removed.set(skill.getLearnedRules().removeIf(rule -> ruleId.equals(rule.getId()))));
+                .ifPresent(skill -> {
+                    removed.set(skill.getLearnedRules().removeIf(rule -> isSavedRule(rule, ruleId, savedSha256)));
+                    changed.set(!removed.get() && skill.getLearnedRules().stream()
+                        .anyMatch(rule -> rule != null && ruleId.equals(rule.getId())));
+                });
             return list;
         }, grantForSkills()).handle((outcome, failure) -> failure != null
             ? UndoOutcome.FAILED
-            : removed.get() ? UndoOutcome.UNDONE : UndoOutcome.NOT_FOUND);
+            : removed.get() ? UndoOutcome.UNDONE
+            : changed.get() ? UndoOutcome.RULE_CHANGED_KEPT
+            : UndoOutcome.NOT_FOUND);
+    }
+
+    private static boolean isSavedRule(AiSkillLearnedRule rule, String ruleId, String savedSha256) {
+        return ruleId.equals(rule.getId()) && savedSha256.equals(rule.getSha256());
     }
 
     /**
      * Removes the new skill again while it is exactly as it was created; once the user changed it, only the rule goes.
      */
-    private CompletableFuture<UndoOutcome> undoNewSkill(String skillId, String ruleId, AiSkill created) {
+    private CompletableFuture<UndoOutcome> undoNewSkill(String skillId, String ruleId, String savedSha256,
+                                                        AiSkill created) {
         AtomicReference<UndoOutcome> result = new AtomicReference<>(UndoOutcome.NOT_FOUND);
         return skills.update(list -> {
             Optional<AiSkill> stored = list.stream().filter(skill -> skillId.equals(skill.getId())).findFirst();
@@ -308,7 +335,7 @@ public final class RuleProposalService {
                 if (AiSkillRepository.sameSkill(stored.get(), created)) {
                     list.removeIf(skill -> skillId.equals(skill.getId()));
                     result.set(UndoOutcome.UNDONE);
-                } else if (stored.get().getLearnedRules().removeIf(rule -> ruleId.equals(rule.getId()))) {
+                } else if (stored.get().getLearnedRules().removeIf(rule -> isSavedRule(rule, ruleId, savedSha256))) {
                     result.set(UndoOutcome.RULE_REMOVED_SKILL_KEPT);
                 }
             }

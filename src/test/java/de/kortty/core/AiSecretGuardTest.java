@@ -187,6 +187,14 @@ class AiSecretGuardTest {
     }
 
     @Test
+    void aRandomValueJoinedToANameByEqualsIsRefusedAsHighEntropy() {
+        // The name in front of the equals sign must not dilute the value: a forged header such as data=<hex> is refused.
+        assertRefused("data=3f9a7c2e1b8d4f6a9c0e5b7d1f3a9c2e8b4d6f0a1c3e5b7d9f2a4c6e8b0d1f3a");
+        assertRefused("sha256=3f9a7c2e1b8d4f6a9c0e5b7d1f3a9c2e8b4d6f0a1c3e5b7d9f2a4c6e8b0d1f3a");
+        assertAccepted("size=4096");
+    }
+
+    @Test
     void refusesKnownVaultValuesOnlyAsWholeWords() {
         AiSecretGuard.Result hit = AiSecretGuard.check("connect with hunter22 today", List.of("hunter22"));
         assertThat(hit.ok()).isFalse();
@@ -249,6 +257,77 @@ class AiSecretGuardTest {
         assertAccepted("Passwort Verwaltung im Tresor.");
         assertAccepted("Ab jetzt immer Passwort ändern, wenn es abläuft.");
         assertAccepted("Pin NuGet package versions and scan for known CVEs before shipping.");
+    }
+
+    @Test
+    void aProseCueWithAColonAfterItsConnectorIsRefused() {
+        assertRefused("Das Passwort lautet: Sommer2026!");
+        assertRefused("Passwort ist: Sommer2026!");
+        assertRefused("The password is: hunter2x");
+        assertRefused("Das Passwort lautet:\nSommer2026!");
+    }
+
+    @Test
+    void pluralAndInflectedCuesAndTheConnectorsSindAreAndLautenAreRefused() {
+        assertRefused("Passwords: hunter2x");
+        assertRefused("Passwörter: Sommer2026!");
+        assertRefused("Passwortes: Sommer2026!");
+        assertRefused("Zugangsdaten sind root/Sommer2026!");
+        assertRefused("The credentials are root / Sommer2026!");
+        assertRefused("Zugangsdaten lauten: root/Sommer2026!");
+    }
+
+    @Test
+    void aLettersOnlyPasswordAfterIsIsRefusedWhileTokenProseStaysProse() {
+        assertRefused("The password is swordfish");
+        assertRefused("Das Passwort ist Kartoffel");
+        assertAccepted("The token is valid");
+        assertAccepted("Passwort ist nicht nötig");
+        assertAccepted("If the password is wrong, retry the login.");
+    }
+
+    @Test
+    void keyNamesOfPasswordsAndEncryptionKeysAreSecretAssignments() {
+        assertRefused("DB_PASS=hunter2Secret");
+        assertRefused("PASS=Sommer2026!");
+        assertRefused("mysql --pass=Sommer2026!");
+        assertRefused("ENCRYPTION_KEY=Sommer2026!");
+        assertRefused("MYSQL_PWD=Sommer2026!");
+        assertAccepted("PWD=/home/user");
+        assertAccepted("export OLDPWD=/tmp");
+        assertAccepted("Make the runs pass: keep the certificate checks on.");
+        assertAccepted("bypass=true");
+    }
+
+    @Test
+    void codeReadingAVariableIsAcceptedEvenWithAPasswordName() {
+        assertAccepted("password = var.db_password");
+        assertAccepted("db_password = config.DB_PASSWORD");
+        assertAccepted("password = args.password");
+        assertAccepted("const password = req.body.password;");
+        assertRefused("password = Hunter2Pass");
+    }
+
+    @Test
+    void aSecretThatStartsWithAPathCharacterIsStillRefused() {
+        assertRefused("password=/Sommer2026!");
+        assertRefused("Passwort: ~Sommer2026!");
+        assertRefused("password=./Sommer2026!");
+        assertAccepted("tool path=/usr/local/bin");
+    }
+
+    @Test
+    void aLargePastedLogIsCheckedInWellUnderASecond() {
+        StringBuilder log = new StringBuilder();
+        for (int line = 0; line < 10_000; line++) {
+            log.append("password: value").append(line).append('\n');
+        }
+        long started = System.nanoTime();
+        AiSecretGuard.Result result = AiSecretGuard.check(log.toString(), List.of());
+        long elapsedMillis = (System.nanoTime() - started) / 1_000_000;
+
+        assertThat(result.findings().size()).isAtLeast(10_000);
+        assertThat(elapsedMillis).isLessThan(1_500L);
     }
 
     @Test

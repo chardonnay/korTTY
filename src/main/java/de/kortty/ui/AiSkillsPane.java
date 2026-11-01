@@ -16,6 +16,7 @@ import de.kortty.model.AiSkillOrigin;
 import de.kortty.model.AiSkillProvider;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.GlobalSettings;
+import de.kortty.policy.PolicyManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javafx.animation.PauseTransition;
@@ -273,6 +274,9 @@ final class AiSkillsPane extends VBox {
         // under the policy too: the dialog shows the policy banner, locks the recording switch and keeps Reset usable.
         Button statisticsButton = new Button(I18n.get("settings.aiSkills.stats.button"));
         statisticsButton.setOnAction(event -> openStatistics(app, owner));
+        if (!PolicyManager.effective().aiSkillStatisticsAllowed()) {
+            statisticsButton.setTooltip(new Tooltip(I18n.get("settings.aiSkills.stats.policyDisabled")));
+        }
         // The list column is narrow: both rows wrap instead of cutting their labels.
         FlowPane aiSkillSortButtons = new FlowPane(8, 8, sortAiSkillButton, showHiddenCheck, statisticsButton);
         aiSkillSortButtons.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
@@ -497,20 +501,8 @@ final class AiSkillsPane extends VBox {
         if (settings == null) {
             return;
         }
-        if (!quiet) {
-            snapshotSelectedAiSkillEditorState();
-            AiSkillStorageGuard.Refusal refusal = AiSkillStorageGuard.firstRefusal(aiSkills);
-            if (refusal != null) {
-                showRefusedSkill(refusal.skill());
-                statusLabel.setText(I18n.get("settings.aiSkills.save.failed", refusal.message()));
-                return;
-            }
-            AiSkillStorageGuard.SecretRefusal secret = AiSkillStorageGuard.firstSecretRefusal(aiSkills, baseSkills);
-            if (secret != null) {
-                showRefusedSkill(secret.skill());
-                statusLabel.setText(I18n.get("settings.aiSkills.save.failed", secret.message()));
-                return;
-            }
+        if (!quiet && refusesSave()) {
+            return;
         }
         AiSkillRepository.Outcome outcome = writeInto(settings);
         String refusal = outcome.refusals().isEmpty() ? null : outcome.refusals().get(0);
@@ -531,6 +523,35 @@ final class AiSkillsPane extends VBox {
                 statusLabel.setText(I18n.get("settings.aiSkills.save.failed", errorMessage(e)));
             }
         }
+    }
+
+    /**
+     * Whether the skill edits may be saved when the AI manager closes. A refused edit keeps the dialog open and selects
+     * the skill, as the Save button does: the quiet save would otherwise replace the whole skill with its stored version.
+     */
+    boolean confirmClose() {
+        return currentSettings() == null || !refusesSave();
+    }
+
+    /**
+     * Selects the first skill the store would refuse and names the reason, as the Save button does. Returns whether a
+     * refusal was found, in which case nothing is saved.
+     */
+    private boolean refusesSave() {
+        snapshotSelectedAiSkillEditorState();
+        AiSkillStorageGuard.Refusal refusal = AiSkillStorageGuard.firstRefusal(aiSkills);
+        if (refusal != null) {
+            showRefusedSkill(refusal.skill());
+            statusLabel.setText(I18n.get("settings.aiSkills.save.failed", refusal.message()));
+            return true;
+        }
+        AiSkillStorageGuard.SecretRefusal secret = AiSkillStorageGuard.firstSecretRefusal(aiSkills, baseSkills);
+        if (secret != null) {
+            showRefusedSkill(secret.skill());
+            statusLabel.setText(I18n.get("settings.aiSkills.save.failed", secret.message()));
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -701,6 +722,7 @@ final class AiSkillsPane extends VBox {
             return;
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, owner);
         confirm.setTitle(I18n.get("settings.aiSkills.delete.title"));
         confirm.setHeaderText(I18n.get("settings.aiSkills.delete.header"));
         confirm.setContentText(I18n.get("settings.aiSkills.delete.content", selected.size()));
@@ -879,6 +901,7 @@ final class AiSkillsPane extends VBox {
 
     private boolean confirmBuiltinAction(String actionKey, AiSkill skill) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, owner);
         confirm.setTitle(I18n.get("settings.aiSkills." + actionKey + ".title"));
         confirm.setHeaderText(I18n.get("settings.aiSkills." + actionKey + ".header",
             skill.getName() != null ? skill.getName() : ""));
@@ -930,6 +953,7 @@ final class AiSkillsPane extends VBox {
         // Product rule: without auto-detection every enabled skill is injected into every
         // request, so switching it off deactivates all built-ins after an explicit confirmation.
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, owner);
         confirm.setTitle(I18n.get("settings.aiSkills.autoDetection.disable.title"));
         confirm.setHeaderText(I18n.get("settings.aiSkills.autoDetection.disable.header"));
         confirm.setContentText(I18n.get("settings.aiSkills.autoDetection.disable.content"));
@@ -1428,6 +1452,7 @@ final class AiSkillsPane extends VBox {
             return;
         }
         TextInputDialog dialog = new TextInputDialog(rule.getText());
+        DialogThemeHelper.ownedBy(dialog, owner);
         dialog.setTitle(I18n.get("settings.aiSkills.learnedRules.editTitle"));
         dialog.setHeaderText(I18n.get("settings.aiSkills.learnedRules.editHeader"));
         DialogThemeHelper.applyTheme(dialog);
@@ -1448,6 +1473,7 @@ final class AiSkillsPane extends VBox {
             return;
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, owner);
         confirm.setTitle(I18n.get("settings.aiSkills.learnedRules.deleteTitle"));
         confirm.setHeaderText(I18n.get("settings.aiSkills.learnedRules.deleteTitle"));
         confirm.setContentText(I18n.get("settings.aiSkills.learnedRules.deleteContent"));
@@ -1611,6 +1637,7 @@ final class AiSkillsPane extends VBox {
 
     private void showAiSkillInfo(String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION, message);
+        DialogThemeHelper.ownedBy(alert, owner);
         alert.setHeaderText(null);
         DialogThemeHelper.applyTheme(alert);
         alert.showAndWait();
@@ -1618,6 +1645,7 @@ final class AiSkillsPane extends VBox {
 
     private void showAiSkillError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR, message);
+        DialogThemeHelper.ownedBy(alert, owner);
         alert.setHeaderText(null);
         DialogThemeHelper.applyTheme(alert);
         alert.showAndWait();

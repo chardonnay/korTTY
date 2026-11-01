@@ -424,4 +424,61 @@ class RuleProposalServiceTest {
         skill.setBuiltinBaseline(BuiltinAiSkillSupport.baselineOf(shipped));
         return skill;
     }
+
+
+    @Test
+    void aLearnedRuleGoesIntoAnExistingSkillWhileSkillCreationIsOff() throws Exception {
+        AiSkill deploy = addUserSkill("Deploy notes", "# Deploy");
+        policy = new RuleTargetPolicy(true, false, 1500, true);
+
+        service.confirm(RuleProposal.of("Deploy: erste Regel", RuleSource.CHAT), "Deploy: erste Regel",
+            RuleTarget.skill(deploy.getId())).get();
+
+        assertThat(storedSkill(deploy.getId()).getLearnedRules()).hasSize(1);
+    }
+
+    @Test
+    void aNewSkillIsRefusedWhileSkillCreationIsOffEvenIfExistingSkillsAreAllowed() throws Exception {
+        policy = new RuleTargetPolicy(true, false, 1500, true);
+
+        CompletableFuture<SavedRule> saved = service.confirm(
+            RuleProposal.of("Elixir: Module dokumentieren", RuleSource.CHAT), "Elixir: Module dokumentieren",
+            RuleTarget.newSkill("elixir", "Elixir (korTTY)"));
+
+        assertThat(refusalOf(saved).reason()).isEqualTo(RuleSaveException.Reason.SKILL_CREATION_NOT_ALLOWED);
+    }
+
+    @Test
+    void undoAfterTheUserEditedTheLearnedRuleKeepsTheEditedText() throws Exception {
+        AiSkill deploy = addUserSkill("Deploy notes", "# Deploy");
+        SavedRule saved = service.confirm(RuleProposal.of("Deploy: erste Regel", RuleSource.CHAT),
+            "Deploy: erste Regel", RuleTarget.skill(deploy.getId())).get();
+        List<AiSkill> base = skills.snapshot();
+        List<AiSkill> edited = skills.snapshot();
+        edited.stream()
+            .filter(skill -> deploy.getId().equals(skill.getId()))
+            .findFirst()
+            .orElseThrow()
+            .getLearnedRules()
+            .get(0)
+            .setText("Deploy: von Hand geaendert");
+        skills.commit(base, edited);
+
+        assertThat(saved.undo().get()).isEqualTo(UndoOutcome.RULE_CHANGED_KEPT);
+
+        List<AiSkillLearnedRule> rules = storedSkill(deploy.getId()).getLearnedRules();
+        assertThat(rules).hasSize(1);
+        assertThat(rules.get(0).getText()).isEqualTo("Deploy: von Hand geaendert");
+    }
+
+    @Test
+    void aSecretHiddenByAZeroWidthSpaceIsRefusedBeforeAnythingIsWritten() throws Exception {
+        String text = "pass\u200Bword=Sommer2026!";
+
+        CompletableFuture<SavedRule> saved = service.confirm(RuleProposal.of(text, RuleSource.CHAT), text,
+            RuleTarget.global());
+
+        assertThat(refusalOf(saved).reason()).isEqualTo(RuleSaveException.Reason.SECRET);
+        assertThat(Files.exists(store.fileOf(MemoryScope.global()))).isFalse();
+    }
 }

@@ -31,11 +31,12 @@ final class AiPromptPipeline {
 
     /**
      * Inserts the skill block. Its text is user-authored, so prompt markers inside it are escaped first: a
-     * skill that quotes a marker can then neither suppress the memory block nor split it.
+     * skill that quotes a marker can then neither suppress the memory block nor split it. The skill's own tags
+     * stay, since the block is korTTY's and the skill text is escaped where it is composed.
      */
     static String insertSkills(String systemPrompt, String skillBlock) {
         String base = normalize(systemPrompt);
-        String skills = MemoryFormat.escapeMarkers(normalize(skillBlock));
+        String skills = MemoryFormat.escapeMarkersKeepingSkillTags(normalize(skillBlock));
         if (skills.isBlank()) {
             return base;
         }

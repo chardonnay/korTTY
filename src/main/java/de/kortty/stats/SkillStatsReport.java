@@ -47,6 +47,11 @@ public record SkillStatsReport(
     private static final int DEFAULT_DAYS = 30;
     private static final int DEFAULT_MONTHS = 12;
     private static final double DAYS_PER_MONTH = 30.44d;
+    /**
+     * The shortest span a per-month growth is extrapolated from. One day of edits must not be read as thirty days of
+     * growth; the percentage needs no such span and is kept.
+     */
+    static final int MIN_GROWTH_SPAN_DAYS = 7;
 
     /** The unit of a period. */
     public enum Granularity {
@@ -412,10 +417,11 @@ public record SkillStatsReport(
         if (baseline == null) {
             return Growth.NONE;
         }
-        long days = Math.max(1, ChronoUnit.DAYS.between(baseline.date(), today));
+        long days = ChronoUnit.DAYS.between(baseline.date(), today);
         double delta = current - baseline.tokens();
         Double percent = baseline.tokens() > 0 ? delta * 100.0 / baseline.tokens() : null;
-        return new Growth(delta / (days / DAYS_PER_MONTH), percent);
+        Double perMonth = days >= MIN_GROWTH_SPAN_DAYS ? delta / (days / DAYS_PER_MONTH) : null;
+        return new Growth(perMonth, percent);
     }
 
     private static List<Hint> hintsFor(

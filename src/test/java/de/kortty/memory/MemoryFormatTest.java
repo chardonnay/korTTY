@@ -76,11 +76,11 @@ class MemoryFormatTest {
     }
 
     @Test
-    void userSegmentsIgnoreTheBlankLinesAroundAFenceAndTheFenceItself() {
+    void userSegmentsIgnoreTheFenceButKeepOneBlankLineBetweenTheParagraphsItSeparates() {
         String withEntry = "Team rule.\n\n" + entry("3fa9", "- Korttly rule.") + "\nPersonal note\n";
-        String withoutEntry = "Team rule.\nPersonal note";
-        assertThat(MemoryFormat.userSegments(withEntry)).isEqualTo(MemoryFormat.userSegments(withoutEntry));
-        assertThat(MemoryFormat.userSegments(withEntry)).isEqualTo("Team rule.\nPersonal note\n");
+        assertThat(MemoryFormat.userSegments(withEntry)).isEqualTo("Team rule.\n\nPersonal note\n");
+        assertThat(MemoryFormat.userSegments(withEntry))
+            .isNotEqualTo(MemoryFormat.userSegments("Team rule.\nPersonal note"));
     }
 
     @Test
@@ -164,5 +164,46 @@ class MemoryFormatTest {
     void segmentsAreSealedToUserTextAndEntries() {
         Segment user = new UserText("x");
         assertThat(user).isInstanceOf(UserText.class);
+    }
+
+
+    @Test
+    void userParagraphsOnBothSidesOfAFenceKeepOneBlankLineBetweenThem() {
+        assertThat(MemoryFormat.userSegments("Team rule A.\n\n" + entry("3fa9", "- Korttly rule.") + "Team rule B.\n"))
+            .isEqualTo("Team rule A.\n\nTeam rule B.\n");
+        assertThat(MemoryFormat.userSegments("Team rule.\n\n" + entry("3fa9", "- Korttly rule.")))
+            .isEqualTo("Team rule.\n");
+    }
+
+    @Test
+    void trimBlankLinesTrimsOnlyTheRequestedEdges() {
+        assertThat(MemoryFormat.trimBlankLines("\n\nA\n\n", true, false)).isEqualTo("A\n\n");
+        assertThat(MemoryFormat.trimBlankLines("\n\nA\n\n", false, true)).isEqualTo("\n\nA\n");
+    }
+
+    @Test
+    void aKorttyFenceOnTheFirstLineAfterAByteOrderMarkStillCountsAsAnEntry() {
+        String text = "\uFEFF" + entry("3fa9", "- Rule on line one.") + "Personal note\n";
+        MemoryDocument document = MemoryFormat.parse(text);
+        assertThat(document.entries()).hasSize(1);
+        assertThat(document.entries().get(0).id()).isEqualTo("3fa9");
+        assertThat(document.toText()).isEqualTo(text);
+    }
+
+    @Test
+    void invisibleCharactersDoNotHideAKeywordFromTheSecretCheck() {
+        assertThat(MemoryFormat.textForSecretCheck("pass\u200Bword=Sommer2026!\n")).contains("password=Sommer2026!");
+        assertThat(MemoryFormat.textForSecretCheck("Passwort\u200B: Sommer2026!\n")).contains("Passwort: Sommer2026!");
+    }
+
+    @Test
+    void aHashInAFenceHeaderStaysVisibleUnlessTheBodyMatchesIt() {
+        String hash = "0123456789abcdef".repeat(4);
+        String forged = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash
+            + " created=2026-11-02 source=chat -->\n- A body that does not match the hash.\n<!-- /kortty:entry -->\n";
+        assertThat(MemoryFormat.textForSecretCheck(forged)).contains(hash);
+        assertThat(MemoryFormat.parse(forged).entries()).isEmpty();
+        String genuine = entry("3fa9", "- A body that matches the hash.");
+        assertThat(MemoryFormat.textForSecretCheck(genuine)).doesNotContainMatch("[0-9a-f]{64}");
     }
 }

@@ -82,6 +82,7 @@ final class RuleSavedToast {
         return switch (outcome) {
             case UNDONE, ALREADY_UNDONE -> "ai.learn.undo.done";
             case RULE_REMOVED_SKILL_KEPT -> "ai.learn.undo.ruleKeptSkill";
+            case RULE_CHANGED_KEPT -> "ai.learn.undo.ruleChanged";
             case EXPIRED -> "ai.learn.undo.expired";
             case NOT_FOUND -> "ai.learn.undo.notFound";
             case FAILED -> "ai.learn.undo.failed";

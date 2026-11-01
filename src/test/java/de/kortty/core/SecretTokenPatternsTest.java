@@ -208,6 +208,38 @@ class SecretTokenPatternsTest {
     }
 
     @Test
+    void masksPassPwAndEncryptionKeyNamesAsWholeNameParts() {
+        assertMasked("DB_PASS=hunter2Secret", "DB_PASS=***", 1);
+        assertMasked("PASS=Sommer2026!", "PASS=***", 1);
+        assertMasked("mysql --pass=Sommer2026!", "mysql --pass=***", 1);
+        assertMasked("ENCRYPTION_KEY=Sommer2026!", "ENCRYPTION_KEY=***", 1);
+        assertMasked("MYSQL_PWD=Sommer2026!", "MYSQL_PWD=***", 1);
+        assertUntouched("bypass=true compass=north");
+    }
+
+    @Test
+    void aPwdValueThatIsAPathIsTheWorkingDirectoryNotASecret() {
+        assertUntouched("PWD=/home/user");
+        assertUntouched("PWD=~/bin/x");
+        assertMasked("PWD=hunter2Secret", "PWD=***", 1);
+    }
+
+    @Test
+    void masksASecretThatContainsTheMaskButIsNotAlreadyMasked() {
+        assertMasked("login with password=Ab***789 on the lab host", "login with password=*** on the lab host", 1);
+        assertMasked("DB_PASSWORD=Sum***mer2026", "DB_PASSWORD=***", 1);
+        assertMasked("clone https://deploy:Pa***ss@git.example.com/r.git",
+            "clone https://deploy:***@git.example.com/r.git", 1);
+        assertMasked("export GITHUB_TOKEN=ghp_abcdefghij***klmnopqrstuvwxyz0123456789",
+            "export GITHUB_TOKEN=***", 1);
+    }
+
+    @Test
+    void aTokenPrefixFollowedByTheMaskIsLeftAsItIs() {
+        assertUntouched("export GITHUB_TOKEN=ghp_***");
+    }
+
+    @Test
     void handlesNullAndEmptyText() {
         assertThat(SecretTokenPatterns.redact(null).text()).isNull();
         assertThat(SecretTokenPatterns.redact(null).count()).isEqualTo(0);

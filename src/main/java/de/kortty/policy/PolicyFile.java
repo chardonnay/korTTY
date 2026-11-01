@@ -38,6 +38,13 @@ public record PolicyFile(
 
     /** The longest content of one {@code [[organization-memory]]} block, in characters. */
     public static final int ORGANIZATION_MEMORY_MAX_CHARS = 8000;
+    /** The most organisation memory blocks one policy file may hold; the rest are ignored with a warning. */
+    public static final int ORGANIZATION_MEMORY_MAX_BLOCKS = 20;
+    /**
+     * The most characters of organisation memory in all blocks together. The organisation rules are sent in full, so this
+     * bounds what the policy adds to every AI request, whatever the user's memory budget is.
+     */
+    public static final int ORGANIZATION_MEMORY_MAX_TOTAL_CHARS = 16000;
 
     /** A file without organisation memory: the constructor every caller written before it used. */
     public PolicyFile(int schemaVersion, String organization, Map<String, Set<String>> groups,

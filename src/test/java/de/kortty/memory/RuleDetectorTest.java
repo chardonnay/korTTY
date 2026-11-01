@@ -259,10 +259,14 @@ class RuleDetectorTest {
     }
 
     @Test
-    void aRuleLongerThanThreeHundredCharactersIsDropped() {
+    void aRuleLongerThanThreeHundredCharactersIsOfferedShortened() {
         String tooLong = "Verwende immer " + "lang ".repeat(70).strip();
         assertThat(tooLong.length()).isGreaterThan(300);
-        assertThat(detector(allowed()).detect("Ab jetzt immer Tabs verwenden.", CHAT, reply(true, tooLong))).isEmpty();
+        var proposal = detector(allowed()).detect("Ab jetzt immer Tabs verwenden.", CHAT, reply(true, tooLong));
+        assertThat(proposal).isPresent();
+        assertThat(proposal.get().text().length()).isAtMost(RuleDetector.MAX_RULE_CHARACTERS);
+        assertThat(proposal.get().text()).isNotEmpty();
+        assertThat(tooLong).startsWith(proposal.get().text());
     }
 
     @Test
@@ -383,5 +387,19 @@ class RuleDetectorTest {
             calls.incrementAndGet();
             return "{\"isRule\": " + isRule + ", \"rule\": \"" + rule + "\", \"topic\": \"\", \"scopeHint\": \"global\"}";
         };
+    }
+
+
+    @Test
+    void anOverLongRuleIsShortenedAtAWordBoundaryInsteadOfBeingDropped() {
+        String rule = "Always keep the answer short and avoid repeating earlier content in every reply. ".repeat(5).strip();
+
+        String shortened = RuleDetector.shortened(rule);
+
+        assertThat(shortened.codePointCount(0, shortened.length())).isAtMost(RuleDetector.MAX_RULE_CHARACTERS);
+        assertThat(shortened.length()).isGreaterThan(RuleDetector.MAX_RULE_CHARACTERS / 2);
+        assertThat(rule).startsWith(shortened);
+        assertThat(rule.charAt(shortened.length())).isEqualTo(' ');
+        assertThat(RuleDetector.shortened("Keep it short.")).isEqualTo("Keep it short.");
     }
 }

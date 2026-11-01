@@ -4,6 +4,8 @@ import de.kortty.KorTTYApplication;
 import javafx.scene.Scene;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
+import javafx.stage.Window;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Applies the active KorTTY theme to JavaFX dialogs.
@@ -22,6 +24,16 @@ public final class DialogThemeHelper {
         WindowCloseShortcutSupport.installForDialog(dialog);
         DialogGeometrySupport.installAutomatic(dialog);
         DialogContentFit.install(dialog);
+    }
+
+    /**
+     * Makes {@code child} a dialog of {@code owner}, so it opens over that window instead of centred on the screen. Call it
+     * before {@link #applyTheme}. A {@code null} owner leaves the dialog unowned.
+     */
+    public static void ownedBy(Dialog<?> child, @Nullable Window owner) {
+        if (child != null && owner != null) {
+            child.initOwner(owner);
+        }
     }
 
     public static void applyTheme(DialogPane dialogPane) {

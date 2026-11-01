@@ -860,12 +860,46 @@ class PolicyLoaderTest {
     }
 
     @Test
-    void unknownAiMemoryKeysAreWarningsNotErrors() throws IOException {
+    void unknownAiMemoryKeysRejectThePolicyFile() throws IOException {
         PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
             + "[rule.ai-memory]\nfuture-key = true\nstatistics = true\n"));
-        assertThat(result.errors()).isEmpty();
+        assertThat(result.isValid()).isFalse();
+        assertThat(result.errors()).hasSize(1);
+        assertThat(result.errors().get(0)).contains("future-key");
+    }
+
+    @Test
+    void aTypoInTheMemoryMandateRejectsThePolicyInsteadOfLeavingTheMemoryEditable() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
+            + "[rule.ai-memory]\nuser-memmory = \"disabled\"\n"));
+        assertThat(result.isValid()).isFalse();
+        assertThat(result.errors().get(0)).contains("user-memmory");
+    }
+
+    @Test
+    void organizationMemoryHoldsAtMostTheBlockCountTheFileDocuments() throws IOException {
+        StringBuilder toml = new StringBuilder("[meta]\nschema-version = 1\n");
+        for (int i = 1; i <= PolicyFile.ORGANIZATION_MEMORY_MAX_BLOCKS + 1; i++) {
+            toml.append(organizationBlock("Rule " + i, "Keep rule " + i + "."));
+        }
+        PolicyLoadResult result = PolicyLoader.load(write(toml.toString()));
+        assertThat(result.file().organizationMemory()).hasSize(PolicyFile.ORGANIZATION_MEMORY_MAX_BLOCKS);
         assertThat(result.warnings()).hasSize(1);
-        assertThat(result.warnings().get(0)).contains("future-key");
+        assertThat(result.warnings().get(0)).contains("#" + (PolicyFile.ORGANIZATION_MEMORY_MAX_BLOCKS + 1));
+    }
+
+    @Test
+    void organizationMemoryHoldsAtMostTheTotalCharacterLimit() throws IOException {
+        String content = "Keep logs short. ".repeat(400);
+        PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n"
+            + organizationBlock("A", content) + organizationBlock("B", content) + organizationBlock("C", content)));
+        assertThat(result.file().organizationMemory()).hasSize(2);
+        assertThat(result.warnings()).hasSize(1);
+        assertThat(result.warnings().get(0)).contains("#3");
+    }
+
+    private static String organizationBlock(String title, String content) {
+        return "[[organization-memory]]\ntitle = \"" + title + "\"\ncontent = \"" + content + "\"\n";
     }
 
     @Test

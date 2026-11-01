@@ -148,6 +148,7 @@ final class ExternalMemorySection extends VBox {
         CheckBox send = new CheckBox(I18n.get("settings.ai.memory.external.active"));
         send.setSelected(entry.active());
         send.setDisable(!allowed);
+        send.setTooltip(allowed ? null : new Tooltip(I18n.get("settings.ai.memory.policy.readOnly")));
         send.setOnAction(event -> setActive(entry.id(), send.isSelected()));
         HBox actions = new HBox(10, send);
         actions.setAlignment(Pos.CENTER_LEFT);
@@ -156,11 +157,13 @@ final class ExternalMemorySection extends VBox {
         if (approvalNeeded) {
             Button approve = new Button(I18n.get("settings.ai.memory.external.reapprove"));
             approve.setDisable(!allowed);
+            approve.setTooltip(allowed ? null : new Tooltip(I18n.get("settings.ai.memory.policy.readOnly")));
             approve.setOnAction(event -> reviewAgain(entry));
             actions.getChildren().add(approve);
         }
         Button remove = new Button(I18n.get("settings.ai.memory.external.remove"));
         remove.setDisable(!allowed);
+        remove.setTooltip(allowed ? null : new Tooltip(I18n.get("settings.ai.memory.policy.readOnly")));
         remove.setOnAction(event -> removeEntry(entry));
         actions.getChildren().add(remove);
 
@@ -197,6 +200,7 @@ final class ExternalMemorySection extends VBox {
 
     private void removeEntry(ExternalMemoryEntry entry) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, owner);
         confirm.setTitle(I18n.get("settings.ai.memory.external.removeTitle"));
         confirm.setHeaderText(I18n.get("settings.ai.memory.external.removeTitle"));
         confirm.setContentText(I18n.get("settings.ai.memory.external.removeContent"));

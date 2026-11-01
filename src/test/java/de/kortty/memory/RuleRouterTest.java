@@ -238,4 +238,47 @@ class RuleRouterTest {
         skill.setContent(content);
         return skill;
     }
+
+
+    @Test
+    void aHintThatIsNotAKnownTopicDoesNotOverrideTheTextOfTheRule() {
+        AiSkill perl = storedBuiltin("builtin.lang.perl");
+        for (String hint : List.of("Perl 5", "Perl-Skripte", "perl5", "Perl (Perl 5)")) {
+            RuleProposal proposal = new RuleProposal("Perl: statische Variablen nur mit state deklarieren",
+                RuleSource.CHAT, null, null, null, hint);
+            assertThat(router.suggest(proposal, List.of(perl), CATALOG, ALL))
+                .isEqualTo(RuleTarget.skill(perl.getId()));
+        }
+    }
+
+    @Test
+    void aToolTheListsDoNotKnowGetsItsOwnNewSkill() {
+        RuleProposal proposal = new RuleProposal("Use runes for reactive state", RuleSource.CHAT, null, null, null,
+            "svelte");
+        assertThat(router.suggest(proposal, List.of(), CATALOG, ALL))
+            .isEqualTo(RuleTarget.newSkill("svelte", "Svelte (korTTY)"));
+    }
+
+    @Test
+    void aSkillWithoutContentNeverReceivesARuleAndTheBuiltInStaysInCharge() {
+        AiSkill perl = storedBuiltin("builtin.lang.perl");
+        AiSkill draft = userSkill("Perl draft", List.of("perl"), "   ");
+        List<AiSkill> skills = List.of(perl, draft);
+        RuleProposal proposal = RuleProposal.of("Perl: use Moose", RuleSource.CHAT);
+
+        assertThat(router.suggest(proposal, skills, CATALOG, ALL)).isEqualTo(RuleTarget.skill(perl.getId()));
+        assertThat(router.allowedTargets(proposal, skills, CATALOG, ALL))
+            .doesNotContain(RuleTarget.skill(draft.getId()));
+    }
+
+    @Test
+    void existingSkillsCanStillGetARuleWhileNewSkillsAreRefused() {
+        AiSkill team = userSkill("Team Perl", List.of("perl"), "# Team\n\nUse Moose.");
+        RuleTargetPolicy learnOnly = new RuleTargetPolicy(true, false, 1500, true);
+
+        assertThat(router.suggest(RuleProposal.of("Perl: use Moose", RuleSource.CHAT), List.of(team), CATALOG,
+            learnOnly)).isEqualTo(RuleTarget.skill(team.getId()));
+        assertThat(router.suggest(RuleProposal.of("Svelte: use runes", RuleSource.CHAT), List.of(), CATALOG,
+            learnOnly)).isEqualTo(RuleTarget.global());
+    }
 }

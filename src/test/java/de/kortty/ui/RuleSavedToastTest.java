@@ -33,6 +33,14 @@ class RuleSavedToastTest {
     }
 
     @Test
+    void aRuleEditedSinceItWasSavedReadsAsKeptAndNotAsNotFound() {
+        assertThat(RuleSavedToast.undoMessageKey(SavedRule.UndoOutcome.RULE_CHANGED_KEPT))
+            .isEqualTo("ai.learn.undo.ruleChanged");
+        assertThat(RuleSavedToast.undoMessageKey(SavedRule.UndoOutcome.RULE_CHANGED_KEPT))
+            .isNotEqualTo(RuleSavedToast.undoMessageKey(SavedRule.UndoOutcome.NOT_FOUND));
+    }
+
+    @Test
     void aRemovedRuleAndAKeptSkillReadDifferently() {
         assertThat(RuleSavedToast.undoMessageKey(SavedRule.UndoOutcome.UNDONE))
             .isNotEqualTo(RuleSavedToast.undoMessageKey(SavedRule.UndoOutcome.RULE_REMOVED_SKILL_KEPT));

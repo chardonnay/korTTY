@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileTime;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -20,7 +19,7 @@ import java.util.Optional;
  * to {@value #MAX_PROMPT_BYTES} bytes at a paragraph or line boundary.
  *
  * <p>The SHA-256 is that of the file's own bytes, because the user approves those. The parsed document is cached per
- * file and reused while its size and modification time stay the same, so a request re-reads nothing unchanged.</p>
+ * file and reused while its SHA-256 stays the same; the bytes are read on every request, which is cheap at this size.</p>
  */
 public final class ExternalMemoryReader {
 
@@ -68,7 +67,7 @@ public final class ExternalMemoryReader {
     public record Sanitized(String text, int removed) {
     }
 
-    private record Cached(long size, FileTime modified, Document document) {
+    private record Cached(String sha256, Document document) {
     }
 
     private final Map<Path, Cached> cache = new LinkedHashMap<>(16, 0.75f, true) {
@@ -78,24 +77,31 @@ public final class ExternalMemoryReader {
         }
     };
 
-    /** The document for {@code file}, which must already be canonical; reads the file unless it is unchanged. */
+    /**
+     * The document for {@code file}, which must already be canonical. The bytes are read and hashed on every call, and the
+     * parsed document is reused only when the digest is the same: a size and a modification time can stay unchanged while
+     * the content changes (a restore with cp -p or tar), and the approval must bind to the bytes on disk.
+     */
     public Document read(Path file) throws IOException {
         BasicFileAttributes attributes = Files.readAttributes(file, BasicFileAttributes.class);
         if (attributes.size() > MAX_FILE_BYTES) {
             return new Document("", null, 0, false, Optional.empty(), true, false, "");
         }
+        byte[] bytes = Files.readAllBytes(file);
+        if (bytes.length > MAX_FILE_BYTES) {
+            return new Document("", null, 0, false, Optional.empty(), true, false, "");
+        }
+        String digest = MemoryFormat.sha256(bytes);
         Path key = file.toAbsolutePath().normalize();
         synchronized (cache) {
             Cached cached = cache.get(key);
-            if (cached != null && cached.size() == attributes.size()
-                && cached.modified().equals(attributes.lastModifiedTime())) {
+            if (cached != null && cached.sha256().equals(digest)) {
                 return cached.document();
             }
         }
-        byte[] bytes = Files.readAllBytes(file);
         Document document = parse(bytes, file.getFileName().toString());
         synchronized (cache) {
-            cache.put(key, new Cached(attributes.size(), attributes.lastModifiedTime(), document));
+            cache.put(key, new Cached(digest, document));
         }
         return document;
     }

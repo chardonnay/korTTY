@@ -30,13 +30,22 @@ final class TriageReplyParser {
             throw new JsonSyntaxException("Triage reply missing");
         }
         boolean complex = complexity(reply.complexity());
+        List<Option> items = safe(reply.options());
+        // The reply's index names an option of the reply, so it is mapped through the options that are kept.
+        int requested = reply.recommended() == null ? 0 : reply.recommended();
+        int requestedIndex = Math.max(0, Math.min(items.size() - 1, requested));
+        int recommended = 0;
         List<TerminalAgentModels.PlanOption> options = new ArrayList<>();
-        for (Option item : safe(reply.options())) {
+        for (int index = 0; index < items.size(); index++) {
+            Option item = items.get(index);
             if (options.size() == MAX_OPTIONS) {
                 break;
             }
             if (item == null || blank(item.title()) || blank(item.summary())) {
                 continue;
+            }
+            if (index == requestedIndex) {
+                recommended = options.size();
             }
             options.add(new TerminalAgentModels.PlanOption(
                 "triage-option-" + (options.size() + 1),
@@ -51,8 +60,6 @@ final class TriageReplyParser {
         if (options.size() < MIN_OPTIONS) {
             throw new JsonSyntaxException("Triage needs at least " + MIN_OPTIONS + " complete options");
         }
-        int requested = reply.recommended() == null ? 0 : reply.recommended();
-        int recommended = Math.max(0, Math.min(options.size() - 1, requested));
         return new TerminalAgentModels.TriageProposal(
             complex,
             strings(reply.reasons()),

@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiSkill;
+import de.kortty.memory.external.ExternalMemoryReader;
 import de.kortty.model.AiSkillLearnedRule;
 import de.kortty.ui.I18n;
 
@@ -41,28 +42,34 @@ public final class AiSkillSecretCheck {
 
     /** Every possible secret in {@code skill}, in editor order; empty when there is none. */
     public static List<Finding> findings(AiSkill skill) {
+        return scan(skill, false);
+    }
+
+    /** The message that refuses {@code skill}, naming its first possible secret; empty when there is none. */
+    public static Optional<String> refusal(AiSkill skill) {
+        List<Finding> found = scan(skill, true);
+        return found.isEmpty() ? Optional.empty() : Optional.of(message(found.get(0)));
+    }
+
+    /** Scans the fields in editor order; with {@code firstOnly} it stops at the first field that holds a secret. */
+    private static List<Finding> scan(AiSkill skill, boolean firstOnly) {
         List<Finding> found = new ArrayList<>();
         if (skill == null) {
             return found;
         }
         // The vault is read once for the whole skill: decrypting every saved password for each field would be slow.
         Collection<String> known = AiSecretGuard.installedKnownSecrets();
-        add(found, AiSkill.TextField.NAME, skill.getName(), known);
-        add(found, AiSkill.TextField.DESCRIPTION, skill.getDescription(), known);
-        add(found, AiSkill.TextField.TAGS, skill.getTags() != null ? String.join("\n", skill.getTags()) : null, known);
-        add(found, AiSkill.TextField.CONTENT, skill.getContent(), known);
+        add(found, AiSkill.TextField.NAME, skill.getName(), known, firstOnly);
+        add(found, AiSkill.TextField.DESCRIPTION, skill.getDescription(), known, firstOnly);
+        add(found, AiSkill.TextField.TAGS, skill.getTags() != null ? String.join("\n", skill.getTags()) : null,
+            known, firstOnly);
+        add(found, AiSkill.TextField.CONTENT, skill.getContent(), known, firstOnly);
         for (AiSkillLearnedRule rule : skill.getLearnedRules()) {
             if (rule != null) {
-                add(found, AiSkill.TextField.LEARNED_RULE, rule.getText(), known);
+                add(found, AiSkill.TextField.LEARNED_RULE, rule.getText(), known, firstOnly);
             }
         }
         return found;
-    }
-
-    /** The message that refuses {@code skill}, naming its first possible secret; empty when there is none. */
-    public static Optional<String> refusal(AiSkill skill) {
-        List<Finding> found = findings(skill);
-        return found.isEmpty() ? Optional.empty() : Optional.of(message(found.get(0)));
     }
 
     /** "Line 3 of the skill text looks like it holds a secret (a password assignment). ..." without the value. */
@@ -73,11 +80,14 @@ public final class AiSkillSecretCheck {
             categoryLabel(finding.finding().category()));
     }
 
-    private static void add(List<Finding> found, AiSkill.TextField field, String text, Collection<String> known) {
-        if (text == null || text.isBlank()) {
+    private static void add(
+        List<Finding> found, AiSkill.TextField field, String text, Collection<String> known, boolean firstOnly) {
+        if (text == null || text.isBlank() || (firstOnly && !found.isEmpty())) {
             return;
         }
-        for (AiSecretGuard.Finding finding : AiSecretGuard.check(text, known).findings()) {
+        // Invisible characters are removed first, so a password split by a zero-width character is still seen.
+        String visible = ExternalMemoryReader.sanitize(text).text();
+        for (AiSecretGuard.Finding finding : AiSecretGuard.check(visible, known).findings()) {
             found.add(new Finding(field, finding));
         }
     }

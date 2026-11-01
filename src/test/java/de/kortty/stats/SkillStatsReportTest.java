@@ -80,7 +80,7 @@ public class SkillStatsReportTest {
         open();
         clock.setDate(TODAY.minusDays(40));
         store.recordCommitted(List.of(usage("perl", true, 100, "fp-old")));
-        clock.setDate(TODAY.minusDays(5));
+        clock.setDate(TODAY.minusDays(12));
         store.recordCommitted(List.of(usage("perl", true, 300, "fp-new")));
         clock.setDate(TODAY);
         AiSkill perl = skill("perl", "Perl", "word ".repeat(300));
@@ -91,9 +91,26 @@ public class SkillStatsReportTest {
             .orElseThrow();
 
         int current = SkillSize.of(perl, AiTokenizerType.ESTIMATE).tokens();
-        double months = 5 / 30.44;
+        double months = 12 / 30.44;
         assertThat(row.growthTokensPerMonth()).isWithin(0.001).of((current - 300) / months);
         assertThat(row.growthPercent()).isWithin(0.001).of((current - 300) * 100.0 / 300);
+    }
+
+    @Test
+    void oneDayBaselineGivesNoMonthlyGrowthButKeepsThePercentage() throws IOException {
+        open();
+        clock.setDate(TODAY.minusDays(1));
+        store.recordCommitted(List.of(usage("perl", true, 76, "fp-yesterday")));
+        clock.setDate(TODAY);
+        AiSkill perl = skill("perl", "Perl", "word ".repeat(117));
+
+        SkillStatsReport.Row row = store.report(List.of(perl), day(30)).rows().stream()
+            .filter(candidate -> candidate.skillId().equals("perl"))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(row.growthTokensPerMonth()).isNull();
+        assertThat(row.growthPercent()).isNotNull();
     }
 
     @Test

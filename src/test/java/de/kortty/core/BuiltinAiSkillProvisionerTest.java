@@ -203,6 +203,32 @@ class BuiltinAiSkillProvisionerTest {
     }
 
     @Test
+    void blankContentHealKeepsTheUsersNameDescriptionTagsAndTarget() {
+        GlobalSettings settings = new GlobalSettings();
+        AiSkill shipped = shippedSkill("builtin.shell.perl", "Perl", "Use strict.");
+        BuiltinAiSkillProvisioner.sync(settings, catalogOf(bundled(shipped, 1)));
+
+        // The user renamed the skill, wrote a description and tags, then cleared the content box.
+        AiSkill edited = settings.getAiSkills().get(0);
+        edited.setName("Perl (team)");
+        edited.setDescription("Our team's Perl rules, see the wiki.");
+        edited.setTags(List.of("perl", "team"));
+        edited.setTarget(AiSkillTarget.CHAT);
+        edited.setContent("");
+
+        BuiltinAiSkillProvisioner.Result result =
+            BuiltinAiSkillProvisioner.sync(settings, catalogOf(bundled(shipped, 1)));
+
+        assertThat(result.healed()).isEqualTo(1);
+        AiSkill healed = settings.getAiSkills().get(0);
+        assertThat(healed.getContent()).isEqualTo("Use strict.");
+        assertThat(healed.getName()).isEqualTo("Perl (team)");
+        assertThat(healed.getDescription()).isEqualTo("Our team's Perl rules, see the wiki.");
+        assertThat(healed.getTags()).containsExactly("perl", "team").inOrder();
+        assertThat(healed.getTarget()).isEqualTo(AiSkillTarget.CHAT);
+    }
+
+    @Test
     void duplicateBuiltinIdsAreHealedKeepingTheModifiedCopy() {
         GlobalSettings settings = new GlobalSettings();
         AiSkill shipped = shippedSkill("builtin.shell.bash", "Bash", "Quote everything.");

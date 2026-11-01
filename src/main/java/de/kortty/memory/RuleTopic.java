@@ -13,10 +13,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The language or tool a rule is about, found locally. A hint from the caller wins. Otherwise a leading
- * {@code Word:} that names a known topic wins, then the first known topic word in the text. A leading word
- * that is not known is used as a topic too, so a user skill tagged with it can still match. Words of one or two
- * letters are not searched in the text: {@code go} or {@code r} in an ordinary sentence would name a language.
+ * The language or tool a rule is about, found locally. A hint from the caller wins when it names a known topic
+ * exactly; a hint that is not known, such as {@code Perl 5} or {@code Perl-Skripte}, does not override the text. Then a
+ * leading {@code Word:} that names a known topic wins, then the first known topic word in the text. Next comes a hint
+ * that is one word, so a tool the lists do not know can still get its own skill. A leading word that is not known is
+ * used as a topic too, so a user skill tagged with it can still match. Words of one or two letters are not searched
+ * in the text: {@code go} or {@code r} in an ordinary sentence would name a language.
  */
 public final class RuleTopic {
 
@@ -27,6 +29,17 @@ public final class RuleTopic {
         "objective-c", "docker", "kubernetes", "terraform", "helm", "git", "cmake", "gradle", "maven", "npm",
         "pip", "cargo", "nginx", "postgresql", "mysql", "sqlite", "redis", "mongodb", "vim", "emacs", "tmux",
         "awk", "sed", "graphql", "protobuf", "bazel", "podman");
+
+    /** One word of a tool or language name: lower case, starts with a letter, two to thirty characters. */
+    private static final Pattern TOOL_WORD = Pattern.compile("[a-z][a-z0-9+#._-]{1,29}");
+
+    /** Common words that a topic may be named with but that are not languages or tools; they never get a skill. */
+    private static final Set<String> COMMON_WORDS = Set.of(
+        "all", "alle", "alles", "allgemein", "andere", "answer", "answers", "antwort", "antworten", "ausgabe", "code",
+        "comments", "datei", "dateien", "deutsch", "english", "englisch", "file", "files", "format", "formatierung",
+        "formatting", "general", "german", "global", "keine", "kein", "kommentare", "language", "sprache", "misc",
+        "name", "namen", "naming", "none", "other", "output", "regel", "regeln", "rule", "rules", "sonstiges", "style",
+        "stil", "text", "texte", "tool", "tools");
 
     private static final Pattern WORD_SPLIT = Pattern.compile("[^\\p{L}\\p{N}#+._-]+");
     private static final Pattern LEADING_WORD = Pattern.compile("^\\s*([\\p{L}\\p{N}#+._-]{2,30})\\s*:");
@@ -39,10 +52,11 @@ public final class RuleTopic {
      * topic words of the built-in skills.
      */
     public static Optional<String> of(RuleProposal proposal, Collection<String> builtinTopics) {
-        if (proposal.topicHint() != null) {
-            return Optional.ofNullable(normalize(proposal.topicHint()));
-        }
         Set<String> known = known(builtinTopics);
+        String hint = normalize(proposal.topicHint());
+        if (hint != null && known.contains(hint)) {
+            return Optional.of(hint);
+        }
         String leading = leadingWord(proposal.text());
         if (leading != null && known.contains(leading)) {
             return Optional.of(leading);
@@ -53,13 +67,23 @@ public final class RuleTopic {
                 return Optional.of(word);
             }
         }
+        if (hint != null && TOOL_WORD.matcher(hint).matches()) {
+            return Optional.of(hint);
+        }
         return Optional.ofNullable(leading);
     }
 
-    /** Whether {@code topic} is a built-in topic or one of the known languages and tools. */
+    /**
+     * Whether {@code topic} is a built-in topic, one of the known languages and tools, or a single word that looks like a
+     * language or tool name, such as {@code svelte}. Common words such as {@code style} are not.
+     */
     public static boolean isLanguageOrTool(String topic, Collection<String> builtinTopics) {
         String normalized = normalize(topic);
-        return normalized != null && known(builtinTopics).contains(normalized);
+        if (normalized == null) {
+            return false;
+        }
+        return known(builtinTopics).contains(normalized)
+            || (TOOL_WORD.matcher(normalized).matches() && !COMMON_WORDS.contains(normalized));
     }
 
     /** The topic lower case without surrounding space or trailing dots, or {@code null} when nothing is left. */
@@ -99,6 +123,12 @@ public final class RuleTopic {
     /** The name of the skill korTTY creates for {@code topic}: "Elixir (korTTY)". */
     public static String skillName(String topic) {
         return displayName(topic) + " (korTTY)";
+    }
+
+    /** Whether {@code topic} is a built-in topic or one of the known languages and tools, not a tool by its shape. */
+    static boolean isKnown(String topic, Collection<String> builtinTopics) {
+        String normalized = normalize(topic);
+        return normalized != null && known(builtinTopics).contains(normalized);
     }
 
     private static Set<String> known(Collection<String> builtinTopics) {

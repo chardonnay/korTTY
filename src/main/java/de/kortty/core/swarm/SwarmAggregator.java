@@ -5,6 +5,7 @@ import de.kortty.core.AiOutboundRedaction;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiTokenUsage;
 import de.kortty.core.SessionJournalRedactor;
+import de.kortty.core.TerminalAgentService;
 import de.kortty.model.AiProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +62,12 @@ public final class SwarmAggregator {
         }
         try {
             String userPrompt = AiOutboundRedaction.redactFor(profile, buildUserPrompt(query, results), knownSecrets).text();
-            AiExecutionResult result = aiService.executePrompt(buildSystemPrompt(), userPrompt);
+            // The standing rules of the memory apply to the summary the user reads. The swarm has no single connection,
+            // so the global memory alone is inserted, masked with the same known secrets as the prompt.
+            String memoryText = AiOutboundRedaction.redactFor(
+                profile, TerminalAgentService.memoryFor(null, profile).text(), knownSecrets).text();
+            String systemPrompt = TerminalAgentService.insertMemory(buildSystemPrompt(), memoryText);
+            AiExecutionResult result = aiService.executePrompt(systemPrompt, userPrompt);
             String content = result != null ? result.content() : null;
             if (content == null || content.isBlank()) {
                 return localFallback(query, results, "Empty aggregation response");

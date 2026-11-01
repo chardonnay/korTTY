@@ -403,7 +403,7 @@ public final class PolicyLoader {
             return;
         }
         String tableContext = context + " [rule.ai-memory]";
-        warnUnknownKeys(table, AI_MEMORY_KEYS, tableContext);
+        rejectUnknownKeys(table, AI_MEMORY_KEYS, tableContext);
         UserMemoryMode userMemory = null;
         String userMemoryValue = getString(table, "user-memory", tableContext);
         if (userMemoryValue != null) {
@@ -935,6 +935,7 @@ public final class PolicyLoader {
             return List.of();
         }
         List<PolicyFile.OrganizationMemoryBlock> blocks = new ArrayList<>();
+        int totalCharacters = 0;
         for (int i = 0; i < array.size(); i++) {
             TomlTable table = array.getTable(i);
             String context = "[[organization-memory]] #" + (i + 1);
@@ -944,11 +945,23 @@ public final class PolicyLoader {
             if (title == null || content == null) {
                 continue;
             }
+            if (blocks.size() >= PolicyFile.ORGANIZATION_MEMORY_MAX_BLOCKS) {
+                warnings.add(context + ": more than " + PolicyFile.ORGANIZATION_MEMORY_MAX_BLOCKS
+                    + " organisation memory blocks; this block is ignored");
+                continue;
+            }
             boolean titleAccepted = organizationTextAccepted(title, "title", context);
             boolean contentAccepted = organizationTextAccepted(content, "content", context);
             if (!titleAccepted || !contentAccepted) {
                 continue;
             }
+            int characters = title.codePointCount(0, title.length()) + content.codePointCount(0, content.length());
+            if (totalCharacters + characters > PolicyFile.ORGANIZATION_MEMORY_MAX_TOTAL_CHARS) {
+                warnings.add(context + ": the organisation memory would exceed "
+                    + PolicyFile.ORGANIZATION_MEMORY_MAX_TOTAL_CHARS + " characters in all; this block is ignored");
+                continue;
+            }
+            totalCharacters += characters;
             blocks.add(new PolicyFile.OrganizationMemoryBlock(title, content));
         }
         return blocks;
@@ -1066,6 +1079,19 @@ public final class PolicyLoader {
         for (String key : table.keySet()) {
             if (!known.contains(key)) {
                 warnings.add(prefix(context) + "unknown key \"" + key + "\" (ignored)");
+            }
+        }
+    }
+
+    /**
+     * Unknown keys of a table that governs what user text reaches the model: an error, so the file is rejected. A typo such
+     * as {@code user-memmory} would otherwise leave the mandate unset without anyone noticing.
+     */
+    private void rejectUnknownKeys(TomlTable table, Set<String> known, String context) {
+        for (String key : table.keySet()) {
+            if (!known.contains(key)) {
+                errors.add(prefix(context) + "unknown key \"" + key + "\"; the policy file is rejected, because"
+                    + " the setting would otherwise be ignored");
             }
         }
     }

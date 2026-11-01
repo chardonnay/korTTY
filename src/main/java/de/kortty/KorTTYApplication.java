@@ -254,9 +254,9 @@ public class KorTTYApplication extends Application {
         aiUsageRecorder = new de.kortty.core.SettingsAiUsageRecorder(globalSettingsManager);
         // Known secrets for the AI-skill and memory guard: the stored passwords of every connection, but only
         // while the vault is open. Installed here, read on every check, so an unlock later counts.
-        de.kortty.core.AiSecretGuard.installKnownSecretsSource(() -> de.kortty.security.VaultKnownSecrets.of(
+        de.kortty.core.AiSecretGuard.installKnownSecretsSource(() -> de.kortty.security.VaultKnownSecrets.ofOwners(
             masterPasswordManager,
-            () -> configManager != null ? configManager.getConnections() : List.of()));
+            () -> vaultSecretOwners()));
         globalSettingsManager.setPolicyClamp(
             new de.kortty.policy.PolicyClamp(policyManager.getEffective()));
         // Stored Full-code analyses: built right after the snippet manager, outside the fragile load
@@ -539,6 +539,9 @@ public class KorTTYApplication extends Application {
                 memory.setUserMemoryModeSupplier(() -> policyManager.getEffective().userMemoryMode());
                 memory.setExternalFilesAllowedSupplier(() -> policyManager.getEffective().externalMemoryFilesAllowed());
                 memory.setBudgetCapSupplier(() -> policyManager.getEffective().aiMemoryMaxTokens());
+                // The learned rules of a skill are memory too: the policy's switch stops them as well.
+                de.kortty.core.AiSkillPromptSupport.setAiMemoryPolicyGate(
+                    () -> policyManager.getEffective().aiMemoryAllowed());
                 // Reference memory files of other tools: approved files only, checked on every prompt, and the policy's
                 // folder allowlist read on each check.
                 de.kortty.memory.external.ExternalMemoryService externalMemory =
@@ -563,8 +566,7 @@ public class KorTTYApplication extends Application {
                 de.kortty.stats.SkillStatsStore skillStats = de.kortty.stats.SkillStatsStore.get();
                 skillStats.setRecordingGate(() -> globalSettingsManager.getSettings().isAiSkillStatisticsEnabled()
                     && policyManager.getEffective().aiSkillStatisticsAllowed());
-                skillStats.startFlushing(() -> de.kortty.core.BuiltinAiSkillSupport.effectiveSkills(
-                    globalSettingsManager.getSettings().getAiSkills()));
+                skillStats.startFlushing(this::aiSkillCopiesOnFxThread);
             } catch (RuntimeException e) {
                 logger.warn("Failed to start the skill statistics", e);
             }
@@ -1029,6 +1031,7 @@ public class KorTTYApplication extends Application {
         if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
             configManager.onVaultUnlocked(masterPasswordManager.getDerivedKey());
         }
+        rescanForSecretsAfterUnlock();
         for (MainWindow window : new ArrayList<>(MainWindow.getOpenWindows())) {
             try {
                 window.onVaultUnlocked();
@@ -1036,6 +1039,89 @@ public class KorTTYApplication extends Application {
                 logger.warn("A window could not refresh after the vault was unlocked", e);
             }
         }
+    }
+
+    /**
+     * Every object that may hold a vault-encrypted value: connections, stored credentials, SSH keys, the global settings
+     * with their AI, translation and skill-provider profiles. Read on every AI-skill and memory check, so an unlock or a
+     * new entry counts at once. Empty for a manager that is not created yet.
+     */
+    private List<Object> vaultSecretOwners() {
+        List<Object> owners = new ArrayList<>();
+        if (configManager != null) {
+            owners.addAll(configManager.getConnections());
+        }
+        if (credentialManager != null) {
+            owners.addAll(credentialManager.getAllCredentials());
+        }
+        if (sshKeyManager != null) {
+            owners.addAll(sshKeyManager.getAllKeys());
+        }
+        if (globalSettingsManager != null) {
+            de.kortty.model.GlobalSettings settings = globalSettingsManager.getSettings();
+            owners.add(settings);
+            owners.addAll(settings.getAiProfiles());
+            owners.addAll(settings.getTranslationProfiles());
+            owners.addAll(settings.getAiSkillProviders());
+        }
+        return owners;
+    }
+
+    /**
+     * The startup scan saw no vault values while the vault was locked, so a skill or memory that holds a stored
+     * password was not flagged. Scanning again now flags it; the registry is replaced, so a skill that is clean now
+     * loses its badge.
+     */
+    private void rescanForSecretsAfterUnlock() {
+        try {
+            de.kortty.memory.MemoryService memory = de.kortty.memory.MemoryService.get();
+            List<String> connectionIds = configManager.getConnections().stream()
+                .map(connection -> connection.getId())
+                .toList();
+            de.kortty.core.AiSecretStartupScan.run(globalSettingsManager.getSettings().getAiSkills(),
+                connectionIds, memory.store(), de.kortty.core.AiSecretScanRegistry.shared());
+        } catch (RuntimeException e) {
+            logger.warn("Failed to scan AI skills and memory for secrets after the vault was unlocked", e);
+        }
+    }
+
+    /**
+     * The AI skills as copies for the skill statistics, which flushes on its own thread. The live skills are edited on
+     * the JavaFX thread only, so the copies are taken there and awaited; on the JavaFX thread itself they are taken at
+     * once. Empty when the JavaFX thread does not answer in time, for example while the application exits.
+     */
+    private List<de.kortty.model.AiSkill> aiSkillCopiesOnFxThread() {
+        if (Platform.isFxApplicationThread()) {
+            return copyAiSkills();
+        }
+        java.util.concurrent.CompletableFuture<List<de.kortty.model.AiSkill>> copies =
+            new java.util.concurrent.CompletableFuture<>();
+        try {
+            Platform.runLater(() -> {
+                try {
+                    copies.complete(copyAiSkills());
+                } catch (RuntimeException e) {
+                    copies.completeExceptionally(e);
+                }
+            });
+            return copies.get(5, TimeUnit.SECONDS);
+        } catch (java.util.concurrent.TimeoutException | java.util.concurrent.ExecutionException
+                 | RuntimeException e) {
+            logger.debug("The AI skills could not be read for the statistics: {}", e.toString());
+            return List.of();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return List.of();
+        }
+    }
+
+    private List<de.kortty.model.AiSkill> copyAiSkills() {
+        List<de.kortty.model.AiSkill> copies = new ArrayList<>();
+        for (de.kortty.model.AiSkill skill : de.kortty.core.BuiltinAiSkillSupport.effectiveSkills(
+            globalSettingsManager.getSettings().getAiSkills())) {
+            copies.add(new de.kortty.model.AiSkill(skill));
+        }
+        return copies;
     }
 
     private boolean handleMasterPassword(Stage ownerStage) {

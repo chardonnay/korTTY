@@ -83,6 +83,30 @@ class TriageReplyParserTest {
     }
 
     @Test
+    void recommendedIndexFollowsTheOptionWhenAnEarlierOneIsDropped() {
+        TerminalAgentModels.TriageProposal proposal = TriageReplyParser.parse("""
+            {"complexity": "complex", "recommended": 1, "options": [
+              {"title": "No summary"},
+              {"title": "B", "summary": "b"}, {"title": "C", "summary": "c"}]}
+            """);
+
+        assertThat(proposal.options()).hasSize(2);
+        assertThat(proposal.options().get(proposal.recommended()).title()).isEqualTo("B");
+    }
+
+    @Test
+    void recommendedFallsBackToTheFirstOptionWhenTheRequestedOneIsDropped() {
+        TerminalAgentModels.TriageProposal proposal = TriageReplyParser.parse("""
+            {"complexity": "complex", "recommended": 0, "options": [
+              {"title": "No summary"},
+              {"title": "B", "summary": "b"}, {"title": "C", "summary": "c"}]}
+            """);
+
+        assertThat(proposal.recommended()).isEqualTo(0);
+        assertThat(proposal.options().get(proposal.recommended()).title()).isEqualTo("B");
+    }
+
+    @Test
     void acceptsAFencedReply() {
         TerminalAgentModels.TriageProposal proposal = TriageReplyParser.parse(
             "```json\n{\"complexity\": \"complex\", \"options\": [{\"title\": \"A\", \"summary\": \"a\"},"

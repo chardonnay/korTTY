@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.memory.external.ExternalMemoryEntry;
+import de.kortty.memory.external.ExternalMemoryReader;
 import de.kortty.memory.external.ExternalMemoryService;
 import de.kortty.memory.external.ExternalMemoryTool;
 import javafx.application.Platform;
@@ -114,7 +115,7 @@ final class ExternalMemoryAddDialog extends ThemeAwareDialog<Void> {
         errorLabel.setManaged(false);
         review.problem().ifPresent(problem -> showProblem(problemText(problem)));
 
-        TextArea text = new TextArea(review.document() == null ? "" : review.document().fullText());
+        TextArea text = new TextArea(textToReview(review.document()));
         text.setEditable(false);
         text.setWrapText(true);
         text.setPrefRowCount(16);
@@ -238,5 +239,13 @@ final class ExternalMemoryAddDialog extends ThemeAwareDialog<Void> {
         label.setWrapText(true);
         label.setStyle("-fx-text-fill: #b7791f;");
         return label;
+    }
+
+    /**
+     * The text the approval shows: the text a request sends, so the user reviews exactly what is sent. Front matter that is
+     * not sent is not shown either; a binary or too large file shows nothing, as nothing is sent.
+     */
+    static String textToReview(ExternalMemoryReader.Document document) {
+        return document == null ? "" : document.promptText();
     }
 }

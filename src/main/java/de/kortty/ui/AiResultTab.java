@@ -640,7 +640,7 @@ public class AiResultTab extends Tab {
                 try {
                     diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
                         aiService,
-                        (request, result) -> ownerWindow.recordAiUsageForProfile(selectedProfile, request, result),
+                        (request, result) -> ownerWindow.recordAiUsageForProfile(selectedProfile, request, result, sourceConnection),
                         de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE,
                         attachment.content(),
                         language,
@@ -1151,7 +1151,7 @@ public class AiResultTab extends Tab {
                 reply != null ? reply.sent() : AiSentContext.empty());
             offerRuleLearning(selectedProfile);
             if (result != null) {
-                ownerWindow.recordAiUsageForProfile(selectedProfile, request, result);
+                ownerWindow.recordAiUsageForProfile(selectedProfile, request, result, sourceConnection);
                 refreshAvailableProfiles(selectedProfile);
                 refreshQuotaLabel();
             }
@@ -2635,7 +2635,7 @@ public class AiResultTab extends Tab {
             null);
         AiExecutionResult result = aiService.execute(request);
         if (result != null) {
-            ownerWindow.recordAiUsageForProfile(profile, request, result);
+            ownerWindow.recordAiUsageForProfile(profile, request, result, sourceConnection);
         }
         AiSnippetMetadataSupport.SuggestedSnippetMetadata metadata = AiSnippetMetadataSupport.parseMetadataResponse(
             result != null ? result.content() : null,
@@ -2654,7 +2654,7 @@ public class AiResultTab extends Tab {
         String responseLanguageCode) throws Exception {
         return SnippetAiWorkflowSupport.correctSnippetDescription(
             aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result, sourceConnection),
             code,
             description,
             snippetLanguage,
@@ -2669,7 +2669,7 @@ public class AiResultTab extends Tab {
 
         return SnippetAiWorkflowSupport.correctSelectionText(
             aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result, sourceConnection),
             request.fullContent(),
             request.selectedText(),
             request.selectionStart(),
@@ -2687,7 +2687,7 @@ public class AiResultTab extends Tab {
 
         return SnippetAiWorkflowSupport.translateSelectionText(
             aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result, sourceConnection),
             request.fullContent(),
             request.selectedText(),
             request.selectionStart(),
@@ -2707,7 +2707,7 @@ public class AiResultTab extends Tab {
         return SnippetAiWorkflowSupport.describeSnippet(
             request.wholeSnippet() ? AiAction.DESCRIBE_SNIPPET_FULL : AiAction.DESCRIBE_SNIPPET_SELECTION,
             aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result, sourceConnection),
             request.fullContent(),
             request.selectedText(),
             request.snippetLanguage(),
@@ -2723,7 +2723,7 @@ public class AiResultTab extends Tab {
 
         return SnippetAiWorkflowSupport.generateAlternativeSolutions(
             aiService,
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result),
+            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(profile, aiRequest, result, sourceConnection),
             request.fullContent(),
             request.selectedText(),
             request.wholeSnippet(),
@@ -2913,7 +2913,7 @@ public class AiResultTab extends Tab {
         try {
             AiExecutionResult result = aiService.execute(request);
             if (result != null) {
-                ownerWindow.recordAiUsageForProfile(profile, request, result);
+                ownerWindow.recordAiUsageForProfile(profile, request, result, sourceConnection);
             }
             return normalizeSuggestedTitle(result != null ? result.content() : null, buildFallbackTitle());
         } catch (Exception e) {

@@ -54,7 +54,7 @@ class SentContextWiringSourceScanTest {
         String support = source("core/AiSkillPromptSupport.java");
 
         assertThat(support).contains("AiSentContextCollector.reportMemory(block);");
-        assertThat(support).contains("reportSentSkill(skill, block.substring(sectionStart));");
+        assertThat(support).contains("reportSentSkill(skill, block.substring(sectionStart), learnedRules);");
     }
 
     @Test

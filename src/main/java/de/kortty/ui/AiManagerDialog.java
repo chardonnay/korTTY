@@ -51,6 +51,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -109,6 +110,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private RagKnowledgeStorePane knowledgeStorePane;
     private AiSkillsPane aiSkillsPane;
     private AiMemoryPane aiMemoryPane;
+    private Tab aiSkillsTab;
     private final javafx.stage.Window paneOwner;
     private Tab localModelsTab;
     /** "Use as default profile" for the selected profile; a default always exists, so it can only move. */
@@ -318,6 +320,14 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         // The user-adjusted window size/position is remembered the same way, via saveGeometry().
         setOnCloseRequest(event -> {
             if (aiMemoryPane != null && !aiMemoryPane.confirmClose()) {
+                event.consume();
+                return;
+            }
+            // A skill edit the store would refuse keeps the dialog open on the Skills tab, as the Save button does.
+            if (aiSkillsPane != null && !aiSkillsPane.confirmClose()) {
+                if (aiSkillsTab != null) {
+                    tabPane.getSelectionModel().select(aiSkillsTab);
+                }
                 event.consume();
                 return;
             }
@@ -881,6 +891,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private Tab buildAiSkillsTab() {
         Tab tab = new Tab(I18n.get("settings.tab.aiSkills"));
+        aiSkillsTab = tab;
         // The pane (and with it the Monaco WebView: native WebKit + JS bridge + web workers) is
         // built and activated on the first visit, so merely opening the AI Manager never spins up
         // that path.
@@ -897,7 +908,13 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         Tab tab = new Tab(I18n.get("settings.tab.aiMemory"));
         LazyTabContent.defer(tab, () -> {
             aiMemoryPane = new AiMemoryPane(app, paneOwner, null);
-            return aiMemoryPane;
+            // The pane is taller than a small dialog: its lower sections (save row, cleanup, external files) scroll.
+            ScrollPane scroller = new ScrollPane(aiMemoryPane);
+            scroller.setFitToWidth(true);
+            scroller.setFitToHeight(false);
+            scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            return scroller;
         });
         return tab;
     }

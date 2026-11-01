@@ -40,4 +40,9 @@ public final class MemoryConsent {
     public boolean consume() {
         return unused.compareAndSet(true, false);
     }
+
+    /** Whether no change has used this consent yet; checked before a multi-step change starts. */
+    boolean available() {
+        return unused.get();
+    }
 }

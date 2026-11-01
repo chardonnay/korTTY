@@ -34,6 +34,13 @@ public final class AiMemoryDialog extends ThemeAwareDialog<Void> {
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         getDialogPane().setPrefSize(900, 700);
         setResultConverter(button -> null);
+        // Unsaved Markdown is discarded only after the user confirms it, as in the AI manager. The close button and the
+        // window's close request both come through here.
+        setOnCloseRequest(event -> {
+            if (!pane.confirmClose()) {
+                event.consume();
+            }
+        });
         setOnHidden(event -> {
             pane.save(true);
             pane.close();

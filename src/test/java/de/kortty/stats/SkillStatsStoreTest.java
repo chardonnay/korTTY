@@ -188,6 +188,57 @@ public class SkillStatsStoreTest {
         assertThat(skillRecord().getAsJsonArray("snapshots").size()).isEqualTo(2);
     }
 
+    @Test
+    void aSentSizeWithoutTheLearnedRulesIsNotRecordedAsASnapshotOfTheSkill() throws IOException {
+        SkillStatsStore store = openRecording();
+        store.recordCommitted(List.of(new SkillUsageEvent(SKILL, "Perl", true, SkillSurface.CHAT, 138,
+            AiTokenizerType.ESTIMATE, "fp-with-rules", false)));
+        store.flush();
+
+        assertThat(skillRecord().getAsJsonArray("snapshots").size()).isEqualTo(0);
+        assertThat(history(store)).isEmpty();
+    }
+
+    @Test
+    void theSizeCheckTakesTheCompleteSkillAfterAContentOnlySend() throws IOException {
+        SkillStatsStore store = openRecording();
+        store.recordCommitted(List.of(new SkillUsageEvent(SKILL, "Perl", true, SkillSurface.CHAT, 138,
+            AiTokenizerType.ESTIMATE, "fp-with-rules", false)));
+        AiSkill complete = skill();
+        complete.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create("Use strict.", "chat"));
+        store.observeSkills(List.of(complete));
+        store.flush();
+
+        int completeTokens = de.kortty.stats.SkillSize.of(complete, AiTokenizerType.ESTIMATE).tokens();
+        assertThat(history(store)).hasSize(1);
+        assertThat(history(store).get(0).tokens()).isEqualTo(completeTokens);
+    }
+
+    @Test
+    void anUnreadableFileIsKeptAndNeverOverwritten() throws IOException {
+        // A directory where the file should be cannot be read as text, but it is not damaged content.
+        Files.createDirectory(file);
+
+        SkillStatsStore store = openRecording();
+        store.recordCommitted(List.of(usage(true, 100, "fp-1")));
+
+        assertThat(store.flush()).isFalse();
+        assertThat(Files.isDirectory(file)).isTrue();
+        assertThat(Files.exists(directory.resolve(SkillStatsStore.FILE_NAME + ".broken"))).isFalse();
+    }
+
+    @Test
+    void aSecondCorruptFileDoesNotReplaceAnEarlierBackup() throws IOException {
+        Path backup = directory.resolve(SkillStatsStore.FILE_NAME + ".broken");
+        Files.writeString(backup, "first backup", StandardCharsets.UTF_8);
+        Files.writeString(file, "{ second damaged file", StandardCharsets.UTF_8);
+
+        new SkillStatsStore(file, clock);
+
+        assertThat(Files.readString(backup)).isEqualTo("first backup");
+        assertThat(Files.exists(file)).isFalse();
+    }
+
     private SkillStatsStore openRecording() {
         SkillStatsStore store = new SkillStatsStore(file, clock);
         store.setRecordingGate(() -> true);

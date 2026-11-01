@@ -12,10 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -58,6 +58,8 @@ public final class SkillStatsStore {
     private final Object writeLock = new Object();
     private volatile BooleanSupplier recordingGate = () -> false;
     private SkillStatsData data;
+    /** Set when the file exists but could not be read; it is left in place and never overwritten this session. */
+    private volatile boolean unreadable;
     private boolean dirty;
     private ScheduledExecutorService flusher;
 
@@ -132,7 +134,11 @@ public final class SkillStatsStore {
                 }
                 bucket.tokens += Math.max(0, event.tokens());
                 bucket.surfaces.merge(event.surface() != null ? event.surface().name() : "CHAT", 1, Integer::sum);
-                observeLocked(record, event.fingerprint(), event.tokens(), event.tokenizer(), today);
+                // A size without the learned rules is what was sent, not the skill's size. The fingerprint covers the
+                // rules, so such a snapshot would stand for the complete skill; the periodic size check takes it.
+                if (event.learnedRulesCounted()) {
+                    observeLocked(record, event.fingerprint(), event.tokens(), event.tokenizer(), today);
+                }
                 data.tokenizer = event.tokenizer() != null ? event.tokenizer().name() : null;
             }
             dirty = true;
@@ -172,7 +178,7 @@ public final class SkillStatsStore {
         synchronized (writeLock) {
             String json;
             synchronized (lock) {
-                if (!dirty || !isRecordingAllowed()) {
+                if (!dirty || !isRecordingAllowed() || unreadable) {
                     return false;
                 }
                 SkillStatsRollup.apply(data, LocalDate.now(clock));
@@ -311,24 +317,41 @@ public final class SkillStatsStore {
         if (!Files.exists(source)) {
             return new SkillStatsData();
         }
+        String json;
         try {
-            String json = Files.readString(source, StandardCharsets.UTF_8);
+            json = Files.readString(source, StandardCharsets.UTF_8);
+        } catch (MalformedInputException e) {
+            moveAside(source, e);
+            return new SkillStatsData();
+        } catch (IOException | RuntimeException e) {
+            // A read that fails for a moment (a locked file, a network drive) says nothing about the content. The file
+            // stays where it is and nothing is written over it until a restart reads it again.
+            unreadable = true;
+            logger.warn("The skill statistics file could not be read ({}); it is kept and not overwritten: {}",
+                e.toString(), source);
+            return new SkillStatsData();
+        }
+        try {
             SkillStatsData parsed = GSON.fromJson(json, SkillStatsData.class);
             if (parsed == null || parsed.version != SkillStatsData.VERSION) {
                 throw new JsonParseException("unknown statistics version");
             }
             parsed.normalize();
             return parsed;
-        } catch (IOException | RuntimeException e) {
+        } catch (RuntimeException e) {
             moveAside(source, e);
             return new SkillStatsData();
         }
     }
 
+    /** Moves a file that cannot be parsed aside, keeping an earlier backup: a new name when {@code .broken} exists. */
     private static void moveAside(Path source, Exception cause) {
         Path broken = source.resolveSibling(source.getFileName() + ".broken");
+        if (Files.exists(broken)) {
+            broken = source.resolveSibling(source.getFileName() + ".broken." + System.currentTimeMillis());
+        }
         try {
-            Files.move(source, broken, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(source, broken);
             logger.warn("The skill statistics file could not be read ({}); it was moved to {}", cause.toString(), broken);
         } catch (IOException moveFailure) {
             logger.warn("The skill statistics file could not be read ({}) and could not be moved aside: {}",

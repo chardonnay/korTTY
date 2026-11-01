@@ -36,10 +36,6 @@ interface AgentRunPresenter {
         default void answerApproval(TerminalAgentService.ApprovalDecision decision) {
         }
 
-        /** Answers the solution options the followed run waits for. */
-        default void answerChoice(de.kortty.model.TerminalAgentModels.SolutionChoice choice) {
-        }
-
         /** Follows {@code runId} instead of the run the host would pick. */
         default void selectRun(String runId) {
         }

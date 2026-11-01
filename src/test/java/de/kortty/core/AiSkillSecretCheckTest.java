@@ -48,6 +48,14 @@ class AiSkillSecretCheckTest {
     }
 
     @Test
+    void anInvisibleCharacterBetweenTheConnectorAndTheValueDoesNotHideTheSecret() {
+        // The zero-width space hid the connector from the match before the skill text was cleaned.
+        AiSkill hidden = skill("Das Passwort ist\u200B Kartoffel");
+
+        assertThat(AiSkillSecretCheck.refusal(hidden)).isPresent();
+    }
+
+    @Test
     void aLearnedRuleIsCheckedToo() {
         AiSkill skill = skill("Clean text.");
         skill.setLearnedRules(List.of(AiSkillLearnedRule.create("Das Passwort ist " + SECRET,

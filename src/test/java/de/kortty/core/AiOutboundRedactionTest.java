@@ -13,6 +13,10 @@ class AiOutboundRedactionTest {
 
     private static final String AWS_KEY_ID = "AKIA" + "ABCDEFGHIJKLMNOP";
 
+    private static AiProfile cloud() {
+        return profile(AiConnectionMode.HTTP_API, "https://api.example.com/v1");
+    }
+
     private static AiProfile profile(AiConnectionMode mode, String apiUrl) {
         AiProfile profile = new AiProfile();
         profile.setConnectionMode(mode);
@@ -79,6 +83,26 @@ class AiOutboundRedactionTest {
         RedactionResult result = AiOutboundRedaction.redact("DB_PASSWORD=Sup3rSecret!", knownSecrets("Sup3rSecret!"));
         assertThat(result.text()).isEqualTo("DB_PASSWORD=***");
         assertThat(result.count()).isEqualTo(1);
+    }
+
+    @Test
+    void masksThePasswordValueOfAProseCueBeforeItReachesAMaskingProfile() {
+        assertThat(AiOutboundRedaction.redact("Das Passwort lautet: Sommer2026!", null).text())
+            .isEqualTo("Das Passwort lautet: " + SessionJournalRedactor.REPLACEMENT);
+        assertThat(AiOutboundRedaction.redact("The password is: hunter2x", null).text())
+            .isEqualTo("The password is: " + SessionJournalRedactor.REPLACEMENT);
+        assertThat(AiOutboundRedaction.redactFor(cloud(), "Passwort ist Sommer2026", null).masked()).isTrue();
+        assertThat(AiOutboundRedaction.redact("The token is valid for one hour.", null).masked()).isFalse();
+    }
+
+    @Test
+    void masksAPasswordWithTheMaskInsideItAndAPrefixedTokenThatIsMaskedOnce() {
+        assertThat(AiOutboundRedaction.redact("login with password=Ab***789 on the lab host", null).text())
+            .isEqualTo("login with password=" + SessionJournalRedactor.REPLACEMENT + " on the lab host");
+        assertThat(AiOutboundRedaction.redact("export GITHUB_TOKEN=ghp_abcdefghij***klmnopqrstuvwxyz0123456789", null)
+            .text()).isEqualTo("export GITHUB_TOKEN=" + SessionJournalRedactor.REPLACEMENT);
+        assertThat(AiOutboundRedaction.redact("export GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789", null)
+            .count()).isEqualTo(1);
     }
 
     @Test

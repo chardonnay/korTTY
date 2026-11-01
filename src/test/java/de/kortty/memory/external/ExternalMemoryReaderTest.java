@@ -1,5 +1,7 @@
 package de.kortty.memory.external;
 
+import java.nio.file.attribute.FileTime;
+
 import de.kortty.core.AiSecretGuard;
 import de.kortty.memory.MemoryFormat;
 import org.testng.annotations.AfterMethod;
@@ -160,5 +162,23 @@ class ExternalMemoryReaderTest {
 
     private static byte[] bytes(String text) {
         return text.getBytes(StandardCharsets.UTF_8);
+    }
+
+
+    @Test
+    void aRewriteThatKeepsTheSizeAndTheModificationTimeIsReadAgain() throws IOException {
+        Path file = directory.resolve("AGENTS.md");
+        Files.writeString(file, "Rule: answer briefly\n");
+        ExternalMemoryReader reader = new ExternalMemoryReader();
+        ExternalMemoryReader.Document first = reader.read(file);
+        FileTime modified = Files.getLastModifiedTime(file);
+
+        Files.writeString(file, "Rule: answer quietly\n");
+        Files.setLastModifiedTime(file, modified);
+        ExternalMemoryReader.Document second = reader.read(file);
+
+        assertThat(second.sha256()).isNotEqualTo(first.sha256());
+        assertThat(second.sha256()).isEqualTo(MemoryFormat.sha256(Files.readAllBytes(file)));
+        assertThat(second.promptText()).contains("quietly");
     }
 }

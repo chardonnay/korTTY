@@ -19,6 +19,7 @@ import javafx.scene.control.RadioButton;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -37,7 +38,7 @@ import java.util.function.Consumer;
  * with the recommended one first, an own idea or instruction, and an optional permanent rule with the place it is
  * saved to. The same card in the classic panel, the chat window and the design strip.
  *
- * <p>Each button answers once: {@code onChoice} gets the answer. A rule is saved only when a button is pressed, and a
+ * <p>Each button answers once: {@code onChoice} gets the answer. A rule is saved only with the proceed button, and a
  * refused rule keeps the card open with the reason. FX thread.</p>
  */
 final class SolutionChoicePane extends VBox {
@@ -69,6 +70,7 @@ final class SolutionChoicePane extends VBox {
     private boolean updatingTargets;
     private boolean targetChosenByUser;
     private boolean secretShown;
+    private boolean noTargetShown;
     private boolean saving;
     private boolean decided;
 
@@ -136,7 +138,9 @@ final class SolutionChoicePane extends VBox {
         addItems(details, "ai.triage.steps", option.steps());
         addItems(details, "ai.triage.alternatives", option.alternatives());
         TitledPane more = new TitledPane(I18n.get("ai.triage.details"), details);
-        more.setExpanded(false);
+        // The steps and risks of the selected option become the binding plan, so they are shown while it is selected.
+        more.setExpanded(radio.isSelected());
+        radio.selectedProperty().addListener((observed, was, now) -> more.setExpanded(now));
         VBox card = new VBox(6, radio, wrapped(option.summary()), more);
         card.setStyle(recommended ? RECOMMENDED_STYLE : OPTION_STYLE);
         return card;
@@ -192,14 +196,15 @@ final class SolutionChoicePane extends VBox {
         message.setVisible(false);
         message.setManaged(false);
         ruleSection.getChildren().addAll(sectionLabel(I18n.get("ai.triage.rule.label")), ruleArea,
-            wrapped(I18n.get("ai.triage.rule.hint")), targetRow, skillHint);
+            wrapped(I18n.get("ai.triage.rule.hintProceed")), targetRow, skillHint);
         getChildren().addAll(ruleSection, message);
     }
 
     private void buildButtons() {
         proceedButton.setDefaultButton(true);
         proceedButton.setOnAction(event -> proceed());
-        asRequestedButton.setOnAction(event -> choose(SolutionChoiceRules.asRequestedChoice(ideaText())));
+        // Only Proceed saves a typed rule: running the request as asked is an answer without a rule.
+        asRequestedButton.setOnAction(event -> complete(SolutionChoiceRules.asRequestedChoice(ideaText())));
         cancelButton.setCancelButton(true);
         cancelButton.setOnAction(event -> {
             if (!saving) {
@@ -228,8 +233,14 @@ final class SolutionChoicePane extends VBox {
         }
         String rule = ruleText();
         RuleTarget target = targetBox.getValue();
-        if (rule.isBlank() || targets.isEmpty() || target == null) {
+        if (rule.isBlank()) {
             complete(choice);
+            return;
+        }
+        if (targets.isEmpty() || target == null) {
+            // A typed rule with no place is not dropped silently: the card stays open and says why.
+            noTargetShown = true;
+            showMessage(I18n.get(RuleSaveException.Reason.NO_TARGET.messageKey()), REFUSAL_STYLE);
             return;
         }
         saving = true;
@@ -304,8 +315,14 @@ final class SolutionChoicePane extends VBox {
                 updatingTargets = false;
             }
         }
-        ruleSection.setVisible(!targets.isEmpty());
-        ruleSection.setManaged(!targets.isEmpty());
+        // The rule stays visible while it has text, so that a refused rule can be edited or cleared.
+        boolean showRule = !targets.isEmpty() || !text.isBlank();
+        ruleSection.setVisible(showRule);
+        ruleSection.setManaged(showRule);
+        if (noTargetShown && (text.isBlank() || !targets.isEmpty())) {
+            showMessage("", null);
+            noTargetShown = false;
+        }
         refreshSkillHint();
         refreshSecret(text);
         refreshButtons();
@@ -331,6 +348,8 @@ final class SolutionChoicePane extends VBox {
     private void refreshButtons() {
         boolean ideaMissing = ownIdeaRadio.isSelected() && ideaText().isBlank();
         proceedButton.setDisable(saving || decided || ideaMissing);
+        // Proceed is disabled for an empty own idea; the tooltip says what is missing.
+        proceedButton.setTooltip(ideaMissing ? new Tooltip(I18n.get("ai.triage.ownIdea.prompt")) : null);
         asRequestedButton.setDisable(saving || decided);
         cancelButton.setDisable(saving || decided);
     }

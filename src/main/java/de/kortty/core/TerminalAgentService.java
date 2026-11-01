@@ -50,6 +50,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -155,6 +156,18 @@ public class TerminalAgentService {
         default TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal)
             throws Exception {
             return TerminalAgentModels.SolutionChoice.asRequested();
+        }
+
+        /**
+         * Same as {@link #requestSolutionChoice(TerminalAgentModels.TriageProposal)}, but {@code shown} runs once the
+         * card is on screen. The time to answer starts then, not while the card waits in a queue behind another
+         * prompt. The default runs {@code shown} at once and then asks the plain method.
+         */
+        default TerminalAgentModels.SolutionChoice requestSolutionChoice(
+            TerminalAgentModels.TriageProposal proposal,
+            Runnable shown) throws Exception {
+            shown.run();
+            return requestSolutionChoice(proposal);
         }
 
         /**
@@ -982,9 +995,10 @@ public class TerminalAgentService {
         RunUi ui,
         String runId,
         TerminalAgentModels.TriageProposal proposal) throws Exception {
+        CountDownLatch shown = new CountDownLatch(1);
         try {
-            return awaitBounded(ui, "kortty-agent-choice", () -> ui.requestSolutionChoice(proposal), null,
-                solutionChoiceTimeout);
+            return awaitBounded(ui, "kortty-agent-choice",
+                () -> ui.requestSolutionChoice(proposal, shown::countDown), null, solutionChoiceTimeout, shown);
         } catch (AgentCancelledException cancelled) {
             throw cancelled;
         } catch (TimeoutException timeout) {
@@ -1102,20 +1116,42 @@ public class TerminalAgentService {
         Callable<T> step,
         AiCancellation.Handle handle,
         Duration timeout) throws Exception {
+        return awaitBounded(ui, threadName, step, handle, timeout, null);
+    }
+
+    /**
+     * {@link #awaitBounded(RunUi, String, Callable, AiCancellation.Handle, Duration)} whose deadline starts when
+     * {@code armedOn} counts down, rather than at once; {@code null} starts it at once.
+     */
+    private <T> T awaitBounded(
+        RunUi ui,
+        String threadName,
+        Callable<T> step,
+        AiCancellation.Handle handle,
+        Duration timeout,
+        CountDownLatch armedOn) throws Exception {
         FutureTask<T> task = new FutureTask<>(step);
         Thread thread = new Thread(task, threadName);
         thread.setDaemon(true);
         thread.start();
-        long deadlineNanos = System.nanoTime() + timeout.toNanos();
+        Long deadlineNanos = armedOn == null ? System.nanoTime() + timeout.toNanos() : null;
         try {
             while (true) {
                 ensureNotCancelled(ui);
-                long remainingNanos = deadlineNanos - System.nanoTime();
-                if (remainingNanos <= 0) {
-                    throw new TimeoutException(threadName + " took longer than " + timeout.toSeconds() + " seconds");
+                if (deadlineNanos == null && armedOn.getCount() == 0) {
+                    deadlineNanos = System.nanoTime() + timeout.toNanos();
+                }
+                long pollNanos = CANCEL_POLL_INTERVAL.toNanos();
+                if (deadlineNanos != null) {
+                    long remainingNanos = deadlineNanos - System.nanoTime();
+                    if (remainingNanos <= 0) {
+                        throw new TimeoutException(
+                            threadName + " took longer than " + timeout.toSeconds() + " seconds");
+                    }
+                    pollNanos = Math.min(remainingNanos, pollNanos);
                 }
                 try {
-                    return task.get(Math.min(remainingNanos, CANCEL_POLL_INTERVAL.toNanos()), TimeUnit.NANOSECONDS);
+                    return task.get(pollNanos, TimeUnit.NANOSECONDS);
                 } catch (TimeoutException pollAgain) {
                     // Not finished yet: look at the cancellation and the deadline again.
                 } catch (ExecutionException failure) {

@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -34,8 +35,12 @@ import java.util.function.Consumer;
 final class AiMemoryHistoryDialog extends ThemeAwareDialog<Void> {
 
     private static final Logger logger = LoggerFactory.getLogger(AiMemoryHistoryDialog.class);
-    private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
-        .withZone(ZoneId.systemDefault());
+    /** The time of a version, in the application language's format. */
+    private static DateTimeFormatter stamp() {
+        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+            .withLocale(AiSkillStatisticsFormat.locale())
+            .withZone(ZoneId.systemDefault());
+    }
 
     private final MemoryStore store;
     private final MemoryScope scope;
@@ -65,7 +70,7 @@ final class AiMemoryHistoryDialog extends ThemeAwareDialog<Void> {
             protected void updateItem(HistoryEntry entry, boolean empty) {
                 super.updateItem(entry, empty);
                 setText(empty || entry == null ? null
-                    : STAMP.format(entry.takenAt()) + "  ·  " + I18n.get("settings.ai.memory.history.size", entry.size()));
+                    : stamp().format(entry.takenAt()) + "  ·  " + I18n.get("settings.ai.memory.history.size", entry.size()));
             }
         });
         versions.getSelectionModel().selectedItemProperty().addListener((obs, was, now) -> showVersion(now));
@@ -119,7 +124,12 @@ final class AiMemoryHistoryDialog extends ThemeAwareDialog<Void> {
         if (entry == null) {
             return;
         }
-        readVersion(entry, text -> diffPane.setComparison(currentText, text, "markdown", "markdown"));
+        // Two selections read in turn may finish out of order; only the version still selected is compared.
+        readVersion(entry, text -> {
+            if (entry == versions.getSelectionModel().getSelectedItem()) {
+                diffPane.setComparison(currentText, text, "markdown", "markdown");
+            }
+        });
     }
 
     private void restore(Consumer<String> onRestore) {
@@ -128,6 +138,7 @@ final class AiMemoryHistoryDialog extends ThemeAwareDialog<Void> {
             return;
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null);
         confirm.setTitle(I18n.get("settings.ai.memory.history.restoreConfirm.title"));
         confirm.setHeaderText(I18n.get("settings.ai.memory.history.restoreConfirm.header"));
         confirm.setContentText(I18n.get("settings.ai.memory.history.restoreConfirm.content"));

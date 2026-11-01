@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +120,8 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     private final Map<String, PendingPrompt> pendingPrompts = new ConcurrentHashMap<>();
     // The prompts in the order they reach the strip below the terminal or the design's approval row.
     private final AgentPromptQueue<PendingPrompt> prompts = new AgentPromptQueue<>(AgentDesignHost::isWaiting);
+    // The solution cards by their prompt, kept while the prompt is open, so a card brought back keeps what was typed.
+    private final Map<PendingPrompt, SolutionChoicePane> choiceCards = new IdentityHashMap<>();
     // Commands the user took over with Tab at the cursor line; typed at the prompt once their run ended.
     private final Map<String, String> pendingInserts = new HashMap<>();
     // What the run menu needs of each run: the profile, users and connection, and how to start it again.
@@ -1138,7 +1141,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             // The card follows the prompt on screen; closePrompt shows it once that one is closed.
             return;
         }
-        approvalStrip.showChoice(prompt.proposal(), choice -> completeChoice(prompt, choice));
+        approvalStrip.showChoice(choiceCard(prompt));
         statusBarDismissed = false;
         panelDismissed = false;
         pinnedRunId = null;
@@ -1147,6 +1150,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
 
     private void closePrompt(PendingPrompt closed) {
         String runId = closed.runId();
+        choiceCards.remove(closed);
         markAwaitingInput(runId, false);
         for (AgentDesignInlineBlocks inTerminal : inTerminalDesigns()) {
             inTerminal.clearPrompt(runId);
@@ -1182,8 +1186,14 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         } else if (prompt.passwordFuture() != null) {
             approvalStrip.showPassword(prompt.passwordRequest(), response -> completePrompt(prompt, null, response));
         } else if (prompt.proposal() != null) {
-            approvalStrip.showChoice(prompt.proposal(), choice -> completeChoice(prompt, choice));
+            approvalStrip.showChoice(choiceCard(prompt));
         }
+    }
+
+    /** The solution card of a prompt: created once, so a card that waits behind another prompt keeps its state. */
+    private SolutionChoicePane choiceCard(PendingPrompt prompt) {
+        return choiceCards.computeIfAbsent(prompt,
+            open -> new SolutionChoicePane(open.proposal(), choice -> completeChoice(open, choice)));
     }
 
     /** Whether a design of the run has its own buttons for an approval, so the row below can stay hidden. */
@@ -1686,15 +1696,6 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             PendingPrompt prompt = shownApprovalPrompt();
             if (prompt != null && (runId == null || runId.equals(prompt.runId()))) {
                 completePrompt(prompt, decision, null);
-            }
-        }
-
-        @Override
-        public void answerChoice(TerminalAgentModels.SolutionChoice choice) {
-            String runId = followedRunId();
-            PendingPrompt prompt = prompts.shown();
-            if (prompt != null && prompt.choiceFuture() != null && runId != null && runId.equals(prompt.runId())) {
-                completeChoice(prompt, choice);
             }
         }
 

@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.model.AiProfile;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalAgentModels;
 import javafx.geometry.Insets;
@@ -19,6 +20,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -32,17 +34,21 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
     private final CheckBox showDebugMessagesCheck;
     private final CheckBox showRuntimeMessagesCheck;
     private final CheckBox mirrorFinalAnswerCheck;
+    // The connection of the tab the dialog starts the run in; a rule typed here may be saved to its memory.
+    private final @Nullable ServerConnection connection;
 
     public AiAgentDialog(
         Window owner,
         List<AiProfile> profiles,
         String connectionDisplayName,
+        @Nullable ServerConnection connection,
         TerminalAgentExecutionTarget executionTarget,
         boolean showDebugMessages,
         boolean showRuntimeMessages,
         boolean mirrorFinalAnswerToTerminal,
         boolean queryOnly,
         String initialPrompt) {
+        this.connection = connection;
         initOwner(owner);
         setResizable(true);
         setTitle(I18n.get(queryOnly ? "ai.agent.ask.title" : "ai.agent.title"));
@@ -181,7 +187,7 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
         remember.setOnAction(event -> {
             String selected = area.getSelectedText();
             RuleLearning.rememberManually(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
-                selected == null || selected.isBlank() ? area.getText() : selected, null);
+                selected == null || selected.isBlank() ? area.getText() : selected, connection);
         });
         ContextMenu menu = new ContextMenu(cut, copy, paste, new SeparatorMenuItem(), selectAll,
             new SeparatorMenuItem(), remember);

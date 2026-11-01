@@ -42,6 +42,7 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -474,12 +475,25 @@ final class AiMemoryPane extends VBox {
 
     private void updateButtons() {
         boolean canEdit = editable();
+        boolean visible = filesVisible();
         markdownEditor.setEditable(canEdit);
         markdownSaveButton.setDisable(!canEdit);
         clearButton.setDisable(!canEdit);
         cleanupButton.setDisable(!canEdit);
-        historyButton.setDisable(!filesVisible());
-        reloadButton.setDisable(!filesVisible());
+        historyButton.setDisable(!visible);
+        reloadButton.setDisable(!visible);
+        // A disabled action says why: the policy that turned it off, or the read-only policy for the editing actions.
+        String readOnlyReason = visible ? I18n.get("settings.ai.memory.policy.readOnly") : I18n.get("settings.ai.memory.policy.disabled");
+        setDisabledReason(markdownSaveButton, !canEdit, readOnlyReason);
+        setDisabledReason(clearButton, !canEdit, readOnlyReason);
+        setDisabledReason(cleanupButton, !canEdit, readOnlyReason);
+        setDisabledReason(historyButton, !visible, I18n.get("settings.ai.memory.policy.disabled"));
+        setDisabledReason(reloadButton, !visible, I18n.get("settings.ai.memory.policy.disabled"));
+    }
+
+    /** Shows {@code reason} as the control's tooltip while it is disabled; an enabled control has none from here. */
+    private static void setDisabledReason(javafx.scene.control.Control control, boolean disabled, String reason) {
+        control.setTooltip(disabled ? new Tooltip(reason) : null);
     }
 
     private ListCell<Row> rowCell() {
@@ -554,6 +568,7 @@ final class AiMemoryPane extends VBox {
             return;
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, owner);
         confirm.setTitle(I18n.get("settings.ai.memory.row.deleteTitle"));
         confirm.setHeaderText(I18n.get("settings.ai.memory.row.deleteTitle"));
         confirm.setContentText(I18n.get("settings.ai.memory.row.deleteContent"));
@@ -744,6 +759,7 @@ final class AiMemoryPane extends VBox {
 
     private boolean confirmDiscardMarkdown() {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, owner);
         confirm.setTitle(I18n.get("settings.ai.memory.markdown.discardTitle"));
         confirm.setHeaderText(I18n.get("settings.ai.memory.markdown.discardTitle"));
         confirm.setContentText(I18n.get("settings.ai.memory.markdown.discardContent"));

@@ -19,10 +19,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -107,17 +109,38 @@ final class RuleLearning {
             connection == null ? null : connection.getDisplayName(),
             connection == null ? null : connection.getHost());
         AiMemoryAssistant assistant = new AiMemoryAssistant(KorTTYApplication.getInstance());
+        AtomicBoolean abandoned = new AtomicBoolean();
         CompletableFuture
             .supplyAsync(() -> new RuleDetector(LearningState.shared(), RuleLearning::currentSettings)
-                .detect(message, origin, (system, user) -> assistant.complete(profile, system, user)), BACKGROUND)
+                .detect(message, origin,
+                    abandonable((system, user) -> assistant.complete(profile, system, user), abandoned)), BACKGROUND)
             .orTimeout(DETECTION_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
             .whenComplete((proposal, failure) -> {
                 if (failure != null) {
+                    // The caller gave up: the detection still running must not claim a daily card no one is shown.
+                    abandoned.set(true);
                     logger.debug("The rule detection gave no proposal", failure);
                     return;
                 }
                 proposal.ifPresent(found -> Platform.runLater(() -> show.accept(found)));
             });
+    }
+
+    /**
+     * The assistant of a detection that may be abandoned after its timeout: once {@code abandoned} is set, no further model
+     * call is made, and a reply that arrives late is refused before the detection can claim a card for it.
+     */
+    static RuleDetector.Assistant abandonable(RuleDetector.Assistant assistant, AtomicBoolean abandoned) {
+        return (system, user) -> {
+            if (abandoned.get()) {
+                throw new CancellationException("The rule detection was abandoned");
+            }
+            String reply = assistant.complete(system, user);
+            if (abandoned.get()) {
+                throw new CancellationException("The rule detection was abandoned");
+            }
+            return reply;
+        };
     }
 
     private static @Nullable GlobalSettingsManager settingsManager() {

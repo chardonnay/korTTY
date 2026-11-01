@@ -4,6 +4,7 @@ import de.kortty.core.AiSecretGuard;
 import de.kortty.core.BuiltinAiSkillCatalog;
 import de.kortty.model.AiMemoryLearningMode;
 import de.kortty.model.AiSkill;
+import de.kortty.memory.external.ExternalMemoryReader;
 import de.kortty.model.GlobalSettings;
 import de.kortty.policy.EffectivePolicy;
 import org.slf4j.Logger;
@@ -82,7 +83,9 @@ public final class RuleDetector {
                            RuleTargetPolicy policy, List<AiSkill> skills, BuiltinAiSkillCatalog catalog) {
 
         public Settings {
-            skills = skills == null ? List.of() : skills.stream().filter(skill -> skill != null).toList();
+            // Copies: the live skills are edited on the FX thread, and a check may run on another thread.
+            skills = skills == null ? List.of()
+                : skills.stream().filter(skill -> skill != null).map(skill -> new AiSkill(skill)).toList();
             policy = policy == null ? new RuleTargetPolicy(false, false, 0) : policy;
         }
 
@@ -256,11 +259,11 @@ public final class RuleDetector {
         if (!candidate.isRule()) {
             return Optional.empty();
         }
-        String rule = candidate.rule().replaceAll("\\s+", " ").strip();
-        if (rule.isEmpty() || rule.codePointCount(0, rule.length()) > MAX_RULE_CHARACTERS) {
+        String rule = shortened(candidate.rule().replaceAll("\\s+", " ").strip());
+        if (rule.isEmpty()) {
             return Optional.empty();
         }
-        if (!AiSecretGuard.check(rule).ok()) {
+        if (!AiSecretGuard.check(ExternalMemoryReader.sanitize(rule).text()).ok()) {
             return Optional.empty();
         }
         if (learning.isRejected(rule) || learning.isSnoozed(rule)) {
@@ -276,6 +279,22 @@ public final class RuleDetector {
         }
         learning.rememberMessage(rule, message);
         return Optional.of(proposal);
+    }
+
+    /**
+     * The rule cut to {@link #MAX_RULE_CHARACTERS} characters at a word boundary when it is longer. The proposal card shows
+     * the shortened rule, and the user can edit it before anything is saved, so a clear instruction is not dropped.
+     */
+    static String shortened(String rule) {
+        if (rule.codePointCount(0, rule.length()) <= MAX_RULE_CHARACTERS) {
+            return rule;
+        }
+        String prefix = rule.substring(0, rule.offsetByCodePoints(0, MAX_RULE_CHARACTERS));
+        int space = prefix.lastIndexOf(' ');
+        if (space > prefix.length() / 2) {
+            prefix = prefix.substring(0, space);
+        }
+        return prefix.replaceAll("[\\s,;:-]+$", "").strip();
     }
 
     private static List<RuleTarget> targetsFor(RuleProposal proposal, Settings current) {

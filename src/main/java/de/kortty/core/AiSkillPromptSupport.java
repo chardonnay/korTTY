@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.memory.MemoryBlock;
+import de.kortty.memory.MemoryFormat;
 import de.kortty.memory.MemoryService;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiSkill;
@@ -19,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /**
  * Adds enabled user-defined AI skills to system prompts.
@@ -26,6 +28,11 @@ import java.util.Set;
 public final class AiSkillPromptSupport {
 
     private static final AiSkillPromptSupport DISABLED = new AiSkillPromptSupport(false, false, List.of());
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AiSkillPromptSupport.class);
+
+    /** The enterprise policy's switch for the korTTY memory; the learned rules of a skill follow it. Open until set. */
+    private static volatile BooleanSupplier aiMemoryPolicyGate = () -> true;
 
     /** Preamble for chat/agent prompts: skills are advisory and must not override the task. */
     private static final String SOFT_PREAMBLE =
@@ -434,16 +441,42 @@ public final class AiSkillPromptSupport {
     }
 
     /**
+     * Sets the enterprise policy's switch for the korTTY memory. The learned rules of a skill are sent only while it is
+     * on, as the memory is. Pass {@code null} to open the switch again.
+     */
+    public static void setAiMemoryPolicyGate(BooleanSupplier gate) {
+        aiMemoryPolicyGate = gate != null ? gate : () -> true;
+    }
+
+    private static boolean learnedRulesPolicyAllowed() {
+        try {
+            return aiMemoryPolicyGate.getAsBoolean();
+        } catch (RuntimeException e) {
+            logger.warn("The enterprise policy for the AI memory could not be read; learned rules are not sent", e);
+            return false;
+        }
+    }
+
+    /**
      * The skill block of one prompt. A {@code surface} records the skills as used there; {@code null} is a preview that
      * builds the same text without counting it.
      */
     private String buildSkillBlock(List<AiSkill> selectedSkills, SkillSurface surface, AiAction action) {
-        List<AiSkill> promptSkills = promptSkills(selectedSkills);
-        if (!enabled || promptSkills.isEmpty()) {
+        List<AiSkill> candidates = promptSkills(selectedSkills);
+        if (!enabled || candidates.isEmpty()) {
             return "";
         }
-        // The rules the user confirmed are memory too: the memory kill switch and the memory setting stop them as well.
-        boolean learnedRulesAllowed = MemoryService.get().isEnabled();
+        // The rules the user confirmed are memory too: the memory kill switch, the memory setting and the enterprise
+        // policy stop them as well.
+        boolean learnedRulesAllowed = MemoryService.get().isEnabled() && learnedRulesPolicyAllowed();
+        // A korTTY skill holds only a header that points at its learned rules. Without them the header would tell the
+        // model to follow rules that are not in the prompt, so such a skill is not sent at all.
+        List<AiSkill> promptSkills = candidates.stream()
+            .filter(skill -> learnedRulesAllowed || !skill.isCreatedByKortty())
+            .toList();
+        if (promptSkills.isEmpty()) {
+            return "";
+        }
         if (surface != null) {
             recordSkillUsages(promptSkills, surface, learnedRulesAllowed);
         }
@@ -460,11 +493,12 @@ public final class AiSkillPromptSupport {
             }
             int sectionStart = block.length();
             block.append("\n<kortty_ai_skill name=\"")
-                .append(toPromptAttribute(nonBlank(skill.getName(), "AI Skill")))
+                .append(MemoryFormat.escapeMarkers(toPromptAttribute(nonBlank(skill.getName(), "AI Skill"))))
                 .append("\" target=\"")
                 .append(target.name())
                 .append("\">\n")
-                .append(skill.getContent().trim())
+                // The text is user-authored: its prompt markers are escaped here, the skill's own tags are not.
+                .append(MemoryFormat.escapeMarkers(skill.getContent().trim()))
                 .append("\n");
             String learnedRules = learnedRulesAllowed ? learnedRulesSection(skill) : "";
             if (!learnedRules.isEmpty()) {
@@ -472,7 +506,7 @@ public final class AiSkillPromptSupport {
             }
             block.append("</kortty_ai_skill>\n");
             if (surface != null && AiSentContextCollector.isActive()) {
-                reportSentSkill(skill, block.substring(sectionStart));
+                reportSentSkill(skill, block.substring(sectionStart), learnedRules);
             }
         }
         return block.toString().trim();
@@ -482,14 +516,15 @@ public final class AiSkillPromptSupport {
      * Reports a skill section that is sent to the request on this thread, with its masked text counted for the profile.
      * Only called while a request collects what it sends.
      */
-    private void reportSentSkill(AiSkill skill, String section) {
+    private void reportSentSkill(AiSkill skill, String section, String learnedRules) {
         int tokens = AiTokenCounter.countTextTokens(outbound(section), AiSentContext.tokenizerOf(profile));
         AiSentContextCollector.reportSkill(new AiSentContext.Skill(
             nonBlank(skill.getId(), ""),
             nonBlank(skill.getName(), "AI Skill"),
             !isPinned(skill),
             tokens,
-            1));
+            1,
+            learnedRules.isEmpty() ? "" : outbound(learnedRules)));
     }
 
     /** The rules the user confirmed for {@code skill}, one "- " line each; empty when there are none. */
@@ -502,7 +537,7 @@ public final class AiSkillPromptSupport {
             if (section.isEmpty()) {
                 section.append("Additional rules the user confirmed for this skill:");
             }
-            section.append("\n- ").append(rule.getText().strip().replaceAll("\\s*\\R\\s*", " "));
+            section.append("\n- ").append(MemoryFormat.escapeMarkers(rule.getText().strip().replaceAll("\\s*\\R\\s*", " ")));
         }
         return section.toString();
     }
@@ -541,7 +576,7 @@ public final class AiSkillPromptSupport {
                 if (collecting) {
                     SkillSize size = SkillSize.of(skill, tokenizer, learnedRulesSent);
                     SkillUsageCollector.report(new SkillUsageEvent(
-                        id, name, automatic, surface, size.tokens(), tokenizer, size.fingerprint()));
+                        id, name, automatic, surface, size.tokens(), tokenizer, size.fingerprint(), learnedRulesSent));
                 }
             }
         }

@@ -212,8 +212,40 @@ class SwarmAggregatorRedactionTest {
         }
     }
 
+    @Test
+    void theGlobalMemoryJoinsTheSystemPromptAndItsSecretsAreMasked() throws Exception {
+        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("kortty-swarm-memory-");
+        de.kortty.memory.MemoryStore store = new de.kortty.memory.MemoryStore(root.resolve("memory"));
+        try {
+            de.kortty.memory.MemoryService service = new de.kortty.memory.MemoryService(store, name -> null);
+            service.setAiMemoryAllowedSupplier(() -> true);
+            service.setUserMemoryModeSupplier(() -> de.kortty.policy.UserMemoryMode.EDITABLE);
+            de.kortty.memory.MemoryService.replaceInstanceForTesting(service);
+            de.kortty.memory.MemoryStore.Snapshot current = store.read(de.kortty.memory.MemoryScope.global());
+            store.write(de.kortty.memory.MemoryScope.global(), current.sha256(),
+                "Always answer in German.\nLab reference: " + PASSWORD + ".\n",
+                de.kortty.memory.MemoryStore.WriteReason.USER_SAVE, null);
+            RecordingAiService ai = new RecordingAiService(VALID_TABLE);
+
+            new SwarmAggregator().aggregate(request(answered("srv-1", "done")), ai, cloud(), secrets(PASSWORD));
+
+            assertThat(ai.systemPrompt).contains("Always answer in German.");
+            assertThat(ai.systemPrompt).doesNotContain(PASSWORD);
+        } finally {
+            de.kortty.memory.MemoryService.replaceInstanceForTesting(null);
+            java.util.List<java.nio.file.Path> paths;
+            try (java.util.stream.Stream<java.nio.file.Path> walk = java.nio.file.Files.walk(root)) {
+                paths = walk.sorted(java.util.Comparator.reverseOrder()).toList();
+            }
+            for (java.nio.file.Path path : paths) {
+                java.nio.file.Files.deleteIfExists(path);
+            }
+        }
+    }
+
     private static final class RecordingAiService implements AiPromptService {
         private final String content;
+        private volatile String systemPrompt;
         private volatile String userPrompt;
 
         RecordingAiService(String content) {
@@ -222,6 +254,7 @@ class SwarmAggregatorRedactionTest {
 
         @Override
         public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) {
+            this.systemPrompt = systemPrompt;
             this.userPrompt = userPrompt;
             return new AiExecutionResult(content, new AiTokenUsage(1, 2, 3));
         }

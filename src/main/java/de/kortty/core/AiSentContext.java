@@ -30,13 +30,20 @@ public record AiSentContext(MemoryBlock memory, List<Skill> skills) {
      * @param automatic true when the relevance check selected the skill, false when it was pinned for the connection or
      *                  the request
      * @param tokens    the size of the skill's text as it was sent, in tokens
-     * @param turns     how many requests of the run sent the skill; 1 for a single request
+     * @param turns         how many requests of the run sent the skill; 1 for a single request
+     * @param learnedRules  the learned rules of the skill as they were sent, one "- " line each; empty when none were sent
      */
-    public record Skill(String id, String name, boolean automatic, int tokens, int turns) {
+    public record Skill(String id, String name, boolean automatic, int tokens, int turns, String learnedRules) {
+
+        /** A skill without learned rules, as the sent-context view had it before the rules were listed. */
+        public Skill(String id, String name, boolean automatic, int tokens, int turns) {
+            this(id, name, automatic, tokens, turns, "");
+        }
 
         public Skill {
             id = id == null ? "" : id;
             name = name == null ? "" : name;
+            learnedRules = learnedRules == null ? "" : learnedRules;
         }
     }
 

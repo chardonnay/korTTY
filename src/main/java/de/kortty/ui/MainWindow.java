@@ -10061,7 +10061,8 @@ public class MainWindow {
             return;
         }
 
-        AiService aiService = createAiService(effectiveProfile, terminalTab != null ? terminalTab.getConnection() : null);
+        AiService aiService = createAiService(effectiveProfile,
+            terminalTab != null ? terminalTab.getConnection() : null, null, knownSecrets);
         if (aiService == null) {
             showAiConfigurationDialog();
             return;
@@ -10086,7 +10087,7 @@ public class MainWindow {
         boolean confirmBeforeSend = action == AiAction.ASK || settings == null || settings.isAiConfirmBeforeSend();
         if (confirmBeforeSend) {
             confirmAiRequest(action, effectiveProfile, outboundText, connectionName, languageCode, attachmentCandidate,
-                maxSelectionChars, maskedSelection.count())
+                maxSelectionChars, maskedSelection.count(), terminalTab.getConnection())
                 .ifPresent(draft -> startAiSelectionRequest(
                     action, effectiveProfile, aiService, draft, connectionName, languageCode, maxSelectionChars,
                     knownSecrets, 0, sourcePane, terminalTab.getConnection()));
@@ -10232,7 +10233,7 @@ public class MainWindow {
             AiSentContextCollector.Reply reply = task.getValue();
             AiExecutionResult result = reply != null ? reply.result() : null;
             resultTab.showResult(reply);
-            recordAiUsage(effectiveProfile, request, result);
+            recordAiUsage(effectiveProfile, request, result, connection);
             updateStatus(I18n.get("ai.status.finished", getAiActionLabel(action)));
         });
         task.setOnCancelled(e -> {
@@ -10291,13 +10292,24 @@ public class MainWindow {
      */
     private static de.kortty.core.AiMemoryPromptSource memoryPromptSource(
         de.kortty.model.GlobalSettings settings, ServerConnection connection, AiProfile profile, boolean preview) {
+        return memoryPromptSource(settings, connection, profile, preview, null);
+    }
+
+    /**
+     * Like {@link #memoryPromptSource(de.kortty.model.GlobalSettings, ServerConnection, AiProfile, boolean)}, and the
+     * memory is masked with the session's known secrets, so a secret typed into the terminal never reaches the provider
+     * through the memory.
+     */
+    private static de.kortty.core.AiMemoryPromptSource memoryPromptSource(
+        de.kortty.model.GlobalSettings settings, ServerConnection connection, AiProfile profile, boolean preview,
+        @Nullable SessionJournalRedactor sessionSecrets) {
         int budgetTokens = settings != null
             ? settings.getAiMemoryMaxTokens()
             : de.kortty.model.GlobalSettings.AI_MEMORY_TOKENS_DEFAULT;
         String connectionId = connection != null ? connection.getId() : null;
         return preview
-            ? de.kortty.core.AiMemoryPromptSource.preview(connectionId, profile, budgetTokens)
-            : new de.kortty.core.AiMemoryPromptSource(connectionId, profile, budgetTokens);
+            ? de.kortty.core.AiMemoryPromptSource.preview(connectionId, profile, budgetTokens, sessionSecrets)
+            : new de.kortty.core.AiMemoryPromptSource(connectionId, profile, budgetTokens, sessionSecrets);
     }
 
     private AiService createAiService(AiProfile profile) {
@@ -10313,6 +10325,16 @@ public class MainWindow {
      * picker's explicit selection mode; an empty collection deliberately selects no normal skills.
      */
     private AiService createAiService(AiProfile profile, ServerConnection connection, java.util.Collection<String> forcedSkillIds) {
+        return createAiService(profile, connection, forcedSkillIds, null);
+    }
+
+    /**
+     * Like {@link #createAiService(AiProfile, ServerConnection, java.util.Collection)}; the session's known secrets
+     * mask the memory of the request too, as they mask the request text.
+     */
+    private AiService createAiService(AiProfile profile, ServerConnection connection,
+                                      java.util.Collection<String> forcedSkillIds,
+                                      @Nullable SessionJournalRedactor sessionSecrets) {
         if (profile == null) {
             return null;
         }
@@ -10334,13 +10356,13 @@ public class MainWindow {
                     settings,
                     assignedConnectionSkillIds.isEmpty() ? null : assignedConnectionSkillIds,
                     profile,
-                    memoryPromptSource(settings, connection, profile))
+                    memoryPromptSource(settings, connection, profile, false, sessionSecrets))
                 : AiSkillPromptSupport.fromSettingsForSnippetSelection(
                     settings,
                     forcedSkillIds,
                     assignedConnectionSkillIds,
                     profile,
-                    memoryPromptSource(settings, connection, profile));
+                    memoryPromptSource(settings, connection, profile, false, sessionSecrets));
             return AiServiceFactory.create(
                 profile,
                 apiKey,
@@ -10468,7 +10490,8 @@ public class MainWindow {
         String languageCode,
         @Nullable AiAttachmentCandidate attachmentCandidate,
         int maxSelectionChars,
-        int maskedSecretCount) {
+        int maskedSecretCount,
+        @Nullable ServerConnection connection) {
         String model = aiModelDisplayText(profile);
         String apiUrl = profile != null && profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI
             ? de.kortty.core.AiCliProviderRegistry.find(profile.getCliProviderId())
@@ -10481,7 +10504,8 @@ public class MainWindow {
         dialog.setHeaderText(I18n.get("ai.confirm.header", getAiActionLabel(action)));
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        Label summaryLabel = new Label(buildAiConfirmSummary(action, profile, model, apiUrl, selectedText, connectionName, languageCode, promptAreaInitialValue(action), null));
+        Label summaryLabel = new Label(buildAiConfirmSummary(action, profile, model, apiUrl, selectedText, connectionName,
+            languageCode, promptAreaInitialValue(action), null, connection));
         summaryLabel.setWrapText(true);
         AiQuotaBar quotaBar = new AiQuotaBar();
         quotaBar.setPrefWidth(420);
@@ -10570,9 +10594,10 @@ public class MainWindow {
         Runnable refreshSummary = () -> {
             AiFileAttachment attachment = effectiveAttachment.get();
             long requestTokens = buildAiConfirmTokenEstimate(
-                action, profile, preview.getText(), connectionName, languageCode, promptArea.getText(), attachment);
+                action, profile, preview.getText(), connectionName, languageCode, promptArea.getText(), attachment, connection);
             summaryLabel.setText(buildAiConfirmSummary(
-                action, profile, model, apiUrl, preview.getText(), connectionName, languageCode, promptArea.getText(), attachment));
+                action, profile, model, apiUrl, preview.getText(), connectionName, languageCode, promptArea.getText(), attachment,
+                connection));
             updateAiConfirmQuotaBar(quotaBar, profile, requestTokens);
         };
         refreshSummary.run();
@@ -10793,9 +10818,11 @@ public class MainWindow {
         String connectionName,
         String languageCode,
         String userPrompt,
-        @Nullable AiFileAttachment fileAttachment) {
+        @Nullable AiFileAttachment fileAttachment,
+        @Nullable ServerConnection connection) {
         String safeText = text != null ? text : "";
-        long requestTokens = buildAiConfirmTokenEstimate(action, profile, safeText, connectionName, languageCode, userPrompt, fileAttachment);
+        long requestTokens = buildAiConfirmTokenEstimate(action, profile, safeText, connectionName, languageCode, userPrompt,
+            fileAttachment, connection);
         long remainingTokens = AiTokenUsageManager.remainingAfter(profile, requestTokens);
         AiTokenWarningLevel warningLevel = AiTokenUsageManager.determineProjectedWarningLevel(profile, requestTokens);
         long characterCount = safeText.length() + (fileAttachment != null ? fileAttachment.length() : 0);
@@ -10817,26 +10844,34 @@ public class MainWindow {
         String connectionName,
         String languageCode,
         String userPrompt,
-        @Nullable AiFileAttachment fileAttachment) {
+        @Nullable AiFileAttachment fileAttachment,
+        @Nullable ServerConnection connection) {
         AiRequest request = new AiRequest(action, text != null ? text : "", connectionName, languageCode, userPrompt)
             .withFileAttachment(fileAttachment);
-        return countAiRequestTokens(profile, request);
+        return countAiRequestTokens(profile, request, connection);
     }
 
-    private long countAiRequestTokens(AiProfile profile, AiRequest request) {
+    /**
+     * The tokens the request sends, counted with what the request of {@code connection} carries: its assigned skills and
+     * its memory. Without a connection, the active tab's connection is used, on the UI thread only; there the memory comes
+     * from the background cache, so a keystroke never reads a memory file.
+     */
+    private long countAiRequestTokens(AiProfile profile, AiRequest request, @Nullable ServerConnection connection) {
         AiTokenizerType tokenizerType = profile != null && profile.getTokenizerType() != null
             ? profile.getTokenizerType()
             : AiTokenizerType.ESTIMATE;
         GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings()
             : null;
-        // The preview counts the memory the next request would send: the active tab's connection, if any. On the
-        // UI thread the memory comes from the background cache, so a keystroke never reads a memory file.
         boolean onUiThread = Platform.isFxApplicationThread();
-        TerminalTab activeTab = onUiThread ? activeTerminalTab() : null;
-        ServerConnection connection = activeTab != null ? activeTab.getConnection() : null;
+        ServerConnection counted = connection;
+        if (counted == null && onUiThread) {
+            TerminalTab activeTab = activeTerminalTab();
+            counted = activeTab != null ? activeTab.getConnection() : null;
+        }
         return AiTokenCounter.countRequestTokens(request, tokenizerType, AiSkillPromptSupport.fromSettings(
-            settings, null, profile, memoryPromptSource(settings, connection, profile, onUiThread)));
+            settings, ConnectionAiScope.assignedSkillIds(counted), profile,
+            memoryPromptSource(settings, counted, profile, onUiThread)));
     }
 
     private String formatRemainingTokens(long remainingTokens) {
@@ -10863,13 +10898,14 @@ public class MainWindow {
             snapshot.unlimited());
     }
 
-    private void recordAiUsage(AiProfile profile, AiRequest request, AiExecutionResult result) {
+    private void recordAiUsage(AiProfile profile, AiRequest request, AiExecutionResult result,
+                               @Nullable ServerConnection connection) {
         if (profile == null || profile.getId() == null) {
             return;
         }
         AiTokenUsage usage = result != null ? result.usage() : null;
         if (usage == null) {
-            long promptTokens = countAiRequestTokens(profile, request);
+            long promptTokens = countAiRequestTokens(profile, request, connection);
             long completionTokens = AiTokenCounter.countTextTokens(
                 result != null ? result.content() : "",
                 profile.getTokenizerType() != null ? profile.getTokenizerType() : AiTokenizerType.ESTIMATE);
@@ -11978,6 +12014,7 @@ public class MainWindow {
             stage,
             orderedProfiles,
             getConnectionDisplayName(terminalTab),
+            terminalTab.getConnection(),
             getTerminalAgentExecutionTarget(),
             shouldShowTerminalAgentDebugMessages(),
             shouldShowTerminalAgentRuntimeMessages(),
@@ -12257,7 +12294,7 @@ public class MainWindow {
             AiSentContextCollector.Reply reply = task.getValue();
             AiExecutionResult result = reply != null ? reply.result() : null;
             resultTab.showResult(reply);
-            recordAiUsageForProfile(profile, request, result);
+            recordAiUsageForProfile(profile, request, result, connection);
         });
         task.setOnCancelled(event -> resultTab.showCancelled());
         task.setOnFailed(event -> {
@@ -12362,9 +12399,12 @@ public class MainWindow {
         java.util.concurrent.atomic.AtomicBoolean agentLearningStarted =
             new java.util.concurrent.atomic.AtomicBoolean();
         ServerConnection agentConnection = runConnection;
+        // The memory is the connection the run drives: the focused pane's, which may differ from the tab's.
+        String agentConnectionId = agentConnection != null ? agentConnection.getId() : null;
         Thread worker = new Thread(() -> {
             try {
-                terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
+                terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), agentConnectionId,
+                    profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
                         activityPanel.updateState(runId, state);
@@ -12806,6 +12846,7 @@ public class MainWindow {
             aiService,
             request,
             agentRunnerFor(planRunContext),
+            planRunContext != null && planRunContext.connector() != null ? planRunContext.connector().getConnection() : null,
             () -> resolveTerminalAgentPreflightSessionId(terminalTab, request.sessionId(), planRunContext),
             (planRequest, report) -> startAcceptedPlanExecution(
                 terminalTab, profile, planRequest, report, planRunContext, foreignSessionAcknowledgedFor));
@@ -13167,7 +13208,13 @@ public class MainWindow {
     }
 
     void recordAiUsageForProfile(AiProfile profile, AiRequest request, AiExecutionResult result) {
-        recordAiUsage(profile, request, result);
+        recordAiUsage(profile, request, result, null);
+    }
+
+    /** Records the usage of a request of {@code connection}, whose memory and skills the fallback count uses. */
+    void recordAiUsageForProfile(AiProfile profile, AiRequest request, AiExecutionResult result,
+                                 @Nullable ServerConnection connection) {
+        recordAiUsage(profile, request, result, connection);
     }
 
     void recordAiUsageForProfile(AiProfile profile, AiTokenUsage usage) {

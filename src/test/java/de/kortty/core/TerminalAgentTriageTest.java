@@ -220,6 +220,20 @@ class TerminalAgentTriageTest {
     }
 
     @Test
+    void theAnswerTimeStartsWhenTheCardIsShownNotWhileItWaitsInAQueue() throws Exception {
+        // The card sits behind another prompt for longer than the answer time; once shown, the user answers at once.
+        ChoiceUi ui = new ChoiceUi(true, TerminalAgentModels.SolutionChoice.option(1, "Keep the logs."), 900);
+        TerminalAgentModels.Request request = request("");
+
+        TerminalAgentModels.Request chosen = service(LONG, Duration.ofMillis(300)).offerSolutionChoice(
+            null, new TriageAi(complexReply(), null, 0), outbound(), request, probe(), null,
+            AiAgentTriageMode.AUTO, EffectivePolicy.unrestricted(), ui, "run-1").orElseThrow();
+
+        assertThat(chosen.acceptedPlanContext()).contains("Accepted plan option: Blue-green");
+        assertThat(ui.proposals).hasSize(1);
+    }
+
+    @Test
     void cancellingTheRunWhileTheCardWaitsEndsTheRun() throws Exception {
         ChoiceUi ui = new ChoiceUi(true, null);
         new Thread(() -> {
@@ -357,6 +371,7 @@ class TerminalAgentTriageTest {
     private static final class ChoiceUi implements TerminalAgentService.RunUi {
         private final boolean supportsChoices;
         private final TerminalAgentModels.SolutionChoice answer;
+        private final long queueMillis;
         private final List<TerminalAgentModels.TriageProposal> proposals = new CopyOnWriteArrayList<>();
         private final List<TerminalAgentModels.RunState> states = new CopyOnWriteArrayList<>();
         private final List<TerminalAgentModels.AgentActivity> activities = new CopyOnWriteArrayList<>();
@@ -365,8 +380,27 @@ class TerminalAgentTriageTest {
         private volatile RuntimeException choiceFailure;
 
         private ChoiceUi(boolean supportsChoices, TerminalAgentModels.SolutionChoice answer) {
+            this(supportsChoices, answer, 0);
+        }
+
+        /** A card that waits {@code queueMillis} before it is shown, as behind another prompt. */
+        private ChoiceUi(boolean supportsChoices, TerminalAgentModels.SolutionChoice answer, long queueMillis) {
             this.supportsChoices = supportsChoices;
             this.answer = answer;
+            this.queueMillis = queueMillis;
+        }
+
+        @Override
+        public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+            TerminalAgentModels.TriageProposal proposal,
+            Runnable shown) throws Exception {
+            if (queueMillis == 0) {
+                return TerminalAgentService.RunUi.super.requestSolutionChoice(proposal, shown);
+            }
+            proposals.add(proposal);
+            Thread.sleep(queueMillis);
+            shown.run();
+            return answer;
         }
 
         @Override

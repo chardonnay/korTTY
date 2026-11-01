@@ -40,7 +40,7 @@ public final class AiSentRunLedger {
             AiSentContext.Skill previous = skills.get(key);
             int turnsBefore = previous == null ? 0 : previous.turns();
             skills.put(key, new AiSentContext.Skill(skill.id(), skill.name(), skill.automatic(), skill.tokens(),
-                turnsBefore + 1));
+                turnsBefore + 1, skill.learnedRules()));
         }
     }
 

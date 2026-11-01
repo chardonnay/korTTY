@@ -76,16 +76,43 @@ public final class SecretTokenPatterns {
         Rule.of("url-credentials",
             "(?<keep>://[^\\s:/@\"'<>]*:)(?<secret>[^\\s/\"'<>]+)(?<tail>@)"),
         // NAME=value / name: value where the name ends in a secret word. PASSWORD_MIN_LENGTH=8
-        // does not match (the name must end in the word), and PWD/OLDPWD are deliberately absent.
+        // does not match (the name must end in the word), and OLDPWD is deliberately absent.
+        // "pass", "pw" and "pwd" are names only as KEY=value (PASS=, --pass=, MYSQL_PWD=), as
+        // DB_PASS: or as a YAML key at the start of a line; "make runs pass: keep" is prose.
         // A quoted value may contain spaces; a bare one ends at whitespace, a quote, ',' or ';'.
         // "api-key" also takes the hyphen, for the X-Api-Key header and --api-key= flags.
         Rule.of("secret-assignment",
-            "(?i)(?<![A-Za-z0-9_])(?<keep>[A-Za-z0-9_]*"
-                + "(?:password|passwd|passphrase|secret|token|api[_-]?key|access_?key|secret_?key|private_?key)"
-                + "[\"']?[ \\t]*[=:][ \\t]*[\"']?)"
+            "(?im)(?<![A-Za-z0-9_])(?<keep>"
+                + "(?:[A-Za-z0-9_]*(?:password|passwd|passphrase|secret|token|api[_-]?key|access_?key|secret_?key"
+                + "|private_?key|(?:encryption|signing|session)[_-]?key)[\"']?[ \\t]*[=:][ \\t]*[\"']?"
+                + "|(?:[A-Za-z0-9_-]*[_-])?(?:pass|pw)[\"']?[ \\t]*=[ \\t]*[\"']?"
+                + "|[A-Za-z0-9_-]*[_-](?:pass|pw)[\"']?[ \\t]*:[ \\t]*[\"']?"
+                + "|^[ \\t]*(?:-[ \\t]*)?(?:pass|pw)[\"']?[ \\t]*:[ \\t]*[\"']?)"
+                + ")"
+                + "(?<secret>(?<=[\"'])[^\"'\\r\\n]+|(?<![\"'])[^\\s\"'`,;]+)"),
+        // PWD is also the shell's working directory: a path value (PWD=/home/user) is not a secret.
+        Rule.of("pwd-assignment",
+            "(?i)(?<![A-Za-z0-9_])(?<keep>(?:[A-Za-z0-9_-]*[_-])?pwd[\"']?[ \\t]*[=:][ \\t]*[\"']?)"
+                + "(?!(?:\\./|\\.\\./|[/~])[A-Za-z0-9._~-]*/[A-Za-z0-9._~/-]*(?![^\\s\"'`,;]))"
                 + "(?<secret>(?<=[\"'])[^\"'\\r\\n]+|(?<![\"'])[^\\s\"'`,;]+)"));
 
+    /**
+     * A value an earlier pass already masked: nothing but mask characters, or a token-type prefix followed by the
+     * mask, as in {@code ghp_***}. A value that merely contains the mask, such as {@code Ab***789}, is still a secret.
+     */
+    private static final Pattern ALREADY_MASKED = Pattern.compile(
+        "(?:gh[pousr]_|github_pat_|gl(?:pat|rt|dt|ptt)-|xox[abposr]-|sk-(?:ant-|proj-)?|AKIA|ASIA|ABIA|ACCA|eyJ)?"
+            + "[*xX._\\-\\u2026]*\\*\\*\\*[*xX._\\-\\u2026]*");
+
     private SecretTokenPatterns() {
+    }
+
+    /**
+     * Whether a value an earlier pass already masked: nothing but mask characters, or a token-type prefix followed by
+     * the mask. A value that merely contains the mask is still a secret.
+     */
+    static boolean isAlreadyMasked(String value) {
+        return value != null && ALREADY_MASKED.matcher(value).matches();
     }
 
     /** Masks every known secret format in the text and reports how many matches were masked. */
@@ -140,7 +167,7 @@ public final class SecretTokenPatterns {
     private static String mask(
         Rule rule, MatchResult match, int[] masked, java.util.function.Consumer<String> maskedValues) {
         String secret = match.group(SECRET);
-        if (secret == null || secret.isEmpty() || secret.contains(SessionJournalRedactor.REPLACEMENT)) {
+        if (secret == null || secret.isEmpty() || isAlreadyMasked(secret)) {
             return match.group();
         }
         masked[0]++;

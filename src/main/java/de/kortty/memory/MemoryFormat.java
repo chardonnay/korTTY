@@ -3,6 +3,7 @@ package de.kortty.memory;
 import de.kortty.memory.MemoryDocument.KorttyEntry;
 import de.kortty.memory.MemoryDocument.Segment;
 import de.kortty.memory.MemoryDocument.UserText;
+import de.kortty.memory.external.ExternalMemoryReader;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -38,7 +39,11 @@ public final class MemoryFormat {
     private static final Pattern FENCE_MARKER = Pattern.compile("<!--\\s*/?kortty:entry\\b.*?-->");
     private static final Pattern FENCE_MARKER_IN_BODY = Pattern.compile("<!--(\\s*/?kortty:entry)");
     private static final Pattern PROMPT_MARKER = Pattern.compile(
+        "(?i)<(/?)(kortty_user_memory|retrieved_context|kortty_model_preset|kortty_external_memory|kortty_ai_skill)");
+    private static final Pattern PROMPT_MARKER_WITHOUT_SKILL = Pattern.compile(
         "(?i)<(/?)(kortty_user_memory|retrieved_context|kortty_model_preset|kortty_external_memory)");
+    /** The UTF-8 byte-order mark: an editor may write it in front of the first line, and it is kept as user text. */
+    private static final String BOM = "﻿";
     private static final Pattern ID = Pattern.compile("[A-Za-z0-9_-]{1,32}");
     private static final Pattern SOURCE = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
     private static final Pattern CREATED = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
@@ -50,9 +55,13 @@ public final class MemoryFormat {
 
     /** Splits a memory file into user text and intact korTTY entries; joining them restores {@code text}. */
     public static MemoryDocument parse(String text) {
-        List<String> lines = splitLines(text == null ? "" : text);
+        String source = text == null ? "" : text;
+        // A byte-order mark is part of the user's text; it is kept in front of the first user segment, so a korTTY
+        // fence on the first line is still recognised.
+        boolean bom = source.startsWith(BOM);
+        List<String> lines = splitLines(bom ? source.substring(BOM.length()) : source);
         List<Segment> segments = new ArrayList<>();
-        StringBuilder user = new StringBuilder();
+        StringBuilder user = new StringBuilder(bom ? BOM : "");
         int index = 0;
         while (index < lines.size()) {
             int close = closingLine(lines, index);
@@ -74,18 +83,30 @@ public final class MemoryFormat {
      * The user's own content, used to prove that a korTTY write changed nothing the user wrote: every line of
      * user text with its line ending, so a changed CRLF, a changed space or a removed blank line between two
      * paragraphs shows. The blank lines at the start and end of each piece of user text do not count: korTTY
-     * writes them next to its fences, and removing a fence leaves them behind.
+     * writes them next to its fences, and removing a fence leaves them behind. Where a fence stood between two
+     * pieces of user text, one blank line stands for the separator between them: the separator keeps the two
+     * paragraphs apart, so dropping it on a removal is a change of the user's text and shows here.
      */
     public static String userSegments(String text) {
         StringBuilder kept = new StringBuilder();
+        boolean fenceBetween = false;
         for (Segment segment : parse(text).segments()) {
-            if (segment instanceof UserText user) {
-                String trimmed = trimBlankEdges(user.text());
-                kept.append(trimmed);
-                if (!trimmed.isEmpty() && !trimmed.endsWith("\n")) {
-                    kept.append('\n');
-                }
+            if (segment instanceof KorttyEntry) {
+                fenceBetween = true;
+                continue;
             }
+            String trimmed = trimBlankEdges(((UserText) segment).text());
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (fenceBetween && !kept.isEmpty()) {
+                kept.append('\n');
+            }
+            kept.append(trimmed);
+            if (!trimmed.endsWith("\n")) {
+                kept.append('\n');
+            }
+            fenceBetween = false;
         }
         return kept.toString();
     }
@@ -109,15 +130,21 @@ public final class MemoryFormat {
 
     /**
      * The text the secret guard reads: the file as it is, except that the sha256 value of each intact korTTY fence
-     * is left out. That value is a hash, and the guard would take it for a random token. Every other part of a fence
-     * stays visible, so a secret cannot hide in a comment. Line numbers are those of {@code text}.
+     * is left out. That value is a hash, and the guard would take it for a random token. Only the value of an entry
+     * whose body matches it is left out, so a hash written by hand in a fence header stays visible. Invisible
+     * characters are removed, because a zero-width space inside a keyword would hide it from the guard. Every other
+     * part of a fence stays visible. Line numbers are those of {@code text}.
      */
     public static String textForSecretCheck(String text) {
         StringBuilder checked = new StringBuilder();
-        for (String line : splitLines(text == null ? "" : text)) {
-            checked.append(withoutSha256(line));
+        for (Segment segment : parse(text == null ? "" : text).segments()) {
+            if (segment instanceof KorttyEntry entry) {
+                checked.append(withoutHash(entry));
+            } else {
+                checked.append(((UserText) segment).text());
+            }
         }
-        return checked.toString();
+        return ExternalMemoryReader.sanitize(checked.toString()).text();
     }
 
     /** One fence for a new entry. Line breaks in the body become {@code \n}; fence markers inside it are escaped. */
@@ -143,6 +170,14 @@ public final class MemoryFormat {
     /** Escapes the tags that delimit prompt sections, the way {@code RagContextBuilder} does. */
     public static String escapeMarkers(String text) {
         return text == null ? "" : PROMPT_MARKER.matcher(text).replaceAll("< $1$2");
+    }
+
+    /**
+     * {@link #escapeMarkers} without the skill tag. The skill block korTTY builds carries its own skill tags, which must
+     * reach the model; the text inside that block is escaped with {@link #escapeMarkers} where it is composed.
+     */
+    public static String escapeMarkersKeepingSkillTags(String text) {
+        return text == null ? "" : PROMPT_MARKER_WITHOUT_SKILL.matcher(text).replaceAll("< $1$2");
     }
 
     public static String sha256(String text) {
@@ -179,31 +214,32 @@ public final class MemoryFormat {
 
     /** The text without the blank lines at its start and end, each line keeping its line ending. */
     static String trimBlankEdges(String text) {
+        return trimBlankLines(text, true, true);
+    }
+
+    /**
+     * The text without its blank lines at the start when {@code leading} is set and at the end when {@code trailing}
+     * is set; the other blank lines and each line's ending stay as they are.
+     */
+    static String trimBlankLines(String text, boolean leading, boolean trailing) {
         List<String> lines = splitLines(text);
         int from = 0;
         int to = lines.size();
-        while (from < to && stripTerminator(lines.get(from)).isEmpty()) {
+        while (leading && from < to && stripTerminator(lines.get(from)).isEmpty()) {
             from++;
         }
-        while (to > from && stripTerminator(lines.get(to - 1)).isEmpty()) {
+        while (trailing && to > from && stripTerminator(lines.get(to - 1)).isEmpty()) {
             to--;
         }
         return String.join("", lines.subList(from, to));
     }
 
-    /** {@code line} with the sha256 value removed when it is the opening fence of an intact korTTY entry. */
-    private static String withoutSha256(String line) {
-        String content = stripTerminator(line);
-        Matcher open = OPEN_LINE.matcher(content);
-        if (!open.matches()) {
-            return line;
-        }
-        Map<String, String> attributes = attributes(open.group(1));
-        if (!intactHeader(attributes)) {
-            return line;
-        }
-        String attributesWithoutSha = open.group(1).replace(" sha256=" + attributes.get("sha256"), "");
-        return "<!-- kortty:entry" + attributesWithoutSha + " -->" + line.substring(content.length());
+    /** The raw fence of {@code entry} with its sha256 attribute removed; the body and the other attributes stay. */
+    private static String withoutHash(KorttyEntry entry) {
+        String raw = entry.raw();
+        String attribute = " sha256=" + entry.sha256();
+        int at = raw.indexOf(attribute);
+        return at < 0 ? raw : raw.substring(0, at) + raw.substring(at + attribute.length());
     }
 
     /** Whether the attributes of an opening fence name korTTY as origin and carry well-formed values. */

@@ -1,5 +1,17 @@
 package de.kortty.memory;
 
+import java.util.Set;
+
+import java.util.Map;
+
+import java.util.List;
+
+import de.kortty.policy.PolicyRule;
+
+import de.kortty.policy.PolicyIdentity;
+
+import de.kortty.policy.PolicyFile;
+
 import de.kortty.model.GlobalSettings;
 import de.kortty.policy.EffectivePolicy;
 import de.kortty.policy.UserMemoryMode;
@@ -68,5 +80,30 @@ class RuleTargetPolicyTest {
         memory.setAiMemoryAllowedSupplier(() -> true);
         memory.setUserMemoryModeSupplier(() -> mode);
         return memory;
+    }
+
+
+    @Test
+    void skillCreationOffKeepsExistingSkillsOpenToLearnedRules() throws Exception {
+        PolicyRule noCreation = PolicyRule.builder()
+            .aiMemory(new PolicyRule.AiMemoryRule(null, null, false, null, null, null, null, null)).build();
+        PolicyFile file = new PolicyFile(1, "ACME Corp", Map.of(), List.of(noCreation), List.of(), List.of(),
+            List.of(), List.of());
+        EffectivePolicy policy = EffectivePolicy.resolve(file, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "anyone";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+
+        RuleTargetPolicy view = RuleTargetPolicy.from(new GlobalSettings(), policy, memory(UserMemoryMode.EDITABLE));
+
+        assertThat(view.skillCreationAllowed()).isFalse();
+        assertThat(view.existingSkillsAllowed()).isTrue();
     }
 }

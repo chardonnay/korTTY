@@ -22,6 +22,7 @@ public final class AiMemoryPromptSource {
     private final AiProfile profile;
     private final int budgetTokens;
     private final boolean cachedOnly;
+    private final SessionJournalRedactor knownSecrets;
 
     /**
      * @param connectionId the connection whose memory joins the global one, or {@code null} for the
@@ -31,13 +32,34 @@ public final class AiMemoryPromptSource {
      * @param budgetTokens the memory budget of one request
      */
     public AiMemoryPromptSource(String connectionId, AiProfile profile, int budgetTokens) {
-        this(connectionId, profile, budgetTokens, false);
+        this(connectionId, profile, budgetTokens, null, false);
     }
 
-    private AiMemoryPromptSource(String connectionId, AiProfile profile, int budgetTokens, boolean cachedOnly) {
+    /**
+     * Same as {@link #AiMemoryPromptSource(String, AiProfile, int)}, and masks the memory with the session's known
+     * secrets too, as the agent does. A secret known only to the session (typed into the terminal, not saved in the
+     * vault) then never reaches the provider through the memory.
+     *
+     * @param knownSecrets the session's redactor, or {@code null} for the profile's rules and the token formats alone
+     */
+    public AiMemoryPromptSource(
+        String connectionId,
+        AiProfile profile,
+        int budgetTokens,
+        SessionJournalRedactor knownSecrets) {
+        this(connectionId, profile, budgetTokens, knownSecrets, false);
+    }
+
+    private AiMemoryPromptSource(
+        String connectionId,
+        AiProfile profile,
+        int budgetTokens,
+        SessionJournalRedactor knownSecrets,
+        boolean cachedOnly) {
         this.connectionId = connectionId;
         this.profile = profile;
         this.budgetTokens = budgetTokens;
+        this.knownSecrets = knownSecrets;
         this.cachedOnly = cachedOnly;
     }
 
@@ -46,7 +68,16 @@ public final class AiMemoryPromptSource {
      * {@link MemoryService#cachedBlockFor}), so the preview reads no file.
      */
     public static AiMemoryPromptSource preview(String connectionId, AiProfile profile, int budgetTokens) {
-        return new AiMemoryPromptSource(connectionId, profile, budgetTokens, true);
+        return preview(connectionId, profile, budgetTokens, null);
+    }
+
+    /** {@link #preview(String, AiProfile, int)} with the session's known secrets, as for {@link #block()}. */
+    public static AiMemoryPromptSource preview(
+        String connectionId,
+        AiProfile profile,
+        int budgetTokens,
+        SessionJournalRedactor knownSecrets) {
+        return new AiMemoryPromptSource(connectionId, profile, budgetTokens, knownSecrets, true);
     }
 
     /** The masked, budgeted memory for one request; empty when memory is off. */
@@ -62,12 +93,12 @@ public final class AiMemoryPromptSource {
         }
         if (cachedOnly) {
             // The token preview runs on the UI thread and reads only the text, so the parts are not masked for it.
-            String masked = AiOutboundRedaction.redactFor(profile, raw.text(), null).text();
+            String masked = AiOutboundRedaction.redactFor(profile, raw.text(), knownSecrets).text();
             return new MemoryBlock(masked, AiTokenCounter.countTextTokens(masked, tokenizer), raw.includedEntryIds(),
                 raw.sentParts(), raw.omittedCount());
         }
         // The text and every reported part are masked, so the "what was sent" view shows what the provider got.
-        return raw.masked(text -> AiOutboundRedaction.redactFor(profile, text, null).text(), tokenizer);
+        return raw.masked(text -> AiOutboundRedaction.redactFor(profile, text, knownSecrets).text(), tokenizer);
     }
 
     private AiTokenizerType tokenizer() {

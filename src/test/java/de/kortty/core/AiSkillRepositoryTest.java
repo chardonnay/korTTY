@@ -258,6 +258,45 @@ class AiSkillRepositoryTest {
     }
 
     @Test
+    void aLearnedRuleKorttyUndidStaysUndoneWhenTheEditorSavesTheSameSkill() throws Exception {
+        Path dir = tempDirectory();
+        GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+        try {
+            manager.getSettings().setAiSkills(List.of(withRules(skill("a", "old text"), rule("r1", "Learned."))));
+            AiSkillRepository repository = repository(manager);
+            List<AiSkill> base = repository.snapshot();
+            List<AiSkill> editor = repository.snapshot();
+            editor.get(0).setContent("text I typed");
+
+            // The user undoes the learned rule within 30 seconds while the editor still holds it.
+            repository.update(skills -> {
+                skills.get(0).getLearnedRules().clear();
+                return skills;
+            }, MemoryConsentFixture.granted()).join();
+            AiSkillRepository.Outcome outcome = repository.commit(base, editor);
+
+            assertThat(outcome.changed()).isTrue();
+            AiSkill stored = manager.getSettings().getAiSkills().get(0);
+            assertThat(stored.getContent()).isEqualTo("text I typed");
+            assertThat(ruleIds(stored)).isEmpty();
+        } finally {
+            cleanUp(manager, dir);
+        }
+    }
+
+    @Test
+    void aLearnedRuleTheEditorChangedSurvivesKorttyUndoingItsStoredCopy() {
+        List<AiSkill> base = List.of(withRules(skill("a", "old"), rule("r1", "Learned.")));
+        List<AiSkill> mine = List.of(withRules(skill("a", "old"), rule("r1", "Edited by me.")));
+        List<AiSkill> current = List.of(skill("a", "old"));
+
+        List<AiSkill> merged = AiSkillRepository.threeWayMerge(base, mine, current);
+
+        assertThat(ruleIds(merged.get(0))).containsExactly("r1");
+        assertThat(merged.get(0).getLearnedRules().get(0).getText()).isEqualTo("Edited by me.");
+    }
+
+    @Test
     void commitWithoutAnyChangeReportsNoChangeAndNotifiesNobody() throws Exception {
         Path dir = tempDirectory();
         GlobalSettingsManager manager = new GlobalSettingsManager(dir);

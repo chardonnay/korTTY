@@ -1182,7 +1182,9 @@ public final class EffectivePolicy {
         Boolean statistics = resolver.resolveAllow(
             rule -> rule.aiMemory() != null ? rule.aiMemory().statistics() : null);
 
-        if (userMemory != null) {
+        // A read-only or editable user memory leaves the switch to the user: the policy only limits how the memory may
+        // be written. A disabled one is off for the user as well, so the switch is locked.
+        if (userMemory == UserMemoryMode.DISABLED) {
             managed.add(ManagedSetting.AI_MEMORY);
         }
         if (learning != null) {

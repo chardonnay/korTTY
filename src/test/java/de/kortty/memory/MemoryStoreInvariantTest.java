@@ -405,12 +405,24 @@ class MemoryStoreInvariantTest {
         store.archiveKorttyEntries(scope, ids, consent(scope));
     }
 
+    /** The user's text with every fence removed; a blank line stays between two paragraphs a fence separated. */
     private static String userOnly(String text) {
         StringBuilder user = new StringBuilder();
+        boolean fenceBetween = false;
         for (Segment segment : MemoryFormat.parse(text).segments()) {
-            if (segment instanceof UserText userText) {
-                user.append(MemoryFormat.trimBlankEdges(userText.text()));
+            if (segment instanceof KorttyEntry) {
+                fenceBetween = true;
+                continue;
             }
+            String trimmed = MemoryFormat.trimBlankEdges(((UserText) segment).text());
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (fenceBetween && user.length() > 0) {
+                user.append('\n');
+            }
+            user.append(trimmed);
+            fenceBetween = false;
         }
         return user.toString();
     }
@@ -438,7 +450,9 @@ class MemoryStoreInvariantTest {
                 case 0 -> text.append(randomUserLine(random)).append('\n');
                 case 1 -> text.append('\n');
                 case 2 -> text.append(entry(randomId(random), "- " + randomRule(random)));
-                case 3 -> text.append(entry(randomId(random), "- " + randomRule(random)).replace("- ", "- edited "));
+                // An edited entry: the body changed, its header is gone. The header of a changed entry would still
+                // carry the old hash, and korTTY refuses that hash as a possible secret until the header is removed.
+                case 3 -> text.append("- edited ").append(randomRule(random)).append('\n');
                 default -> text.append(randomUserLine(random)).append("\r\n");
             }
         }
@@ -463,5 +477,61 @@ class MemoryStoreInvariantTest {
 
     private static String randomId(Random random) {
         return String.format("%06x", random.nextInt(0x1000000));
+    }
+
+
+    @Test
+    void archivingAFenceKeepsTheBlankLineThatSeparatesTheUserParagraphs() throws IOException {
+        MemoryScope global = MemoryScope.global();
+        String text = "Para A: keep this note.\n\n" + entry("old001", "- Old rule.") + "Para B: also keep this note.\n";
+        store.write(global, EMPTY_DIGEST, text, WriteReason.USER_SAVE, null);
+
+        Snapshot after = store.archiveKorttyEntries(global, Set.of("old001"), consent(global));
+
+        assertThat(after.text()).isEqualTo("Para A: keep this note.\n\nPara B: also keep this note.\n");
+        assertThat(MemoryFormat.userSegments(after.text())).isEqualTo(MemoryFormat.userSegments(text));
+    }
+
+    @Test
+    void archivingAFenceBetweenTwoNotesOfTheUserKeepsThemApart() throws IOException {
+        MemoryScope global = MemoryScope.global();
+        store.write(global, EMPTY_DIGEST, "User note one.\n\n" + entry("old002", "- Old rule.")
+            + "User note typed later.\n", WriteReason.USER_SAVE, null);
+
+        Snapshot after = store.archiveKorttyEntries(global, Set.of("old002"), consent(global));
+
+        assertThat(after.text()).isEqualTo("User note one.\n\nUser note typed later.\n");
+    }
+
+    @Test
+    void aRefusedArchiveLeavesTheArchiveAndTheMemoryFileAsTheyWere() throws IOException {
+        MemoryScope global = MemoryScope.global();
+        Path file = store.fileOf(global);
+        Files.createDirectories(file.getParent());
+        // Past the store's own limit, as an outside editor could leave it: the commit refuses, so no archive may be written.
+        String oversized = "Long user text.\n".repeat(4200) + entry("old003", "- Old rule.");
+        Files.writeString(file, oversized);
+
+        assertThrows(MemoryLimitException.class,
+            () -> store.archiveKorttyEntries(global, Set.of("old003"), consent(global)));
+
+        assertThat(Files.exists(dir.resolve(MemoryStore.ARCHIVE_FILE_NAME))).isFalse();
+        assertThat(Files.readString(file)).isEqualTo(oversized);
+    }
+
+    @Test
+    void archivingTheSameFenceAgainDoesNotDuplicateItInTheArchive() throws IOException {
+        MemoryScope global = MemoryScope.global();
+        String fence = entry("old004", "- Old rule.");
+        store.write(global, EMPTY_DIGEST, "Team rule.\n\n" + fence, WriteReason.USER_SAVE, null);
+        store.archiveKorttyEntries(global, Set.of("old004"), consent(global));
+        String archived = Files.readString(dir.resolve(MemoryStore.ARCHIVE_FILE_NAME));
+
+        // As if the commit had failed after the archive was written: the fence is back in the memory file.
+        store.write(global, store.read(global).sha256(), "Team rule.\n\n" + fence, WriteReason.USER_SAVE, null);
+        store.archiveKorttyEntries(global, Set.of("old004"), consent(global));
+
+        assertThat(Files.readString(dir.resolve(MemoryStore.ARCHIVE_FILE_NAME))).isEqualTo(archived);
+        assertThat(archived).contains("- Old rule.");
     }
 }

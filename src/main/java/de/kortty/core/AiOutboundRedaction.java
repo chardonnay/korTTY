@@ -9,10 +9,11 @@ import de.kortty.model.AiProfile;
  * Ask Agent with a selection, and the follow-ups of the AI tab these open, whose profile the user
  * can switch (see {@link #chatContextFor}).
  *
- * <p>Two passes, in this order: the known secrets of the session (the connection's password and
+ * <p>Three passes, in this order: the known secrets of the session (the connection's password and
  * the organisation's {@code [[rule.session-journal.replace]]} rules — the same
  * {@link SessionJournalRedactor} the capture paths use), then the well-known token formats of
- * {@link SecretTokenPatterns}. Both replace with {@link SessionJournalRedactor#REPLACEMENT}.</p>
+ * {@link SecretTokenPatterns}, then the values of password cues in prose ("Das Passwort lautet: …")
+ * as {@link AiSecretGuard} recognises them. All replace with {@link SessionJournalRedactor#REPLACEMENT}.</p>
  *
  * <p>Only an integrated model (llama.cpp, MLX) is exempt by default. An HTTP endpoint on the
  * loopback interface is not assumed to be local: a LiteLLM-style proxy or an {@code ssh -L}
@@ -158,7 +159,8 @@ public final class AiOutboundRedaction {
         }
         SessionJournalRedactor secrets = knownSecrets != null ? knownSecrets : policyRedactor();
         RedactionResult known = secrets.redactCounting(text, maskedValues);
-        return known.then(SecretTokenPatterns.redact(known.text(), maskedValues));
+        RedactionResult formats = known.then(SecretTokenPatterns.redact(known.text(), maskedValues));
+        return formats.then(AiSecretGuard.maskProseSecrets(formats.text(), maskedValues));
     }
 
     /**

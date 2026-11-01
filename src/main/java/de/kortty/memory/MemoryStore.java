@@ -209,9 +209,9 @@ public final class MemoryStore {
     }
 
     /**
-     * Moves the korTTY entries with the given ids from the scope's file into {@code archive.md}.
-     * The archive is written first, so a failure in between leaves the entries in both places
-     * rather than in neither.
+     * Moves the korTTY entries with the given ids from the scope's file into {@code archive.md}. Every check the commit
+     * makes runs before the archive is touched, so a refused change leaves both files as they were. A fence the archive
+     * already holds is not added again, so a retry after a failed commit does not duplicate it.
      */
     public Snapshot archiveKorttyEntries(MemoryScope scope, Set<String> ids, MemoryConsent consent)
         throws IOException {
@@ -228,10 +228,16 @@ public final class MemoryStore {
                 return current;
             }
             String remaining = textWithout(document, selected);
+            validateLocked(scope, current.sha256(), remaining, WriteReason.KORTTY_CONSENTED, consent);
             Path archive = memoryDir.resolve(ARCHIVE_FILE_NAME);
             String archived = readText(archive);
-            List<String> fences = selected.stream().map(KorttyEntry::raw).toList();
-            writeLocked(archive, appendFences(archived, fences));
+            List<String> fences = selected.stream()
+                .map(KorttyEntry::raw)
+                .filter(raw -> !archived.contains(raw))
+                .toList();
+            if (!fences.isEmpty()) {
+                writeLocked(archive, appendFences(archived, fences));
+            }
             written = commitLocked(scope, current.sha256(), remaining, WriteReason.KORTTY_CONSENTED, consent);
         }
         notifyListeners(scope);
@@ -317,6 +323,25 @@ public final class MemoryStore {
 
     private Snapshot commitLocked(MemoryScope scope, String expectedDigest, String newText, WriteReason reason,
                                   MemoryConsent consent) throws IOException {
+        Snapshot current = validateLocked(scope, expectedDigest, newText, reason, consent);
+        if (reason == WriteReason.KORTTY_CONSENTED && !consent.consume()) {
+            throw new MemoryInvariantException("A consent covers one korTTY change; ask the user again.");
+        }
+        if (current.exists()) {
+            snapshotLocked(scope);
+        }
+        writeLocked(fileOf(scope), newText);
+        recordDigestLocked(scope, MemoryFormat.sha256(newText));
+        pruneHistoryLocked(scope);
+        return readLocked(scope);
+    }
+
+    /**
+     * The checks a write passes before it changes anything, in the order the refusals are documented. Returns the
+     * current file. The consent is not used up here: {@link #commitLocked} does that.
+     */
+    private Snapshot validateLocked(MemoryScope scope, String expectedDigest, String newText, WriteReason reason,
+                                    MemoryConsent consent) throws IOException {
         requireWritable();
         long bytes = newText.getBytes(StandardCharsets.UTF_8).length;
         if (bytes > MAX_BYTES) {
@@ -332,21 +357,15 @@ public final class MemoryStore {
             if (!MemoryFormat.userSegments(current.text()).equals(MemoryFormat.userSegments(newText))) {
                 throw new MemoryInvariantException("A korTTY change may not alter the text the user wrote.");
             }
+            if (!consent.available()) {
+                throw new MemoryInvariantException("A consent covers one korTTY change; ask the user again.");
+            }
         }
         AiSecretGuard.Result check = AiSecretGuard.check(MemoryFormat.textForSecretCheck(newText));
         if (!check.ok()) {
             throw new MemorySecretException(check.first().orElseThrow());
         }
-        if (reason == WriteReason.KORTTY_CONSENTED && !consent.consume()) {
-            throw new MemoryInvariantException("A consent covers one korTTY change; ask the user again.");
-        }
-        if (current.exists()) {
-            snapshotLocked(scope);
-        }
-        writeLocked(fileOf(scope), newText);
-        recordDigestLocked(scope, MemoryFormat.sha256(newText));
-        pruneHistoryLocked(scope);
-        return readLocked(scope);
+        return current;
     }
 
     private void requireWritable() throws MemoryReadOnlyException {
@@ -514,20 +533,47 @@ public final class MemoryStore {
     }
 
     /**
-     * The file without the removed entries. The blank lines korTTY wrote around a fence go with it, so the user's
-     * text joins up as it did before the fence was added.
+     * The file without the removed entries. The blank lines that korTTY wrote in front of a removed fence, and the blank
+     * lines behind it, go with it. The user's own paragraphs keep their inner text. Where a removed fence stood between
+     * two pieces of user text, one blank line is kept between them: the same separator {@link MemoryRowEdit} keeps, and
+     * the one {@link MemoryFormat#userSegments} counts, so the two paragraphs stay apart.
      */
     private static String textWithout(MemoryDocument document, List<KorttyEntry> removed) {
+        List<Segment> segments = document.segments();
         StringBuilder text = new StringBuilder();
-        for (Segment segment : document.segments()) {
-            if (segment instanceof KorttyEntry entry && removed.contains(entry)) {
+        boolean removedSinceText = false;
+        boolean textLast = false;
+        for (int index = 0; index < segments.size(); index++) {
+            Segment segment = segments.get(index);
+            if (segment instanceof KorttyEntry entry) {
+                if (removed.contains(entry)) {
+                    removedSinceText = true;
+                } else {
+                    text.append(entry.raw());
+                    removedSinceText = false;
+                    textLast = false;
+                }
                 continue;
             }
-            text.append(segment instanceof MemoryDocument.UserText user
-                ? MemoryFormat.trimBlankEdges(user.text())
-                : ((KorttyEntry) segment).raw());
+            boolean afterRemoved = index > 0 && isRemoved(segments.get(index - 1), removed);
+            boolean beforeRemoved = index + 1 < segments.size() && isRemoved(segments.get(index + 1), removed);
+            String kept = MemoryFormat.trimBlankLines(((MemoryDocument.UserText) segment).text(), afterRemoved,
+                beforeRemoved);
+            if (kept.isEmpty()) {
+                continue;
+            }
+            if (removedSinceText && textLast) {
+                text.append('\n');
+            }
+            text.append(kept);
+            removedSinceText = false;
+            textLast = true;
         }
         return text.toString();
+    }
+
+    private static boolean isRemoved(Segment segment, List<KorttyEntry> removed) {
+        return segment instanceof KorttyEntry entry && removed.contains(entry);
     }
 
     private static String singleLine(String ruleText) {

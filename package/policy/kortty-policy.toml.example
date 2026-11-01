@@ -61,6 +61,8 @@
 #   ai-chat = "allow"                 # AI chat, saved chats and terminal-selection actions
 #   ai-swarm = "deny"                 # multi-host AI swarm
 #   ai-planning = "deny"              # AI planning
+#   ai-memory = "allow"               # the korTTY memory: MEMORY.md files, organisation memory and learned rules;
+#                                     # "deny" stops all of them. [rule.ai-memory] below sets the details
 #   teamwork = "deny"                 # shared-connections sync
 #   plugins = "deny"                  # plugins (e.g. terminal effects)
 #   multi-exec = "deny"               # typing into several terminals at once: multi-exec
@@ -189,7 +191,8 @@
 #   user-memory = "read-only"         # "editable" (default) | "read-only" (read into prompts, never written) |
 #                                     # "disabled" (neither read nor written; organisation memory is still sent)
 #   learning = "off"                  # "propose" | "off": off finds no rules and proposes none
-#   skill-creation = false            # false: korTTY never creates a skill for a learned rule
+#   skill-creation = false            # false: korTTY never creates a new skill for a learned rule; a rule may still
+#                                     # go into a skill the user already has
 #   external-files = "deny"           # "allow" | "deny": reference files of other tools (CLAUDE.md, AGENTS.md, ...)
 #   # Folders external files must lie in, absolute or ~/-relative; an empty list allows any folder.
 #   external-file-roots = ["/srv/shared-ai-notes"]
@@ -197,6 +200,8 @@
 #                                     # user's own setting applies
 #   triage = "auto"                   # "auto" | "always" | "never": when the agent offers solution options
 #   statistics = true                 # false: no skill statistics are recorded
+#   # A key that is not listed here is an error and the whole policy file is rejected, so a typo such as
+#   # user-memmory cannot leave the memory unrestricted without anyone noticing.
 
 # Automatic search-and-replace in every journal. The rules run BEFORE a line is written,
 # so a matching text never reaches the log file at all, and they also cover AI summaries
@@ -241,6 +246,8 @@
 # Organisation memory: rules for the AI that users cannot change. They are sent to the model before the
 # user's own memory whenever the AI memory is allowed. A block is at most 8000 characters and must hold no
 # secret; a block that breaks either rule is dropped with a warning in the log, the rest of the policy still applies.
+# The blocks are sent in full and are not cut to the memory budget, so the file holds at most 20 blocks and 16000
+# characters in all; a block beyond either limit is dropped with a warning.
 # [[organization-memory]]
 # title   = "ACME operating rules"
 # content = """

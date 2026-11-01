@@ -123,6 +123,43 @@ class AiMemoryPromptSourceTest {
         assertThat(new AiMemoryPromptSource(null, embedded, 1500).block().text()).contains(TOKEN);
     }
 
+    @Test
+    void aSecretKnownOnlyToTheSessionIsMaskedInTheChatMemoryToo() throws IOException {
+        write(MemoryScope.global(), "Lab sudo value is Session-Only-Value for the test box.");
+        SessionJournalRedactor session = new SessionJournalRedactor();
+        session.addSecret("Session-Only-Value");
+
+        MemoryBlock masked = new AiMemoryPromptSource(null, cloudProfile(), 4_000, session).block();
+        MemoryBlock preview = AiMemoryPromptSource.preview(null, cloudProfile(), 4_000, session).block();
+
+        assertThat(masked.text()).doesNotContain("Session-Only-Value");
+        assertThat(masked.text()).contains("Lab sudo value is");
+        assertThat(preview.text()).doesNotContain("Session-Only-Value");
+    }
+
+    @Test
+    void thePolicyDenyingExternalFilesKeepsThemOutOfTheBlockForEveryProfile() throws IOException {
+        write(MemoryScope.global(), "Global rule: answer briefly.");
+        MemoryService service = MemoryService.get();
+        service.setExternalFilesAllowedSupplier(() -> false);
+        service.setExternalSourcesSupplier(scope -> List.of(new MemoryBlockBuilder.ExternalSource(
+            "CLAUDE.md", "EXTERNAL-REFERENCE-TEXT", de.kortty.memory.external.ExternalMemoryTool.CLAUDE_CODE)));
+        try {
+            AiProfile claudeCode = new AiProfile();
+            claudeCode.setConnectionMode(AiConnectionMode.LOCAL_CLI);
+            claudeCode.setCliProviderId("claude-code");
+            for (AiProfile profile : List.of(cloudProfile(), claudeCode)) {
+                MemoryBlock block = new AiMemoryPromptSource(null, profile, 4_000).block();
+
+                assertThat(block.text()).contains("Global rule: answer briefly.");
+                assertThat(block.text()).doesNotContain("EXTERNAL-REFERENCE-TEXT");
+            }
+        } finally {
+            service.setExternalFilesAllowedSupplier(() -> false);
+            service.setExternalSourcesSupplier(scope -> List.of());
+        }
+    }
+
     private void write(MemoryScope scope, String text) throws IOException {
         MemoryStore.Snapshot current = store.read(scope);
         store.write(scope, current.sha256(), text + "\n", MemoryStore.WriteReason.USER_SAVE, null);

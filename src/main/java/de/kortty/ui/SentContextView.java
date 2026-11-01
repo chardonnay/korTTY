@@ -105,7 +105,8 @@ final class SentContextView {
                 if (style == Style.AGENT) {
                     parts.add(I18n.get("ai.memory.sent.turns", skill.turns()));
                 }
-                body.getChildren().add(row(String.join(SEPARATOR, parts), null, rowStyle, fontSize, false));
+                body.getChildren().add(row(String.join(SEPARATOR, parts), skill.learnedRules(), rowStyle, fontSize,
+                    false));
             }
         }
         if (!context.files().isEmpty()) {

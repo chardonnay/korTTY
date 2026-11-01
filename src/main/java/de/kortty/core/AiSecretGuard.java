@@ -85,9 +85,10 @@ public final class AiSecretGuard {
      * {@code db_passwort}, and the value may follow on the next line.
      */
     private static final Pattern PROSE_CUE = Pattern.compile(
-        "(?i)(passwort|kennwort|password|passwd|pwd|pin|passcode|passphrase"
-            + "|zugangsdaten|credentials|api[ -]?key|secret|token)"
-            + "(?:(?<sentence>\\s+(?:ist|lautet|is)\\s+)|\\s*[=:]\\s*)"
+        "(?iu)(?<cue>passw[oö]rt\\w{0,3}|kennw[oö]rt\\w{0,3}|password\\w{0,3}|passwd"
+            + "|(?<![\\p{L}\\p{N}])pwd|pin|passcode|passphrase"
+            + "|zugangsdaten|credentials|api[ -]?keys?|secrets?|tokens?)"
+            + "(?:(?<sentence>\\s+(?:ist|lautet|lauten|is|sind|are|were)(?:\\s*:\\s*|\\s+))|\\s*[=:]\\s*)"
             + "(?<value><[^<>\\n]*>|\\{\\{[^{}\\n]*}}|\\S+)");
 
     /**
@@ -96,13 +97,22 @@ public final class AiSecretGuard {
      * (a digit or a symbol such as "@" inside the word), so "Passwort ändern" and "Pin NuGet" stay prose.
      */
     private static final Pattern BARE_CUE = Pattern.compile(
-        "(?i)(?<![\\p{L}\\p{N}])(passwort|kennwort|password|passwd|pwd|passphrase|passcode|pin|zugangsdaten"
-            + "|credentials|api[ -]?key|secret|token)\\s+"
+        "(?iu)(?<![\\p{L}\\p{N}])(passw[oö]rt\\w{0,3}|kennw[oö]rt\\w{0,3}|password\\w{0,3}|passwd|pwd|passphrase"
+            + "|passcode|pin|zugangsdaten|credentials|api[ -]?keys?|secrets?|tokens?)\\s+"
+            + "(?!(?:ist|is|lautet|lauten|sind|are|were)\\b)"
             + "(?:[^\\s/&,<>{}\\[\\]]+\\s*[/&,]\\s*)?(?<value>[^\\s<>{}\\[\\]]+)");
 
     private static final Pattern SECRET_ASSIGNMENT_NAME = Pattern.compile(
-        "(?i)(password|passwd|passphrase|secret|token|api[_-]?key|access_?key|secret_?key|private_?key)"
-            + "[\"']?\\s*[=:]");
+        "(?i)(?<![A-Za-z0-9_])(?:[A-Za-z0-9_]*(?:password|passwd|passphrase|secret|token|api[_-]?key|access_?key"
+            + "|secret_?key|private_?key|(?:encryption|signing|session)[_-]?key)"
+            + "|(?:[A-Za-z0-9_-]*[_-])?(?:pass|pw|pwd))[\"']?\\s*[=:]");
+
+    /**
+     * A path as a value: {@code /usr/local/bin}, {@code ~/bin/x}, {@code ./run/x}. It needs a second slash and only
+     * path characters, so {@code /Sommer2026!} and {@code ~Sommer2026} are values, not paths.
+     */
+    private static final Pattern PATH_SHAPED = Pattern.compile(
+        "(?:\\./|\\.\\./|[/~])[A-Za-z0-9._~-]*/[A-Za-z0-9._~/-]*");
 
     /**
      * Code that reads a secret instead of containing it, and the placeholder shapes. Only the forms the rules
@@ -133,7 +143,8 @@ public final class AiSecretGuard {
             + "(?:(?:->)?(?:\\{[^{}]*}|\\[[^\\[\\]]*])|->[A-Za-z_]\\w*(?:\\([^()]*\\)?)?)*"
             + "|[A-Za-z_]+(?:(?:\\.|::|->)[A-Za-z_]+)*"
             + "(?:\\([^()]*\\)?|\\[[^\\[\\]]*]?)"
-            + "(?:(?:\\.|->)[A-Za-z_]\\w*|\\([^()]*\\)?|\\[[^\\[\\]]*]?)*");
+            + "(?:(?:\\.|->)[A-Za-z_]\\w*|\\([^()]*\\)?|\\[[^\\[\\]]*]?)*"
+            + "|[A-Za-z_]+(?:(?:\\.|::)[A-Za-z_]+)+");
 
     /** Shorter assigned values are operators or code fragments ({@code =>}, {@code $1}); the vault floor. */
     private static final int MIN_ASSIGNED_VALUE_LENGTH = 4;
@@ -152,7 +163,9 @@ public final class AiSecretGuard {
         "there", "required", "needed", "needs", "kept", "sent", "read", "written", "saved", "shown", "gesetzt",
         "gespeichert", "verwendet", "nicht", "nie", "immer", "kein", "keine", "keinen", "keiner", "auf",
         "der", "die", "das", "ein", "eine", "einem", "einen", "wird", "werden", "sind", "noetig", "erforderlich",
-        "auch", "noch", "dann", "wie", "so", "im", "vom", "zum", "zur", "bei");
+        "auch", "noch", "dann", "wie", "so", "im", "vom", "zum", "zur", "bei",
+        "wrong", "correct", "right", "valid", "invalid", "expired", "missing", "known", "unknown", "falsch", "richtig",
+        "gültig", "ungültig", "abgelaufen", "bekannt", "unbekannt", "fehlt");
 
     private static final Pattern ENTROPY_TOKEN = Pattern.compile(
         "(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/=_-]{20,}(?![A-Za-z0-9+/=_-])");
@@ -247,13 +260,34 @@ public final class AiSecretGuard {
         return hits;
     }
 
+    /** One prose or bare-cue secret: where its cue starts and where its value lies in the text. */
+    private record ProseMatch(int cueStart, int valueStart, int valueEnd, String value) {
+    }
+
     /**
      * Prose cues, matched over the whole text so that a value on the line after its cue is seen too. A cue
-     * followed by "ist" or "is" needs a value with a digit or a symbol: "the token is valid" is prose,
-     * "Passwort ist Sommer2026" is not. "lautet" only ever introduces the value, so any word after it counts.
+     * followed by "ist", "is", "sind" or "are" needs a value that is not only letters, unless the cue is a token or
+     * API-key cue: "the token is valid" is prose, "Passwort ist Sommer2026" and "The password is swordfish" are not.
      */
     private static List<Finding> proseFindings(String text, List<KnownSecret> known) {
         List<Finding> findings = new ArrayList<>();
+        List<ProseMatch> matches = proseMatches(text);
+        if (matches.isEmpty()) {
+            return findings;
+        }
+        String[] lines = text.split("\n", -1);
+        int[] starts = lineStarts(text);
+        for (ProseMatch match : matches) {
+            int line = lineOf(starts, match.cueStart());
+            findings.add(new Finding(Category.PROSE_SECRET, line,
+                excerpt(lineAt(lines, line), List.of(match.value()), known)));
+        }
+        return findings;
+    }
+
+    /** The prose and bare-cue matches that count as secrets, in text order. */
+    private static List<ProseMatch> proseMatches(String text) {
+        List<ProseMatch> matches = new ArrayList<>();
         Matcher cue = PROSE_CUE.matcher(text);
         while (cue.find()) {
             String value = cue.group("value");
@@ -261,11 +295,11 @@ public final class AiSecretGuard {
             if (cleaned.codePointCount(0, cleaned.length()) < MIN_PROSE_VALUE_LENGTH
                 || isPlaceholderOrCode(value)
                 || PROSE_STOPWORDS.contains(cleaned.toLowerCase(Locale.ROOT))
-                || (isOrIst(cue.group("sentence")) && cleaned.chars().allMatch(Character::isLetter))) {
+                || (isOrIst(cue.group("sentence")) && proseOnlyCue(cue.group("cue"))
+                    && cleaned.chars().allMatch(Character::isLetter))) {
                 continue;
             }
-            int line = countNewlines(text, cue.start()) + 1;
-            findings.add(new Finding(Category.PROSE_SECRET, line, excerpt(lineAt(text, line), List.of(value), known)));
+            matches.add(new ProseMatch(cue.start(), cue.start("value"), cue.end("value"), value));
         }
         Matcher bare = BARE_CUE.matcher(text);
         while (bare.find()) {
@@ -277,10 +311,41 @@ public final class AiSecretGuard {
                 || !looksLikeBareSecret(cleaned)) {
                 continue;
             }
-            int line = countNewlines(text, bare.start()) + 1;
-            findings.add(new Finding(Category.PROSE_SECRET, line, excerpt(lineAt(text, line), List.of(value), known)));
+            matches.add(new ProseMatch(bare.start(), bare.start("value"), bare.end("value"), value));
         }
-        return findings;
+        return matches;
+    }
+
+    /**
+     * The text with the value of every prose or bare-cue secret replaced by the mask, so that outbound text never
+     * carries "Das Passwort lautet: …" in clear. Unchanged when there is none.
+     */
+    static RedactionResult maskProseSecrets(String text, java.util.function.Consumer<String> maskedValues) {
+        if (text == null || text.isEmpty()) {
+            return RedactionResult.unchanged(text);
+        }
+        List<ProseMatch> matches = proseMatches(text).stream()
+            .sorted(Comparator.comparingInt(ProseMatch::valueStart))
+            .toList();
+        StringBuilder masked = new StringBuilder();
+        int position = 0;
+        int count = 0;
+        for (ProseMatch match : matches) {
+            if (match.valueStart() < position) {
+                continue;
+            }
+            masked.append(text, position, match.valueStart()).append(MASK);
+            position = match.valueEnd();
+            count++;
+            if (maskedValues != null) {
+                maskedValues.accept(match.value());
+            }
+        }
+        if (count == 0) {
+            return RedactionResult.unchanged(text);
+        }
+        masked.append(text, position, text.length());
+        return new RedactionResult(masked.toString(), count);
     }
 
     /** A value after a cue without connector: a digit or a symbol that passwords use ("hunter2", "p@ss"), never letters alone. */
@@ -302,23 +367,57 @@ public final class AiSecretGuard {
         List<String> values = new ArrayList<>();
         SecretTokenPatterns.findValues(text, values::add);
         List<Finding> findings = new ArrayList<>();
+        int[] starts = lineStarts(text);
         for (String value : new LinkedHashSet<>(values)) {
             int start = value.indexOf('\n') >= 0 ? text.indexOf(value) : -1;
             if (start < 0) {
                 continue;
             }
-            int line = countNewlines(text, start) + 1;
+            int line = lineOf(starts, start);
             String masked = text.substring(0, start) + MASK + text.substring(start + value.length());
-            findings.add(new Finding(Category.TOKEN_FORMAT, line, excerpt(lineAt(masked, line), List.of(), known)));
+            findings.add(new Finding(Category.TOKEN_FORMAT, line,
+                excerpt(lineAt(masked.split("\n", -1), line), List.of(), known)));
         }
         return findings;
     }
 
+    /** Offset of the first character of every line; {@link #lineOf} maps an offset to its 1-based line by search. */
+    private static int[] lineStarts(String text) {
+        int count = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') {
+                count++;
+            }
+        }
+        int[] starts = new int[count];
+        int index = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') {
+                starts[index++] = i + 1;
+            }
+        }
+        return starts;
+    }
+
+    /** The 1-based line that holds {@code offset}. */
+    private static int lineOf(int[] starts, int offset) {
+        int index = Arrays.binarySearch(starts, offset);
+        return index >= 0 ? index + 1 : -index - 1;
+    }
+
+    /**
+     * The random-looking tokens of a line. A token that joins a name and a value with {@code =} ({@code data=<hex>},
+     * {@code sha256=<hex>}) is judged by its parts, so the value is not diluted by the name and the hex threshold applies.
+     */
     private static List<String> entropyTokens(String line) {
         List<String> tokens = new ArrayList<>();
         Matcher matcher = ENTROPY_TOKEN.matcher(line);
         while (matcher.find()) {
-            tokens.add(matcher.group());
+            for (String part : matcher.group().split("=")) {
+                if (!part.isEmpty()) {
+                    tokens.add(part);
+                }
+            }
         }
         return tokens;
     }
@@ -355,12 +454,31 @@ public final class AiSecretGuard {
         return raw.replaceAll("^[\"'`*(\\[]+", "").replaceAll("[\"'`*)\\].,;:!?]+$", "").strip();
     }
 
+    /** Whether the connector is "ist", "is", "sind" or "are": the forms that can introduce an ordinary word. */
     private static boolean isOrIst(String sentence) {
-        return sentence != null && !sentence.strip().equalsIgnoreCase("lautet");
+        if (sentence == null) {
+            return false;
+        }
+        String connector = sentence.replaceAll("[\\s:]", "").toLowerCase(Locale.ROOT);
+        return connector.equals("ist") || connector.equals("is") || connector.equals("sind")
+            || connector.equals("are") || connector.equals("were");
+    }
+
+    /**
+     * Token, API-key and secret cues: the cues whose value may be an ordinary word after "is" ("the token is valid").
+     * Password cues always check their value.
+     */
+    private static boolean proseOnlyCue(String cue) {
+        String name = cue == null ? "" : cue.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "");
+        return name.startsWith("token") || name.startsWith("apikey") || name.startsWith("secret");
     }
 
     /** {@code raw} is the value as matched; placeholders are judged without quotes and punctuation. */
     private static boolean isPlaceholderOrCode(String raw) {
+        // The mask is judged before clean() strips its trailing stars: "ghp_***" is a masked token, not a value.
+        if (SecretTokenPatterns.isAlreadyMasked(raw.strip())) {
+            return true;
+        }
         String cleaned = clean(raw);
         if (cleaned.isEmpty() || CODE_OR_PLACEHOLDER.matcher(cleaned).matches()) {
             return true;
@@ -369,10 +487,11 @@ public final class AiSecretGuard {
             return true;
         }
         if (MASK_ONLY.matcher(cleaned).matches()
+            || SecretTokenPatterns.isAlreadyMasked(cleaned)
             || PLACEHOLDER_WORDS.contains(cleaned.toLowerCase(Locale.ROOT))) {
             return true;
         }
-        return cleaned.startsWith("/") || cleaned.startsWith("~") || cleaned.startsWith("./");
+        return PATH_SHAPED.matcher(cleaned).matches();
     }
 
     private static List<KnownSecret> compileKnown(Collection<String> values) {
@@ -419,19 +538,8 @@ public final class AiSecretGuard {
         return compact.length() > EXCERPT_LENGTH ? compact.substring(0, EXCERPT_LENGTH - 3) + "..." : compact;
     }
 
-    private static String lineAt(String text, int lineNumber) {
-        String[] lines = text.split("\n", -1);
+    private static String lineAt(String[] lines, int lineNumber) {
         return lineNumber - 1 < lines.length ? stripCarriageReturn(lines[lineNumber - 1]) : "";
-    }
-
-    private static int countNewlines(String text, int end) {
-        int count = 0;
-        for (int i = 0; i < end; i++) {
-            if (text.charAt(i) == '\n') {
-                count++;
-            }
-        }
-        return count;
     }
 
     private static String stripCarriageReturn(String line) {

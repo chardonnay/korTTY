@@ -585,11 +585,12 @@ class EffectivePolicyResolveTest {
         assertThat(policy.aiMemoryMaxTokens().getAsInt()).isEqualTo(800);
         assertThat(policy.aiAgentTriageMode()).isEqualTo(de.kortty.model.AiAgentTriageMode.NEVER);
         assertThat(policy.aiSkillStatisticsAllowed()).isFalse();
-        for (ManagedSetting setting : List.of(ManagedSetting.AI_MEMORY, ManagedSetting.AI_MEMORY_LEARNING,
+        for (ManagedSetting setting : List.of(ManagedSetting.AI_MEMORY_LEARNING,
             ManagedSetting.AI_SKILL_CREATION, ManagedSetting.AI_MEMORY_EXTERNAL, ManagedSetting.AI_MEMORY_TOKENS,
             ManagedSetting.AI_AGENT_TRIAGE, ManagedSetting.AI_SKILL_STATISTICS)) {
             assertThat(policy.isManaged(setting)).isTrue();
         }
+        assertThat(policy.isManaged(ManagedSetting.AI_MEMORY)).isFalse();
     }
 
     @Test
@@ -687,5 +688,21 @@ class EffectivePolicyResolveTest {
             .containsExactly(new PolicyFile.OrganizationMemoryBlock("one", "First."),
                 new PolicyFile.OrganizationMemoryBlock("two", "Second."))
             .inOrder();
+    }
+
+
+    @Test
+    void aReadOnlyOrEditableUserMemoryDoesNotLockTheMemorySwitch() {
+        for (UserMemoryMode mode : List.of(UserMemoryMode.READ_ONLY, UserMemoryMode.EDITABLE)) {
+            PolicyRule rule = PolicyRule.builder()
+                .aiMemory(memoryRule(mode, null, null, null, null, null, null, null)).build();
+            EffectivePolicy policy = EffectivePolicy.resolve(file(Map.of(), rule), identity("anyone"));
+            assertThat(policy.userMemoryMode()).isEqualTo(mode);
+            assertThat(policy.isManaged(ManagedSetting.AI_MEMORY)).isFalse();
+        }
+        PolicyRule disabled = PolicyRule.builder()
+            .aiMemory(memoryRule(UserMemoryMode.DISABLED, null, null, null, null, null, null, null)).build();
+        assertThat(EffectivePolicy.resolve(file(Map.of(), disabled), identity("anyone"))
+            .isManaged(ManagedSetting.AI_MEMORY)).isTrue();
     }
 }

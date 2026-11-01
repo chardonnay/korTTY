@@ -304,17 +304,18 @@ public final class MemoryService {
         return document == null ? null : document.digest();
     }
 
+    /**
+     * The file as it is now. It is read on every call and the cache is used only when the digest of the bytes is the
+     * same: a size and a modification time can stay unchanged while the content changes (a restore with cp -p or tar).
+     */
     private Document document(MemoryScope scope) throws IOException {
-        MemoryStore.Stamp stamp = store.stamp(scope);
-        synchronized (this) {
-            CachedDocument cached = documents.get(scope.key());
-            if (cached != null && cached.stamp().equals(stamp)) {
-                return new Document(cached.text(), cached.digest());
-            }
-        }
         MemoryStore.Snapshot snapshot = store.read(scope);
         synchronized (this) {
-            documents.put(scope.key(), new CachedDocument(stamp, snapshot.text(), snapshot.sha256()));
+            CachedDocument cached = documents.get(scope.key());
+            if (cached != null && cached.digest().equals(snapshot.sha256())) {
+                return new Document(cached.text(), cached.digest());
+            }
+            documents.put(scope.key(), new CachedDocument(snapshot.text(), snapshot.sha256()));
         }
         return new Document(snapshot.text(), snapshot.sha256());
     }
@@ -349,7 +350,7 @@ public final class MemoryService {
     private record Document(String text, String digest) {
     }
 
-    private record CachedDocument(MemoryStore.Stamp stamp, String text, String digest) {
+    private record CachedDocument(String text, String digest) {
     }
 
     private record Preview(MemoryBlock block, long computedAt) {

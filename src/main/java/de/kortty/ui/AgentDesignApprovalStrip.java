@@ -119,9 +119,12 @@ final class AgentDesignApprovalStrip extends HBox {
         javafx.application.Platform.runLater(field::requestFocus);
     }
 
-    /** Shows the solution options of a run in the strip; {@code answer} gets the user's choice once. */
-    void showChoice(TerminalAgentModels.TriageProposal proposal, Consumer<TerminalAgentModels.SolutionChoice> answer) {
-        choiceHost.setContent(new SolutionChoicePane(proposal, answer));
+    /**
+     * Shows the solution card of a run in the strip. The card is the caller's, so what the user typed in it survives the
+     * strip showing an approval or another run's prompt in between.
+     */
+    void showChoice(SolutionChoicePane card) {
+        choiceHost.setContent(card);
         getChildren().setAll(choiceHost);
         setAlignment(Pos.TOP_LEFT);
         showStrip();

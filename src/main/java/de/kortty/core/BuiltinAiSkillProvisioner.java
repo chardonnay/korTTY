@@ -130,9 +130,10 @@ public final class BuiltinAiSkillProvisioner {
                 && baseline.getContent() != null && !baseline.getContent().isBlank()) {
                 // Case C4: a built-in with blank content is useless (blank skills are never
                 // injected) — this state comes from data damage (e.g. an editor race wiping the
-                // text), not from a meaningful user edit. Restore the baseline it was based on.
-                logger.warn("Builtin AI skill {} had blank content, restoring the baseline version", builtinId);
-                BuiltinAiSkillSupport.reset(existing);
+                // text), not from a meaningful user edit. Restore only the content: the user's
+                // name, description, tags and target are user work and must survive the heal.
+                logger.warn("Builtin AI skill {} had blank content, restoring the baseline content", builtinId);
+                existing.setContent(baseline.getContent());
                 changed = true;
                 healed++;
             }

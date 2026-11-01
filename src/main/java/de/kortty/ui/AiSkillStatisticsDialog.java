@@ -337,7 +337,8 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
             String name = hint.name() != null ? hint.name() : hint.skillId();
             String text = hint.kind() == SkillStatsReport.HintKind.UNUSED_90_DAYS
                 ? I18n.get(AiSkillStatisticsFormat.kindKey(hint.kind()), name)
-                : I18n.get(AiSkillStatisticsFormat.kindKey(hint.kind()), name, hint.tokens());
+                : I18n.get(AiSkillStatisticsFormat.kindKey(hint.kind()), name,
+                    AiSkillStatisticsFormat.number(hint.tokens()));
             Label label = new Label(text);
             label.setWrapText(true);
             hintsBox.getChildren().add(label);
@@ -429,6 +430,7 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
 
     private void resetStatistics() {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.ownedBy(confirm, getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null);
         confirm.setTitle(I18n.get("settings.aiSkills.stats.reset.title"));
         confirm.setHeaderText(I18n.get("settings.aiSkills.stats.reset.header"));
         confirm.setContentText(I18n.get("settings.aiSkills.stats.reset.content"));

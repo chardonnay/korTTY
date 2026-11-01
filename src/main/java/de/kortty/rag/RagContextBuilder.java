@@ -1,5 +1,7 @@
 package de.kortty.rag;
 
+import de.kortty.memory.MemoryFormat;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,16 +109,12 @@ public final class RagContextBuilder {
         return end >= text.length() ? text : text.substring(0, end);
     }
 
+    /** Neutralises the prompt-section tags, in any letter case, and the [R n] citation markers in a chunk. */
     private static String safeContent(String value) {
         if (value == null) {
             return "";
         }
-        return value
-            .replace("</retrieved_context", "< /retrieved_context")
-            .replace("<retrieved_context", "< retrieved_context")
-            .replace("</kortty_user_memory", "< /kortty_user_memory")
-            .replace("<kortty_user_memory", "< kortty_user_memory")
-            .replaceAll("(?i)\\[R([0-9]+)]", "[ R$1]");
+        return MemoryFormat.escapeMarkers(value).replaceAll("(?i)\\[R([0-9]+)]", "[ R$1]");
     }
 
     private static String safeLocation(String value) {
