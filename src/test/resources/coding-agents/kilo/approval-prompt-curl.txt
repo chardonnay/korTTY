@@ -1,0 +1,41 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+
+  ┃
+  ┃  Use your bash tool to run exactly: curl -sI https://example.com
+  ┃
+
+     + Thought: 191ms
+
+     $ curl -sI https://example.com
+
+     ▣  Code · qwen3.8-27b-splash
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ┃
+  ┃  △ Permission required
+  ┃    # Fetch HTTP headers from example.com
+  ┃
+  ┃  $ curl -sI https://example.com
+  ┃
+  ┃
+  ┃   Allow once   Allow always   Reject                                 ctrl+f fullscreen  ⇆ select  enter confirm
+  ┃

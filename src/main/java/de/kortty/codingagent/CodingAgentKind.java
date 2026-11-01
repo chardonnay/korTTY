@@ -81,6 +81,14 @@ public enum CodingAgentKind {
      * found below one.
      */
     CLINE("Cline", "cline", Set.of("cline")),
+    /**
+     * Kilo's CLI (npm {@code @kilocode/cli}, a fork of OpenCode), a node launcher ({@code node <prefix>/bin/kilo},
+     * also linked as {@code kilocode}) that waits for the native binary it spawns: the copy cached as
+     * {@code bin/.kilo}, otherwise {@code @kilocode/cli-<os>-<arch>/bin/kilo}. The launcher's script names the
+     * agent for as long as the session runs. {@code .kilo} is not listed: the control API launches a kind with
+     * its alphabetically first executable name.
+     */
+    KILO("Kilo", "kilo", Set.of("kilo", "kilocode")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

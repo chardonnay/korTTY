@@ -1,0 +1,40 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+
+
+
+
+
+
+
+
+
+                                   ██  ██ ██🬺🬏   ██  ██   ██🬺🬏     ████ ██     ██🬺🬏
+                                   ████🬺🬏 ▀▀██   ██  ▀▀ ██▀▀██   ██▀▀▀▀ ██     ▀▀██
+                                   ██  ██ ██████ 🬁🬬████ 🬁🬬██▀▀   🬁🬬████ 🬁🬬████ ██████
+                                   ▀▀  ▀▀ ▀▀▀▀▀▀   ▀▀▀▀   ▀▀       ▀▀▀▀   ▀▀▀▀ ▀▀▀▀▀▀
+
+
+                       ┃
+                       ┃  Ask anything... "Fix a TODO in the codebase"
+                       ┃
+                       ┃  Code  · Auto Free Kilo Gateway
+                       ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                                                       tab agents  ctrl+p commands
+
+
+
+
+
+
+
+
+                                  ● Tip Set any keybind to none to disable it completely
+
+
+
+
+
+
+  ~/project                                                                                                     7.8.18
