@@ -1,10 +1,12 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiSentContext;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.TerminalAgentActivityExportService;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.memory.RuleProposal;
 import de.kortty.model.AgentActionCategory;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
@@ -125,6 +127,8 @@ public class AiAgentActivityPanel extends VBox {
     private Runnable inputPromptListener;
     private RunSnapshot activeRunSnapshot;
     private ActivityRow lastThinkingRow;
+    /** The "Mitgesendet" row of the run shown, at the end of the activity list; {@code null} until the run sent something. */
+    private Node sentContextRow;
     private PasswordField pendingPasswordField;
     private CheckBox pendingPasswordCacheCheckBox;
     private String pendingInputStatusText;
@@ -408,6 +412,7 @@ public class AiAgentActivityPanel extends VBox {
             rowsById.clear();
             accountedTokenActivityIds.clear();
             lastThinkingRow = null;
+            sentContextRow = null;
             activeRunSnapshot = new RunSnapshot(title, userPrompt, reloadCallback, metadata, startedAt);
             runHistory.add(activeRunSnapshot);
             historyIndex = runHistory.size() - 1;
@@ -672,6 +677,43 @@ public class AiAgentActivityPanel extends VBox {
         } finally {
             runOnFx(() -> dismissSolutionChoice(future));
         }
+    }
+
+    /**
+     * Shows what the run has sent so far as one "Mitgesendet" row at the end of the activity list. The row is updated in
+     * place after each turn, and kept with the run for the history. FX thread safe.
+     */
+    public void showSentContext(AiSentContext context) {
+        if (context == null || context.isEmpty()) {
+            return;
+        }
+        runOnFx(() -> {
+            Node row = SentContextView.create(context, SentContextView.Style.AGENT, activityFontSize);
+            int index = sentContextRow != null ? activityBox.getChildren().indexOf(sentContextRow) : -1;
+            if (index >= 0) {
+                activityBox.getChildren().set(index, row);
+            } else {
+                activityBox.getChildren().add(row);
+            }
+            sentContextRow = row;
+            if (activeRunSnapshot != null) {
+                activeRunSnapshot.sent = context;
+            }
+            scrollToBottom();
+        });
+    }
+
+    /**
+     * Adds the rule proposal of the finished run at the end of the activity list. The card is removed when the run starts
+     * again, and when the user answers it. Shown on the FX thread.
+     */
+    public void showRuleProposal(RuleProposal proposal) {
+        runOnFx(() -> {
+            RuleProposalCard card = new RuleProposalCard(proposal, ownerWindow(),
+                answered -> activityBox.getChildren().remove(answered));
+            activityBox.getChildren().add(card);
+            scrollToBottom();
+        });
     }
 
     public void requestCancel() {
@@ -1099,6 +1141,11 @@ public class AiAgentActivityPanel extends VBox {
             if (activity.type() == TerminalAgentModels.AgentActivityType.THINKING) {
                 lastThinkingRow = row;
             }
+        }
+        sentContextRow = null;
+        if (snapshot.sent != null && !snapshot.sent.isEmpty()) {
+            sentContextRow = SentContextView.create(snapshot.sent, SentContextView.Style.AGENT, activityFontSize);
+            activityBox.getChildren().add(sentContextRow);
         }
         stopRunningIndicators();
         updateHeaderBusyState();
@@ -2118,6 +2165,8 @@ public class AiAgentActivityPanel extends VBox {
         private final String connectionName;
         private final LocalDateTime startedAt;
         private final List<TerminalAgentModels.AgentActivity> activities = new ArrayList<>();
+        /** What the run sent, shown as its "Mitgesendet" row when the run is reopened from the history. */
+        private AiSentContext sent;
         private LocalDateTime finishedAt;
         private long reportedTokens;
         private boolean hasReportedTokens;

@@ -11,6 +11,9 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -89,6 +92,7 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
         promptArea.setWrapText(true);
         promptArea.setPrefRowCount(6);
         promptArea.setPromptText(I18n.get(queryOnly ? "ai.agent.ask.prompt" : "ai.agent.prompt"));
+        installPromptMenu(promptArea);
 
         showDebugMessagesCheck = new CheckBox(I18n.get("ai.agent.showDebug"));
         showDebugMessagesCheck.setSelected(showDebugMessages);
@@ -158,5 +162,37 @@ public class AiAgentDialog extends ThemeAwareDialog<TerminalAgentModels.Request>
             return I18n.get("settings.ai.profile.unnamed");
         }
         return profile.getName().trim();
+    }
+
+    /**
+     * The prompt's menu: the edit actions, and "Als Regel merken…" for the selected text or the whole prompt. The rule entry
+     * is disabled, with its text saying so, when no place for a rule is allowed.
+     */
+    private void installPromptMenu(TextArea area) {
+        MenuItem cut = new MenuItem(I18n.get("menu.edit.cut"));
+        cut.setOnAction(event -> area.cut());
+        MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
+        copy.setOnAction(event -> area.copy());
+        MenuItem paste = new MenuItem(I18n.get("menu.edit.paste"));
+        paste.setOnAction(event -> area.paste());
+        MenuItem selectAll = new MenuItem(I18n.get("menu.edit.selectAll"));
+        selectAll.setOnAction(event -> area.selectAll());
+        MenuItem remember = new MenuItem(I18n.get("ai.learn.menu"));
+        remember.setOnAction(event -> {
+            String selected = area.getSelectedText();
+            RuleLearning.rememberManually(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                selected == null || selected.isBlank() ? area.getText() : selected, null);
+        });
+        ContextMenu menu = new ContextMenu(cut, copy, paste, new SeparatorMenuItem(), selectAll,
+            new SeparatorMenuItem(), remember);
+        menu.setOnShowing(event -> {
+            boolean hasSelection = area.getSelectedText() != null && !area.getSelectedText().isEmpty();
+            cut.setDisable(!hasSelection);
+            copy.setDisable(!hasSelection);
+            boolean allowed = RuleLearning.manualRuleAllowed();
+            remember.setDisable(!allowed);
+            remember.setText(I18n.get(allowed ? "ai.learn.menu" : "ai.learn.menu.unavailable"));
+        });
+        area.setContextMenu(menu);
     }
 }

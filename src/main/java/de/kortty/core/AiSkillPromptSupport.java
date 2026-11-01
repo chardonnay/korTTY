@@ -6,7 +6,12 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillLearnedRule;
 import de.kortty.model.AiSkillTarget;
+import de.kortty.model.AiTokenizerType;
 import de.kortty.model.GlobalSettings;
+import de.kortty.stats.SkillSize;
+import de.kortty.stats.SkillSurface;
+import de.kortty.stats.SkillUsageCollector;
+import de.kortty.stats.SkillUsageEvent;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -53,9 +58,15 @@ public final class AiSkillPromptSupport {
     private final AiMemoryPromptSource memory;
     /** The profile the chat prompts are sent to; their skill and memory text is masked for it. */
     private final AiProfile profile;
+    /** The skills forced for this support: connection assignments and explicit picks. Every other skill is automatic. */
+    private final Set<String> pinnedSkillIds;
     private volatile MemoryBlock lastMemoryBlock = MemoryBlock.empty();
 
-    public record SkillUsage(String id, String name, AiSkillTarget target) {
+    /**
+     * A skill sent with a request, as {@link #drainSkillUsages()} reports it. {@code automatic} is true unless the skill
+     * was pinned for this support.
+     */
+    public record SkillUsage(String id, String name, AiSkillTarget target, boolean automatic) {
     }
 
     public AiSkillPromptSupport(boolean enabled, List<AiSkill> skills) {
@@ -91,6 +102,7 @@ public final class AiSkillPromptSupport {
         this.autoDetectionEnabled = autoDetectionEnabled;
         this.skills = copySkills(skills);
         this.selector = new AiSkillRelevanceSelector(enabled, autoDetectionEnabled, this.skills, pinnedSkillIds);
+        this.pinnedSkillIds = copyIds(pinnedSkillIds);
         this.memory = memory;
         this.profile = profile;
     }
@@ -278,15 +290,26 @@ public final class AiSkillPromptSupport {
      * it masks the prompt for the provider, so the memory is masked with the rest and sent exactly once.
      */
     public String appendAgentSkills(String systemPrompt) {
-        return appendSkills(systemPrompt, selector.selectAgentSkillsLocal(systemPrompt, null), null);
+        return appendSkills(systemPrompt, selector.selectAgentSkillsLocal(systemPrompt, null), null, SkillSurface.AGENT);
     }
 
     public String appendAgentSkills(String systemPrompt, String userPrompt) {
-        return appendSkills(systemPrompt, selector.selectAgentSkillsLocal(systemPrompt, userPrompt), null);
+        return appendSkills(systemPrompt, selector.selectAgentSkillsLocal(systemPrompt, userPrompt), null,
+            SkillSurface.AGENT);
     }
 
     public String appendAgentSkills(String systemPrompt, String userPrompt, AiSkillRelevanceClassifier classifier) {
-        return appendSkills(systemPrompt, selector.selectAgentSkills(systemPrompt, userPrompt, classifier), null);
+        return appendSkills(systemPrompt, selector.selectAgentSkills(systemPrompt, userPrompt, classifier), null,
+            SkillSurface.AGENT);
+    }
+
+    /**
+     * The workflow generator's skill block: the agent selection, recorded as a workflow use. The generator calls it
+     * inside the request's {@link SkillUsageCollector} scope.
+     */
+    public String appendWorkflowSkills(String systemPrompt, String userPrompt) {
+        return appendSkills(systemPrompt, selector.selectAgentSkillsLocal(systemPrompt, userPrompt), null,
+            SkillSurface.WORKFLOW);
     }
 
     private static AiAction actionOf(AiRequest request) {
@@ -295,7 +318,7 @@ public final class AiSkillPromptSupport {
 
     /** The chat skill block as {@link #appendChatSkills(String)} sends it (masked). */
     public String buildChatSkillBlock() {
-        return outbound(buildSkillBlock(selector.selectChatSkillsLocal(null), false, null));
+        return outbound(buildSkillBlock(selector.selectChatSkillsLocal(null), null, null));
     }
 
     /** The chat skill block as {@link #appendChatSkills(String, AiRequest)} sends it (masked). */
@@ -303,7 +326,7 @@ public final class AiSkillPromptSupport {
         if (!includeChatSkills(request)) {
             return "";
         }
-        return outbound(buildSkillBlock(selector.selectChatSkillsLocal(request), false, actionOf(request)));
+        return outbound(buildSkillBlock(selector.selectChatSkillsLocal(request), null, actionOf(request)));
     }
 
     /**
@@ -323,11 +346,11 @@ public final class AiSkillPromptSupport {
     }
 
     public String buildAgentSkillBlock() {
-        return buildSkillBlock(selector.selectAgentSkillsLocal(null, null), false, null);
+        return buildSkillBlock(selector.selectAgentSkillsLocal(null, null), null, null);
     }
 
     public String buildAgentSkillBlock(String systemPrompt, String userPrompt) {
-        return buildSkillBlock(selector.selectAgentSkillsLocal(systemPrompt, userPrompt), false, null);
+        return buildSkillBlock(selector.selectAgentSkillsLocal(systemPrompt, userPrompt), null, null);
     }
 
     public boolean isEnabled() {
@@ -353,8 +376,9 @@ public final class AiSkillPromptSupport {
      * The agent path. Its skill block is masked for the profile like the chat one, because the transport adds
      * it after the run masked its prompt.
      */
-    private String appendSkills(String systemPrompt, List<AiSkill> selectedSkills, AiAction action) {
-        String block = outbound(buildSkillBlock(selectedSkills, true, action));
+    private String appendSkills(
+        String systemPrompt, List<AiSkill> selectedSkills, AiAction action, SkillSurface surface) {
+        String block = outbound(buildSkillBlock(selectedSkills, surface, action));
         String base = normalizedPrompt(systemPrompt);
         if (block.isBlank()) {
             return base;
@@ -370,7 +394,7 @@ public final class AiSkillPromptSupport {
         String base = normalizedPrompt(systemPrompt);
         String withSkills = AiPromptPipeline.insertSkills(
             base,
-            outbound(buildSkillBlock(selectedSkills, true, actionOf(request))));
+            outbound(buildSkillBlock(selectedSkills, SkillSurface.CHAT, actionOf(request))));
         return AiPromptPipeline.insertMemory(withSkills, memoryToSend(request).text());
     }
 
@@ -384,6 +408,7 @@ public final class AiSkillPromptSupport {
         }
         MemoryBlock block = memory.block();
         lastMemoryBlock = block;
+        AiSentContextCollector.reportMemory(block);
         return block;
     }
 
@@ -408,19 +433,23 @@ public final class AiSkillPromptSupport {
         return systemPrompt != null ? systemPrompt.trim() : "";
     }
 
-    private String buildSkillBlock(List<AiSkill> selectedSkills, boolean recordUsage, AiAction action) {
+    /**
+     * The skill block of one prompt. A {@code surface} records the skills as used there; {@code null} is a preview that
+     * builds the same text without counting it.
+     */
+    private String buildSkillBlock(List<AiSkill> selectedSkills, SkillSurface surface, AiAction action) {
         List<AiSkill> promptSkills = promptSkills(selectedSkills);
         if (!enabled || promptSkills.isEmpty()) {
             return "";
         }
-        if (recordUsage) {
-            recordSkillUsages(promptSkills);
+        // The rules the user confirmed are memory too: the memory kill switch and the memory setting stop them as well.
+        boolean learnedRulesAllowed = MemoryService.get().isEnabled();
+        if (surface != null) {
+            recordSkillUsages(promptSkills, surface, learnedRulesAllowed);
         }
         // Strict-JSON code actions get the hardened preamble so a skill cannot steer the model
         // off the required output format (chat/agent keep the softer, free-form preamble).
         boolean strict = action != null && action.requiresStrictJsonReply();
-        // The rules the user confirmed are memory too: the memory kill switch and the memory setting stop them as well.
-        boolean learnedRulesAllowed = MemoryService.get().isEnabled();
         StringBuilder block = new StringBuilder();
         for (AiSkill skill : promptSkills) {
             AiSkillTarget target = skill.getTarget();
@@ -429,6 +458,7 @@ public final class AiSkillPromptSupport {
                     .append(strict ? STRICT_PREAMBLE : SOFT_PREAMBLE)
                     .append("\n");
             }
+            int sectionStart = block.length();
             block.append("\n<kortty_ai_skill name=\"")
                 .append(toPromptAttribute(nonBlank(skill.getName(), "AI Skill")))
                 .append("\" target=\"")
@@ -441,8 +471,25 @@ public final class AiSkillPromptSupport {
                 block.append("\n").append(learnedRules).append("\n");
             }
             block.append("</kortty_ai_skill>\n");
+            if (surface != null && AiSentContextCollector.isActive()) {
+                reportSentSkill(skill, block.substring(sectionStart));
+            }
         }
         return block.toString().trim();
+    }
+
+    /**
+     * Reports a skill section that is sent to the request on this thread, with its masked text counted for the profile.
+     * Only called while a request collects what it sends.
+     */
+    private void reportSentSkill(AiSkill skill, String section) {
+        int tokens = AiTokenCounter.countTextTokens(outbound(section), AiSentContext.tokenizerOf(profile));
+        AiSentContextCollector.reportSkill(new AiSentContext.Skill(
+            nonBlank(skill.getId(), ""),
+            nonBlank(skill.getName(), "AI Skill"),
+            !isPinned(skill),
+            tokens,
+            1));
     }
 
     /** The rules the user confirmed for {@code skill}, one "- " line each; empty when there are none. */
@@ -473,18 +520,45 @@ public final class AiSkillPromptSupport {
         return promptSkills;
     }
 
-    private void recordSkillUsages(List<AiSkill> selectedSkills) {
+    /**
+     * Records the skills of a prompt that is sent: for the agent panel and the workflow generator, and, when the
+     * request's {@link SkillUsageCollector} collects, for the statistics.
+     */
+    private void recordSkillUsages(List<AiSkill> selectedSkills, SkillSurface surface, boolean learnedRulesSent) {
         if (selectedSkills == null || selectedSkills.isEmpty()) {
             return;
         }
+        boolean collecting = SkillUsageCollector.isActive();
+        AiTokenizerType tokenizer = profile != null && profile.getTokenizerType() != null
+            ? profile.getTokenizerType()
+            : AiTokenizerType.ESTIMATE;
         synchronized (recentUsages) {
             for (AiSkill skill : selectedSkills) {
-                recentUsages.add(new SkillUsage(
-                    nonBlank(skill.getId(), ""),
-                    nonBlank(skill.getName(), "AI Skill"),
-                    skill.getTarget()));
+                String id = nonBlank(skill.getId(), "");
+                String name = nonBlank(skill.getName(), "AI Skill");
+                boolean automatic = !isPinned(skill);
+                recentUsages.add(new SkillUsage(id, name, skill.getTarget(), automatic));
+                if (collecting) {
+                    SkillSize size = SkillSize.of(skill, tokenizer, learnedRulesSent);
+                    SkillUsageCollector.report(new SkillUsageEvent(
+                        id, name, automatic, surface, size.tokens(), tokenizer, size.fingerprint()));
+                }
             }
         }
+    }
+
+    private boolean isPinned(AiSkill skill) {
+        return skill.getId() != null && pinnedSkillIds.contains(skill.getId());
+    }
+
+    private static Set<String> copyIds(Set<String> ids) {
+        Set<String> copy = new LinkedHashSet<>();
+        for (String id : ids != null ? ids : Set.<String>of()) {
+            if (id != null) {
+                copy.add(id);
+            }
+        }
+        return Set.copyOf(copy);
     }
 
     private static List<AiSkill> copySkills(List<AiSkill> source) {

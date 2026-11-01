@@ -6,6 +6,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import de.kortty.core.AiOutboundRedaction;
+import de.kortty.core.AiSentContext;
+import de.kortty.core.AiSentRunLedger;
 import de.kortty.core.RedactionResult;
 import de.kortty.core.SessionJournalRedactor;
 import de.kortty.memory.MemoryBlock;
@@ -48,6 +50,7 @@ public final class AgentOutboundContext {
     private final Set<String> distinctMasked;
     private final IntConsumer onDistinctCountChanged;
     private final MemoryBlock memory;
+    private final AiSentRunLedger sentLedger = new AiSentRunLedger();
 
     /**
      * @param profile                the profile the run sends to; {@code null} masks (fail closed)
@@ -125,6 +128,26 @@ public final class AgentOutboundContext {
      */
     public MemoryBlock memory() {
         return memory;
+    }
+
+    /**
+     * The memory of this run as its prompts send it: the block with its text and parts masked the way {@link #mask}
+     * masks them, without counting the masked values. Empty when the run carries none.
+     */
+    public MemoryBlock sentMemory() {
+        if (memory.isEmpty()) {
+            return memory;
+        }
+        return memory.masked(text -> AiOutboundRedaction.redactFor(profile, text, knownSecrets).text(),
+            AiSentContext.tokenizerOf(profile));
+    }
+
+    /**
+     * What the run has sent so far, turn by turn: its memory and the skills of every turn. The agent records each turn
+     * into it, and the activity view reads it; the run's masking state is not changed by either.
+     */
+    public AiSentRunLedger sentLedger() {
+        return sentLedger;
     }
 
     /** True when text bound for this run's profile is masked before it is sent. */

@@ -79,6 +79,28 @@ class LearningStateTest {
     }
 
     @Test
+    void aRejectedMessageIsRememberedAcrossInstances() {
+        LearningState state = new LearningState(dir, clock);
+        state.rememberMessage("Verwende immer Tabs.", "Ab jetzt immer Tabs verwenden.");
+        state.reject("Verwende immer Tabs.");
+
+        LearningState reopened = new LearningState(dir, clock);
+        assertThat(reopened.isRejectedMessage("ab   jetzt immer Tabs verwenden.")).isTrue();
+        assertThat(reopened.isRejectedMessage("Ab jetzt immer Leerzeichen verwenden.")).isFalse();
+    }
+
+    @Test
+    void aSnoozedMessageIsPostponedForTheSnoozeOnly() {
+        LearningState state = new LearningState(dir, clock);
+        state.rememberMessage("Verwende immer Tabs.", "Ab jetzt immer Tabs verwenden.");
+        state.snooze("Verwende immer Tabs.");
+
+        assertThat(state.isSnoozedMessage("Ab jetzt immer Tabs verwenden.")).isTrue();
+        clock.advance(LearningState.SNOOZE.plusDays(1));
+        assertThat(state.isSnoozedMessage("Ab jetzt immer Tabs verwenden.")).isFalse();
+    }
+
+    @Test
     void detectionCallsAreCappedAtTenADayAndResetTheNextDay() {
         LearningState state = new LearningState(dir, clock);
         for (int call = 0; call < LearningState.MAX_DETECTION_CALLS_PER_DAY; call++) {

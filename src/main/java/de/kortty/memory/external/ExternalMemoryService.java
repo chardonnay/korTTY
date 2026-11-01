@@ -288,7 +288,7 @@ public final class ExternalMemoryService {
             return new Evaluation(ExternalMemoryStatus.CHANGED, "CHANGED", Optional.empty());
         }
         return new Evaluation(ExternalMemoryStatus.OK, "",
-            Optional.of(new ExternalSource(labelOf(entry), document.promptText(), entry.tool())));
+            Optional.of(new ExternalSource(labelOf(entry), document.promptText(), entry.tool(), document.truncated())));
     }
 
     private ExternalMemoryEntry settle(String entryId, Evaluation evaluation) {

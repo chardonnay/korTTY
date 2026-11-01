@@ -60,12 +60,14 @@ public final class AiMemoryPromptSource {
         if (raw.isEmpty()) {
             return raw;
         }
-        String masked = AiOutboundRedaction.redactFor(profile, raw.text(), null).text();
-        if (masked.equals(raw.text())) {
-            return raw;
+        if (cachedOnly) {
+            // The token preview runs on the UI thread and reads only the text, so the parts are not masked for it.
+            String masked = AiOutboundRedaction.redactFor(profile, raw.text(), null).text();
+            return new MemoryBlock(masked, AiTokenCounter.countTextTokens(masked, tokenizer), raw.includedEntryIds(),
+                raw.sentParts(), raw.omittedCount());
         }
-        return new MemoryBlock(masked, AiTokenCounter.countTextTokens(masked, tokenizer),
-            raw.includedEntryIds(), raw.omittedCount());
+        // The text and every reported part are masked, so the "what was sent" view shows what the provider got.
+        return raw.masked(text -> AiOutboundRedaction.redactFor(profile, text, null).text(), tokenizer);
     }
 
     private AiTokenizerType tokenizer() {

@@ -37,6 +37,8 @@ import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiSentContext;
+import de.kortty.core.AiSentContextCollector;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
@@ -10217,18 +10219,19 @@ public class MainWindow {
 
         // The chat shows the answer live while it streams; the final rendering replaces the preview.
         AiRequest streamedRequest = request.withStreamListener(resultTab.beginStreaming());
-        Task<AiExecutionResult> task = new Task<>() {
+        Task<AiSentContextCollector.Reply> task = new Task<>() {
             @Override
-            protected AiExecutionResult call() throws Exception {
-                return aiService.execute(streamedRequest);
+            protected AiSentContextCollector.Reply call() throws Exception {
+                return AiSentContextCollector.capture(() -> aiService.execute(streamedRequest));
             }
         };
         Thread thread = new Thread(task, "ai-selection-" + action.name().toLowerCase(Locale.ROOT));
         thread.setDaemon(true);
         resultTab.attachRunningTask(task, thread, I18n.get("ai.result.loading"));
         task.setOnSucceeded(e -> {
-            AiExecutionResult result = task.getValue();
-            resultTab.showResult(result);
+            AiSentContextCollector.Reply reply = task.getValue();
+            AiExecutionResult result = reply != null ? reply.result() : null;
+            resultTab.showResult(reply);
             recordAiUsage(effectiveProfile, request, result);
             updateStatus(I18n.get("ai.status.finished", getAiActionLabel(action)));
         });
@@ -12241,18 +12244,19 @@ public class MainWindow {
 
         AiService aiService = createAiServiceForProfile(profile, connection);
         AiRequest streamedRequest = request.withStreamListener(resultTab.beginStreaming());
-        Task<AiExecutionResult> task = new Task<>() {
+        Task<AiSentContextCollector.Reply> task = new Task<>() {
             @Override
-            protected AiExecutionResult call() throws Exception {
-                return aiService.execute(streamedRequest);
+            protected AiSentContextCollector.Reply call() throws Exception {
+                return AiSentContextCollector.capture(() -> aiService.execute(streamedRequest));
             }
         };
         Thread thread = new Thread(task, "ai-agent-ask");
         thread.setDaemon(true);
         resultTab.attachRunningTask(task, thread, I18n.get("ai.result.loading"));
         task.setOnSucceeded(event -> {
-            AiExecutionResult result = task.getValue();
-            resultTab.showResult(result);
+            AiSentContextCollector.Reply reply = task.getValue();
+            AiExecutionResult result = reply != null ? reply.result() : null;
+            resultTab.showResult(reply);
             recordAiUsageForProfile(profile, request, result);
         });
         task.setOnCancelled(event -> resultTab.showCancelled());
@@ -12354,6 +12358,10 @@ public class MainWindow {
         // One desktop notification for the run's end, whichever path reports it first.
         java.util.concurrent.atomic.AtomicBoolean agentEndNotified =
             new java.util.concurrent.atomic.AtomicBoolean();
+        // The rule detection looks at the run's request once, after the run ended; swarm and job runs never reach here.
+        java.util.concurrent.atomic.AtomicBoolean agentLearningStarted =
+            new java.util.concurrent.atomic.AtomicBoolean();
+        ServerConnection agentConnection = runConnection;
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
@@ -12365,6 +12373,11 @@ public class MainWindow {
                                 TerminalAttentionNotifier.agentEndEvent(state.phase());
                             if (endEvent != null && agentEndNotified.compareAndSet(false, true)) {
                                 TerminalAttentionNotifier.postAiRun(terminalTab, endEvent);
+                            }
+                            if (state.phase() != TerminalAgentModels.Phase.CANCELLED
+                                && agentLearningStarted.compareAndSet(false, true)) {
+                                RuleLearning.afterAgentRun(profile, scopedRequest.userPrompt(), runId, agentConnection,
+                                    proposal -> activityPanel.showRuleProposal(runId, proposal));
                             }
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
@@ -12414,6 +12427,11 @@ public class MainWindow {
                             && agentTokenActivityIds.add(activity.id())) {
                             agentTokensTotal.addAndGet(usage.totalTokens());
                         }
+                    }
+
+                    @Override
+                    public void publishSentContext(String eventRunId, AiSentContext context) {
+                        activityPanel.showSentContext(eventRunId, context);
                     }
 
                     @Override

@@ -23,6 +23,7 @@ import de.kortty.core.agent.AgentOutboundContext;
 import de.kortty.core.agent.AgentCommandRunner.ExecResult;
 import de.kortty.core.agent.AgentCommandRunner.ShellKind;
 import de.kortty.policy.ManagedSetting;
+import de.kortty.stats.SkillUsageCollector;
 import de.kortty.ui.I18n;
 import de.kortty.ui.TerminalTab;
 import de.kortty.ui.TerminalView;
@@ -154,6 +155,13 @@ public class TerminalAgentService {
         default TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal)
             throws Exception {
             return TerminalAgentModels.SolutionChoice.asRequested();
+        }
+
+        /**
+         * What the run has sent so far: its memory and the skills of every turn, masked as sent. Called after each turn
+         * that sent something; each call carries the whole run so far, so the view replaces its earlier copy.
+         */
+        default void publishSentContext(String runId, AiSentContext context) {
         }
     }
 
@@ -431,6 +439,19 @@ public class TerminalAgentService {
      * concise object and usually recovers without failing the whole planning step.
      */
     private <T> T requestPlanDecisionWithRepair(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        String systemPrompt,
+        String userPrompt,
+        Function<String, T> parser) throws Exception {
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            T decision = decidePlanWithRepair(aiService, outbound, systemPrompt, userPrompt, parser);
+            usage.commit();
+            return decision;
+        }
+    }
+
+    private <T> T decidePlanWithRepair(
         AiPromptService aiService,
         AgentOutboundContext outbound,
         String systemPrompt,
@@ -928,7 +949,7 @@ public class TerminalAgentService {
                 true);
             return null;
         }
-        publishUsedSkillActivity(ui, runId, aiService);
+        publishUsedSkillActivity(ui, runId, aiService, outbound);
         recordTokenUsage(ui, result);
         try {
             TerminalAgentModels.TriageProposal proposal = TriageReplyParser.parse(result.content());
@@ -1544,6 +1565,25 @@ public class TerminalAgentService {
         boolean sudoPasswordCached,
         RunUi ui,
         String runId) throws Exception {
+        // A repair round of the same turn is the same request for the skill statistics: a skill it sends counts once.
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            AgentDecision decision = decideAgentTurn(
+                aiService, outbound, request, probe, history, turn, sudoPasswordCached, ui, runId);
+            usage.commit();
+            return decision;
+        }
+    }
+
+    private AgentDecision decideAgentTurn(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history,
+        int turn,
+        boolean sudoPasswordCached,
+        RunUi ui,
+        String runId) throws Exception {
         // The prompts are built from masked copies; the decision is validated against the raw probe.
         TerminalAgentModels.ProbeSnapshot outboundProbe = outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class);
         String systemPrompt = buildAgentSystemPrompt(request.queryOnly(), outboundProbe);
@@ -1559,7 +1599,7 @@ public class TerminalAgentService {
             0L,
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
-        publishUsedSkillActivity(ui, runId, aiService);
+        publishUsedSkillActivity(ui, runId, aiService, outbound);
         publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
         try {
@@ -1605,7 +1645,7 @@ public class TerminalAgentService {
                 outbound,
                 systemPrompt,
                 buildAgentDecisionRepairPrompt(userPrompt, result.content(), firstFailure.getMessage()));
-            publishUsedSkillActivity(ui, runId, aiService);
+            publishUsedSkillActivity(ui, runId, aiService, outbound);
             publishWebToolActivity(ui, runId, repaired);
             recordTokenUsage(ui, repaired);
             try {
@@ -1660,6 +1700,21 @@ public class TerminalAgentService {
         List<TerminalAgentModels.CommandResult> history,
         RunUi ui,
         String runId) throws Exception {
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            AgentDecision decision = decideTurnLimitFinal(aiService, outbound, request, probe, history, ui, runId);
+            usage.commit();
+            return decision;
+        }
+    }
+
+    private AgentDecision decideTurnLimitFinal(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history,
+        RunUi ui,
+        String runId) throws Exception {
         String systemPrompt = buildAgentTurnLimitFinalSystemPrompt();
         String userPrompt = buildAgentTurnLimitFinalUserPrompt(
             request,
@@ -1678,7 +1733,7 @@ public class TerminalAgentService {
             0L,
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
-        publishUsedSkillActivity(ui, runId, aiService);
+        publishUsedSkillActivity(ui, runId, aiService, outbound);
         publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
         try {
@@ -1718,7 +1773,7 @@ public class TerminalAgentService {
                 0L,
                 false);
             AiExecutionResult repaired = executeAgentJsonPrompt(aiService, outbound, systemPrompt, buildAgentRepairPrompt(userPrompt, result.content()));
-            publishUsedSkillActivity(ui, runId, aiService);
+            publishUsedSkillActivity(ui, runId, aiService, outbound);
             publishWebToolActivity(ui, runId, repaired);
             recordTokenUsage(ui, repaired);
             AgentDecision decision;
@@ -1768,13 +1823,21 @@ public class TerminalAgentService {
         // transport adds the skills later, in front of the memory marker.
         String outboundSystemPrompt = outbound.mask(insertMemory(systemPrompt, outbound.memory().text()));
         String outboundUserPrompt = outbound.mask(userPrompt);
-        try {
-            return aiService.executeJsonPrompt(outboundSystemPrompt, outboundUserPrompt);
-        } catch (IOException e) {
-            if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
-                throw e;
+        // The skills are added by the transport on this thread, so the turn's scope sees exactly what this call sent.
+        try (AiSentContextCollector.Scope sent = AiSentContextCollector.open()) {
+            try {
+                try {
+                    return aiService.executeJsonPrompt(outboundSystemPrompt, outboundUserPrompt);
+                } catch (IOException e) {
+                    if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
+                        throw e;
+                    }
+                    return aiService.executeJsonPromptWithoutResponseFormat(outboundSystemPrompt, outboundUserPrompt);
+                }
+            } finally {
+                // A call that fails after its prompt left the machine (a timeout, a server error) still sent it.
+                outbound.sentLedger().recordTurn(sent.summary().withMemory(outbound.sentMemory()));
             }
-            return aiService.executeJsonPromptWithoutResponseFormat(outboundSystemPrompt, outboundUserPrompt);
         }
     }
 
@@ -1900,7 +1963,12 @@ public class TerminalAgentService {
             true));
     }
 
-    private void publishUsedSkillActivity(RunUi ui, String runId, AiPromptService aiService) {
+    /**
+     * Shows the skills the last call of the run sent, and publishes what the run has sent so far. Called after every call,
+     * so the sent context is current at the end of each turn, whether or not the turn used a skill.
+     */
+    private void publishUsedSkillActivity(RunUi ui, String runId, AiPromptService aiService, AgentOutboundContext outbound) {
+        publishSentContext(ui, runId, outbound);
         if (!(aiService instanceof AiSkillUsageTracker tracker)) {
             return;
         }
@@ -1938,6 +2006,17 @@ public class TerminalAgentService {
             0L,
             true,
             true));
+    }
+
+    /** Publishes the run's sent context so far, unless the run has sent nothing yet. */
+    private static void publishSentContext(RunUi ui, String runId, AgentOutboundContext outbound) {
+        if (ui == null || outbound == null) {
+            return;
+        }
+        AiSentContext sent = outbound.sentLedger().snapshot();
+        if (!sent.isEmpty()) {
+            ui.publishSentContext(runId, sent);
+        }
     }
 
     /**

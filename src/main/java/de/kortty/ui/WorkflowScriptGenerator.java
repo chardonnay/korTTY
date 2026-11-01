@@ -23,6 +23,7 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.AiWorkload;
 import de.kortty.model.GlobalSettings;
 import de.kortty.security.EncryptionService;
+import de.kortty.stats.SkillUsageCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,7 +162,6 @@ public final class WorkflowScriptGenerator {
         // The skills land in front of the memory marker.
         String systemWithMemory = TerminalAgentService.insertMemory(systemPrompt, memoryTextFor(generationProfile));
         AiSkillPromptSupport skills = AiSkillPromptSupport.fromSettings(settings, null);
-        String systemWithSkills = skills.appendAgentSkills(systemWithMemory, userPrompt);
 
         AiService service = AiServiceFactory.create(
             generationProfile, apiKey, AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
@@ -177,8 +177,11 @@ public final class WorkflowScriptGenerator {
         }
 
         AiExecutionResult result;
-        try {
+        // The skill block is built inside the scope, which counts the skills once the call succeeds.
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            String systemWithSkills = skills.appendWorkflowSkills(systemWithMemory, userPrompt);
             result = promptService.executePrompt(systemWithSkills, userPrompt);
+            usage.commit();
         } catch (Exception e) {
             logger.warn("Workflow script generation failed", e);
             throw new GenerationException(FailureKind.AI_ERROR,
@@ -300,7 +303,6 @@ public final class WorkflowScriptGenerator {
 
         String systemWithMemory = TerminalAgentService.insertMemory(systemPrompt, memoryTextFor(generationProfile));
         AiSkillPromptSupport skills = AiSkillPromptSupport.fromSettings(settings, null);
-        String systemWithSkills = skills.appendAgentSkills(systemWithMemory, userPrompt);
 
         AiService service = AiServiceFactory.create(
             generationProfile, apiKey, AiInternetAccessConfiguration.disabled(), AiSkillPromptSupport.disabled());
@@ -315,8 +317,11 @@ public final class WorkflowScriptGenerator {
         }
 
         AiExecutionResult result;
-        try {
+        // The skill block is built inside the scope, which counts the skills once the call succeeds.
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            String systemWithSkills = skills.appendWorkflowSkills(systemWithMemory, userPrompt);
             result = promptService.executePrompt(systemWithSkills, userPrompt);
+            usage.commit();
         } catch (Exception e) {
             logger.warn("Swarm workflow script generation failed", e);
             throw new GenerationException(FailureKind.AI_ERROR,

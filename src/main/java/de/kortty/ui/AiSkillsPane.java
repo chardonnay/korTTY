@@ -269,8 +269,12 @@ final class AiSkillsPane extends VBox {
         });
         HBox viewSwitch = new HBox(0, localViewButton, externalViewButton);
 
+        // The statistics cover every skill, so the button stays in the list header for both views. It stays enabled
+        // under the policy too: the dialog shows the policy banner, locks the recording switch and keeps Reset usable.
+        Button statisticsButton = new Button(I18n.get("settings.aiSkills.stats.button"));
+        statisticsButton.setOnAction(event -> openStatistics(app, owner));
         // The list column is narrow: both rows wrap instead of cutting their labels.
-        FlowPane aiSkillSortButtons = new FlowPane(8, 8, sortAiSkillButton, showHiddenCheck);
+        FlowPane aiSkillSortButtons = new FlowPane(8, 8, sortAiSkillButton, showHiddenCheck, statisticsButton);
         aiSkillSortButtons.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         aiSkillButtons.getChildren().setAll(localButtons);
         VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillAutoCreateCheck,
@@ -774,6 +778,10 @@ final class AiSkillsPane extends VBox {
 
     private BuiltinAiSkillSupport.AiSkillStatus statusOf(AiSkill skill) {
         return BuiltinAiSkillSupport.statusOf(skill, aiSkills, builtinCatalog);
+    }
+
+    private void openStatistics(KorTTYApplication application, Window ownerWindow) {
+        new AiSkillStatisticsDialog(ownerWindow, application, this::statusOf).show();
     }
 
     private void refreshBuiltinIndicatorsSoon() {

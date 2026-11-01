@@ -235,6 +235,23 @@ class AiSecretGuardTest {
     }
 
     @Test
+    void aPasswordNamedByItsKeywordWithoutAConnectorIsRefused() {
+        assertRefused("Ab jetzt immer das Passwort hunter2 verwenden.");
+        assertRefused("Ab jetzt immer mit Passwort hunter2 verbinden.");
+        assertRefused("Ab jetzt immer die Zugangsdaten root / hunter2 nutzen.");
+        assertRefused("password hunter2");
+        assertRefused("Passwort p@ssw0rd");
+    }
+
+    @Test
+    void aCueFollowedByAnEverydayWordWithoutAConnectorIsAccepted() {
+        assertAccepted("Passwort eingeben und dann speichern.");
+        assertAccepted("Passwort Verwaltung im Tresor.");
+        assertAccepted("Ab jetzt immer Passwort ändern, wenn es abläuft.");
+        assertAccepted("Pin NuGet package versions and scan for known CVEs before shipping.");
+    }
+
+    @Test
     void everyBuiltinSkillPasses() throws IOException {
         List<String> names = resource("builtin-ai-skills/builtin-ai-skills.index").lines()
             .map(String::strip)

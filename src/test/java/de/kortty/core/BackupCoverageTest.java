@@ -67,7 +67,8 @@ class BackupCoverageTest {
         Map.entry("MemoryStore.STATE_FILE_NAME", MemoryStore.DIRECTORY_NAME),
         Map.entry("MemoryStore.ARCHIVE_FILE_NAME", MemoryStore.DIRECTORY_NAME),
         Map.entry("ExternalMemoryRegistry.FILE_NAME", MemoryStore.DIRECTORY_NAME),
-        Map.entry("LearningState.FILE_NAME", MemoryStore.DIRECTORY_NAME));
+        Map.entry("LearningState.FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("SkillStatsStore.FILE_NAME", BackupManager.STATS_DIRECTORY_NAME));
 
     /** {@code SimpleClass.CONSTANT} → why the file is deliberately not part of the backup. */
     private static final Map<String, String> EXCLUDED = Map.ofEntries(

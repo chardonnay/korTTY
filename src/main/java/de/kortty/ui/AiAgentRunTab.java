@@ -1,13 +1,18 @@
 package de.kortty.ui;
 
 import de.kortty.core.AiPromptService;
+import de.kortty.core.AiSentContext;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.core.agent.AgentCommandRunner;
+import de.kortty.memory.RuleProposal;
+import de.kortty.model.AiProfile;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -34,6 +39,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -53,9 +59,18 @@ public class AiAgentRunTab extends Tab {
     private final Button stopButton;
     private final Timeline elapsedTimeline;
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final VBox bottomBox;
+    private final AtomicBoolean ruleLearningStarted = new AtomicBoolean();
+    private final String runId = UUID.randomUUID().toString();
 
+    /** The "Mitgesendet" row of the run, below the status line; {@code null} until the run sent something. FX thread. */
+    private Node sentContextRow;
     private Thread workerThread;
     private Instant startedAt;
+    /** The chat-window run's profile, request and connection, for the rule detection after the run. */
+    private AiProfile learningProfile;
+    private String learningPrompt;
+    private ServerConnection learningConnection;
 
     public AiAgentRunTab(MainWindow ownerWindow, String title) {
         this.ownerWindow = ownerWindow;
@@ -91,7 +106,8 @@ public class AiAgentRunTab extends Tab {
         BorderPane content = new BorderPane();
         content.setTop(header);
         content.setCenter(transcriptArea);
-        content.setBottom(new VBox(statusLabel));
+        bottomBox = new VBox(statusLabel);
+        content.setBottom(bottomBox);
         setContent(content);
 
         elapsedTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshElapsed()));
@@ -106,6 +122,9 @@ public class AiAgentRunTab extends Tab {
         AgentCommandRunner runner,
         TerminalAgentModels.Request request) {
         startedAt = Instant.now();
+        learningProfile = profile;
+        learningPrompt = request.userPrompt();
+        learningConnection = terminalTab != null ? terminalTab.getConnection() : null;
         elapsedTimeline.playFromStart();
         appendTranscript("[KorTTY Agent] " + I18n.get("ai.agent.run.startedAt", TIME_FORMAT.format(startedAt.atZone(ZoneId.systemDefault()))) + "\n");
         appendTranscript("[KorTTY Agent] " + request.userPrompt() + "\n");
@@ -131,6 +150,28 @@ public class AiAgentRunTab extends Tab {
         }, "ai-agent-run");
         workerThread.setDaemon(true);
         workerThread.start();
+    }
+
+    /**
+     * Shows what the run has sent so far as one "Mitgesendet" row under the status line, updated in place after each turn.
+     * FX thread.
+     */
+    private void showSentContext(AiSentContext context) {
+        Node row = SentContextView.create(context, SentContextView.Style.AGENT, 0);
+        int index = sentContextRow != null ? bottomBox.getChildren().indexOf(sentContextRow) : -1;
+        if (index >= 0) {
+            bottomBox.getChildren().set(index, row);
+        } else {
+            bottomBox.getChildren().add(Math.min(1, bottomBox.getChildren().size()), row);
+        }
+        sentContextRow = row;
+    }
+
+    /** The proposal card of the finished run, appended below the status line. FX thread. */
+    private void showRuleProposal(RuleProposal proposal) {
+        RuleProposalCard card = new RuleProposalCard(proposal, ownerWindow.getStage(),
+            answered -> bottomBox.getChildren().remove(answered));
+        bottomBox.getChildren().add(card);
     }
 
     private void stopRun() {
@@ -199,6 +240,11 @@ public class AiAgentRunTab extends Tab {
                         && !state.userMessage().equals(state.summary())) {
                         appendTranscript("[KorTTY Agent] " + state.userMessage() + "\n");
                     }
+                    // A run that was cancelled teaches nothing; the others may offer one rule, once.
+                    if (state.phase() != TerminalAgentModels.Phase.CANCELLED && ruleLearningStarted.compareAndSet(false, true)) {
+                        RuleLearning.afterAgentRun(learningProfile, learningPrompt, runId, learningConnection,
+                            proposal -> showRuleProposal(proposal));
+                    }
                 }
             });
         }
@@ -206,6 +252,14 @@ public class AiAgentRunTab extends Tab {
         @Override
         public void appendTranscript(String text) {
             AiAgentRunTab.this.appendTranscript(text);
+        }
+
+        @Override
+        public void publishSentContext(String eventRunId, AiSentContext context) {
+            if (context == null || context.isEmpty()) {
+                return;
+            }
+            Platform.runLater(() -> showSentContext(context));
         }
 
         @Override

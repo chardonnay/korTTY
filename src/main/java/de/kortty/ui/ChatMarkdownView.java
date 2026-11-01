@@ -25,6 +25,7 @@ final class ChatMarkdownView extends TextFlow {
         .extensions(List.of(StrikethroughExtension.create())).build();
     private final StringBuilder displayedText = new StringBuilder();
     private final Path selection = new Path();
+    private final ContextMenu contextMenu;
     private int anchor;
     private int caret;
 
@@ -84,11 +85,21 @@ final class ChatMarkdownView extends TextFlow {
         });
         MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
         copy.setOnAction(event -> copySelection());
-        ContextMenu menu = new ContextMenu(copy);
+        contextMenu = new ContextMenu(copy);
         setOnContextMenuRequested(event -> {
             copy.setDisable(anchor == caret);
-            menu.show(this, event.getScreenX(), event.getScreenY());
+            contextMenu.show(this, event.getScreenX(), event.getScreenY());
         });
+    }
+
+    /** The context menu of the text; its copy action comes first, and a caller may add further items. */
+    ContextMenu contextMenu() {
+        return contextMenu;
+    }
+
+    /** The text the user has selected, or an empty string when nothing is selected. */
+    String selectedText() {
+        return anchor == caret ? "" : displayedText.substring(Math.min(anchor, caret), Math.max(anchor, caret));
     }
 
     private void finish() {

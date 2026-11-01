@@ -30,7 +30,9 @@ import java.util.Set;
  * owner-only. A file that cannot be read starts empty and is replaced by the next change.
  *
  * <p>Rules are identified by {@link #ruleHash}, so a rule that is worded the same way after normalisation is the
- * same rule. The per-run guard is kept in memory only: a new application start may show one card again.</p>
+ * same rule. A rejection or a snooze also names the message the rule came from, by {@link #messageHash}: the model
+ * words the same request differently on each call, so the message is what comes back. The per-run guard is kept in
+ * memory only: a new application start may show one card again.</p>
  */
 public final class LearningState {
 
@@ -42,13 +44,18 @@ public final class LearningState {
     static final int MAX_REJECTED = 1000;
     static final int KEEP_DAYS = 7;
     private static final int MAX_CLAIMED_RUNS = 100;
+    private static final int MAX_REMEMBERED_MESSAGES = 100;
     private static final int STATE_VERSION = 1;
     private static final Logger logger = LoggerFactory.getLogger(LearningState.class);
     private static final Gson GSON = new Gson();
 
+    private static LearningState shared;
+
     private final Path file;
     private final Clock clock;
     private final Set<String> claimedRuns = new LinkedHashSet<>();
+    /** Rule hash to the hash of the message it was detected from; kept for this run so a rejection can name the message. */
+    private final Map<String, String> messageOfRule = new LinkedHashMap<>();
     private Data data;
 
     /** The state in {@code memoryDirectory}, which holds {@value #FILE_NAME}; the file is read now. */
@@ -58,15 +65,40 @@ public final class LearningState {
         this.data = load(file);
     }
 
+    /**
+     * The state of the running application: one instance, in the memory directory of the default memory service, so that
+     * the one-card-per-run guard holds across the chat and the agent. Read on the first call, which may touch the disk.
+     */
+    public static synchronized LearningState shared() {
+        if (shared == null) {
+            shared = new LearningState(MemoryService.get().store().memoryDir(), Clock.systemDefaultZone());
+        }
+        return shared;
+    }
+
     /** The hash that identifies a rule: its text, lower case and with single spaces. */
     public static String ruleHash(String ruleText) {
-        String normalized = ruleText == null ? "" : ruleText.replaceAll("\\s+", " ").strip().toLowerCase(Locale.ROOT);
+        return textHash(ruleText);
+    }
+
+    /** The hash that identifies the user's message, normalised like a rule. */
+    public static String messageHash(String messageText) {
+        return textHash(messageText);
+    }
+
+    private static String textHash(String text) {
+        String normalized = text == null ? "" : text.replaceAll("\\s+", " ").strip().toLowerCase(Locale.ROOT);
         return MemoryFormat.sha256(normalized);
     }
 
     /** Whether the user rejected the rule for good. */
     public synchronized boolean isRejected(String ruleText) {
         return data.rejected.contains(ruleHash(ruleText));
+    }
+
+    /** Whether the user rejected the message the rule was detected from, so that the same message is not asked about again. */
+    public synchronized boolean isRejectedMessage(String messageText) {
+        return data.rejectedMessages.contains(messageHash(messageText));
     }
 
     /** Records "Nie für diese Regel". The rule is never proposed again; a snooze for it ends. */
@@ -78,6 +110,14 @@ public final class LearningState {
             data.rejected.remove(0);
         }
         data.snoozed.remove(hash);
+        String message = messageOfRule.remove(hash);
+        if (message != null) {
+            data.rejectedMessages.remove(message);
+            data.rejectedMessages.add(message);
+            while (data.rejectedMessages.size() > MAX_REJECTED) {
+                data.rejectedMessages.remove(0);
+            }
+        }
         save();
     }
 
@@ -87,10 +127,37 @@ public final class LearningState {
         return until != null && clock.instant().isBefore(Instant.parse(until));
     }
 
+    /** Whether the message the rule was detected from is postponed and the snooze has not run out. */
+    public synchronized boolean isSnoozedMessage(String messageText) {
+        String until = data.snoozedMessages.get(messageHash(messageText));
+        return until != null && clock.instant().isBefore(Instant.parse(until));
+    }
+
     /** Records "Nicht jetzt": the rule is not proposed again for {@link #SNOOZE}. */
     public synchronized void snooze(String ruleText) {
-        data.snoozed.put(ruleHash(ruleText), clock.instant().plus(SNOOZE).toString());
+        String until = clock.instant().plus(SNOOZE).toString();
+        String hash = ruleHash(ruleText);
+        data.snoozed.put(hash, until);
+        String message = messageOfRule.get(hash);
+        if (message != null) {
+            data.snoozedMessages.put(message, until);
+        }
         save();
+    }
+
+    /**
+     * Remembers the message a proposed rule was detected from, so that a later reject or snooze of the rule also
+     * covers the message. Kept in memory only: a card is answered within the run that showed it.
+     */
+    public synchronized void rememberMessage(String ruleText, String messageText) {
+        String hash = ruleHash(ruleText);
+        messageOfRule.remove(hash);
+        messageOfRule.put(hash, messageHash(messageText));
+        if (messageOfRule.size() > MAX_REMEMBERED_MESSAGES) {
+            Iterator<String> oldest = messageOfRule.keySet().iterator();
+            oldest.next();
+            oldest.remove();
+        }
     }
 
     /**
@@ -160,6 +227,7 @@ public final class LearningState {
     private void prune() {
         Instant now = clock.instant();
         data.snoozed.values().removeIf(until -> !now.isBefore(Instant.parse(until)));
+        data.snoozedMessages.values().removeIf(until -> !now.isBefore(Instant.parse(until)));
         LocalDate oldest = LocalDate.now(clock).minusDays(KEEP_DAYS);
         data.days.keySet().removeIf(day -> LocalDate.parse(day).isBefore(oldest));
     }
@@ -183,6 +251,8 @@ public final class LearningState {
         int version = STATE_VERSION;
         List<String> rejected = new ArrayList<>();
         Map<String, String> snoozed = new LinkedHashMap<>();
+        List<String> rejectedMessages = new ArrayList<>();
+        Map<String, String> snoozedMessages = new LinkedHashMap<>();
         Map<String, Day> days = new LinkedHashMap<>();
 
         /** Drops every entry that does not parse, so that no later read or prune can fail on it. */
@@ -193,11 +263,19 @@ public final class LearningState {
             if (snoozed == null) {
                 snoozed = new LinkedHashMap<>();
             }
+            if (rejectedMessages == null) {
+                rejectedMessages = new ArrayList<>();
+            }
+            if (snoozedMessages == null) {
+                snoozedMessages = new LinkedHashMap<>();
+            }
             if (days == null) {
                 days = new LinkedHashMap<>();
             }
             rejected.removeIf(hash -> hash == null || hash.isBlank());
+            rejectedMessages.removeIf(hash -> hash == null || hash.isBlank());
             snoozed.entrySet().removeIf(entry -> !isInstant(entry.getKey(), entry.getValue()));
+            snoozedMessages.entrySet().removeIf(entry -> !isInstant(entry.getKey(), entry.getValue()));
             days.entrySet().removeIf(entry -> !isDay(entry.getKey()) || entry.getValue() == null);
             return this;
         }

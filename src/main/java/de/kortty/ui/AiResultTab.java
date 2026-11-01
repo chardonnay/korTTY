@@ -22,6 +22,8 @@ import de.kortty.core.AiSnippetMetadataSupport;
 import de.kortty.core.AiSvgContentSupport;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiResponseSanitizer;
+import de.kortty.core.AiSentContext;
+import de.kortty.core.AiSentContextCollector;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.AiService;
@@ -34,6 +36,7 @@ import de.kortty.core.TerminalAgentService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmTarget;
+import de.kortty.memory.RuleProposal;
 import de.kortty.model.AiChatTerminalActions;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ChatColorProfile;
@@ -100,6 +103,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import de.kortty.paste.PasteSource;
 import de.kortty.policy.PolicyManager;
 import de.kortty.telemetry.Telemetry;
@@ -110,6 +114,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.jetbrains.annotations.Nullable;
@@ -160,7 +165,17 @@ public class AiResultTab extends Tab {
      */
     private TerminalPaneRef sourcePane;
     private String languageCode;
+    /**
+     * The user's latest prompt that may teach a rule: set when the prompt is sent, and taken once its answer is shown. A
+     * broadcast or a generated request never sets it.
+     */
+    private String learnablePrompt;
     private final List<SavedAiChatMessage> messageEntries = new ArrayList<>();
+    /**
+     * What each answer of this session sent, shown under it as the "Mitgesendet" line. Kept in memory only: a saved chat
+     * and a reopened one carry none.
+     */
+    private final Map<SavedAiChatMessage, AiSentContext> sentContexts = new IdentityHashMap<>();
     private final StringBuilder plainTranscript = new StringBuilder();
     private final Timeline waitingTimeline;
 
@@ -453,7 +468,7 @@ public class AiResultTab extends Tab {
     }
 
     public void showResult(String content, String reasoning) {
-        showResult(content, reasoning, List.of());
+        showResult(content, reasoning, List.of(), AiSentContext.empty());
     }
 
     /** Shows a finished reply including its reasoning and the internet research behind it. */
@@ -461,12 +476,26 @@ public class AiResultTab extends Tab {
         showResult(
             result != null ? result.content() : "",
             result != null ? result.reasoning() : null,
-            result != null ? result.webToolCalls() : List.of());
+            result != null ? result.webToolCalls() : List.of(),
+            AiSentContext.empty());
     }
 
-    private void showResult(String content, String reasoning, List<AiWebToolCall> webToolCalls) {
+    /**
+     * Shows a finished reply and, under it, what the request sent: the "Mitgesendet" line of that answer.
+     */
+    public void showResult(AiSentContextCollector.Reply reply) {
+        AiExecutionResult result = reply != null ? reply.result() : null;
+        showResult(
+            result != null ? result.content() : "",
+            result != null ? result.reasoning() : null,
+            result != null ? result.webToolCalls() : List.of(),
+            reply != null ? reply.sent() : AiSentContext.empty());
+    }
+
+    private void showResult(String content, String reasoning, List<AiWebToolCall> webToolCalls, AiSentContext sent) {
         stopWaiting();
-        appendAssistantMessage(content, reasoning, webToolCalls);
+        appendAssistantMessage(content, reasoning, webToolCalls, sent);
+        offerRuleLearning(profileComboBox.getSelectionModel().getSelectedItem());
         statusLabel.setText(I18n.get("ai.result.ready"));
         updateSendAvailability();
     }
@@ -485,7 +514,13 @@ public class AiResultTab extends Tab {
     }
 
     public void appendUserMessage(String prompt) {
-        appendConversationMessage(SavedAiChatMessage.ROLE_USER, prompt, null, null, false);
+        learnablePrompt = prompt != null && !prompt.isBlank() ? prompt : null;
+        appendRequestMessage(prompt);
+    }
+
+    /** A user message that korTTY does not learn from: a broadcast or a request the chat generates itself. */
+    private void appendRequestMessage(String text) {
+        appendConversationMessage(SavedAiChatMessage.ROLE_USER, text, null, null, false);
     }
 
     /**
@@ -595,7 +630,7 @@ public class AiResultTab extends Tab {
         String language = SnippetLanguageSupport.detectFileLanguage(attachment.fileName(), attachment.content());
         String responseLanguage = languageCode;
         String connection = connectionDisplayName;
-        appendUserMessage(I18n.get("ai.result.attachment.flowchart.request", attachment.fileName()));
+        appendRequestMessage(I18n.get("ai.result.attachment.flowchart.request", attachment.fileName()));
 
         Task<String> task = new Task<>() {
             @Override
@@ -973,10 +1008,14 @@ public class AiResultTab extends Tab {
     }
 
     private void appendAssistantMessage(String content, String reasoning) {
-        appendAssistantMessage(content, reasoning, List.of());
+        appendAssistantMessage(content, reasoning, List.of(), AiSentContext.empty());
     }
 
-    private void appendAssistantMessage(String content, String reasoning, List<AiWebToolCall> webToolCalls) {
+    private void appendAssistantMessage(
+        String content,
+        String reasoning,
+        List<AiWebToolCall> webToolCalls,
+        AiSentContext sent) {
         AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
         appendConversationMessage(
             SavedAiChatMessage.ROLE_ASSISTANT,
@@ -985,7 +1024,8 @@ public class AiResultTab extends Tab {
             profile != null ? getAiProfileDisplayName(profile) : activeProfileName,
             reasoning,
             AiWebActivitySupport.toSaved(webToolCalls),
-            true);
+            true,
+            sent);
     }
 
     private void appendConversationMessage(String role, String content, String profileId, String profileName, boolean scrollToEnd) {
@@ -1000,6 +1040,20 @@ public class AiResultTab extends Tab {
         String reasoning,
         List<SavedAiWebToolCall> webToolCalls,
         boolean scrollToEnd) {
+        appendConversationMessage(role, content, profileId, profileName, reasoning, webToolCalls, scrollToEnd,
+            AiSentContext.empty());
+    }
+
+    /** Appends a message; {@code sent} is what the request behind it sent, shown under the message when it is not empty. */
+    private void appendConversationMessage(
+        String role,
+        String content,
+        String profileId,
+        String profileName,
+        String reasoning,
+        List<SavedAiWebToolCall> webToolCalls,
+        boolean scrollToEnd,
+        AiSentContext sent) {
         if (content == null || content.isBlank()) {
             return;
         }
@@ -1011,6 +1065,9 @@ public class AiResultTab extends Tab {
         message.setReasoning(reasoning);
         message.setWebToolCalls(webToolCalls);
         messageEntries.add(message);
+        if (sent != null && !sent.isEmpty()) {
+            sentContexts.put(message, sent);
+        }
         appendToPlainTranscript(message);
         renderMessage(message);
         persistBoundChatQuietly();
@@ -1075,20 +1132,24 @@ public class AiResultTab extends Tab {
             .withFileAttachment(outbound.attachment());
         AiRequest streamedRequest = request.withStreamListener(beginStreaming());
 
-        Task<AiExecutionResult> task = new Task<>() {
+        // The request keeps its own sent context: a follow-up sent meanwhile does not replace it.
+        Task<AiSentContextCollector.Reply> task = new Task<>() {
             @Override
-            protected AiExecutionResult call() throws Exception {
-                return aiService.execute(streamedRequest);
+            protected AiSentContextCollector.Reply call() throws Exception {
+                return AiSentContextCollector.capture(() -> aiService.execute(streamedRequest));
             }
         };
         task.setOnSucceeded(event -> {
-            AiExecutionResult result = task.getValue();
+            AiSentContextCollector.Reply reply = task.getValue();
+            AiExecutionResult result = reply != null ? reply.result() : null;
             // The final answer replaces the live preview.
             streamingView.end();
             appendAssistantMessage(
                 result != null ? result.content() : "",
                 result != null ? result.reasoning() : null,
-                result != null ? result.webToolCalls() : List.of());
+                result != null ? result.webToolCalls() : List.of(),
+                reply != null ? reply.sent() : AiSentContext.empty());
+            offerRuleLearning(selectedProfile);
             if (result != null) {
                 ownerWindow.recordAiUsageForProfile(selectedProfile, request, result);
                 refreshAvailableProfiles(selectedProfile);
@@ -1099,17 +1160,26 @@ public class AiResultTab extends Tab {
             ownerWindow.updateStatusMessage(I18n.get("ai.result.ready"));
             updateSendAvailability();
         });
-        task.setOnCancelled(event -> showCancelled());
+        task.setOnCancelled(event -> {
+            learnablePrompt = null;
+            showCancelled();
+        });
         task.setOnFailed(event -> {
+            learnablePrompt = null;
             if (task.isCancelled()) {
                 showCancelled();
                 return;
             }
             Throwable error = task.getException();
+            AiSentContext sent = AiSentContext.empty();
+            if (error instanceof AiSentContextCollector.Failed failed) {
+                sent = failed.sent();
+            }
             String message = error != null && error.getMessage() != null
                 ? error.getMessage()
                 : I18n.get("ai.result.error");
-            appendAssistantMessage(I18n.get("ai.result.errorMessage", message));
+            // The failed follow-up still shows what it was built with, so the memory and skills it used stay visible.
+            appendAssistantMessage(I18n.get("ai.result.errorMessage", message), null, List.of(), sent);
             stopWaiting();
             statusLabel.setText(I18n.get("ai.result.error"));
             updateSendAvailability();
@@ -1132,7 +1202,7 @@ public class AiResultTab extends Tab {
             showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.swarm.error.noOpenTerminals"));
             return;
         }
-        appendUserMessage(prompt);
+        appendRequestMessage(prompt);
         promptInputArea.clear();
 
         Map<String, Object> broadcastProps = new LinkedHashMap<>(TelemetryProps.aiProfileProps(profile));
@@ -1370,6 +1440,54 @@ public class AiResultTab extends Tab {
         }
     }
 
+    /**
+     * Looks for a rule in the prompt that the answer just shown followed. The card goes directly under that answer, once the
+     * detection has found one; nothing is saved, and the card is not kept in a saved chat.
+     */
+    private void offerRuleLearning(@Nullable AiProfile profile) {
+        String prompt = learnablePrompt;
+        learnablePrompt = null;
+        if (prompt == null || messageEntries.isEmpty()
+            || !SavedAiChatMessage.ROLE_ASSISTANT.equals(messageEntries.get(messageEntries.size() - 1).getRole())) {
+            return;
+        }
+        Node answer = messageNodes.isEmpty() ? null : messageNodes.get(messageNodes.size() - 1);
+        RuleLearning.afterChatAnswer(profile, prompt, UUID.randomUUID().toString(), sourceConnection,
+            proposal -> insertRuleCard(answer, proposal));
+    }
+
+    private void insertRuleCard(@Nullable Node answer, RuleProposal proposal) {
+        int index = answer == null ? -1 : messagesBox.getChildren().indexOf(answer);
+        if (index < 0) {
+            return;
+        }
+        RuleProposalCard card = new RuleProposalCard(proposal, ownerWindow.getStage(),
+            answered -> messagesBox.getChildren().remove(answered));
+        messagesBox.getChildren().add(index + 1, card);
+    }
+
+    /**
+     * Adds "Als Regel merken…" to the menu of a user message: the selected text, or the whole message when nothing is
+     * selected.
+     */
+    private void addRememberAction(Node messageText) {
+        if (!(messageText instanceof ChatMarkdownView view)) {
+            return;
+        }
+        MenuItem remember = new MenuItem(I18n.get("ai.learn.menu"));
+        remember.setOnAction(event -> {
+            String selected = view.selectedText();
+            RuleLearning.rememberManually(ownerWindow.getStage(),
+                selected.isBlank() ? view.displayedText() : selected, sourceConnection);
+        });
+        view.contextMenu().getItems().add(remember);
+        view.contextMenu().setOnShowing(event -> {
+            boolean allowed = RuleLearning.manualRuleAllowed();
+            remember.setDisable(!allowed);
+            remember.setText(I18n.get(allowed ? "ai.learn.menu" : "ai.learn.menu.unavailable"));
+        });
+    }
+
     private void renderMessage(SavedAiChatMessage entry) {
         boolean assistant = SavedAiChatMessage.ROLE_ASSISTANT.equals(entry.getRole());
         Node topNode;
@@ -1388,6 +1506,7 @@ public class AiResultTab extends Tab {
             appendWebActivityDisclosure(block, entry);
             appendAssistantContent(block, entry);
             appendReasoningDisclosure(block, entry);
+            appendSentContextDisclosure(block, entry);
             topNode = block;
             highlightTarget = block;
         } else {
@@ -1401,7 +1520,9 @@ public class AiResultTab extends Tab {
             roleLabel.setFont(Font.font(currentFontSize));
             roleLabel.setMaxWidth(Double.MAX_VALUE);
             roleLabel.setAlignment(Pos.CENTER_RIGHT);
-            bubble.getChildren().addAll(roleLabel, createSelectableTextBlock(entry.getContent()));
+            Node messageText = createSelectableTextBlock(entry.getContent());
+            addRememberAction(messageText);
+            bubble.getChildren().addAll(roleLabel, messageText);
 
             HBox row = new HBox(bubble);
             row.getStyleClass().add("ai-chat-user-row");
@@ -1444,6 +1565,19 @@ public class AiResultTab extends Tab {
             toggle.setText(reasoningToggleText(show));
         });
         target.getChildren().addAll(toggle, bodyBox);
+    }
+
+    /**
+     * Adds the collapsed "Mitgesendet" line under an answer of this session: the memory, skills and reference files the
+     * request sent, as they were sent. Nothing is added for a reopened chat or when the request sent nothing.
+     */
+    private void appendSentContextDisclosure(VBox target, SavedAiChatMessage entry) {
+        AiSentContext sent = sentContexts.get(entry);
+        if (sent == null) {
+            return;
+        }
+        target.getChildren().add(SentContextView.create(sent, SentContextView.Style.CHAT,
+            Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
     }
 
     /**

@@ -41,16 +41,21 @@ public final class MemoryBlockBuilder {
      * A reference file the user approved: the text a request may send, its label for the fence, and the tool it belongs
      * to, so that a CLI which reads that tool's files itself can be left out.
      *
-     * @param tool the tool; {@code null} counts as {@link ExternalMemoryTool#OTHER}
+     * @param tool      the tool; {@code null} counts as {@link ExternalMemoryTool#OTHER}
+     * @param truncated whether the content is shorter than the file, because the reader cut it to its size cap
      */
-    public record ExternalSource(String label, String content, ExternalMemoryTool tool) {
+    public record ExternalSource(String label, String content, ExternalMemoryTool tool, boolean truncated) {
 
         public ExternalSource {
             tool = tool == null ? ExternalMemoryTool.OTHER : tool;
         }
 
+        public ExternalSource(String label, String content, ExternalMemoryTool tool) {
+            this(label, content, tool, false);
+        }
+
         public ExternalSource(String label, String content) {
-            this(label, content, ExternalMemoryTool.OTHER);
+            this(label, content, ExternalMemoryTool.OTHER, false);
         }
     }
 
@@ -109,7 +114,8 @@ public final class MemoryBlockBuilder {
             int tokens = AiTokenCounter.countTextTokens(text, tokenizer);
             int last = lastBudgetedUnit(chosen);
             if (tokens <= budgetTokens || last < 0) {
-                return new MemoryBlock(text, tokens, entryIds(chosen), sentParts(chosen), units.size() - chosen.size());
+                return new MemoryBlock(text, tokens, entryIds(chosen), sentParts(chosen), units.size() - chosen.size(),
+                    sentPieces(input, units, chosen, tokenizer));
             }
             chosen.remove(last);
         }
@@ -267,6 +273,53 @@ public final class MemoryBlockBuilder {
                 unit.kind() == Kind.CONNECTION_TEXT || unit.kind() == Kind.CONNECTION_ENTRY,
                 unit.order(), unit.entryId()))
             .toList();
+    }
+
+    /**
+     * The parts the block carries, in rendering order: the organisation rules, the global memory, the connection memory,
+     * then one piece per external file with the paragraphs that were sent. A file is truncated when the reader shortened
+     * it or when some of its paragraphs did not fit the budget.
+     */
+    private static List<MemoryBlock.SentPiece> sentPieces(Input input, List<Unit> units, List<Unit> chosen,
+                                                          AiTokenizerType tokenizer) {
+        List<MemoryBlock.SentPiece> pieces = new ArrayList<>();
+        for (Unit unit : ofKind(chosen, Kind.ORGANIZATION)) {
+            pieces.add(piece(MemoryBlock.Origin.ORGANIZATION, unit.order(), null, null, unit.text(), false, tokenizer));
+        }
+        addFilePieces(pieces, chosen, MemoryBlock.Origin.GLOBAL, Kind.GLOBAL_TEXT, Kind.GLOBAL_ENTRY, tokenizer);
+        addFilePieces(pieces, chosen, MemoryBlock.Origin.CONNECTION, Kind.CONNECTION_TEXT, Kind.CONNECTION_ENTRY,
+            tokenizer);
+        List<Unit> externalChosen = ofKind(chosen, Kind.EXTERNAL);
+        for (int index = 0; index < input.external().size(); index++) {
+            int sourceIndex = index;
+            List<Unit> sent = externalChosen.stream().filter(unit -> unit.sourceIndex() == sourceIndex).toList();
+            if (sent.isEmpty()) {
+                continue;
+            }
+            long total = units.stream()
+                .filter(unit -> unit.kind() == Kind.EXTERNAL && unit.sourceIndex() == sourceIndex)
+                .count();
+            ExternalSource source = input.external().get(index);
+            String text = sent.stream().map(Unit::text).collect(Collectors.joining("\n\n"));
+            pieces.add(piece(MemoryBlock.Origin.EXTERNAL, 0, null, source.label(), text,
+                source.truncated() || sent.size() < total, tokenizer));
+        }
+        return pieces;
+    }
+
+    private static void addFilePieces(List<MemoryBlock.SentPiece> pieces, List<Unit> chosen, MemoryBlock.Origin origin,
+                                      Kind textKind, Kind entryKind, AiTokenizerType tokenizer) {
+        for (Kind kind : List.of(textKind, entryKind)) {
+            for (Unit unit : ofKind(chosen, kind)) {
+                pieces.add(piece(origin, unit.order(), unit.entryId(), null, unit.text(), false, tokenizer));
+            }
+        }
+    }
+
+    private static MemoryBlock.SentPiece piece(MemoryBlock.Origin origin, int position, String entryId, String label,
+                                               String text, boolean truncated, AiTokenizerType tokenizer) {
+        return new MemoryBlock.SentPiece(origin, position, entryId, label, text,
+            AiTokenCounter.countTextTokens(text, tokenizer), truncated);
     }
 
     private static String organizationText(OrganizationRule rule) {

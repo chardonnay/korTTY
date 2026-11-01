@@ -254,8 +254,8 @@ final class AiMemoryPane extends VBox {
         GridPane grid = AiManagerSections.formGrid();
         AiManagerSections.addFieldRow(grid, enabledCheck);
         AiManagerSections.addFieldRow(grid, hint(I18n.get("settings.ai.memory.enabled.hint")));
-        // Automatic rule learning is a later step of the plan and has no effect yet, so its control is not shown; the
-        // stored mode is kept as it is.
+        AiManagerSections.addRow(grid, "settings.ai.memory.learning", learningCombo);
+        AiManagerSections.addFieldRow(grid, hint(I18n.get("settings.ai.memory.learning.hint")));
         AiManagerSections.addRow(grid, "settings.ai.memory.budget", budgetSpinner);
         AiManagerSections.addFieldRow(grid, budgetPolicyNote);
         HBox saveRow = new HBox(saveSettingsButton);

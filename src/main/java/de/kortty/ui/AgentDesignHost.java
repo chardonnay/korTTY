@@ -7,8 +7,10 @@ import de.kortty.agentdesign.AgentModuleCatalog;
 import de.kortty.agentdesign.AgentRole;
 import de.kortty.agentdesign.AgentRunRegistry;
 import de.kortty.agentdesign.MetroStationModel;
+import de.kortty.core.AiSentContext;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.memory.RuleProposal;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.Theme;
@@ -295,6 +297,40 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             refreshStatus();
         });
         return design.inline() || design.focus();
+    }
+
+    /**
+     * Shows the rule proposal of a finished run. The classic design gets it at the end of the run's activity list; the other
+     * designs get a small popup over the main window, so that the designs themselves stay as they are.
+     */
+    public void showRuleProposal(String runId, RuleProposal proposal) {
+        RunDesign design = runDesigns.get(runId);
+        if (design == null || proposal == null) {
+            return;
+        }
+        runOnFx(() -> {
+            if (design.classic() && classicPanel != null) {
+                classicPanel.showRuleProposal(runId, proposal);
+            } else {
+                RuleProposalPopup.show(windowOf(topSlot), proposal);
+            }
+        });
+    }
+
+    /**
+     * Shows what the run has sent so far in its activity list. Only the classic design has that list; the other designs
+     * show nothing for it, so they stay as they are.
+     */
+    public void showSentContext(String runId, AiSentContext context) {
+        RunDesign design = runDesigns.get(runId);
+        if (design == null || context == null || context.isEmpty()) {
+            return;
+        }
+        runOnFx(() -> {
+            if (design.classic() && classicPanel != null) {
+                classicPanel.showSentContext(runId, context);
+            }
+        });
     }
 
     public TerminalAgentService.ApprovalDecision requestApproval(String runId, TerminalAgentModels.Approval approval) {

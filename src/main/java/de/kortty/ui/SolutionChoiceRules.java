@@ -140,7 +140,8 @@ final class SolutionChoiceRules {
         return TerminalAgentModels.SolutionChoice.asRequested(text);
     }
 
-    private static String skillName(String skillId, List<AiSkill> skills, BuiltinAiSkillCatalog catalog) {
+    /** The name of the stored skill with {@code skillId}, else of the built-in one, else the id. */
+    static String skillName(String skillId, List<AiSkill> skills, BuiltinAiSkillCatalog catalog) {
         for (AiSkill skill : skills) {
             if (skillId.equals(skill.getId())) {
                 return skill.getName();

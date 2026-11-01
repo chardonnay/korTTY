@@ -557,6 +557,17 @@ public class KorTTYApplication extends Application {
             } catch (RuntimeException e) {
                 logger.warn("Failed to scan AI skills and memory for secrets", e);
             }
+            // The local skill statistics: counted only while the setting is on and the enterprise policy allows it,
+            // written every 30 seconds while they change and again at exit. Nothing leaves the machine.
+            try {
+                de.kortty.stats.SkillStatsStore skillStats = de.kortty.stats.SkillStatsStore.get();
+                skillStats.setRecordingGate(() -> globalSettingsManager.getSettings().isAiSkillStatisticsEnabled()
+                    && policyManager.getEffective().aiSkillStatisticsAllowed());
+                skillStats.startFlushing(() -> de.kortty.core.BuiltinAiSkillSupport.effectiveSkills(
+                    globalSettingsManager.getSettings().getAiSkills()));
+            } catch (RuntimeException e) {
+                logger.warn("Failed to start the skill statistics", e);
+            }
 
             // Sync ConfigurationManager with persisted terminal settings
             // so that all components reading from configManager see the saved values
@@ -904,6 +915,9 @@ public class KorTTYApplication extends Application {
         }
         if (swarmChatManager != null && saveStores) {
             shutdownStep("save swarm chats", swarmChatManager::save);
+        }
+        if (saveStores) {
+            shutdownStep("save skill statistics", de.kortty.stats.SkillStatsStore.get()::close);
         }
         if (globalSettingsManager != null && saveStores) {
             shutdownStep("save global settings", globalSettingsManager::save);

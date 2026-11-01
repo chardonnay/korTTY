@@ -48,7 +48,14 @@ final class AiMemoryAssistant implements MemoryCleanupService.Assistant {
 
     @Override
     public String complete(String systemPrompt, String userPrompt) throws Exception {
-        AiProfile profile = defaultProfile();
+        return complete(defaultProfile(), systemPrompt, userPrompt);
+    }
+
+    /**
+     * The call with {@code profile}: the prompt masked for it, no memory, no skills and no internet tools. Used with the
+     * profile of the chat or run whose message is looked at, see {@link RuleLearning}.
+     */
+    String complete(AiProfile profile, String systemPrompt, String userPrompt) throws Exception {
         if (profile == null) {
             throw new NoProfileException();
         }

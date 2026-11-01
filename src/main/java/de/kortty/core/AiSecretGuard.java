@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
  *   <li>Known secret formats from {@link SecretTokenPatterns}, except values that are code or a
  *       placeholder: {@code my $password = shift;} is fine, {@code $password = hunter2;} is not.</li>
  *   <li>Prose cues such as "Passwort ist …", "password: …" or "API key = …" followed by a value
- *       that looks like a real secret.</li>
+ *       that looks like a real secret, and a cue followed directly by such a value, as in "Passwort hunter2".</li>
  *   <li>High-entropy tokens of 20 characters or more: base64 at 4.5 bits per character, hex at 3.0
  *       bits, as detect-secrets does.</li>
  *   <li>Known secret values, for example the saved passwords of an unlocked vault.</li>
@@ -89,6 +89,16 @@ public final class AiSecretGuard {
             + "|zugangsdaten|credentials|api[ -]?key|secret|token)"
             + "(?:(?<sentence>\\s+(?:ist|lautet|is)\\s+)|\\s*[=:]\\s*)"
             + "(?<value><[^<>\\n]*>|\\{\\{[^{}\\n]*}}|\\S+)");
+
+    /**
+     * A cue word with no connector, as in "Passwort hunter2" or "Zugangsdaten root / hunter2". The value is the next
+     * word, or the word after one user name and a "/" or "," separator; it counts only when it looks like a secret
+     * (a digit or a symbol such as "@" inside the word), so "Passwort ändern" and "Pin NuGet" stay prose.
+     */
+    private static final Pattern BARE_CUE = Pattern.compile(
+        "(?i)(?<![\\p{L}\\p{N}])(passwort|kennwort|password|passwd|pwd|passphrase|passcode|pin|zugangsdaten"
+            + "|credentials|api[ -]?key|secret|token)\\s+"
+            + "(?:[^\\s/&,<>{}\\[\\]]+\\s*[/&,]\\s*)?(?<value>[^\\s<>{}\\[\\]]+)");
 
     private static final Pattern SECRET_ASSIGNMENT_NAME = Pattern.compile(
         "(?i)(password|passwd|passphrase|secret|token|api[_-]?key|access_?key|secret_?key|private_?key)"
@@ -257,7 +267,31 @@ public final class AiSecretGuard {
             int line = countNewlines(text, cue.start()) + 1;
             findings.add(new Finding(Category.PROSE_SECRET, line, excerpt(lineAt(text, line), List.of(value), known)));
         }
+        Matcher bare = BARE_CUE.matcher(text);
+        while (bare.find()) {
+            String value = bare.group("value");
+            String cleaned = clean(value);
+            if (cleaned.codePointCount(0, cleaned.length()) < MIN_PROSE_VALUE_LENGTH
+                || isPlaceholderOrCode(value)
+                || PROSE_STOPWORDS.contains(cleaned.toLowerCase(Locale.ROOT))
+                || !looksLikeBareSecret(cleaned)) {
+                continue;
+            }
+            int line = countNewlines(text, bare.start()) + 1;
+            findings.add(new Finding(Category.PROSE_SECRET, line, excerpt(lineAt(text, line), List.of(value), known)));
+        }
         return findings;
+    }
+
+    /** A value after a cue without connector: a digit or a symbol that passwords use ("hunter2", "p@ss"), never letters alone. */
+    private static boolean looksLikeBareSecret(String cleaned) {
+        for (int index = 0; index < cleaned.length(); index++) {
+            char c = cleaned.charAt(index);
+            if (Character.isDigit(c) || "@#%+=!~^".indexOf(c) >= 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Multi-line secrets, such as a private-key block, are only visible in the whole text. */
