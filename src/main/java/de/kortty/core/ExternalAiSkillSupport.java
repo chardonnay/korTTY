@@ -67,7 +67,7 @@ public final class ExternalAiSkillSupport {
     /** A new, disabled library skill from {@code document}, remembering where it came from. */
     public static AiSkill toSkill(ExternalAiSkillDocument document, AiSkillProvider provider, long nowMillis)
             throws IOException {
-        AiSkill skill = AiSkillMarkdownCodec.importFromMarkdownText(document.markdown(), document.fallbackName());
+        AiSkill skill = AiSkillMarkdownCodec.importFromExternalMarkdownText(document.markdown(), document.fallbackName());
         skill.setEnabled(false);
         AiSkillExternalSource source = new AiSkillExternalSource();
         source.setProviderId(provider != null ? provider.getId() : null);
@@ -118,7 +118,7 @@ public final class ExternalAiSkillSupport {
      * The skill text {@code latest} would put into {@code skill} — what an update diff shows on its right.
      */
     public static String updatedContent(ExternalAiSkillDocument latest) throws IOException {
-        return AiSkillMarkdownCodec.importFromMarkdownText(latest.markdown(), latest.fallbackName()).getContent();
+        return AiSkillMarkdownCodec.importFromExternalMarkdownText(latest.markdown(), latest.fallbackName()).getContent();
     }
 
     /**
@@ -126,7 +126,7 @@ public final class ExternalAiSkillSupport {
      * active state. A local edit of the text is overwritten — the update dialog shows that diff first.
      */
     public static void applyUpdate(AiSkill skill, ExternalAiSkillDocument latest, long nowMillis) throws IOException {
-        AiSkill parsed = AiSkillMarkdownCodec.importFromMarkdownText(latest.markdown(), latest.fallbackName());
+        AiSkill parsed = AiSkillMarkdownCodec.importFromExternalMarkdownText(latest.markdown(), latest.fallbackName());
         skill.setContent(parsed.getContent());
         if (parsed.getDescription() != null && !parsed.getDescription().isBlank()) {
             skill.setDescription(parsed.getDescription());

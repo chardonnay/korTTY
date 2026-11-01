@@ -536,7 +536,8 @@ public class BackupManagerTest {
         assertThat(BackupManager.managedBackupFiles()).contains("ssh-keys.xml");
         // The copied key FILES are included as a directory, like projects/.
         assertThat(BackupManager.managedBackupDirectories())
-            .containsExactly("projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME);
+            .containsExactly("projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME,
+                de.kortty.memory.MemoryStore.DIRECTORY_NAME, "stats");
     }
 
     @Test

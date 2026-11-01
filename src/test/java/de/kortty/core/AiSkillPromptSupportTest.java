@@ -417,6 +417,35 @@ class AiSkillPromptSupportTest {
         assertThat(prompt).contains("My own perl rules.");
     }
 
+    @Test
+    void learnedRulesRenderAfterTheContentInsideTheSameSkillElement() {
+        AiSkill skill = skill("Perl (korTTY)", true, AiSkillTarget.BOTH, "Prefer strict Perl.");
+        skill.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create(
+            "Use Moose for classes.", de.kortty.model.AiSkillLearnedRule.SOURCE_CHAT));
+        skill.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create(
+            "   ", de.kortty.model.AiSkillLearnedRule.SOURCE_CHAT));
+        skill.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create(
+            "Avoid\ntabs.", de.kortty.model.AiSkillLearnedRule.SOURCE_AGENT));
+
+        String prompt = new AiSkillPromptSupport(true, List.of(skill)).appendChatSkills("base");
+
+        assertThat(prompt).contains("Prefer strict Perl.\n\n"
+            + "Additional rules the user confirmed for this skill:\n"
+            + "- Use Moose for classes.\n"
+            + "- Avoid tabs.\n"
+            + "</kortty_ai_skill>");
+    }
+
+    @Test
+    void skillsWithoutLearnedRulesRenderWithoutAnyRuleSection() {
+        AiSkill skill = skill("Shell Style", true, AiSkillTarget.BOTH, "Use short shell examples.");
+
+        String prompt = new AiSkillPromptSupport(true, List.of(skill)).appendChatSkills("base");
+
+        assertThat(prompt).contains("Use short shell examples.\n</kortty_ai_skill>");
+        assertThat(prompt).doesNotContain("Additional rules the user confirmed");
+    }
+
     private AiSkill skill(String name, boolean enabled, AiSkillTarget target, String content) {
         AiSkill skill = new AiSkill();
         skill.setName(name);

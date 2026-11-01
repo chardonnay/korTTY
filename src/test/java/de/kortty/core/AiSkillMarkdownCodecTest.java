@@ -7,6 +7,7 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -262,6 +263,113 @@ class AiSkillMarkdownCodecTest {
             assertThat(reimported.isBuiltin()).isFalse();
             assertThat(reimported.getName()).isEqualTo("Bash");
             assertThat(reimported.isEnabled()).isTrue();
+        } finally {
+            deleteDirectory(dir);
+        }
+    }
+
+    @Test
+    void learnedRulesAndKortTyProvenanceRoundTripWithoutChangingTheContent() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-ai-skill-learned");
+        try {
+            AiSkill skill = new AiSkill();
+            skill.setName("Perl (korTTY)");
+            skill.setTags(java.util.List.of("perl"));
+            skill.setEnabled(true);
+            skill.setTarget(AiSkillTarget.BOTH);
+            skill.setContent("Header line.\n");
+            skill.setOrigin(de.kortty.model.AiSkillOrigin.KORTTY);
+            skill.setCreatedAt("2026-11-01");
+            skill.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create(
+                "Use Moose for classes.", de.kortty.model.AiSkillLearnedRule.SOURCE_CHAT));
+            skill.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create(
+                "Avoid tabs\nin indentation.", de.kortty.model.AiSkillLearnedRule.SOURCE_AGENT));
+            Path file = dir.resolve("perl-korTTY.md");
+
+            AiSkillMarkdownCodec.exportToMarkdown(file, skill);
+            String exported = Files.readString(file);
+            assertThat(exported).contains("kortty-origin: KORTTY");
+            assertThat(exported).contains("kortty-created-at: 2026-11-01");
+            assertThat(exported).contains("<!-- kortty:learned-rules -->\n- Use Moose for classes.\n- Avoid tabs in indentation.\n<!-- /kortty:learned-rules -->");
+
+            AiSkill imported = AiSkillMarkdownCodec.importFromMarkdown(file);
+            assertThat(imported.getContent()).isEqualTo("Header line.\n");
+            assertThat(imported.getOrigin()).isEqualTo(de.kortty.model.AiSkillOrigin.KORTTY);
+            assertThat(imported.getCreatedAt()).isEqualTo("2026-11-01");
+            assertThat(imported.isOriginAcknowledged()).isTrue();
+            assertThat(imported.getLearnedRules()).hasSize(2);
+            assertThat(imported.getLearnedRules().get(0).getText()).isEqualTo("Use Moose for classes.");
+            assertThat(imported.getLearnedRules().get(1).getText()).isEqualTo("Avoid tabs in indentation.");
+            assertThat(imported.getLearnedRules().get(0).isAcknowledged()).isTrue();
+        } finally {
+            deleteDirectory(dir);
+        }
+    }
+
+    @Test
+    void contentWithoutRulesIsExportedAndImportedExactly() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-ai-skill-exact");
+        try {
+            for (String content : List.of("No trailing newline", "Ends with one\n", "Ends with two\n\n", "")) {
+                AiSkill skill = new AiSkill();
+                skill.setName("Exact");
+                skill.setContent(content);
+                Path file = dir.resolve("exact.md");
+
+                AiSkillMarkdownCodec.exportToMarkdown(file, skill);
+
+                assertThat(Files.readString(file)).doesNotContain("kortty:learned-rules");
+                assertThat(AiSkillMarkdownCodec.importFromMarkdown(file).getContent()).isEqualTo(content);
+            }
+        } finally {
+            deleteDirectory(dir);
+        }
+    }
+
+    @Test
+    void rulesComeBackExactlyWhenTheContentEndsWithANewline() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-ai-skill-rules-newline");
+        try {
+            for (String content : List.of("Body without newline", "Body with newline\n", "")) {
+                AiSkill skill = new AiSkill();
+                skill.setName("Rules");
+                skill.setContent(content);
+                skill.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create(
+                    "One rule.", de.kortty.model.AiSkillLearnedRule.SOURCE_CHAT));
+                Path file = dir.resolve("rules.md");
+
+                AiSkillMarkdownCodec.exportToMarkdown(file, skill);
+                AiSkill imported = AiSkillMarkdownCodec.importFromMarkdown(file);
+
+                assertThat(imported.getContent()).isEqualTo(content);
+                assertThat(imported.getLearnedRules()).hasSize(1);
+            }
+        } finally {
+            deleteDirectory(dir);
+        }
+    }
+
+    @Test
+    void plainMarkdownWithoutProvenanceImportsNoOriginAndNoRules() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-ai-skill-plain-rules");
+        try {
+            Path file = dir.resolve("plain.md");
+            Files.writeString(file, """
+                ---
+                kortty-ai-skill: 1
+                name: "Plain"
+                enabled: true
+                target: BOTH
+                ---
+
+                Text with a <!-- kortty:learned-rules --> marker but no end.
+                """);
+
+            AiSkill imported = AiSkillMarkdownCodec.importFromMarkdown(file);
+
+            assertThat(imported.getOrigin()).isNull();
+            assertThat(imported.getLearnedRules()).isEmpty();
+            assertThat(imported.getContent()).contains("marker but no end.");
         } finally {
             deleteDirectory(dir);
         }

@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillLearnedRule;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.GlobalSettings;
 
@@ -297,9 +298,29 @@ public final class AiSkillPromptSupport {
                 .append(target.name())
                 .append("\">\n")
                 .append(skill.getContent().trim())
-                .append("\n</kortty_ai_skill>\n");
+                .append("\n");
+            String learnedRules = learnedRulesSection(skill);
+            if (!learnedRules.isEmpty()) {
+                block.append("\n").append(learnedRules).append("\n");
+            }
+            block.append("</kortty_ai_skill>\n");
         }
         return block.toString().trim();
+    }
+
+    /** The rules the user confirmed for {@code skill}, one "- " line each; empty when there are none. */
+    private static String learnedRulesSection(AiSkill skill) {
+        StringBuilder section = new StringBuilder();
+        for (AiSkillLearnedRule rule : skill.getLearnedRules()) {
+            if (rule == null || rule.getText() == null || rule.getText().isBlank()) {
+                continue;
+            }
+            if (section.isEmpty()) {
+                section.append("Additional rules the user confirmed for this skill:");
+            }
+            section.append("\n- ").append(rule.getText().strip().replaceAll("\\s*\\R\\s*", " "));
+        }
+        return section.toString();
     }
 
     private List<AiSkill> promptSkills(List<AiSkill> selectedSkills) {

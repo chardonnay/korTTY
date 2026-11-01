@@ -2,6 +2,8 @@ package de.kortty.ui;
 
 import de.kortty.core.BuiltinAiSkillSupport;
 import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillLearnedRule;
+import de.kortty.model.AiSkillOrigin;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -118,5 +120,58 @@ class AiSkillListFormatTest {
         assertThat(text).contains(" - " + I18n.get("settings.aiSkills.badge.updateAvailable"));
         assertThat(text).endsWith(" - " + I18n.get("settings.aiSkills.badge.edited"));
         assertThat(AiSkillListFormat.externalListText(skill, "GitHub", false, false)).endsWith(" - GitHub");
+    }
+
+    private static AiSkill korttySkill(boolean acknowledged) {
+        AiSkill skill = userSkill(true);
+        skill.setOrigin(AiSkillOrigin.KORTTY);
+        skill.setOriginAcknowledged(acknowledged);
+        return skill;
+    }
+
+    private static AiSkillLearnedRule rule(boolean acknowledged) {
+        AiSkillLearnedRule rule = AiSkillLearnedRule.create("A rule.", AiSkillLearnedRule.SOURCE_CHAT);
+        rule.setAcknowledged(acknowledged);
+        return rule;
+    }
+
+    @Test
+    void newKorttySkillShowsTheNewBadgeUntilItIsOpenedThenThePersistentBadge() {
+        assertThat(AiSkillListFormat.korttyBadges(korttySkill(false)))
+            .containsExactly(I18n.get("settings.aiSkills.badge.korttyNew"));
+        assertThat(AiSkillListFormat.korttyBadges(korttySkill(true)))
+            .containsExactly(I18n.get("settings.aiSkills.badge.kortty"));
+        assertThat(AiSkillListFormat.korttyBadges(userSkill(true))).isEmpty();
+    }
+
+    @Test
+    void unseenLearnedRulesAreCountedAndTheChipGoesWhenTheyAreSeen() {
+        AiSkill skill = userSkill(true);
+        skill.getLearnedRules().add(rule(false));
+        skill.getLearnedRules().add(rule(true));
+        skill.getLearnedRules().add(rule(false));
+
+        assertThat(AiSkillListFormat.korttyBadges(skill))
+            .containsExactly(I18n.get("settings.aiSkills.badge.learnedRules", 2));
+
+        skill.getLearnedRules().forEach(learned -> learned.setAcknowledged(true));
+        assertThat(AiSkillListFormat.korttyBadges(skill)).isEmpty();
+    }
+
+    @Test
+    void listTextAppendsTheKorttyBadgesAfterTheStateBadgeSoNoStateIsHidden() {
+        AiSkill skill = korttySkill(false);
+        skill.getLearnedRules().add(rule(false));
+        skill.getLearnedRules().add(rule(false));
+
+        String text = AiSkillListFormat.listText(skill,
+            status(BuiltinAiSkillSupport.BuiltinSkillState.USER, false, false));
+        assertThat(text).endsWith(" - " + I18n.get("settings.aiSkills.badge.korttyNew")
+            + " - " + I18n.get("settings.aiSkills.badge.learnedRules", 2));
+
+        String withState = AiSkillListFormat.listText(builtinSkill(true, false),
+            status(BuiltinAiSkillSupport.BuiltinSkillState.BUILTIN_UPDATE_AVAILABLE, false, false));
+        assertThat(withState).startsWith("🔄 Mine\n");
+        assertThat(withState).endsWith(" - " + I18n.get("settings.aiSkills.badge.updateAvailable"));
     }
 }

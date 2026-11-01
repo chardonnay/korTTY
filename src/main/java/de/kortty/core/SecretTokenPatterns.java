@@ -117,6 +117,26 @@ public final class SecretTokenPatterns {
         return new RedactionResult(result, total);
     }
 
+    /**
+     * Hands every secret part the patterns match to {@code values}, whether or not it already contains the
+     * replacement. For a caller that decides by itself what a value may be, such as the AI secret guard: a
+     * value that is only partly masked is still a value to be judged, not one to skip.
+     */
+    public static void findValues(String text, java.util.function.Consumer<String> values) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        for (Rule rule : RULES) {
+            Matcher matcher = rule.pattern().matcher(text);
+            while (matcher.find()) {
+                String secret = matcher.group(SECRET);
+                if (secret != null && !secret.isEmpty()) {
+                    values.accept(secret);
+                }
+            }
+        }
+    }
+
     private static String mask(
         Rule rule, MatchResult match, int[] masked, java.util.function.Consumer<String> maskedValues) {
         String secret = match.group(SECRET);

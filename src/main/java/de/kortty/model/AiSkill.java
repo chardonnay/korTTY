@@ -66,6 +66,23 @@ public class AiSkill {
     @XmlElement(name = "externalSource")
     private AiSkillExternalSource externalSource;
 
+    /** Set for skills korTTY created itself; null for skills the user wrote, built-ins and external skills. */
+    @XmlElement
+    private AiSkillOrigin origin;
+
+    /** ISO date (yyyy-MM-dd) on which korTTY created the skill; null otherwise. */
+    @XmlElement
+    private String createdAt;
+
+    /** Whether the user has opened a korTTY-created skill; null until the skill is first opened. */
+    @XmlElement
+    private Boolean originAcknowledged;
+
+    /** Rules the user confirmed for this skill; each is appended to the skill's text in the prompt. */
+    @XmlElementWrapper(name = "learnedRules")
+    @XmlElement(name = "rule")
+    private List<AiSkillLearnedRule> learnedRules = new ArrayList<>();
+
     public AiSkill() {
         this.id = UUID.randomUUID().toString();
     }
@@ -91,6 +108,13 @@ public class AiSkill {
         this.externalSource = source.getExternalSource() != null
             ? new AiSkillExternalSource(source.getExternalSource())
             : null;
+        this.origin = source.getOrigin();
+        this.createdAt = source.getCreatedAt();
+        this.originAcknowledged = source.originAcknowledged;
+        this.learnedRules = new ArrayList<>();
+        for (AiSkillLearnedRule rule : source.getLearnedRules()) {
+            this.learnedRules.add(new AiSkillLearnedRule(rule));
+        }
     }
 
     public String getId() {
@@ -237,9 +261,76 @@ public class AiSkill {
         return externalSource != null;
     }
 
+    public AiSkillOrigin getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(AiSkillOrigin origin) {
+        this.origin = origin;
+    }
+
+    /** Whether korTTY created this skill, as opposed to the user, a built-in or an external provider. */
+    public boolean isCreatedByKortty() {
+        return origin == AiSkillOrigin.KORTTY;
+    }
+
+    public String getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(String createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    /** Whether the user has opened a korTTY-created skill since korTTY created it. */
+    public boolean isOriginAcknowledged() {
+        return Boolean.TRUE.equals(originAcknowledged);
+    }
+
+    public void setOriginAcknowledged(boolean originAcknowledged) {
+        this.originAcknowledged = originAcknowledged;
+    }
+
+    /** The rules the user confirmed for this skill; the list is live, so callers may edit it. */
+    public List<AiSkillLearnedRule> getLearnedRules() {
+        if (learnedRules == null) {
+            learnedRules = new ArrayList<>();
+        }
+        // A hand-edited file may lack ids; every rule needs one to be told apart when merging.
+        learnedRules.removeIf(java.util.Objects::isNull);
+        for (AiSkillLearnedRule rule : learnedRules) {
+            if (rule.getId() == null || rule.getId().isBlank()) {
+                rule.setId(null);
+            }
+        }
+        return learnedRules;
+    }
+
+    public void setLearnedRules(List<AiSkillLearnedRule> learnedRules) {
+        this.learnedRules = new ArrayList<>();
+        if (learnedRules != null) {
+            for (AiSkillLearnedRule rule : learnedRules) {
+                if (rule != null) {
+                    this.learnedRules.add(new AiSkillLearnedRule(rule));
+                }
+            }
+        }
+    }
+
+    /** How many of the learned rules the user has not seen in the skill editor yet. */
+    public int unacknowledgedLearnedRuleCount() {
+        int count = 0;
+        for (AiSkillLearnedRule rule : getLearnedRules()) {
+            if (rule != null && !rule.isAcknowledged()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     /** A text field of a skill the user edits, as {@link #firstUnstorableText()} names it. */
     public enum TextField {
-        NAME, DESCRIPTION, TAGS, CONTENT
+        NAME, DESCRIPTION, TAGS, CONTENT, LEARNED_RULE
     }
 
     /**
@@ -256,7 +347,7 @@ public class AiSkill {
     }
 
     /**
-     * The first text field, in editor order (name, description, tags, content), holding a character
+     * The first text field, in editor order (name, description, tags, content, learned rules), holding a character
      * {@code global-settings.xml} cannot store ({@link XmlStorableText}), or {@code null} when the file
      * can hold every one of them.
      */
@@ -276,7 +367,16 @@ public class AiSkill {
             }
         }
         codePoint = XmlStorableText.firstUnstorableCodePoint(content);
-        return codePoint >= 0 ? new UnstorableText(TextField.CONTENT, codePoint) : null;
+        if (codePoint >= 0) {
+            return new UnstorableText(TextField.CONTENT, codePoint);
+        }
+        for (AiSkillLearnedRule rule : getLearnedRules()) {
+            codePoint = rule != null ? XmlStorableText.firstUnstorableCodePoint(rule.getText()) : -1;
+            if (codePoint >= 0) {
+                return new UnstorableText(TextField.LEARNED_RULE, codePoint);
+            }
+        }
+        return null;
     }
 
     /**
@@ -318,6 +418,12 @@ public class AiSkill {
         }
         if (externalSource != null) {
             changed |= externalSource.stripUnstorableText();
+        }
+        String strippedCreatedAt = withoutUnstorable(createdAt);
+        changed |= !java.util.Objects.equals(strippedCreatedAt, createdAt);
+        createdAt = strippedCreatedAt;
+        for (AiSkillLearnedRule rule : getLearnedRules()) {
+            changed |= rule.stripUnstorableText();
         }
         return changed;
     }

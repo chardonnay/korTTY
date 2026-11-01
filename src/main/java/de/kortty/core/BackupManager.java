@@ -3,6 +3,8 @@ package de.kortty.core;
 import de.kortty.ai.llama.LlamaModelRegistry;
 import de.kortty.ai.mlx.MlxModelRegistry;
 import de.kortty.jobscheduler.JobSchedulerRepository;
+import de.kortty.memory.MemoryFormat;
+import de.kortty.memory.MemoryStore;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
@@ -92,13 +94,16 @@ public class BackupManager {
         EnvironmentManager.ENVIRONMENTS_FILE,
         SwarmChatManager.SWARM_CHATS_FILE,
         "llm/" + MlxModelRegistry.REGISTRY_FILE_NAME);
+    /** The skill-usage statistics directory; see {@code de.kortty.stats}. */
+    static final String STATS_DIRECTORY_NAME = "stats";
     /**
-     * Directories included alongside the managed files: project workspaces and the copied SSH
-     * key files. Raw private keys are why password ZIPs are written with AES-256 rather than
-     * legacy ZipCrypto — see {@link #createPasswordEncryptedBackup}.
+     * Directories included alongside the managed files: project workspaces, the copied SSH key
+     * files, the AI memory files and the skill statistics. Raw private keys are why password ZIPs
+     * are written with AES-256 rather than legacy ZipCrypto — see {@link #createPasswordEncryptedBackup}.
      */
     private static final List<String> MANAGED_BACKUP_DIRECTORIES = List.of(
-        "projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME);
+        "projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME, MemoryStore.DIRECTORY_NAME,
+        STATS_DIRECTORY_NAME);
     /**
      * Restored files korTTY itself writes owner-only: they name every host and user, hold the
      * scheduler's sudo secrets, or (master.key) the salt and hash an attacker could guess the
@@ -964,6 +969,8 @@ public class BackupManager {
 
         filesImported[0] += mergeSshKeysDirectory(extractDir, overwriteExisting);
         filesImported[0] += mergeSnippetAnalysesDirectory(extractDir, overwriteExisting);
+        filesImported[0] += mergeMissingFilesDirectory(extractDir, MemoryStore.DIRECTORY_NAME);
+        filesImported[0] += mergeMissingFilesDirectory(extractDir, STATS_DIRECTORY_NAME);
 
         return filesImported[0];
     }
@@ -1010,6 +1017,65 @@ public class BackupManager {
         }
         logger.debug("Imported ssh-keys directory");
         return imported[0];
+    }
+
+    /**
+     * Restores the files of a directory that exist in the backup but not locally. An existing local
+     * file is never overwritten: a restore must not silently replace the memory or statistics the
+     * user has now. Restored files get owner-only permissions.
+     */
+    private int mergeMissingFilesDirectory(Path extractDir, String dirName) throws IOException {
+        Path sourceDir = extractDir.resolve(dirName);
+        if (!Files.isDirectory(sourceDir)) {
+            return 0;
+        }
+        Path targetDir = configDir.resolve(dirName);
+        int imported = 0;
+        try (var stream = Files.walk(sourceDir)) {
+            for (Path source : stream.filter(Files::isRegularFile).sorted().toList()) {
+                Path target = targetDir.resolve(sourceDir.relativize(source).toString()).normalize();
+                if (!target.startsWith(targetDir) || Files.exists(target)) {
+                    logger.debug("Keeping the local file, not restoring {}/{}", dirName, source.getFileName());
+                    continue;
+                }
+                if (MemoryStore.DIRECTORY_NAME.equals(dirName) && !memoryNoteIsClean(source)) {
+                    continue;
+                }
+                try {
+                    Files.createDirectories(target.getParent());
+                    AtomicFileWriter.copyStoreAtomically(source, target, AtomicFileWriter.FileMode.OWNER_ONLY);
+                    imported++;
+                } catch (IOException e) {
+                    logger.warn("Failed to restore {} file: {}", dirName, source, e);
+                }
+            }
+        }
+        logger.debug("Imported {} directory", dirName);
+        return imported;
+    }
+
+    /**
+     * Whether a restored memory note holds no possible secret. A backup may predate the secret guard, or hold a
+     * secret from elsewhere; a note that fails the check is not restored, and its name is logged, never its text.
+     * Only the Markdown notes are read: {@code state.json} holds digests, which the guard would refuse.
+     */
+    private static boolean memoryNoteIsClean(Path source) {
+        if (!source.getFileName().toString().endsWith(".md")) {
+            return true;
+        }
+        try {
+            String text = Files.readString(source, StandardCharsets.UTF_8);
+            AiSecretGuard.Result result = AiSecretGuard.check(MemoryFormat.textForSecretCheck(text));
+            if (!result.ok()) {
+                logger.warn("Not restoring memory note {}: it holds a possible secret ({} finding(s))",
+                    source.getFileName(), result.findings().size());
+                return false;
+            }
+            return true;
+        } catch (IOException | RuntimeException e) {
+            logger.warn("Not restoring memory note {}: it could not be checked for secrets", source.getFileName(), e);
+            return false;
+        }
     }
 
     /**

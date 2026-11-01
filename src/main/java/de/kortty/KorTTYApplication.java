@@ -252,6 +252,11 @@ public class KorTTYApplication extends Application {
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
         aiUsageRecorder = new de.kortty.core.SettingsAiUsageRecorder(globalSettingsManager);
+        // Known secrets for the AI-skill and memory guard: the stored passwords of every connection, but only
+        // while the vault is open. Installed here, read on every check, so an unlock later counts.
+        de.kortty.core.AiSecretGuard.installKnownSecretsSource(() -> de.kortty.security.VaultKnownSecrets.of(
+            masterPasswordManager,
+            () -> configManager != null ? configManager.getConnections() : List.of()));
         globalSettingsManager.setPolicyClamp(
             new de.kortty.policy.PolicyClamp(policyManager.getEffective()));
         // Stored Full-code analyses: built right after the snippet manager, outside the fragile load
@@ -522,6 +527,19 @@ public class KorTTYApplication extends Application {
                 de.kortty.core.BuiltinAiSkillProvisioner.provision(globalSettingsManager);
             } catch (Exception e) {
                 logger.warn("Failed to provision built-in AI skills", e);
+            }
+            // Once per start: flag the AI skills and memory files that hold a possible secret (a badge only, nothing
+            // is changed), and let the memory switch of the settings decide whether prompts read the memory.
+            try {
+                de.kortty.memory.MemoryService memory = de.kortty.memory.MemoryService.get();
+                memory.setEnabledSupplier(() -> globalSettingsManager.getSettings().isAiMemoryEnabled());
+                List<String> connectionIds = configManager.getConnections().stream()
+                    .map(connection -> connection.getId())
+                    .toList();
+                de.kortty.core.AiSecretStartupScan.run(globalSettingsManager.getSettings().getAiSkills(),
+                    connectionIds, memory.store(), de.kortty.core.AiSecretScanRegistry.shared());
+            } catch (RuntimeException e) {
+                logger.warn("Failed to scan AI skills and memory for secrets", e);
             }
 
             // Sync ConfigurationManager with persisted terminal settings

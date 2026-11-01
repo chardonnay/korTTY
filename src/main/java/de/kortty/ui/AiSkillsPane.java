@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiSecretScanRegistry;
 import de.kortty.core.AiSkillMarkdownCodec;
+import de.kortty.core.AiSkillRepository;
 import de.kortty.core.BuiltinAiSkillCatalog;
 import de.kortty.core.BuiltinAiSkillSupport;
 import de.kortty.core.ExternalAiSkillClient;
@@ -9,9 +11,13 @@ import de.kortty.core.ExternalAiSkillDocument;
 import de.kortty.core.ExternalAiSkillSupport;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillExternalSource;
+import de.kortty.model.AiSkillLearnedRule;
+import de.kortty.model.AiSkillOrigin;
 import de.kortty.model.AiSkillProvider;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.GlobalSettings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -29,6 +35,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
@@ -56,6 +63,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -70,8 +78,15 @@ import java.util.concurrent.CompletableFuture;
  */
 final class AiSkillsPane extends VBox {
 
+    private static final Logger logger = LoggerFactory.getLogger(AiSkillsPane.class);
+
     private final KorTTYApplication app;
     private final Window owner;
+    /** The only writer of the stored skills; null when the pane has no settings to write to. */
+    private final AiSkillRepository repository;
+    /** Set while the pane applies its own save or a background change, so the change is not echoed back. */
+    private boolean applyingStoredSkills;
+    private final Runnable storedSkillsListener = this::onStoredSkillsChanged;
 
     private static final String MUTED_STYLE_CLASS = "ai-skill-muted";
     private static final String WARNING_STYLE = "-fx-text-fill: #d97706;";
@@ -118,13 +133,23 @@ final class AiSkillsPane extends VBox {
 
     private final BuiltinAiSkillCatalog builtinCatalog = BuiltinAiSkillCatalog.load();
     private final List<AiSkill> aiSkills = new ArrayList<>();
+    /** The skills as last loaded from or stored in the settings: the base of the three-way merge on save. */
+    private List<AiSkill> baseSkills = List.of();
     private AiSkill selectedAiSkill;
     private boolean loadingAiSkillEditor;
     private boolean revertingAutoDetectionToggle;
+    /** Learned rules of the selected skill; shown only while the skill has any. */
+    private VBox learnedRulesBox;
+    private final ListView<AiSkillLearnedRule> learnedRulesView = new ListView<>();
+    private final Button editLearnedRuleButton = new Button(I18n.get("settings.aiSkills.learnedRules.edit"));
+    private final Button deleteLearnedRuleButton = new Button(I18n.get("settings.aiSkills.learnedRules.delete"));
 
     AiSkillsPane(KorTTYApplication app, Window owner) {
         this.app = app;
         this.owner = owner;
+        this.repository = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().aiSkillRepository()
+            : null;
         setSpacing(12);
         setPadding(new Insets(14));
 
@@ -133,6 +158,7 @@ final class AiSkillsPane extends VBox {
             .stream()
             .map(AiSkill::new)
             .toList());
+        baseSkills = copyOf(aiSkills);
 
         aiSkillsEnabledCheck = new CheckBox(I18n.get("settings.aiSkills.enabled"));
         aiSkillsEnabledCheck.setStyle("-fx-font-weight: bold;");
@@ -378,10 +404,12 @@ final class AiSkillsPane extends VBox {
         externalBanner.setVisible(false);
         externalBanner.setManaged(false);
 
+        learnedRulesBox = createLearnedRulesBox();
         VBox aiSkillEditorBox = new VBox(8,
             builtinBanner,
             externalBanner,
             aiSkillEditorGrid,
+            learnedRulesBox,
             new Label(I18n.get("settings.aiSkills.content")),
             aiSkillContentScrollPane,
             aiSkillContentMessage);
@@ -402,14 +430,21 @@ final class AiSkillsPane extends VBox {
         getChildren().addAll(aiSkillsContent, AiManagerSections.saveRow(saveButton, statusLabel));
 
         aiSkillListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            if (applyingStoredSkills) {
+                return;
+            }
             snapshotSelectedAiSkillEditorState();
             selectedAiSkill = newValue;
+            acknowledgeKorttyChanges(newValue);
             loadAiSkillIntoEditor(newValue);
         });
         if (!aiSkillListView.getItems().isEmpty()) {
             aiSkillListView.getSelectionModel().selectFirst();
         } else {
             loadAiSkillIntoEditor(null);
+        }
+        if (repository != null) {
+            repository.addListener(storedSkillsListener);
         }
     }
 
@@ -423,8 +458,11 @@ final class AiSkillsPane extends VBox {
         }
     }
 
-    /** Release the editor's WebView (WebKit page, JS bridge, pending boot retries). */
+    /** Release the editor's WebView (WebKit page, JS bridge, pending boot retries) and stop listening. */
     void close() {
+        if (repository != null) {
+            repository.removeListener(storedSkillsListener);
+        }
         if (aiSkillContentArea != null) {
             aiSkillContentArea.dispose();
         }
@@ -453,12 +491,26 @@ final class AiSkillsPane extends VBox {
                 statusLabel.setText(I18n.get("settings.aiSkills.save.failed", refusal.message()));
                 return;
             }
+            AiSkillStorageGuard.SecretRefusal secret = AiSkillStorageGuard.firstSecretRefusal(aiSkills, baseSkills);
+            if (secret != null) {
+                showRefusedSkill(secret.skill());
+                statusLabel.setText(I18n.get("settings.aiSkills.save.failed", secret.message()));
+                return;
+            }
         }
-        writeInto(settings);
+        AiSkillRepository.Outcome outcome = writeInto(settings);
+        String refusal = outcome.refusals().isEmpty() ? null : outcome.refusals().get(0);
+        if (refusal != null) {
+            // The stored version of each refused skill was kept. The closing save cannot ask for a fix, so it logs.
+            logger.warn("{} AI skill change(s) refused on save; the stored version was kept: {}",
+                outcome.refusals().size(), refusal);
+        }
         try {
             app.getGlobalSettingsManager().save();
             if (!quiet) {
-                statusLabel.setText(I18n.get("settings.aiSkills.save.success"));
+                statusLabel.setText(refusal == null
+                    ? I18n.get("settings.aiSkills.save.success")
+                    : I18n.get("settings.aiSkills.save.failed", refusal));
             }
         } catch (Exception e) {
             if (!quiet) {
@@ -467,7 +519,12 @@ final class AiSkillsPane extends VBox {
         }
     }
 
-    private void writeInto(GlobalSettings targetSettings) {
+    /**
+     * Stores the edited skills through the repository. The repository merges them with what is stored
+     * meanwhile, so a rule korTTY learned during the session survives the save; the pane then shows the
+     * merged result.
+     */
+    private AiSkillRepository.Outcome writeInto(GlobalSettings targetSettings) {
         snapshotSelectedAiSkillEditorState();
         List<AiSkill> skillsToSave = new ArrayList<>();
         for (AiSkill skill : aiSkills) {
@@ -484,8 +541,60 @@ final class AiSkillsPane extends VBox {
         }
         targetSettings.setAiSkillsEnabled(aiSkillsEnabledCheck == null || aiSkillsEnabledCheck.isSelected());
         targetSettings.setAiSkillAutoDetectionEnabled(aiSkillAutoDetectionCheck == null || aiSkillAutoDetectionCheck.isSelected());
-        targetSettings.setAiSkills(
-            AiSkillStorageGuard.withStoredVersionOfRefused(skillsToSave, targetSettings.getAiSkills()));
+        applyingStoredSkills = true;
+        AiSkillRepository.Outcome outcome;
+        try {
+            outcome = repository.commit(baseSkills, skillsToSave);
+        } finally {
+            applyingStoredSkills = false;
+        }
+        adoptStoredSkills(outcome.stored(), outcome.stored());
+        return outcome;
+    }
+
+    /**
+     * Shows {@code skills} as the working copy and {@code stored} as the new base. The selection is kept by
+     * id. The editor is reloaded only when the selected skill's text changed, so unsaved text and the undo
+     * history survive a background change.
+     */
+    private void adoptStoredSkills(List<AiSkill> skills, List<AiSkill> stored) {
+        AiSkill previous = selectedAiSkill;
+        AiSecretScanRegistry.shared().refreshSkills(stored);
+        applyingStoredSkills = true;
+        try {
+            aiSkills.clear();
+            aiSkills.addAll(skills);
+            baseSkills = copyOf(stored);
+            List<AiSkill> visible = visibleAiSkills();
+            selectedAiSkill = previous != null
+                ? visible.stream().filter(skill -> skill.getId().equals(previous.getId())).findFirst().orElse(null)
+                : null;
+            aiSkillListView.getItems().setAll(visible);
+            aiSkillListView.getSelectionModel().clearSelection();
+            if (selectedAiSkill != null) {
+                aiSkillListView.getSelectionModel().select(selectedAiSkill);
+            }
+        } finally {
+            applyingStoredSkills = false;
+        }
+        if (selectedAiSkill == null || previous == null || editorFieldsDiffer(previous, selectedAiSkill)) {
+            loadAiSkillIntoEditor(selectedAiSkill);
+        } else {
+            refreshLearnedRulesView(selectedAiSkill);
+        }
+        updateAiSkillCounts();
+        aiSkillListView.refresh();
+        updateBuiltinBanner(selectedAiSkill);
+    }
+
+    /** A background change, such as a rule korTTY learned, reaches the list; unsaved edits stay in the pane. */
+    private void onStoredSkillsChanged() {
+        if (applyingStoredSkills || repository == null) {
+            return;
+        }
+        snapshotSelectedAiSkillEditorState();
+        List<AiSkill> stored = repository.snapshot();
+        adoptStoredSkills(AiSkillRepository.threeWayMerge(baseSkills, aiSkills, stored), stored);
     }
 
     /** Brings {@code skill} into view and into the editor, so the message below the field is seen. */
@@ -1225,10 +1334,131 @@ final class AiSkillsPane extends VBox {
             applyAiSkillContentTextStyle();
             aiSkillContentArea.getUndoManager().forgetHistory();
             updateBuiltinBanner(skill);
+            refreshLearnedRulesView(skill);
         } finally {
             loadingAiSkillEditor = false;
         }
         refreshFieldMessages();
+    }
+
+    /** The learned-rules block of the editor: the rules of {@code skill}, hidden when it has none. */
+    private VBox createLearnedRulesBox() {
+        learnedRulesView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        learnedRulesView.setPrefHeight(96);
+        learnedRulesView.setMaxHeight(160);
+        learnedRulesView.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AiSkillLearnedRule rule, boolean empty) {
+                super.updateItem(rule, empty);
+                setText(empty || rule == null ? "" : rule.getText());
+            }
+        });
+        learnedRulesView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            editLearnedRuleButton.setDisable(newValue == null);
+            deleteLearnedRuleButton.setDisable(newValue == null);
+        });
+        editLearnedRuleButton.setDisable(true);
+        deleteLearnedRuleButton.setDisable(true);
+        editLearnedRuleButton.setOnAction(event -> editSelectedLearnedRule());
+        deleteLearnedRuleButton.setOnAction(event -> deleteSelectedLearnedRule());
+        Label title = new Label(I18n.get("settings.aiSkills.learnedRules.title"));
+        title.setStyle("-fx-font-weight: bold;");
+        Label hint = new Label(I18n.get("settings.aiSkills.learnedRules.hint"));
+        hint.setWrapText(true);
+        hint.setStyle("-fx-font-size: 0.8462em;");
+        VBox box = new VBox(4, title, hint, learnedRulesView, new HBox(8, editLearnedRuleButton, deleteLearnedRuleButton));
+        box.setVisible(false);
+        box.setManaged(false);
+        return box;
+    }
+
+    private void refreshLearnedRulesView(AiSkill skill) {
+        List<AiSkillLearnedRule> rules = skill != null ? skill.getLearnedRules() : List.of();
+        learnedRulesBox.setVisible(!rules.isEmpty());
+        learnedRulesBox.setManaged(!rules.isEmpty());
+        learnedRulesView.getItems().setAll(rules);
+    }
+
+    /**
+     * Opening a skill korTTY created, or one with rules the user has not seen, marks them as seen. The next
+     * save persists that; the list badges change at once.
+     */
+    private void acknowledgeKorttyChanges(AiSkill skill) {
+        if (skill == null) {
+            return;
+        }
+        boolean changed = false;
+        if (skill.getOrigin() == AiSkillOrigin.KORTTY && !skill.isOriginAcknowledged()) {
+            skill.setOriginAcknowledged(true);
+            changed = true;
+        }
+        for (AiSkillLearnedRule rule : skill.getLearnedRules()) {
+            if (!rule.isAcknowledged()) {
+                rule.setAcknowledged(true);
+                changed = true;
+            }
+        }
+        if (changed) {
+            aiSkillListView.refresh();
+        }
+    }
+
+    private void editSelectedLearnedRule() {
+        AiSkillLearnedRule rule = learnedRulesView.getSelectionModel().getSelectedItem();
+        if (selectedAiSkill == null || rule == null) {
+            return;
+        }
+        TextInputDialog dialog = new TextInputDialog(rule.getText());
+        dialog.setTitle(I18n.get("settings.aiSkills.learnedRules.editTitle"));
+        dialog.setHeaderText(I18n.get("settings.aiSkills.learnedRules.editHeader"));
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.showAndWait()
+            .map(String::strip)
+            .filter(text -> !text.isEmpty())
+            .ifPresent(text -> {
+                rule.setText(text);
+                learnedRulesView.refresh();
+                aiSkillListView.refresh();
+            });
+    }
+
+    private void deleteSelectedLearnedRule() {
+        AiSkill skill = selectedAiSkill;
+        AiSkillLearnedRule rule = learnedRulesView.getSelectionModel().getSelectedItem();
+        if (skill == null || rule == null) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("settings.aiSkills.learnedRules.deleteTitle"));
+        confirm.setHeaderText(I18n.get("settings.aiSkills.learnedRules.deleteTitle"));
+        confirm.setContentText(I18n.get("settings.aiSkills.learnedRules.deleteContent"));
+        DialogThemeHelper.applyTheme(confirm);
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        skill.getLearnedRules().remove(rule);
+        refreshLearnedRulesView(skill);
+        aiSkillListView.refresh();
+    }
+
+    /** Whether the editor shows different text for the two versions of a skill. */
+    private static boolean editorFieldsDiffer(AiSkill left, AiSkill right) {
+        return !Objects.equals(left.getName(), right.getName())
+            || !Objects.equals(left.getDescription(), right.getDescription())
+            || !left.getTagsAsString().equals(right.getTagsAsString())
+            || left.isEnabled() != right.isEnabled()
+            || left.getTarget() != right.getTarget()
+            || !Objects.equals(left.getContent(), right.getContent());
+    }
+
+    private static List<AiSkill> copyOf(List<AiSkill> skills) {
+        List<AiSkill> copies = new ArrayList<>();
+        for (AiSkill skill : skills) {
+            if (skill != null) {
+                copies.add(new AiSkill(skill));
+            }
+        }
+        return copies;
     }
 
     private void installAiSkillEditorInputGuards() {

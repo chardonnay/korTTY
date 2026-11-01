@@ -118,4 +118,78 @@ class GlobalSettingsAiSkillStorageTest {
         assertThat(reloadedSkill.getDescription()).isEqualTo("Emoji 🚀");
         assertThat(reloadedSkill.getContent()).isEqualTo("Line one\n\tLine two");
     }
+
+    @Test
+    void originLearnedRulesAndAcknowledgementRoundTrip() throws Exception {
+        AiSkill skill = new AiSkill();
+        skill.setName("Perl (korTTY)");
+        skill.setTags(List.of("perl"));
+        skill.setContent("Perl conventions.");
+        skill.setOrigin(AiSkillOrigin.KORTTY);
+        skill.setCreatedAt("2026-11-01");
+        skill.setOriginAcknowledged(false);
+        AiSkillLearnedRule rule = AiSkillLearnedRule.create("Prefer Moose for classes.", AiSkillLearnedRule.SOURCE_CHAT);
+        skill.getLearnedRules().add(rule);
+        GlobalSettings settings = settingsWithAMarker();
+
+        settings.setAiSkills(List.of(skill));
+        AiSkill reloadedSkill = unmarshal(marshal(settings)).getAiSkills().get(0);
+
+        assertThat(reloadedSkill.getOrigin()).isEqualTo(AiSkillOrigin.KORTTY);
+        assertThat(reloadedSkill.isCreatedByKortty()).isTrue();
+        assertThat(reloadedSkill.getCreatedAt()).isEqualTo("2026-11-01");
+        assertThat(reloadedSkill.isOriginAcknowledged()).isFalse();
+        assertThat(reloadedSkill.getLearnedRules()).hasSize(1);
+        AiSkillLearnedRule reloadedRule = reloadedSkill.getLearnedRules().get(0);
+        assertThat(reloadedRule.getId()).isEqualTo(rule.getId());
+        assertThat(reloadedRule.getText()).isEqualTo("Prefer Moose for classes.");
+        assertThat(reloadedRule.getSource()).isEqualTo(AiSkillLearnedRule.SOURCE_CHAT);
+        assertThat(reloadedRule.getSha256()).isEqualTo(rule.getSha256());
+        assertThat(reloadedRule.isAcknowledged()).isFalse();
+    }
+
+    @Test
+    void aSkillWithoutProvenanceStoresNoOriginOrRules() throws Exception {
+        AiSkill skill = new AiSkill();
+        skill.setContent("Plain user skill.");
+        GlobalSettings settings = settingsWithAMarker();
+
+        settings.setAiSkills(List.of(skill));
+        AiSkill reloadedSkill = unmarshal(marshal(settings)).getAiSkills().get(0);
+
+        assertThat(reloadedSkill.getOrigin()).isNull();
+        assertThat(reloadedSkill.getCreatedAt()).isNull();
+        assertThat(reloadedSkill.isOriginAcknowledged()).isFalse();
+        assertThat(reloadedSkill.getLearnedRules()).isEmpty();
+    }
+
+    @Test
+    void learnedRuleTextIsStrippedLikeEveryOtherSkillText() throws Exception {
+        AiSkill skill = new AiSkill();
+        skill.setContent("Content.");
+        skill.getLearnedRules().add(AiSkillLearnedRule.create("Rule\u0007 with bell.", AiSkillLearnedRule.SOURCE_AGENT));
+        GlobalSettings settings = settingsWithAMarker();
+
+        settings.setAiSkills(List.of(skill));
+        AiSkill reloadedSkill = unmarshal(marshal(settings)).getAiSkills().get(0);
+
+        assertThat(reloadedSkill.getLearnedRules().get(0).getText()).isEqualTo("Rule with bell.");
+        assertThat(reloadedSkill.firstUnstorableText()).isNull();
+    }
+
+    @Test
+    void copyConstructorCopiesLearnedRulesDeeply() {
+        AiSkill source = new AiSkill();
+        source.setContent("Content.");
+        source.setOrigin(AiSkillOrigin.KORTTY);
+        source.getLearnedRules().add(AiSkillLearnedRule.create("Rule.", AiSkillLearnedRule.SOURCE_TRIAGE));
+
+        AiSkill copy = new AiSkill(source);
+        copy.getLearnedRules().get(0).setText("Changed in the copy.");
+        copy.getLearnedRules().add(AiSkillLearnedRule.create("Another.", AiSkillLearnedRule.SOURCE_MANUAL));
+
+        assertThat(copy.getOrigin()).isEqualTo(AiSkillOrigin.KORTTY);
+        assertThat(source.getLearnedRules()).hasSize(1);
+        assertThat(source.getLearnedRules().get(0).getText()).isEqualTo("Rule.");
+    }
 }
