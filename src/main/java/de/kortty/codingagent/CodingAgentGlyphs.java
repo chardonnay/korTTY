@@ -124,7 +124,7 @@ public final class CodingAgentGlyphs {
         return glyph(entry.state()) + " " + entry.shortName();
     }
 
-    /** claude / codex / gemini / mcode / qwen / opencode / cursor / aider / amp / goose / crush / kiro / continue / grok / jules / copilot / grok-build / agy / cline / agent. */
+    /** claude / codex / gemini / mcode / qwen / opencode / cursor / aider / amp / goose / crush / kiro / continue / grok / jules / copilot / grok-build / agy / cline / kilo / agent. */
     public static String shortName(CodingAgentKind kind) {
         if (kind == null) {
             return "agent";
@@ -149,6 +149,7 @@ public final class CodingAgentGlyphs {
             case GROK_BUILD -> "grok-build";
             case ANTIGRAVITY -> "agy";
             case CLINE -> "cline";
+            case KILO -> "kilo";
             default -> "agent";
         };
     }

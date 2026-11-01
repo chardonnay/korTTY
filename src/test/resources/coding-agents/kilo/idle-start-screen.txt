@@ -1,0 +1,40 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+
+
+
+
+
+
+
+
+
+                                   ██  ██ ██🬺🬏   ██  ██   ██🬺🬏     ████ ██     ██🬺🬏
+                                   ████🬺🬏 ▀▀██   ██  ▀▀ ██▀▀██   ██▀▀▀▀ ██     ▀▀██
+                                   ██  ██ ██████ 🬁🬬████ 🬁🬬██▀▀   🬁🬬████ 🬁🬬████ ██████
+                                   ▀▀  ▀▀ ▀▀▀▀▀▀   ▀▀▀▀   ▀▀       ▀▀▀▀   ▀▀▀▀ ▀▀▀▀▀▀
+
+
+                       ┃
+                       ┃  Ask anything... "Fix a TODO in the codebase"
+                       ┃
+                       ┃  Code  · qwen3.8-27b-splash LM Studio (LAN)
+                       ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                                                       tab agents  ctrl+p commands
+
+
+
+
+
+
+
+
+                                     ● Tip Use /rename to rename the current session
+
+
+
+
+
+
+  ~/project                                                                                                     7.8.18

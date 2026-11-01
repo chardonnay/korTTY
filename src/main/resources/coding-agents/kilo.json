@@ -1,0 +1,49 @@
+{
+  "kind": "KILO",
+  "version": 1,
+  "comment": "Written against Kilo CLI 7.8.18 (npm @kilocode/cli, a fork of OpenCode; native TUI on the alternate screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio provider, with edit and shell permissions set to ask; must be re-verified when Kilo changes its TUI. The permission box ('△ Permission required' with the 'Allow once   Allow always   Reject' choices and the '⇆ select  enter confirm' hint) is BLOCKED; Kilo spells the second choice 'Allow always' where OpenCode says 'Always allow'. Reject does not deny at once: it opens a second step ('△ Reject permission', 'Tell Kilo what to do differently', 'enter confirm  esc cancel') that waits for an optional reason, also BLOCKED; Enter on the empty field denies. The progress-bar footer ('■■⬝⬝⬝⬝⬝⬝  esc interrupt') shown while a turn runs is WORKING. The prompt box closed by its '╹▀▀▀' border with the 'tab agents  ctrl+p commands' footer is IDLE; on the start screen a tip and the working directory sit below that footer, so the idle rule looks at the bottom ten lines. The prompt box stays visible while Kilo works, so the idle rule vetoes on 'esc interrupt', 'Permission required' and 'Reject permission' and has the lowest priority; the approval rule anchors its patterns to the start of a line (after the box border), because a transcript that quotes the dialog text must not read as a pending permission. No rule depends on the alternate-screen flag.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": [
+        "^\\s*[┃│]?\\s*△\\s*Permission required\\b",
+        "^\\s*[┃│]?\\s*Allow once\\s+Allow always\\s+Reject\\b",
+        "⇆ select\\s+enter confirm\\s*$"
+      ]
+    },
+    {
+      "id": "reject-feedback",
+      "state": "BLOCKED",
+      "priority": 990,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": [
+        "^\\s*[┃│]?\\s*△\\s*Reject permission\\b",
+        "^\\s*[┃│]?\\s*Tell Kilo what to do differently\\s*$"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 4 },
+      "anyLineRegex": [
+        "^\\s*[■⬝]{4,}\\s+esc interrupt\\b"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 10 },
+      "anyLineRegex": [
+        "^\\s*╹▀{10,}",
+        "\\bctrl\\+p commands?\\s*$"
+      ],
+      "notContains": ["esc interrupt", "Permission required", "Reject permission"]
+    }
+  ]
+}

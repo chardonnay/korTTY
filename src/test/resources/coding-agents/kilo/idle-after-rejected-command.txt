@@ -1,0 +1,41 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+  ┃
+  ┃  Use your bash tool to run exactly: curl -sI https://example.com
+  ┃
+
+     + Thought: 294ms
+
+     $ curl -sI https://example.com
+
+     ▣  Code · qwen3.8-27b-splash
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ┃
+  ┃
+  ┃
+  ┃  Code  · qwen3.8-27b-splash LM Studio (LAN)
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                                                                                16.9K  ctrl+p commands

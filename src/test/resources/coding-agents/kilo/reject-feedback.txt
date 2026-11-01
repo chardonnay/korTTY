@@ -1,0 +1,41 @@
+#! expect state=BLOCKED rule=reject-feedback
+#! alt=true
+
+  ┃
+  ┃  Use your bash tool to run exactly: curl -sI https://example.com
+  ┃
+
+     + Thought: 144ms
+
+     $ curl -sI https://example.com
+
+     ▣  Code · qwen3.8-27b-splash
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ┃
+  ┃  △ Reject permission
+  ┃
+  ┃  Tell Kilo what to do differently
+  ┃
+  ┃
+  ┃                                                                                       enter confirm  esc cancel
+  ┃

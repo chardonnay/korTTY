@@ -368,6 +368,24 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesKilo() {
+        // npm's @kilocode/cli package: the node launcher waits for the native binary it spawns.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of("/opt/homebrew/bin/kilo"), null))
+            .hasValue(CodingAgentKind.KILO);
+        // The package links the same launcher as kilocode.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of("/opt/homebrew/bin/kilocode"), null))
+            .hasValue(CodingAgentKind.KILO);
+        // Without the cached bin/.kilo the launcher spawns the platform package's binary.
+        assertThat(LocalProcessInspector.classify(
+            "/opt/homebrew/lib/node_modules/@kilocode/cli/node_modules/@kilocode/cli-darwin-arm64/bin/kilo", List.of(), null))
+            .hasValue(CodingAgentKind.KILO);
+        // npm's Windows shim runs node on the package's bin/kilo script.
+        assertThat(LocalProcessInspector.classify("C:\\Program Files\\nodejs\\node.exe",
+            List.of("C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\@kilocode\\cli\\bin\\kilo"), null))
+            .hasValue(CodingAgentKind.KILO);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

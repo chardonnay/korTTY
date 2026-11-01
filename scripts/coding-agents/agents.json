@@ -442,6 +442,35 @@
    "deny_keys": [
     "n"
    ]
+  },
+  {
+   "kind": "KILO",
+   "id": "kilo",
+   "bin": "kilo",
+   "version_cmd": [
+    "kilo",
+    "--version"
+   ],
+   "verified_version": "7.8.18",
+   "mode": "live",
+   "files": {
+    ".config/kilo/kilo.json": "{\"$schema\":\"https://app.kilo.ai/config.json\",\"autoupdate\":false,\"share\":\"disabled\",\"provider\":{\"lmstudio\":{\"npm\":\"@ai-sdk/openai-compatible\",\"name\":\"LM Studio (LAN)\",\"options\":{\"baseURL\":\"{base_url}\"},\"models\":{\"{model}\":{\"name\":\"{model}\"}}}},\"model\":\"lmstudio/{model}\",\"permission\":{\"edit\":\"ask\",\"bash\":\"ask\",\"webfetch\":\"ask\"}}\n"
+   },
+   "env": {
+    "HOME": "{home}",
+    "XDG_CONFIG_HOME": "{home}/.config",
+    "XDG_DATA_HOME": "{home}/.local/share",
+    "XDG_STATE_HOME": "{home}/.local/state",
+    "XDG_CACHE_HOME": "{home}/.cache"
+   },
+   "args": [],
+   "prompt": "Use your bash tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b[C",
+    "\\x1b[C",
+    "\\r",
+    "\\r"
+   ]
   }
  ]
 }

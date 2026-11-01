@@ -1,0 +1,41 @@
+#! expect state=WORKING rule=working
+#! alt=true
+
+  ┃
+  ┃  Use your bash tool to run exactly: curl -sI https://example.com
+  ┃
+
+     ▣  Code · qwen3.8-27b-splash
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ┃
+  ┃
+  ┃
+  ┃  Code  · qwen3.8-27b-splash LM Studio (LAN)
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+   ■■■⬝⬝⬝⬝⬝  esc interrupt                                                                 tab agents  ctrl+p commands
