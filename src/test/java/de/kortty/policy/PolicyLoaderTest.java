@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 class PolicyLoaderTest {
 
@@ -771,5 +772,216 @@ class PolicyLoaderTest {
         assertThat(off.errors()).isEmpty();
         assertThat(off.warnings()).isEmpty();
         assertThat(off.file().rules().get(0).sessionJournal().clickableLinks()).isFalse();
+    }
+
+    private static final String AI_MEMORY_RULE = """
+        [meta]
+        schema-version = 1
+
+        [[rule]]
+          [rule.ai-memory]
+          user-memory = "read-only"
+          learning = "off"
+          skill-creation = false
+          external-files = "allow"
+          external-file-roots = ["/srv/shared-notes", "~/Notes"]
+          max-tokens = 800
+          triage = "never"
+          statistics = false
+        """;
+
+    @Test
+    void aiMemoryRuleParsesEveryKeyAndKeepsTheSchemaVersion() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write(AI_MEMORY_RULE));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.file().schemaVersion()).isEqualTo(PolicyFile.SUPPORTED_SCHEMA_VERSION);
+        assertThat(PolicyFile.SUPPORTED_SCHEMA_VERSION).isEqualTo(1);
+        PolicyRule.AiMemoryRule memory = result.file().rules().get(0).aiMemory();
+        assertThat(memory.userMemory()).isEqualTo(UserMemoryMode.READ_ONLY);
+        assertThat(memory.learning()).isEqualTo(de.kortty.model.AiMemoryLearningMode.OFF);
+        assertThat(memory.skillCreation()).isFalse();
+        assertThat(memory.externalFiles()).isTrue();
+        assertThat(memory.externalFileRoots()).containsExactly("/srv/shared-notes", "~/Notes").inOrder();
+        assertThat(memory.maxTokens()).isEqualTo(800);
+        assertThat(memory.triage()).isEqualTo(de.kortty.model.AiAgentTriageMode.NEVER);
+        assertThat(memory.statistics()).isFalse();
+    }
+
+    @Test
+    void aiMemoryRuleAcceptsTheOtherValuesAndLeavesUnsetKeysUnmanaged() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+            [[rule]]
+              [rule.ai-memory]
+              user-memory = "disabled"
+              learning = "propose"
+              external-files = "deny"
+              triage = "auto"
+              max-tokens = 4000
+            """));
+        assertThat(result.errors()).isEmpty();
+        PolicyRule.AiMemoryRule memory = result.file().rules().get(0).aiMemory();
+        assertThat(memory.userMemory()).isEqualTo(UserMemoryMode.DISABLED);
+        assertThat(memory.learning()).isEqualTo(de.kortty.model.AiMemoryLearningMode.PROPOSE);
+        assertThat(memory.externalFiles()).isFalse();
+        assertThat(memory.triage()).isEqualTo(de.kortty.model.AiAgentTriageMode.AUTO);
+        assertThat(memory.maxTokens()).isEqualTo(4000);
+        assertThat(memory.skillCreation()).isNull();
+        assertThat(memory.statistics()).isNull();
+        assertThat(memory.externalFileRoots()).isNull();
+
+        PolicyLoadResult plain = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\nname = \"plain\"\n"));
+        assertThat(plain.file().rules().get(0).aiMemory()).isNull();
+    }
+
+    @Test
+    void everyAiMemoryTypeEnumAndRangeErrorRejectsTheFile() throws IOException {
+        List<String> broken = List.of(
+            "user-memory = \"invented\"",
+            "learning = \"sometimes\"",
+            "external-files = \"maybe\"",
+            "triage = \"sometimes\"",
+            "max-tokens = 299",
+            "max-tokens = 4001",
+            "max-tokens = \"1500\"",
+            "skill-creation = \"yes\"",
+            "statistics = 1",
+            "external-file-roots = \"/srv/notes\"",
+            "external-file-roots = [\"relative/notes\"]",
+            "external-file-roots = [\"\"]");
+        for (String line : broken) {
+            PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
+                + "[rule.ai-memory]\n" + line + "\n"));
+            assertWithMessage(line).that(result.errors()).isNotEmpty();
+            assertWithMessage(line).that(result.isValid()).isFalse();
+        }
+    }
+
+    @Test
+    void unknownAiMemoryKeysAreWarningsNotErrors() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
+            + "[rule.ai-memory]\nfuture-key = true\nstatistics = true\n"));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).hasSize(1);
+        assertThat(result.warnings().get(0)).contains("future-key");
+    }
+
+    @Test
+    void aiMemoryFeatureIsADecisionLikeTheOtherAiFeatures() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
+            + "[rule.features]\nai-memory = \"deny\"\n"));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.file().rules().get(0).features().get(PolicyFeature.AI_MEMORY))
+            .isEqualTo(PolicyDecision.DENY);
+        assertThat(PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
+            + "[rule.features]\nai-memory = \"maybe\"\n")).errors()).isNotEmpty();
+    }
+
+    @Test
+    void organizationMemoryBlocksParseInFileOrder() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[organization-memory]]
+            title = "Change rules"
+            content = "Production changes need a ticket."
+
+            [[organization-memory]]
+            title = "Data rules"
+            content = "No customer data in prompts."
+            """));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.file().organizationMemory()).containsExactly(
+            new PolicyFile.OrganizationMemoryBlock("Change rules", "Production changes need a ticket."),
+            new PolicyFile.OrganizationMemoryBlock("Data rules", "No customer data in prompts.")).inOrder();
+    }
+
+    @Test
+    void organizationMemoryWithASecretOrTooLongContentIsDroppedAndTheRestOfThePolicyApplies() throws IOException {
+        String tooLong = "Keep logs. ".repeat(800).substring(0, PolicyFile.ORGANIZATION_MEMORY_MAX_CHARS + 1);
+        String exact = "Keep logs. ".repeat(800).substring(0, PolicyFile.ORGANIZATION_MEMORY_MAX_CHARS);
+        String toml = "[meta]\nschema-version = 1\norganization = \"ACME\"\n\n"
+            + "[[rule]]\n[rule.features]\nai-agent = \"deny\"\n\n"
+            + "[[organization-memory]]\ntitle = \"Secret\"\ncontent = \"first line\\npassword=hunter2; # db\\nlast\"\n\n"
+            + "[[organization-memory]]\ntitle = \"Long\"\ncontent = \"" + tooLong + "\"\n\n"
+            + "[[organization-memory]]\ntitle = \"Exact\"\ncontent = \"" + exact + "\"\n\n"
+            + "[[organization-memory]]\ntitle = \"Kept\"\ncontent = \"Keep the audit log on.\"\n";
+
+        PolicyLoadResult result = PolicyLoader.load(write(toml));
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.isValid()).isTrue();
+        assertThat(result.warnings()).hasSize(2);
+        assertThat(result.warnings().get(0)).contains("SECRET_ASSIGNMENT on line 2");
+        assertThat(result.warnings().get(1)).contains("8001 characters");
+        assertThat(String.join("\n", result.warnings())).doesNotContain("hunter2");
+        assertThat(result.file().organizationMemory().stream().map(PolicyFile.OrganizationMemoryBlock::title).toList())
+            .containsExactly("Exact", "Kept").inOrder();
+        assertThat(result.file().rules().get(0).features().get(PolicyFeature.AI_AGENT)).isEqualTo(PolicyDecision.DENY);
+        assertThat(result.file().organization()).isEqualTo("ACME");
+    }
+
+    @Test
+    void organizationMemoryTitleIsCheckedLikeTheContent() throws IOException {
+        String longTitle = "Title ".repeat(2_000).substring(0, PolicyFile.ORGANIZATION_MEMORY_MAX_CHARS + 1);
+        String toml = "[meta]\nschema-version = 1\norganization = \"ACME\"\n\n"
+            + "[[organization-memory]]\ntitle = \"password = \\\"Hunter2-Staging-2026\\\"\"\ncontent = \"Keep the audit log on.\"\n\n"
+            + "[[organization-memory]]\ntitle = \"" + longTitle + "\"\ncontent = \"Keep logs.\"\n\n"
+            + "[[organization-memory]]\ntitle = \"Kept\"\ncontent = \"Keep the audit log on.\"\n";
+
+        PolicyLoadResult result = PolicyLoader.load(write(toml));
+
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).hasSize(2);
+        assertThat(result.warnings().get(0)).contains("title looks like a secret");
+        assertThat(result.warnings().get(1)).contains("title has 8001 characters");
+        assertThat(String.join("\n", result.warnings())).doesNotContain("Hunter2");
+        assertThat(result.file().organizationMemory().stream().map(PolicyFile.OrganizationMemoryBlock::title).toList())
+            .containsExactly("Kept");
+    }
+
+    @Test
+    void organizationMemoryTypeErrorsRejectTheFile() throws IOException {
+        assertThat(PolicyLoader.load(write("[meta]\nschema-version = 1\n[[organization-memory]]\n"
+            + "title = 5\ncontent = \"Rule.\"\n")).errors()).isNotEmpty();
+        assertThat(PolicyLoader.load(write("[meta]\nschema-version = 1\n[[organization-memory]]\n"
+            + "title = \"Only a title\"\n")).errors()).isNotEmpty();
+    }
+
+    @Test
+    void theShippedTemplatesAiMemorySectionLoadsWhenUncommented() throws IOException {
+        // Same contract as the session-journal template test: the commented block must be valid once uncommented.
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.ai-memory]
+              user-memory = "read-only"
+              learning = "off"
+              skill-creation = false
+              external-files = "deny"
+              external-file-roots = ["/srv/shared-ai-notes"]
+              max-tokens = 1500
+              triage = "auto"
+              statistics = true
+
+            [[organization-memory]]
+            title = "ACME operating rules"
+            content = \"\"\"
+            - Production changes go through the change ticket system; never change a production host without one.
+            - Never paste customer data into an AI prompt.
+            \"\"\"
+            """));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).isEmpty();
+        PolicyRule.AiMemoryRule memory = result.file().rules().get(0).aiMemory();
+        assertThat(memory.maxTokens()).isEqualTo(1500);
+        assertThat(memory.externalFileRoots()).containsExactly("/srv/shared-ai-notes");
+        assertThat(result.file().organizationMemory()).hasSize(1);
     }
 }

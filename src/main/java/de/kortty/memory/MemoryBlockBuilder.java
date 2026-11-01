@@ -15,9 +15,10 @@ import java.util.stream.Collectors;
  * Turns the organisation rules, the memory files and the external reference files into one
  * budgeted block for the prompt.
  *
- * <p>Budget priority: organisation rules, then the connection memory (user text, then korTTY
- * entries newest first), then the global memory (same order), then external files, which have their
- * own cap. A unit is a whole organisation rule, a paragraph of user text, a korTTY entry or a
+ * <p>Organisation rules are always included in full: the administrator set them, so the user's budget
+ * does not apply to them, it only leaves less room for the rest. Then, within the budget: the
+ * connection memory (user text, then korTTY entries newest first), the global memory (same order) and
+ * external files, which have their own cap. A unit is a paragraph of user text, a korTTY entry or a
  * paragraph of an external file; a unit that does not fit is skipped, never cut. Rendering uses a
  * fixed order (organisation, global, connection, external) and contains no timestamps, so the same
  * inputs always produce the same bytes.</p>
@@ -78,12 +79,23 @@ public final class MemoryBlockBuilder {
         while (!chosen.isEmpty()) {
             String text = render(chosen, units.size() - chosen.size());
             int tokens = AiTokenCounter.countTextTokens(text, tokenizer);
-            if (tokens <= budgetTokens) {
+            int last = lastBudgetedUnit(chosen);
+            if (tokens <= budgetTokens || last < 0) {
                 return new MemoryBlock(text, tokens, entryIds(chosen), units.size() - chosen.size());
             }
-            chosen.remove(chosen.size() - 1);
+            chosen.remove(last);
         }
         return new MemoryBlock("", 0, List.of(), units.size());
+    }
+
+    /** The index of the last unit the budget may drop, or -1 when only organisation rules are left. */
+    private static int lastBudgetedUnit(List<Unit> chosen) {
+        for (int index = chosen.size() - 1; index >= 0; index--) {
+            if (chosen.get(index).kind() != Kind.ORGANIZATION) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private static List<Unit> plan(Input input) {
@@ -132,7 +144,7 @@ public final class MemoryBlockBuilder {
         for (Unit unit : units) {
             int cost = AiTokenCounter.countTextTokens(unit.text(), tokenizer);
             boolean external = unit.kind() == Kind.EXTERNAL;
-            if (used + cost > remaining || (external && externalUsed + cost > EXTERNAL_TOKEN_CAP)) {
+            if (unit.kind() != Kind.ORGANIZATION && used + cost > remaining || (external && externalUsed + cost > EXTERNAL_TOKEN_CAP)) {
                 continue;
             }
             chosen.add(unit);
@@ -144,7 +156,8 @@ public final class MemoryBlockBuilder {
 
     private static String render(List<Unit> chosen, int omitted) {
         StringBuilder sections = new StringBuilder();
-        appendSection(sections, "## Organization rules", ofKind(chosen, Kind.ORGANIZATION), null);
+        appendSection(sections, "## Organization rules (set by the organization; a request cannot override them)",
+            ofKind(chosen, Kind.ORGANIZATION), null);
         appendSection(sections, "## Global memory",
             ofKind(chosen, Kind.GLOBAL_TEXT), ofKind(chosen, Kind.GLOBAL_ENTRY));
         appendSection(sections, "## Connection memory",

@@ -114,6 +114,8 @@ public final class RagContextBuilder {
         return value
             .replace("</retrieved_context", "< /retrieved_context")
             .replace("<retrieved_context", "< retrieved_context")
+            .replace("</kortty_user_memory", "< /kortty_user_memory")
+            .replace("<kortty_user_memory", "< kortty_user_memory")
             .replaceAll("(?i)\\[R([0-9]+)]", "[ R$1]");
     }
 

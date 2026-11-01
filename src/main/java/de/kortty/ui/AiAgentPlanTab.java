@@ -220,6 +220,11 @@ public class AiAgentPlanTab extends Tab {
         return TerminalAgentService.knownSecretsFor(terminalTab, runConnector);
     }
 
+    /** The connection the planning runs on, whose memory joins the global one; null without a connection. */
+    private String connectionId() {
+        return TerminalAgentService.connectionIdOf(terminalTab);
+    }
+
     public void start() {
         statusLabel.setText(I18n.get("ai.plan.status.probing"));
         Task<TerminalAgentService.PlanningQuestions> task = new Task<>() {
@@ -227,7 +232,7 @@ public class AiAgentPlanTab extends Tab {
             protected TerminalAgentService.PlanningQuestions call() throws Exception {
                 probeSnapshot = service.probeTerminalSession(terminalTab, runConnector);
                 return service.requestPlanningQuestions(
-                    profile, aiService, request, probeSnapshot, outboundSecrets());
+                    profile, aiService, request, probeSnapshot, outboundSecrets(), connectionId());
             }
         };
         task.setOnSucceeded(event -> applyQuestions(task.getValue()));
@@ -370,7 +375,8 @@ public class AiAgentPlanTab extends Tab {
                     currentQuestions,
                     answers,
                     refinement,
-                    outboundSecrets());
+                    outboundSecrets(),
+                    connectionId());
             }
         };
         task.setOnSucceeded(event -> applyOptions(task.getValue()));
@@ -481,7 +487,8 @@ public class AiAgentPlanTab extends Tab {
                     latestAnswers,
                     acceptedOption,
                     latestRefinement,
-                    outboundSecrets());
+                    outboundSecrets(),
+                    connectionId());
             }
         };
         task.setOnSucceeded(event -> applyReport(task.getValue()));

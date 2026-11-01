@@ -203,6 +203,20 @@ class MemoryBlockBuilderTest {
     }
 
     @Test
+    void anOrganisationRuleIsSentInFullEvenWhenItExceedsTheBudget() {
+        String rule = "Keep the audit log on. ".repeat(200).strip();
+        Input input = new Input(List.of(new OrganizationRule("Audit", rule)), "My own note.\n", null, List.of());
+
+        MemoryBlock block = build(input, 300);
+
+        assertThat(block.text()).contains(rule);
+        assertThat(block.text()).doesNotContain("My own note.");
+        assertThat(block.text()).contains("1 memory entries omitted (budget)");
+        assertThat(block.tokens()).isGreaterThan(300);
+        assertThat(block.omittedCount()).isEqualTo(1);
+    }
+
+    @Test
     void zeroBudgetGivesAnEmptyBlock() {
         assertThat(build(global(entry("a1", "2026-01-01", "- Rule.")), 0).isEmpty()).isTrue();
     }

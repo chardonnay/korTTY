@@ -8,6 +8,7 @@ import com.google.gson.JsonPrimitive;
 import de.kortty.core.AiOutboundRedaction;
 import de.kortty.core.RedactionResult;
 import de.kortty.core.SessionJournalRedactor;
+import de.kortty.memory.MemoryBlock;
 import de.kortty.model.AiProfile;
 
 import java.lang.reflect.Type;
@@ -46,6 +47,7 @@ public final class AgentOutboundContext {
     private final SessionJournalRedactor knownSecrets;
     private final Set<String> distinctMasked;
     private final IntConsumer onDistinctCountChanged;
+    private final MemoryBlock memory;
 
     /**
      * @param profile                the profile the run sends to; {@code null} masks (fail closed)
@@ -62,10 +64,24 @@ public final class AgentOutboundContext {
         SessionJournalRedactor knownSecrets,
         Set<String> distinctMasked,
         IntConsumer onDistinctCountChanged) {
+        this(profile, knownSecrets, distinctMasked, onDistinctCountChanged, null);
+    }
+
+    /**
+     * @param memory the memory block every prompt of the run carries, built once for the run; {@code null}
+     *               carries none. The run inserts it into each system prompt before masking it.
+     */
+    public AgentOutboundContext(
+        AiProfile profile,
+        SessionJournalRedactor knownSecrets,
+        Set<String> distinctMasked,
+        IntConsumer onDistinctCountChanged,
+        MemoryBlock memory) {
         this.profile = profile;
         this.knownSecrets = knownSecrets != null ? knownSecrets : AiOutboundRedaction.newPolicyRedactor();
         this.distinctMasked = distinctMasked != null ? distinctMasked : ConcurrentHashMap.newKeySet();
         this.onDistinctCountChanged = onDistinctCountChanged;
+        this.memory = memory != null ? memory : MemoryBlock.empty();
     }
 
     /**
@@ -75,7 +91,17 @@ public final class AgentOutboundContext {
      */
     public static AgentOutboundContext forRun(
         AiProfile profile, IntConsumer onDistinctCountChanged, SessionJournalRedactor... sources) {
-        return new AgentOutboundContext(profile, combine(sources), null, onDistinctCountChanged);
+        return new AgentOutboundContext(profile, combine(sources), null, onDistinctCountChanged, null);
+    }
+
+    /**
+     * Like {@link #forRun(AiProfile, IntConsumer, SessionJournalRedactor...)}, and the run's prompts carry
+     * {@code memory}. The block is built once per run and must be the same object for every turn, so the
+     * system prompt stays byte-stable for prompt caching.
+     */
+    public static AgentOutboundContext forRun(
+        AiProfile profile, MemoryBlock memory, IntConsumer onDistinctCountChanged, SessionJournalRedactor... sources) {
+        return new AgentOutboundContext(profile, combine(sources), null, onDistinctCountChanged, memory);
     }
 
     /** A fresh redactor with the organisation's rules and the known secrets of all sources. */
@@ -91,6 +117,14 @@ public final class AgentOutboundContext {
 
     public AiProfile profile() {
         return profile;
+    }
+
+    /**
+     * The memory block of this run, as it was built before masking; empty when the run carries none.
+     * The "what was sent" view reads it.
+     */
+    public MemoryBlock memory() {
+        return memory;
     }
 
     /** True when text bound for this run's profile is masked before it is sent. */

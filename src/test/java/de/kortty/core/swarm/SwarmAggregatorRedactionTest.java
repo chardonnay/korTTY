@@ -150,6 +150,7 @@ class SwarmAggregatorRedactionTest {
         public void runAgent(
             TerminalTab terminalTab,
             AgentCommandRunner runner,
+            String connectionId,
             AiProfile profile,
             AiPromptService aiService,
             TerminalAgentModels.Request request,

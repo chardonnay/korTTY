@@ -10087,13 +10087,13 @@ public class MainWindow {
                 maxSelectionChars, maskedSelection.count())
                 .ifPresent(draft -> startAiSelectionRequest(
                     action, effectiveProfile, aiService, draft, connectionName, languageCode, maxSelectionChars,
-                    knownSecrets, 0, sourcePane));
+                    knownSecrets, 0, sourcePane, terminalTab.getConnection()));
             return;
         }
         if (attachmentCandidate == null) {
             startAiSelectionRequest(action, effectiveProfile, aiService,
                 new AiRequestDraft(outboundText, null, null), connectionName, languageCode, maxSelectionChars,
-                knownSecrets, maskedSelection.count(), sourcePane);
+                knownSecrets, maskedSelection.count(), sourcePane, terminalTab.getConnection());
             return;
         }
         // No confirmation dialog: attach the file when it validates, otherwise send the selection
@@ -10105,7 +10105,7 @@ public class MainWindow {
             }
             startAiSelectionRequest(action, effectiveProfile, aiService,
                 new AiRequestDraft(outboundText, null, outcome.attachment()), connectionName, languageCode,
-                maxSelectionChars, knownSecrets, maskedSelection.count(), sourcePane);
+                maxSelectionChars, knownSecrets, maskedSelection.count(), sourcePane, terminalTab.getConnection());
         });
     }
 
@@ -10150,6 +10150,7 @@ public class MainWindow {
      * @param unreportedMasks secrets already masked in the selection that no preview dialog showed;
      *                        the status bar reports them together with the attachment's
      * @param sourcePane      the pane the selection came from, where the chat's code blocks go
+     * @param connection      the connection of the tab the selection came from, whose memory the chat carries
      */
     private void startAiSelectionRequest(
         AiAction action,
@@ -10161,7 +10162,8 @@ public class MainWindow {
         int maxSelectionChars,
         @Nullable SessionJournalRedactor knownSecrets,
         int unreportedMasks,
-        @Nullable TerminalPaneRef sourcePane) {
+        @Nullable TerminalPaneRef sourcePane,
+        @Nullable ServerConnection connection) {
         String requestText = draft.selectedText();
         if (requestText.trim().isEmpty()) {
             return;
@@ -10202,6 +10204,7 @@ public class MainWindow {
         // Follow-ups may go to another profile; the tab masks them again with these secrets.
         resultTab.setOutboundSecrets(knownSecrets);
         resultTab.setSourcePane(sourcePane);
+        resultTab.setSourceConnection(connection);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }
@@ -10273,6 +10276,27 @@ public class MainWindow {
         return DEFAULT_MAX_AI_SELECTION_CHARS;
     }
 
+    /** The memory of a request in {@code connection}: that connection's memory, or the global memory alone. */
+    private static de.kortty.core.AiMemoryPromptSource memoryPromptSource(
+        de.kortty.model.GlobalSettings settings, ServerConnection connection, AiProfile profile) {
+        return memoryPromptSource(settings, connection, profile, false);
+    }
+
+    /**
+     * Like {@link #memoryPromptSource(de.kortty.model.GlobalSettings, ServerConnection, AiProfile)}; a
+     * {@code preview} source reads only the background cache, see {@code AiMemoryPromptSource.preview}.
+     */
+    private static de.kortty.core.AiMemoryPromptSource memoryPromptSource(
+        de.kortty.model.GlobalSettings settings, ServerConnection connection, AiProfile profile, boolean preview) {
+        int budgetTokens = settings != null
+            ? settings.getAiMemoryMaxTokens()
+            : de.kortty.model.GlobalSettings.AI_MEMORY_TOKENS_DEFAULT;
+        String connectionId = connection != null ? connection.getId() : null;
+        return preview
+            ? de.kortty.core.AiMemoryPromptSource.preview(connectionId, profile, budgetTokens)
+            : new de.kortty.core.AiMemoryPromptSource(connectionId, profile, budgetTokens);
+    }
+
     private AiService createAiService(AiProfile profile) {
         return createAiService(profile, null);
     }
@@ -10300,14 +10324,20 @@ public class MainWindow {
             : java.util.List.of();
         try {
             de.kortty.model.GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            // The explicit skill selection of the snippet picker and the memory are independent: every request
+            // carries the memory of its connection (the global memory alone without one).
             AiSkillPromptSupport skillPromptSupport = forcedSkillIds == null
                 ? AiSkillPromptSupport.fromSettings(
                     settings,
-                    assignedConnectionSkillIds.isEmpty() ? null : assignedConnectionSkillIds)
+                    assignedConnectionSkillIds.isEmpty() ? null : assignedConnectionSkillIds,
+                    profile,
+                    memoryPromptSource(settings, connection, profile))
                 : AiSkillPromptSupport.fromSettingsForSnippetSelection(
                     settings,
                     forcedSkillIds,
-                    assignedConnectionSkillIds);
+                    assignedConnectionSkillIds,
+                    profile,
+                    memoryPromptSource(settings, connection, profile));
             return AiServiceFactory.create(
                 profile,
                 apiKey,
@@ -10797,7 +10827,13 @@ public class MainWindow {
         GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings()
             : null;
-        return AiTokenCounter.countRequestTokens(request, tokenizerType, AiSkillPromptSupport.fromSettings(settings));
+        // The preview counts the memory the next request would send: the active tab's connection, if any. On the
+        // UI thread the memory comes from the background cache, so a keystroke never reads a memory file.
+        boolean onUiThread = Platform.isFxApplicationThread();
+        TerminalTab activeTab = onUiThread ? activeTerminalTab() : null;
+        ServerConnection connection = activeTab != null ? activeTab.getConnection() : null;
+        return AiTokenCounter.countRequestTokens(request, tokenizerType, AiSkillPromptSupport.fromSettings(
+            settings, null, profile, memoryPromptSource(settings, connection, profile, onUiThread)));
     }
 
     private String formatRemainingTokens(long remainingTokens) {
@@ -12196,6 +12232,7 @@ public class MainWindow {
         // Follow-ups may go to another profile; the tab masks them again with these secrets.
         resultTab.setOutboundSecrets(knownSecrets);
         resultTab.setSourcePane(sourcePane);
+        resultTab.setSourceConnection(connection);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }

@@ -6,12 +6,20 @@ import de.kortty.core.agent.JournalingAgentCommandRunner;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.TerminalAgentExecutionTarget;
+import de.kortty.memory.MemoryService;
+import de.kortty.memory.MemoryStore;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.ui.I18n;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -23,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
+import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -33,6 +42,26 @@ import static com.google.common.truth.Truth.assertThat;
  * the raw text and the run itself keeps it.
  */
 class TerminalAgentServiceOutboundRedactionTest {
+
+    private Path memoryRoot;
+
+    /** The runs read the application's memory; an empty temporary one keeps the counts of these tests exact. */
+    @BeforeMethod
+    void useEmptyMemory() throws IOException {
+        memoryRoot = Files.createTempDirectory("kortty-outbound-memory-");
+        MemoryService.replaceInstanceForTesting(new MemoryService(new MemoryStore(memoryRoot.resolve("memory")),
+            name -> null));
+    }
+
+    @AfterMethod(alwaysRun = true)
+    void restoreMemory() throws IOException {
+        MemoryService.replaceInstanceForTesting(null);
+        try (Stream<Path> paths = Files.walk(memoryRoot)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        }
+    }
 
     private static final String PASSWORD = "Conn-Passw0rd-4711";
     // Split so secret scanners do not flag the fixtures.

@@ -404,7 +404,7 @@ public class JobSchedulerJobRunner {
             case SNIPPET_SCRIPT -> executeSnippet(job, remote, sudoPassword, recorder);
             case AI_AGENT -> aiSupport.runAiAgent(
                 job,
-                new JobSchedulerAiSupport.ServerConnectionContext(connection.getDisplayName()),
+                new JobSchedulerAiSupport.ServerConnectionContext(connection.getDisplayName(), connection.getId()),
                 remote,
                 sudoPassword,
                 redactor);

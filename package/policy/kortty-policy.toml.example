@@ -183,6 +183,21 @@
 #   clickable-links = false           # web addresses on journal pages stay plain text
 #                                     # (notes and AI summaries); omit to leave it to the user
 
+#   # The korTTY memory: MEMORY.md files that are read into AI prompts, and the rules korTTY learns from the
+#   # conversation. Every key is optional; a key that is not set leaves the choice to the user.
+#   [rule.ai-memory]
+#   user-memory = "read-only"         # "editable" (default) | "read-only" (read into prompts, never written) |
+#                                     # "disabled" (neither read nor written; organisation memory is still sent)
+#   learning = "off"                  # "propose" | "off": off finds no rules and proposes none
+#   skill-creation = false            # false: korTTY never creates a skill for a learned rule
+#   external-files = "deny"           # "allow" | "deny": reference files of other tools (CLAUDE.md, AGENTS.md, ...)
+#   # Folders external files must lie in, absolute or ~/-relative; an empty list allows any folder.
+#   external-file-roots = ["/srv/shared-ai-notes"]
+#   max-tokens = 1500                 # memory budget per AI request, 300..4000; the smaller of this and the
+#                                     # user's own setting applies
+#   triage = "auto"                   # "auto" | "always" | "never": when the agent offers solution options
+#   statistics = true                 # false: no skill statistics are recorded
+
 # Automatic search-and-replace in every journal. The rules run BEFORE a line is written,
 # so a matching text never reaches the log file at all, and they also cover AI summaries
 # and notes. Unlike the keys above, these merge across all matching rules and tiers — a
@@ -221,6 +236,16 @@
 # #!/usr/bin/env bash
 # set -euo pipefail
 # # (c) ACME Corp — do not remove
+# """
+
+# Organisation memory: rules for the AI that users cannot change. They are sent to the model before the
+# user's own memory whenever the AI memory is allowed. A block is at most 8000 characters and must hold no
+# secret; a block that breaks either rule is dropped with a warning in the log, the rest of the policy still applies.
+# [[organization-memory]]
+# title   = "ACME operating rules"
+# content = """
+# - Production changes go through the change ticket system; never change a production host without one.
+# - Never paste customer data into an AI prompt.
 # """
 
 # Preconfigured AI profiles (id must start with "policy-"). The API key is stored in the

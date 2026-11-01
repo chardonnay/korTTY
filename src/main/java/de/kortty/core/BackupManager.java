@@ -969,7 +969,12 @@ public class BackupManager {
 
         filesImported[0] += mergeSshKeysDirectory(extractDir, overwriteExisting);
         filesImported[0] += mergeSnippetAnalysesDirectory(extractDir, overwriteExisting);
-        filesImported[0] += mergeMissingFilesDirectory(extractDir, MemoryStore.DIRECTORY_NAME);
+        // A read-only or disabled user memory is never written, so a restore leaves the memory directory alone.
+        if (de.kortty.memory.MemoryService.get().isUserMemoryWritable()) {
+            filesImported[0] += mergeMissingFilesDirectory(extractDir, MemoryStore.DIRECTORY_NAME);
+        } else {
+            logger.info("Memory files are not restored: the enterprise policy makes the memory read-only or disabled");
+        }
         filesImported[0] += mergeMissingFilesDirectory(extractDir, STATS_DIRECTORY_NAME);
 
         return filesImported[0];

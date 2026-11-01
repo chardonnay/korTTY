@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,6 +44,7 @@ import java.util.regex.Pattern;
 /**
  * The only writer of the memory files. Every write goes through {@link #write}, which enforces:
  * <ul>
+ *   <li>the write gate: a write the enterprise policy forbids is refused first, see {@link #setWriteGate};</li>
  *   <li>the expected digest of the current file, under a lock, so a stale editor cannot overwrite
  *       newer content (a korTTY append re-reads and retries once instead);</li>
  *   <li>for {@link WriteReason#KORTTY_CONSENTED}, a {@link MemoryConsent} for this file and an
@@ -102,6 +104,7 @@ public final class MemoryStore {
     private final Clock clock;
     private final Object lock;
     private final List<Consumer<MemoryScope>> listeners = new CopyOnWriteArrayList<>();
+    private volatile BooleanSupplier writeGate = () -> true;
     private Runnable beforeCommitHook;
 
     /** The store in the configuration directory, or in {@value #DIRECTORY_PROPERTY} when that is set. */
@@ -214,6 +217,7 @@ public final class MemoryStore {
         throws IOException {
         Snapshot written;
         synchronized (lock) {
+            requireWritable();
             requireConsent(scope, consent);
             Snapshot current = readLocked(scope);
             MemoryDocument document = MemoryFormat.parse(current.text());
@@ -247,6 +251,15 @@ public final class MemoryStore {
             throw new IOException("Not a memory history file: " + entry.file());
         }
         return Files.readString(entry.file(), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Sets the gate every write passes first. When it returns false, or throws, the write is refused with a
+     * {@link MemoryReadOnlyException} and no file changes. Used for the enterprise policy's read-only and
+     * disabled modes; the default allows every write.
+     */
+    public void setWriteGate(BooleanSupplier gate) {
+        writeGate = java.util.Objects.requireNonNull(gate, "gate");
     }
 
     /** Listeners get the scope after every successful write. */
@@ -304,6 +317,7 @@ public final class MemoryStore {
 
     private Snapshot commitLocked(MemoryScope scope, String expectedDigest, String newText, WriteReason reason,
                                   MemoryConsent consent) throws IOException {
+        requireWritable();
         long bytes = newText.getBytes(StandardCharsets.UTF_8).length;
         if (bytes > MAX_BYTES) {
             throw new MemoryLimitException("The memory file would be " + bytes + " bytes; the limit is "
@@ -333,6 +347,19 @@ public final class MemoryStore {
         recordDigestLocked(scope, MemoryFormat.sha256(newText));
         pruneHistoryLocked(scope);
         return readLocked(scope);
+    }
+
+    private void requireWritable() throws MemoryReadOnlyException {
+        boolean writable;
+        try {
+            writable = writeGate.getAsBoolean();
+        } catch (RuntimeException e) {
+            logger.warn("The memory write gate failed; the write is refused", e);
+            writable = false;
+        }
+        if (!writable) {
+            throw new MemoryReadOnlyException("The memory is read-only or disabled by the enterprise policy.");
+        }
     }
 
     private void requireConsent(MemoryScope scope, MemoryConsent consent) throws MemoryInvariantException {

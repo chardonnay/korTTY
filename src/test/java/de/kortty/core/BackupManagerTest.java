@@ -521,6 +521,48 @@ public class BackupManagerTest {
     }
 
     @Test
+    public void memoryFilesAreRestoredOnlyWhileThePolicyLeavesTheMemoryWritable() throws Exception {
+        Path root = Files.createTempDirectory("kortty-backup-memory-policy-");
+        Path configDir = Files.createDirectories(root.resolve("config"));
+        Path memoryDir = Files.createDirectories(configDir.resolve(de.kortty.memory.MemoryStore.DIRECTORY_NAME));
+        Files.writeString(memoryDir.resolve("MEMORY.md"), "Team rule.\n");
+        Files.writeString(configDir.resolve("connections.xml"), "<connections/>");
+        char[] masterPassword = "master-pw".toCharArray();
+        CredentialManager credentialManager = new CredentialManager(configDir);
+        StoredCredential credential = new StoredCredential(
+            "backup", "user", StoredCredential.Environment.PRODUCTION);
+        credentialManager.setPassword(credential, "backup-pw", masterPassword);
+        credentialManager.addCredential(credential);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.PASSWORD);
+        settings.setBackupCredentialId(credential.getId());
+        Path backupZip = new BackupManager(configDir, settings)
+            .createBackup(root.resolve("target"), credentialManager, null, masterPassword);
+
+        Path readOnlyRestore = Files.createDirectories(root.resolve("restore-read-only"));
+        restoreWithUserMemoryMode(backupZip, readOnlyRestore, de.kortty.policy.UserMemoryMode.READ_ONLY, root);
+        assertThat(Files.exists(readOnlyRestore.resolve("memory/MEMORY.md"))).isFalse();
+
+        Path editableRestore = Files.createDirectories(root.resolve("restore-editable"));
+        restoreWithUserMemoryMode(backupZip, editableRestore, de.kortty.policy.UserMemoryMode.EDITABLE, root);
+        assertThat(Files.readString(editableRestore.resolve("memory/MEMORY.md"))).isEqualTo("Team rule.\n");
+    }
+
+    private static void restoreWithUserMemoryMode(Path backupZip, Path restoreDir,
+                                                  de.kortty.policy.UserMemoryMode mode, Path root) throws Exception {
+        de.kortty.memory.MemoryService service = new de.kortty.memory.MemoryService(
+            new de.kortty.memory.MemoryStore(root.resolve("policy-memory-" + mode)), name -> null);
+        service.setAiMemoryAllowedSupplier(() -> true);
+        service.setUserMemoryModeSupplier(() -> mode);
+        de.kortty.memory.MemoryService.replaceInstanceForTesting(service);
+        try {
+            new BackupManager(restoreDir, new GlobalSettings()).importBackup(backupZip, "backup-pw", true);
+        } finally {
+            de.kortty.memory.MemoryService.replaceInstanceForTesting(null);
+        }
+    }
+
+    @Test
     public void managedBackupFilesIncludeSavedAiChats() {
         assertThat(BackupManager.managedBackupFiles()).contains("ai-chats.xml");
     }

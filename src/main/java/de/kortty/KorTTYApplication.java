@@ -533,6 +533,16 @@ public class KorTTYApplication extends Application {
             try {
                 de.kortty.memory.MemoryService memory = de.kortty.memory.MemoryService.get();
                 memory.setEnabledSupplier(() -> globalSettingsManager.getSettings().isAiMemoryEnabled());
+                // The enterprise policy for the memory: each supplier reads the current policy on every call, so a
+                // reloaded policy applies at once. The store's write gate is bound by the service itself.
+                memory.setAiMemoryAllowedSupplier(() -> policyManager.getEffective().aiMemoryAllowed());
+                memory.setUserMemoryModeSupplier(() -> policyManager.getEffective().userMemoryMode());
+                memory.setExternalFilesAllowedSupplier(() -> policyManager.getEffective().externalMemoryFilesAllowed());
+                memory.setBudgetCapSupplier(() -> policyManager.getEffective().aiMemoryMaxTokens());
+                memory.setOrganizationMemorySupplier(() -> policyManager.getEffective().organizationMemory().stream()
+                    .map(block -> new de.kortty.memory.MemoryBlockBuilder.OrganizationRule(
+                        block.title(), block.content()))
+                    .toList());
                 List<String> connectionIds = configManager.getConnections().stream()
                     .map(connection -> connection.getId())
                     .toList();

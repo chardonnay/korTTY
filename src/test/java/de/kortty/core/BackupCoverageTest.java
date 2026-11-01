@@ -271,7 +271,17 @@ class BackupCoverageTest {
         Path localMemory = Files.createDirectories(restoreDir.resolve(MemoryStore.DIRECTORY_NAME))
             .resolve("MEMORY.md");
         Files.writeString(localMemory, "Local rule.\n");
-        new BackupManager(restoreDir, new GlobalSettings()).importBackup(backup, "backup-pw", true);
+        // The application wires the policy gates at startup; a restore runs with them, under the default policy.
+        de.kortty.memory.MemoryService policyService = new de.kortty.memory.MemoryService(
+            new MemoryStore(root.resolve("policy-memory")), name -> null);
+        policyService.setAiMemoryAllowedSupplier(() -> true);
+        policyService.setUserMemoryModeSupplier(() -> de.kortty.policy.UserMemoryMode.EDITABLE);
+        de.kortty.memory.MemoryService.replaceInstanceForTesting(policyService);
+        try {
+            new BackupManager(restoreDir, new GlobalSettings()).importBackup(backup, "backup-pw", true);
+        } finally {
+            de.kortty.memory.MemoryService.replaceInstanceForTesting(null);
+        }
 
         assertWithMessage("a restore must not replace the local memory file")
             .that(Files.readString(localMemory)).isEqualTo("Local rule.\n");

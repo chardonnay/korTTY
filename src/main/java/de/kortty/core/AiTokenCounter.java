@@ -58,11 +58,12 @@ public final class AiTokenCounter {
         return systemTokens + userTokens + CHAT_MESSAGE_OVERHEAD_TOKENS;
     }
 
+    /** The chat system prompt as it is sent: Base, Skills, Memory, then RAG and preset. */
     private static String buildPreviewSystemPrompt(AiRequest request, AiSkillPromptSupport skillPromptSupport) {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
-        String skillBlock = skillPromptSupport.buildChatSkillBlock(request);
-        return AiPromptPipeline.appendAfterSkills(
-            AiPromptPipeline.insertSkills(systemPrompt, skillBlock), request);
+        String withSkills = AiPromptPipeline.insertSkills(systemPrompt, skillPromptSupport.buildChatSkillBlock(request));
+        String withMemory = AiPromptPipeline.insertMemory(withSkills, skillPromptSupport.buildChatMemoryBlock(request));
+        return AiPromptPipeline.appendAfterSkills(withMemory, request);
     }
 
     public static int estimateTokens(String text) {

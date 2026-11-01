@@ -61,6 +61,7 @@ import java.util.Set;
  * @param webhookHostAllowlist       normalized host suffixes JobScheduler webhooks may reach
  *                                   ({@code [rule.job-scheduler] webhook-host-allowlist}); empty allows
  *                                   any host, null leaves it to a lower tier
+ * @param aiMemory                   the korTTY memory mandates from {@code [rule.ai-memory]}, or null
  */
 public record PolicyRule(
     String name,
@@ -97,7 +98,8 @@ public record PolicyRule(
     SftpRule sftp,
     List<String> webhookHostAllowlist,
     de.kortty.isolation.IsolationLevel isolationFloor,
-    BackupRule backup) {
+    BackupRule backup,
+    AiMemoryRule aiMemory) {
 
     public PolicyRule {
         webhookHostAllowlist = webhookHostAllowlist == null ? null : List.copyOf(webhookHostAllowlist);
@@ -137,6 +139,40 @@ public record PolicyRule(
     public record BackupRule(de.kortty.model.GlobalSettings.AutoBackupInterval interval, String directory) {
         public boolean isEmpty() {
             return interval == null && directory == null;
+        }
+    }
+
+    /**
+     * The {@code [rule.ai-memory]} table: mandates for the korTTY memory and the skill learning. All fields
+     * nullable = "not set at this tier".
+     *
+     * @param userMemory        how the user's own memory files may be used, or null
+     * @param learning          the learning mode, or null
+     * @param skillCreation     false forbids creating skills for learned rules, or null
+     * @param externalFiles     false forbids reference files of other tools, or null
+     * @param externalFileRoots folders external files must lie in (absolute or {@code ~/}-relative), or null;
+     *                          an empty list allows any folder
+     * @param maxTokens         the cap on the memory budget in tokens (300..4000), or null
+     * @param triage            the agent's triage mode, or null
+     * @param statistics        false forbids recording skill statistics, or null
+     */
+    public record AiMemoryRule(
+        de.kortty.policy.UserMemoryMode userMemory,
+        de.kortty.model.AiMemoryLearningMode learning,
+        Boolean skillCreation,
+        Boolean externalFiles,
+        List<String> externalFileRoots,
+        Integer maxTokens,
+        de.kortty.model.AiAgentTriageMode triage,
+        Boolean statistics) {
+
+        public AiMemoryRule {
+            externalFileRoots = externalFileRoots == null ? null : List.copyOf(externalFileRoots);
+        }
+
+        public boolean isEmpty() {
+            return userMemory == null && learning == null && skillCreation == null && externalFiles == null
+                && externalFileRoots == null && maxTokens == null && triage == null && statistics == null;
         }
     }
 
@@ -308,6 +344,7 @@ public record PolicyRule(
         private List<String> webhookHostAllowlist;
         private de.kortty.isolation.IsolationLevel isolationFloor;
         private BackupRule backup;
+        private AiMemoryRule aiMemory;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -353,6 +390,7 @@ public record PolicyRule(
         public Builder webhookHostAllowlist(List<String> value) { this.webhookHostAllowlist = value; return this; }
         public Builder isolationFloor(de.kortty.isolation.IsolationLevel value) { this.isolationFloor = value; return this; }
         public Builder backup(BackupRule value) { this.backup = value; return this; }
+        public Builder aiMemory(AiMemoryRule value) { this.aiMemory = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
@@ -361,7 +399,7 @@ public record PolicyRule(
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
-                allowOsc5522ClipboardRead, sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist, isolationFloor, backup);
+                allowOsc5522ClipboardRead, sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist, isolationFloor, backup, aiMemory);
         }
     }
 }

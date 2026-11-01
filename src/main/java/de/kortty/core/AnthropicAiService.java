@@ -87,7 +87,8 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
     public AiExecutionResult execute(AiRequest request) throws Exception {
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
-        String effectiveSystem = request != null && request.includeAiSkills()
+        // Memory is independent of the skills switch, so the skill support decides per part.
+        String effectiveSystem = request != null
             ? skillPromptSupport.appendChatSkills(systemPrompt, request)
             : normalize(systemPrompt);
         effectiveSystem = AiPromptPipeline.appendAfterSkills(effectiveSystem, request);

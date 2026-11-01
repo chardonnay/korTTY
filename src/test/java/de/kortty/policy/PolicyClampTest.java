@@ -418,4 +418,68 @@ class PolicyClampTest {
                 .isEqualTo(de.kortty.model.AiInternetAccessMode.DISABLED);
         }
     }
+
+    private static EffectivePolicy resolvedPolicy(PolicyRule... rules) {
+        PolicyFile file = new PolicyFile(1, "ACME", Map.of(), List.of(rules), List.of(), List.of(), List.of(),
+            List.of());
+        return EffectivePolicy.resolve(file, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+    }
+
+    @Test
+    void aiMemoryMandatesForceTheManagedSettingsAndTheTokenCapLeavesTheBudgetSetting() {
+        PolicyRule rule = PolicyRule.builder().aiMemory(new PolicyRule.AiMemoryRule(UserMemoryMode.DISABLED,
+            de.kortty.model.AiMemoryLearningMode.OFF, false, null, null, 300,
+            de.kortty.model.AiAgentTriageMode.NEVER, false)).build();
+        GlobalSettings settings = new GlobalSettings();
+        settings.setAiMemoryEnabled(true);
+        settings.setAiSkillAutoCreate(true);
+        settings.setAiSkillStatisticsEnabled(true);
+        settings.setAiAgentTriageMode(de.kortty.model.AiAgentTriageMode.AUTO);
+        settings.setAiMemoryLearningMode(de.kortty.model.AiMemoryLearningMode.PROPOSE);
+        settings.setAiMemoryMaxTokens(1500);
+
+        new PolicyClamp(resolvedPolicy(rule)).apply(settings);
+
+        assertThat(settings.isAiMemoryEnabled()).isFalse();
+        assertThat(settings.getAiMemoryLearningMode()).isEqualTo(de.kortty.model.AiMemoryLearningMode.OFF);
+        assertThat(settings.isAiSkillAutoCreate()).isFalse();
+        assertThat(settings.getAiAgentTriageMode()).isEqualTo(de.kortty.model.AiAgentTriageMode.NEVER);
+        assertThat(settings.isAiSkillStatisticsEnabled()).isFalse();
+        assertThat(settings.getAiMemoryMaxTokens()).isEqualTo(1500);
+    }
+
+    @Test
+    void theMemoryFeatureSwitchOnlyTurnsTheUsersMemoryOffWhenDenied() {
+        GlobalSettings denied = new GlobalSettings();
+        denied.setAiMemoryEnabled(true);
+        new PolicyClamp(resolvedPolicy(PolicyRule.builder()
+            .features(Map.of(PolicyFeature.AI_MEMORY, PolicyDecision.DENY)).build())).apply(denied);
+        assertThat(denied.isAiMemoryEnabled()).isFalse();
+
+        GlobalSettings allowed = new GlobalSettings();
+        allowed.setAiMemoryEnabled(true);
+        new PolicyClamp(resolvedPolicy(PolicyRule.builder()
+            .features(Map.of(PolicyFeature.AI_MEMORY, PolicyDecision.ALLOW)).build())).apply(allowed);
+        assertThat(allowed.isAiMemoryEnabled()).isTrue();
+    }
+
+    @Test
+    void aManagedLearningModeIsForcedToThePolicysValueEitherWay() {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setAiMemoryLearningMode(de.kortty.model.AiMemoryLearningMode.OFF);
+        new PolicyClamp(resolvedPolicy(PolicyRule.builder().aiMemory(new PolicyRule.AiMemoryRule(null,
+            de.kortty.model.AiMemoryLearningMode.PROPOSE, null, null, null, null, null, null)).build()))
+            .apply(settings);
+        assertThat(settings.getAiMemoryLearningMode()).isEqualTo(de.kortty.model.AiMemoryLearningMode.PROPOSE);
+    }
 }

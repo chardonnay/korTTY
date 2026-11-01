@@ -1,5 +1,9 @@
 package de.kortty.policy;
 
+import de.kortty.model.AiAgentTriageMode;
+import de.kortty.model.AiMemoryLearningMode;
+
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -7,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -37,7 +42,7 @@ public final class EffectivePolicy {
         true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
         EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null, TerminalPolicy.NONE,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of(),
-        SftpPolicy.NONE, WebhookHostAllowlist.NONE, BackupPolicy.NONE);
+        SftpPolicy.NONE, WebhookHostAllowlist.NONE, BackupPolicy.NONE, AiMemoryPolicy.NONE);
 
     private final boolean fromPolicyFile;
     private final boolean lockdown;
@@ -74,6 +79,7 @@ public final class EffectivePolicy {
     private final SftpPolicy sftp;
     private final WebhookHostAllowlist webhookHostAllowlist;
     private final BackupPolicy backup;
+    private final AiMemoryPolicy aiMemory;
 
     private EffectivePolicy(boolean fromPolicyFile, boolean lockdown, String organization,
                             Map<PolicyFeature, PolicyDecision> features, AgentExecutionMode agentExecution,
@@ -99,7 +105,8 @@ public final class EffectivePolicy {
                             List<PolicyFile.TeamworkSourceDef> teamworkSources,
                             SftpPolicy sftp,
                             WebhookHostAllowlist webhookHostAllowlist,
-                            BackupPolicy backup) {
+                            BackupPolicy backup,
+                            AiMemoryPolicy aiMemory) {
         this.fromPolicyFile = fromPolicyFile;
         this.lockdown = lockdown;
         this.organization = organization;
@@ -135,6 +142,7 @@ public final class EffectivePolicy {
         this.sftp = sftp;
         this.webhookHostAllowlist = webhookHostAllowlist;
         this.backup = backup;
+        this.aiMemory = aiMemory;
     }
 
     /** No policy present: everything allowed. */
@@ -156,7 +164,7 @@ public final class EffectivePolicy {
             false, false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
             TerminalPolicy.LOCKDOWN, List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of(), SftpPolicy.LOCKDOWN, WebhookHostAllowlist.NONE,
-            BackupPolicy.NONE);
+            BackupPolicy.NONE, AiMemoryPolicy.LOCKDOWN);
     }
 
     /** Resolves the policy file for {@code identity}. */
@@ -186,6 +194,7 @@ public final class EffectivePolicy {
                 features.put(feature, decision);
                 managed.add(switch (feature) {
                     case AI, AI_AGENT, AI_CHAT, AI_SWARM, AI_PLANNING -> ManagedSetting.AI_FEATURES;
+                    case AI_MEMORY -> ManagedSetting.AI_MEMORY;
                     case TEAMWORK -> ManagedSetting.TEAMWORK;
                     case PLUGINS -> ManagedSetting.PLUGINS;
                     case SESSION_JOURNAL -> ManagedSetting.SESSION_JOURNAL;
@@ -341,6 +350,8 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.AUTO_BACKUP_DIRECTORY);
         }
 
+        AiMemoryPolicy aiMemory = resolveAiMemory(resolver, managed, file.organizationMemory());
+
         return new EffectivePolicy(true, false, file.organization(), features,
             orDefault(agentExecution, AgentExecutionMode.ALLOW),
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
@@ -355,7 +366,7 @@ public final class EffectivePolicy {
             orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
             analysisMaxStoredContentBytes, terminal, serverRestrictions, managed,
             file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources(), sftp,
-            orDefault(webhookHosts, WebhookHostAllowlist.NONE), backup);
+            orDefault(webhookHosts, WebhookHostAllowlist.NONE), backup, aiMemory);
     }
 
     // ---- accessors -------------------------------------------------------------------------
@@ -780,6 +791,83 @@ public final class EffectivePolicy {
     }
 
     /**
+     * Whether the korTTY memory may be used at all: the AI master switch is on and {@code ai-memory} is not
+     * denied. Organisation memory is sent only while this holds. The user's own memory files need their own
+     * switch as well, and {@link #userMemoryMode()} must not be {@code DISABLED}.
+     */
+    public boolean aiMemoryAllowed() {
+        return aiAllowed() && !aiMemoryFeatureDenied();
+    }
+
+    /** True when the policy denies the {@code ai-memory} feature itself, whatever the AI master switch says. */
+    boolean aiMemoryFeatureDenied() {
+        return decision(PolicyFeature.AI_MEMORY) == PolicyDecision.DENY;
+    }
+
+    /** The {@code [rule.ai-memory]} mandates as resolved; see the accessors below for the defaults. */
+    public AiMemoryPolicy aiMemory() {
+        return aiMemory;
+    }
+
+    /**
+     * How the user's own memory files may be used: {@link UserMemoryMode#EDITABLE} unless the policy restricts
+     * it, {@link UserMemoryMode#READ_ONLY} forbids every write, {@link UserMemoryMode#DISABLED} neither reads
+     * nor writes them.
+     */
+    public UserMemoryMode userMemoryMode() {
+        return aiMemory.userMemory();
+    }
+
+    /** The learning mode the policy sets and locks, or null when it leaves it to the user. */
+    public AiMemoryLearningMode aiMemoryLearningMode() {
+        return aiMemory.learning();
+    }
+
+    /** False forbids korTTY to create skills for learned rules; true when the policy does not say. */
+    public boolean aiSkillCreationAllowed() {
+        return aiMemory.skillCreation();
+    }
+
+    /** False forbids reference files of other tools; true when the policy does not say. */
+    public boolean externalMemoryFilesAllowed() {
+        return aiMemory.externalFiles();
+    }
+
+    /** The folders external memory files must lie in; {@link ExternalMemoryRoots#NONE} allows any folder. */
+    public ExternalMemoryRoots externalMemoryRoots() {
+        return aiMemory.externalRoots();
+    }
+
+    /** Whether {@code file} may be used as an external memory file: the switch and the folder allowlist. */
+    public boolean externalMemoryFileAllowed(Path file) {
+        return externalMemoryFilesAllowed() && externalMemoryRoots().allows(file);
+    }
+
+    /** The cap on the memory budget in tokens, or empty when the policy sets none. */
+    public OptionalInt aiMemoryMaxTokens() {
+        Integer maxTokens = aiMemory.maxTokens();
+        return maxTokens == null ? OptionalInt.empty() : OptionalInt.of(maxTokens);
+    }
+
+    /** The triage mode the policy sets and locks, or null when it leaves it to the user. */
+    public AiAgentTriageMode aiAgentTriageMode() {
+        return aiMemory.triage();
+    }
+
+    /** False forbids recording skill statistics; true when the policy does not say. */
+    public boolean aiSkillStatisticsAllowed() {
+        return aiMemory.statistics();
+    }
+
+    /**
+     * The organisation memory blocks, read-only and sent before the user's memory, in file order. Gated by
+     * {@link #aiMemoryAllowed()} where it is sent, not here.
+     */
+    public List<PolicyFile.OrganizationMemoryBlock> organizationMemory() {
+        return aiMemory.organization();
+    }
+
+    /**
      * @param interval  the forced schedule (OFF switches automatic backups off), or null
      * @param directory the forced folder, or null
      */
@@ -818,6 +906,41 @@ public final class EffectivePolicy {
 
     public List<PolicyFile.TeamworkSourceDef> teamworkSources() {
         return teamworkSources;
+    }
+
+    /**
+     * The {@code [rule.ai-memory]} dimensions of a policy and the organisation memory. A key the policy does
+     * not set keeps its default, see {@link EffectivePolicy#aiMemoryAllowed()} and the accessors.
+     *
+     * @param userMemory    how the user's own memory files may be used
+     * @param learning      the learning mode the policy sets, or null
+     * @param skillCreation false forbids creating skills for learned rules
+     * @param externalFiles false forbids reference files of other tools
+     * @param externalRoots the folders external files must lie in; {@link ExternalMemoryRoots#NONE} allows any
+     * @param maxTokens     the cap on the memory budget in tokens, or null
+     * @param triage        the triage mode the policy sets, or null
+     * @param statistics    false forbids recording skill statistics
+     * @param organization  the organisation memory blocks, in file order
+     */
+    public record AiMemoryPolicy(UserMemoryMode userMemory, AiMemoryLearningMode learning, boolean skillCreation,
+                                 boolean externalFiles, ExternalMemoryRoots externalRoots, Integer maxTokens,
+                                 AiAgentTriageMode triage, boolean statistics,
+                                 List<PolicyFile.OrganizationMemoryBlock> organization) {
+
+        /** Nothing set: the user decides, and the memory is editable. */
+        static final AiMemoryPolicy NONE = new AiMemoryPolicy(UserMemoryMode.EDITABLE, null, true, true,
+            ExternalMemoryRoots.NONE, null, null, true, List.of());
+
+        /** The fail-safe: the user's memory is neither read nor written and nothing is learned. */
+        static final AiMemoryPolicy LOCKDOWN = new AiMemoryPolicy(UserMemoryMode.DISABLED,
+            AiMemoryLearningMode.OFF, false, false, ExternalMemoryRoots.NONE,
+            PolicyLoader.AI_MEMORY_MIN_MAX_TOKENS, AiAgentTriageMode.NEVER, false, List.of());
+
+        public AiMemoryPolicy {
+            userMemory = userMemory == null ? UserMemoryMode.EDITABLE : userMemory;
+            externalRoots = externalRoots == null ? ExternalMemoryRoots.NONE : externalRoots;
+            organization = List.copyOf(organization);
+        }
     }
 
     /**
@@ -1028,6 +1151,62 @@ public final class EffectivePolicy {
             return a;
         }
         return Math.min(a, b);
+    }
+
+    /**
+     * Resolves the {@code [rule.ai-memory]} keys. Each key follows the tier rules of {@link Resolver}; the
+     * combination within one tier is the strictest value: disabled over read-only over editable, propose
+     * under off, never over always over auto, the smaller token cap, false for the allow switches and every
+     * folder list of the winning tier. The organisation memory is not tiered and comes from the file as written.
+     */
+    private static AiMemoryPolicy resolveAiMemory(Resolver resolver, Set<ManagedSetting> managed,
+                                                  List<PolicyFile.OrganizationMemoryBlock> organization) {
+        UserMemoryMode userMemory = resolver.resolve(
+            rule -> rule.aiMemory() != null ? rule.aiMemory().userMemory() : null, UserMemoryMode::mostRestrictive);
+        AiMemoryLearningMode learning = resolver.resolve(
+            rule -> rule.aiMemory() != null ? rule.aiMemory().learning() : null,
+            (a, b) -> a.ordinal() >= b.ordinal() ? a : b);
+        Boolean skillCreation = resolver.resolveAllow(
+            rule -> rule.aiMemory() != null ? rule.aiMemory().skillCreation() : null);
+        Boolean externalFiles = resolver.resolveAllow(
+            rule -> rule.aiMemory() != null ? rule.aiMemory().externalFiles() : null);
+        ExternalMemoryRoots externalRoots = resolver.resolve(
+            rule -> rule.aiMemory() != null && rule.aiMemory().externalFileRoots() != null
+                ? ExternalMemoryRoots.of(rule.aiMemory().externalFileRoots()) : null,
+            ExternalMemoryRoots::and);
+        Integer maxTokens = resolver.resolve(
+            rule -> rule.aiMemory() != null ? rule.aiMemory().maxTokens() : null, Math::min);
+        AiAgentTriageMode triage = resolver.resolve(
+            rule -> rule.aiMemory() != null ? rule.aiMemory().triage() : null,
+            (a, b) -> a.ordinal() >= b.ordinal() ? a : b);
+        Boolean statistics = resolver.resolveAllow(
+            rule -> rule.aiMemory() != null ? rule.aiMemory().statistics() : null);
+
+        if (userMemory != null) {
+            managed.add(ManagedSetting.AI_MEMORY);
+        }
+        if (learning != null) {
+            managed.add(ManagedSetting.AI_MEMORY_LEARNING);
+        }
+        markManaged(managed, ManagedSetting.AI_SKILL_CREATION, skillCreation);
+        if (externalFiles != null || externalRoots != null) {
+            managed.add(ManagedSetting.AI_MEMORY_EXTERNAL);
+        }
+        if (maxTokens != null) {
+            managed.add(ManagedSetting.AI_MEMORY_TOKENS);
+        }
+        if (triage != null) {
+            managed.add(ManagedSetting.AI_AGENT_TRIAGE);
+        }
+        markManaged(managed, ManagedSetting.AI_SKILL_STATISTICS, statistics);
+
+        return new AiMemoryPolicy(userMemory, learning,
+            skillCreation == null || skillCreation,
+            externalFiles == null || externalFiles,
+            externalRoots == null ? ExternalMemoryRoots.NONE : externalRoots,
+            maxTokens, triage,
+            statistics == null || statistics,
+            organization);
     }
 
     private enum Tier { USER, GROUP, ALL, NONE }

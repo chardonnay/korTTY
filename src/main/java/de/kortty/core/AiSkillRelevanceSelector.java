@@ -457,12 +457,14 @@ public final class AiSkillRelevanceSelector {
             return builder.toString().trim();
         }
 
+        /** Memory is left out: its words describe the user's standing rules, not the request's topic. */
         private static void append(StringBuilder builder, String value) {
-            if (value != null && !value.isBlank()) {
+            String text = value != null ? AiPromptPipeline.withoutMemory(value) : null;
+            if (text != null && !text.isBlank()) {
                 if (!builder.isEmpty()) {
                     builder.append('\n');
                 }
-                builder.append(value);
+                builder.append(text);
             }
         }
     }

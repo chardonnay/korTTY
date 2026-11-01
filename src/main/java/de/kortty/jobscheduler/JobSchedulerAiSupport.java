@@ -97,11 +97,16 @@ public class JobSchedulerAiSupport {
         String userPrompt = "Server: " + connectionContext.displayName() + "\n"
             + "Working directory: " + (job.getWorkingDirectory() != null ? job.getWorkingDirectory() : "~") + "\n"
             + "Job prompt:\n" + action.getAiPrompt();
+        SessionJournalRedactor known = knownSecrets(remoteSession, sudoPassword, redactor);
+        // The job's memory: the global memory and the job's connection, when it has one. It is masked with
+        // the job's known secrets, and inserted into the system prompt before the call.
+        String memoryText = AiOutboundRedaction.redactFor(
+            profile, TerminalAgentService.memoryFor(connectionContext.connectionId(), profile).text(), known).text();
+        systemPrompt = TerminalAgentService.insertMemory(systemPrompt, memoryText);
         // The plan is one-shot and sends no terminal output; what can leak is a secret typed into
         // the job prompt (or a server name / working directory). Mask it for a profile that may
         // forward it, with the job's known secrets: connection and sudo passwords.
-        userPrompt = AiOutboundRedaction.redactFor(
-            profile, userPrompt, knownSecrets(remoteSession, sudoPassword, redactor)).text();
+        userPrompt = AiOutboundRedaction.redactFor(profile, userPrompt, known).text();
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         // The token count is bookkeeping, not a secret: book it against the profile quota.
         usageRecorder().record(profile, AiUsageRecorder.usageOrEstimate(result, systemPrompt, userPrompt, profile));
@@ -360,7 +365,15 @@ public class JobSchedulerAiSupport {
             : "";
     }
 
-    public record ServerConnectionContext(String displayName) {
+    /**
+     * The connection a job runs on: the name shown in the prompt and the id whose memory joins the global one.
+     * A {@code null} id sends the global memory alone.
+     */
+    public record ServerConnectionContext(String displayName, String connectionId) {
+
+        public ServerConnectionContext(String displayName) {
+            this(displayName, null);
+        }
     }
 
     record AgentDecision(String status, String summary, List<AgentCommand> commands) {

@@ -37,6 +37,7 @@ import de.kortty.core.swarm.SwarmTarget;
 import de.kortty.model.AiChatTerminalActions;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ChatColorProfile;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
@@ -139,6 +140,12 @@ public class AiResultTab extends Tab {
     private final AiChatShareService shareService;
     private final String selectedText;
     private final String connectionDisplayName;
+    /**
+     * The connection this chat was opened from: its memory joins every later request of the chat, the follow-ups,
+     * the flowchart and the title; {@code null} for a reopened saved chat (see {@link #setSourceConnection}).
+     * Volatile: the title suggestion reads it on a background thread.
+     */
+    private volatile ServerConnection sourceConnection;
     /** Text file sent along with every request of this chat (see {@link #setFileAttachment}). */
     private AiFileAttachment fileAttachment;
     /**
@@ -515,6 +522,11 @@ public class AiResultTab extends Tab {
         this.sourcePane = pane;
     }
 
+    /** Binds the chat to the connection of the terminal tab it was opened from, for the memory of its requests. */
+    void setSourceConnection(@Nullable ServerConnection connection) {
+        this.sourceConnection = connection;
+    }
+
     /** The pane this chat was opened from, or {@code null}; it may have closed since. */
     @Nullable TerminalPaneRef sourcePane() {
         return sourcePane;
@@ -575,7 +587,7 @@ public class AiResultTab extends Tab {
         // Masked for the profile the tab is on now, like a follow-up.
         AiFileAttachment attachment = AiOutboundRedaction.redactAttachmentFor(
             selectedProfile, fileAttachment, outboundSecrets).attachment();
-        AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile);
+        AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile, sourceConnection);
         if (aiService == null) {
             showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.error.notConfigured"));
             return;
@@ -1035,7 +1047,7 @@ public class AiResultTab extends Tab {
             return;
         }
 
-        AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile);
+        AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile, sourceConnection);
         if (aiService == null) {
             showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.error.notConfigured"));
             return;
@@ -2747,7 +2759,7 @@ public class AiResultTab extends Tab {
             return buildFallbackTitle();
         }
 
-        AiService aiService = ownerWindow.createAiServiceForProfile(profile);
+        AiService aiService = ownerWindow.createAiServiceForProfile(profile, sourceConnection);
         if (aiService == null) {
             return buildFallbackTitle();
         }

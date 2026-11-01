@@ -6,9 +6,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import de.kortty.KorTTYApplication;
+import de.kortty.memory.MemoryBlock;
+import de.kortty.memory.MemoryService;
 import de.kortty.model.AgentActionCategory;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiTokenizerType;
+import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentOutboundContext;
@@ -224,7 +230,22 @@ public class TerminalAgentService {
         TerminalAgentModels.PlanRequest request,
         TerminalAgentModels.ProbeSnapshot probe,
         SessionJournalRedactor knownSecrets) throws Exception {
-        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
+        return requestPlanningQuestions(profile, aiService, request, probe, knownSecrets, null);
+    }
+
+    /**
+     * @param connectionId the connection the planning is about, whose memory joins the global one;
+     *                     {@code null} sends the global memory alone
+     */
+    public PlanningQuestions requestPlanningQuestions(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        SessionJournalRedactor knownSecrets,
+        String connectionId) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(
+            profile, memoryFor(connectionId, profile), null, knownSecrets);
         String systemPrompt = buildPlanQuestionSystemPrompt();
         String userPrompt = buildPlanQuestionUserPrompt(request, outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class));
         AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
@@ -260,7 +281,23 @@ public class TerminalAgentService {
         String answers,
         String customApproach,
         SessionJournalRedactor knownSecrets) throws Exception {
-        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
+        return requestPlanningOptions(
+            profile, aiService, request, probe, questions, answers, customApproach, knownSecrets, null);
+    }
+
+    /** {@link #requestPlanningOptions} with the connection whose memory joins the global one. */
+    public PlanningOptions requestPlanningOptions(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        String customApproach,
+        SessionJournalRedactor knownSecrets,
+        String connectionId) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(
+            profile, memoryFor(connectionId, profile), null, knownSecrets);
         String systemPrompt = buildPlanOptionSystemPrompt();
         String userPrompt = buildPlanOptionUserPrompt(
             request, outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class), questions, answers, customApproach);
@@ -305,7 +342,24 @@ public class TerminalAgentService {
         TerminalAgentModels.PlanOption selectedOption,
         String customApproach,
         SessionJournalRedactor knownSecrets) throws Exception {
-        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
+        return requestPlanningReport(
+            profile, aiService, request, probe, questions, answers, selectedOption, customApproach, knownSecrets, null);
+    }
+
+    /** {@link #requestPlanningReport} with the connection whose memory joins the global one. */
+    public PlanningReport requestPlanningReport(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        TerminalAgentModels.PlanOption selectedOption,
+        String customApproach,
+        SessionJournalRedactor knownSecrets,
+        String connectionId) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(
+            profile, memoryFor(connectionId, profile), null, knownSecrets);
         String systemPrompt = buildPlanReportSystemPrompt();
         String userPrompt = buildPlanReportUserPrompt(
             request,
@@ -414,9 +468,27 @@ public class TerminalAgentService {
         runAgent(terminalTab, runner, profile, aiService, request, UUID.randomUUID().toString(), ui);
     }
 
+    /** The run for a terminal tab: its connection's memory joins the global one. */
     public void runAgent(
         TerminalTab terminalTab,
         AgentCommandRunner runner,
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.Request request,
+        String requestedRunId,
+        RunUi ui) throws Exception {
+        runAgent(terminalTab, runner, null, profile, aiService, request, requestedRunId, ui);
+    }
+
+    /**
+     * The run with its connection's memory. A {@code null} or blank {@code connectionId} takes the terminal
+     * tab's connection; without one either, only the global memory is sent. Swarm and job runs pass the
+     * connection they drive, because they may have no terminal tab.
+     */
+    public void runAgent(
+        TerminalTab terminalTab,
+        AgentCommandRunner runner,
+        String connectionId,
         AiProfile profile,
         AiPromptService aiService,
         TerminalAgentModels.Request request,
@@ -444,15 +516,20 @@ public class TerminalAgentService {
         String runId = requestedRunId != null && !requestedRunId.isBlank()
             ? requestedRunId
             : UUID.randomUUID().toString();
+        String agentConnectionId = connectionId != null && !connectionId.isBlank()
+            ? connectionId
+            : connectionIdOf(terminalTab);
         String sessionId = request.sessionId();
         CachedSudoPassword cachedPassword = null;
         try {
             publishAgentProfile(ui, runId, profile);
             TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
             // Created after the probe: a lazily connected swarm runner knows its password only then.
-            // Per run, never a field — one service instance runs parallel swarm agents.
+            // Per run, never a field — one service instance runs parallel swarm agents. The memory is read
+            // once here and sent unchanged in every turn of the run.
             AgentOutboundContext outbound = AgentOutboundContext.forRun(
                 profile,
+                memoryFor(agentConnectionId, profile),
                 count -> publishOutboundMasking(ui, runId, count),
                 knownSecretsFor(terminalTab, runner));
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
@@ -1336,7 +1413,9 @@ public class TerminalAgentService {
         String systemPrompt,
         String userPrompt) throws Exception {
         Objects.requireNonNull(outbound, "outbound");
-        String outboundSystemPrompt = outbound.mask(systemPrompt);
+        // The memory goes in before the mask, so the run's known secrets are masked inside it too. The
+        // transport adds the skills later, in front of the memory marker.
+        String outboundSystemPrompt = outbound.mask(insertMemory(systemPrompt, outbound.memory().text()));
         String outboundUserPrompt = outbound.mask(userPrompt);
         try {
             return aiService.executeJsonPrompt(outboundSystemPrompt, outboundUserPrompt);
@@ -1359,6 +1438,45 @@ public class TerminalAgentService {
         SessionJournalRedactor tabSecrets = terminalView != null ? terminalView.createSecretRedactor() : null;
         SessionJournalRedactor runnerSecrets = runner != null ? runner.knownSecrets() : null;
         return AgentOutboundContext.combine(tabSecrets, runnerSecrets);
+    }
+
+    /** The id of the connection a terminal tab drives, or {@code null} without a tab or a connection. */
+    public static String connectionIdOf(TerminalTab terminalTab) {
+        ServerConnection connection = terminalTab != null ? terminalTab.getConnection() : null;
+        return connection != null ? connection.getId() : null;
+    }
+
+    /**
+     * The memory of one agent run or planning step, unmasked: the global memory and, for a non-null
+     * {@code connectionId}, that connection's memory, budgeted by the user's setting for the profile's
+     * tokenizer. The caller masks it, with the run's known secrets. Empty when memory is off.
+     */
+    public static MemoryBlock memoryFor(String connectionId, AiProfile profile) {
+        AiTokenizerType tokenizer = profile != null && profile.getTokenizerType() != null
+            ? profile.getTokenizerType()
+            : AiTokenizerType.ESTIMATE;
+        return MemoryService.get().blockFor(connectionId, tokenizer, configuredMemoryBudget());
+    }
+
+    /**
+     * Inserts a memory text into a system prompt: after the skills, in front of RAG and the model preset.
+     * The text is not masked here; a caller that sends the prompt masks it. A blank text leaves the prompt
+     * unchanged, and the prompt never gets a second block.
+     */
+    public static String insertMemory(String systemPrompt, String memoryText) {
+        if (memoryText == null || memoryText.isBlank()) {
+            return systemPrompt;
+        }
+        return AiPromptPipeline.insertMemory(systemPrompt, memoryText);
+    }
+
+    /** The user's memory budget in tokens; the default when no settings are loaded. */
+    static int configuredMemoryBudget() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        return settings != null ? settings.getAiMemoryMaxTokens() : GlobalSettings.AI_MEMORY_TOKENS_DEFAULT;
     }
 
     private static void rememberSudoPassword(AgentOutboundContext outbound, CachedSudoPassword password) {
