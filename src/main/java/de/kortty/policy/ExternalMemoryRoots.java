@@ -1,5 +1,7 @@
 package de.kortty.policy;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,8 +11,9 @@ import java.util.List;
  * is allowed when it lies in or below a folder of every list, the same most-restrictive combination
  * {@link WebhookHostAllowlist} uses for hosts. An empty list allows every folder.
  *
- * <p>Entries are absolute or {@code ~/}-relative as the policy file writes them. Only the lexical path is
- * compared; links are not resolved here.</p>
+ * <p>Entries are absolute or {@code ~/}-relative as the policy file writes them. Folders and files are compared by
+ * their real paths: links in the existing part of an entry or of a file are resolved first, so an entry given through
+ * a link (on macOS, {@code /tmp} is one) still matches the real path that a file is checked by.</p>
  *
  * @param lists the allowlists that apply, each already expanded and normalized; an empty inner list allows any folder
  */
@@ -55,7 +58,7 @@ public record ExternalMemoryRoots(List<List<Path>> lists) {
         if (!restricts()) {
             return true;
         }
-        Path normalized = file.toAbsolutePath().normalize();
+        Path normalized = canonical(file);
         for (List<Path> list : lists) {
             if (!list.isEmpty() && list.stream().noneMatch(normalized::startsWith)) {
                 return false;
@@ -64,12 +67,32 @@ public record ExternalMemoryRoots(List<List<Path>> lists) {
         return true;
     }
 
-    /** Expands a leading {@code ~} to the user's home and normalizes the path. */
+    /** Expands a leading {@code ~} to the user's home and normalizes the path, resolving its existing part. */
     static Path normalize(String entry) {
         String expanded = entry;
         if ("~".equals(entry) || entry.startsWith("~/")) {
             expanded = System.getProperty("user.home") + entry.substring(1);
         }
-        return Path.of(expanded).toAbsolutePath().normalize();
+        return canonical(Path.of(expanded));
+    }
+
+    /**
+     * The absolute, normalized path with every link in its existing part resolved. A part that does not exist yet stays
+     * as written, so a folder created later is still compared by its path.
+     */
+    static Path canonical(Path path) {
+        Path existing = path.toAbsolutePath().normalize();
+        Path missing = null;
+        while (!Files.exists(existing) && existing.getParent() != null) {
+            Path name = existing.getFileName();
+            missing = missing == null ? name : name.resolve(missing);
+            existing = existing.getParent();
+        }
+        try {
+            Path real = existing.toRealPath();
+            return missing == null ? real : real.resolve(missing).normalize();
+        } catch (IOException | RuntimeException unresolved) {
+            return path.toAbsolutePath().normalize();
+        }
     }
 }

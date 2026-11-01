@@ -539,6 +539,12 @@ public class KorTTYApplication extends Application {
                 memory.setUserMemoryModeSupplier(() -> policyManager.getEffective().userMemoryMode());
                 memory.setExternalFilesAllowedSupplier(() -> policyManager.getEffective().externalMemoryFilesAllowed());
                 memory.setBudgetCapSupplier(() -> policyManager.getEffective().aiMemoryMaxTokens());
+                // Reference memory files of other tools: approved files only, checked on every prompt, and the policy's
+                // folder allowlist read on each check.
+                de.kortty.memory.external.ExternalMemoryService externalMemory =
+                    de.kortty.memory.external.ExternalMemoryService.get();
+                externalMemory.setPolicyGate(path -> policyManager.getEffective().externalMemoryFileAllowed(path));
+                memory.setExternalSourcesSupplier(externalMemory::sourcesFor);
                 memory.setOrganizationMemorySupplier(() -> policyManager.getEffective().organizationMemory().stream()
                     .map(block -> new de.kortty.memory.MemoryBlockBuilder.OrganizationRule(
                         block.title(), block.content()))

@@ -22,7 +22,8 @@ import java.util.regex.Pattern;
  */
 public final class AiSkillRelevanceSelector {
 
-    private static final int LOCAL_MATCH_THRESHOLD = 4;
+    /** The local score from which a skill matches a request on its own; see {@link #localMatchScore}. */
+    public static final int LOCAL_MATCH_THRESHOLD = 4;
     private static final int MAX_AUTOMATIC_SKILLS = 2;
     private static final Pattern WORD_SPLIT = Pattern.compile("[^\\p{L}\\p{N}#+._-]+");
     private static final Set<String> STOP_WORDS = Set.of(
@@ -283,6 +284,19 @@ public final class AiSkillRelevanceSelector {
             low = Math.min(low, score);
         }
         return high - low <= 2;
+    }
+
+    /**
+     * The local relevance score of {@code skill} for {@code text}, computed as the automatic selection computes it.
+     * Zero for a missing skill. A skill matches on its own from {@link #LOCAL_MATCH_THRESHOLD} on.
+     */
+    public static int localMatchScore(AiSkill skill, String text) {
+        if (skill == null) {
+            return 0;
+        }
+        AiSkillRelevanceSelector scorer = new AiSkillRelevanceSelector(false, false, List.of());
+        String relevanceText = normalize(text);
+        return scorer.score(skill, relevanceText, scorer.terms(relevanceText));
     }
 
     private int score(AiSkill skill, String relevanceText, Set<String> contextTerms) {

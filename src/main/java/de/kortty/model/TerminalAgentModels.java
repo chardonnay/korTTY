@@ -1,6 +1,7 @@
 package de.kortty.model;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Shared public DTOs for AI agent execution and planning.
@@ -268,5 +269,77 @@ public final class TerminalAgentModels {
         PlanReport finalPlan,
         String acceptedOptionId,
         String executionStartedRunId) {
+    }
+
+    /**
+     * The complexity check of one agent request: whether it looks complex, why, and the solution options to
+     * choose from. The connection fields name the connection the run drives; {@code null} when there is none.
+     *
+     * @param complex        whether the request looks complex
+     * @param reasons        short statements on why it looks complex, or why it does not
+     * @param recommended    the zero-based index of the recommended option
+     * @param options        two or three solution options
+     * @param connectionId   the stable id of the connection, or {@code null}
+     * @param connectionName the display name of the connection, or {@code null}
+     * @param connectionHost the host of the connection, or {@code null}
+     */
+    public record TriageProposal(
+        boolean complex,
+        List<String> reasons,
+        int recommended,
+        List<PlanOption> options,
+        String connectionId,
+        String connectionName,
+        String connectionHost) {
+
+        public TriageProposal {
+            reasons = reasons == null ? List.of() : List.copyOf(reasons);
+            options = options == null ? List.of() : List.copyOf(options);
+        }
+    }
+
+    /**
+     * What the user answered to a {@link TriageProposal}. {@link Kind#OPTION} takes {@code optionIndex},
+     * {@link Kind#OWN_IDEA} takes the idea in {@code text}; {@code instructions} is an optional addition to the
+     * plan. {@link Kind#AS_REQUESTED} and {@link Kind#CANCEL} need neither.
+     */
+    public record SolutionChoice(Kind kind, int optionIndex, String text, String instructions) {
+
+        public enum Kind {
+            OPTION,
+            OWN_IDEA,
+            AS_REQUESTED,
+            CANCEL
+        }
+
+        public SolutionChoice {
+            kind = Objects.requireNonNull(kind, "kind");
+            text = blankToNull(text);
+            instructions = blankToNull(instructions);
+        }
+
+        public static SolutionChoice option(int optionIndex, String instructions) {
+            return new SolutionChoice(Kind.OPTION, optionIndex, null, instructions);
+        }
+
+        public static SolutionChoice ownIdea(String text, String instructions) {
+            return new SolutionChoice(Kind.OWN_IDEA, -1, text, instructions);
+        }
+
+        public static SolutionChoice asRequested() {
+            return new SolutionChoice(Kind.AS_REQUESTED, -1, null, null);
+        }
+
+        public static SolutionChoice asRequested(String instructions) {
+            return new SolutionChoice(Kind.AS_REQUESTED, -1, null, instructions);
+        }
+
+        public static SolutionChoice cancel() {
+            return new SolutionChoice(Kind.CANCEL, -1, null, null);
+        }
+
+        private static String blankToNull(String value) {
+            return value == null || value.isBlank() ? null : value.strip();
+        }
     }
 }

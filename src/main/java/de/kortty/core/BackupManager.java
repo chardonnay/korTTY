@@ -5,6 +5,7 @@ import de.kortty.ai.mlx.MlxModelRegistry;
 import de.kortty.jobscheduler.JobSchedulerRepository;
 import de.kortty.memory.MemoryFormat;
 import de.kortty.memory.MemoryStore;
+import de.kortty.memory.external.ExternalMemoryRegistry;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
@@ -1044,6 +1045,12 @@ public class BackupManager {
                     continue;
                 }
                 if (MemoryStore.DIRECTORY_NAME.equals(dirName) && !memoryNoteIsClean(source)) {
+                    continue;
+                }
+                if (MemoryStore.DIRECTORY_NAME.equals(dirName)
+                    && ExternalMemoryRegistry.FILE_NAME.equals(source.getFileName().toString())) {
+                    // Approvals of other tools' files belong to the machine that gave them: a restore never grants them.
+                    logger.info("Not restoring the external memory file list; approve the files again on this machine");
                     continue;
                 }
                 try {

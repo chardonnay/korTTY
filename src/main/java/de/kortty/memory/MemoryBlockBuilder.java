@@ -4,6 +4,7 @@ import de.kortty.core.AiTokenCounter;
 import de.kortty.memory.MemoryDocument.KorttyEntry;
 import de.kortty.memory.MemoryDocument.Segment;
 import de.kortty.memory.MemoryDocument.UserText;
+import de.kortty.memory.external.ExternalMemoryTool;
 import de.kortty.model.AiTokenizerType;
 
 import java.util.ArrayList;
@@ -36,8 +37,21 @@ public final class MemoryBlockBuilder {
     public record OrganizationRule(String title, String content) {
     }
 
-    /** A file the user chose to reference, with its raw content. */
-    public record ExternalSource(String label, String content) {
+    /**
+     * A reference file the user approved: the text a request may send, its label for the fence, and the tool it belongs
+     * to, so that a CLI which reads that tool's files itself can be left out.
+     *
+     * @param tool the tool; {@code null} counts as {@link ExternalMemoryTool#OTHER}
+     */
+    public record ExternalSource(String label, String content, ExternalMemoryTool tool) {
+
+        public ExternalSource {
+            tool = tool == null ? ExternalMemoryTool.OTHER : tool;
+        }
+
+        public ExternalSource(String label, String content) {
+            this(label, content, ExternalMemoryTool.OTHER);
+        }
     }
 
     /**
@@ -64,7 +78,21 @@ public final class MemoryBlockBuilder {
     }
 
     /** A paragraph of user text or a korTTY entry, in file order. */
-    private record Part(boolean entry, String text, String id, String created, int position) {
+    private record Part(boolean entry, String text, String id, String created, String source, int position) {
+    }
+
+    /**
+     * A user paragraph or an intact korTTY entry of one memory file, numbered as the block builder numbers them, so
+     * that an entries view and a block refer to the same paragraph.
+     *
+     * @param korttyEntry true for a korTTY entry, false for user text
+     * @param id          the entry id, or null for user text
+     * @param created     the entry's creation date, or null for user text
+     * @param source      the entry's source, or null for user text
+     * @param position    the paragraph's position in the file
+     * @param text        the paragraph, or the body of the entry, stripped of blank edges
+     */
+    public record Paragraph(boolean korttyEntry, String id, String created, String source, int position, String text) {
     }
 
     private MemoryBlockBuilder() {
@@ -81,11 +109,22 @@ public final class MemoryBlockBuilder {
             int tokens = AiTokenCounter.countTextTokens(text, tokenizer);
             int last = lastBudgetedUnit(chosen);
             if (tokens <= budgetTokens || last < 0) {
-                return new MemoryBlock(text, tokens, entryIds(chosen), units.size() - chosen.size());
+                return new MemoryBlock(text, tokens, entryIds(chosen), sentParts(chosen), units.size() - chosen.size());
             }
             chosen.remove(last);
         }
         return new MemoryBlock("", 0, List.of(), units.size());
+    }
+
+    /**
+     * The paragraphs of one memory document as the entries view and the block see them: user text paragraphs and
+     * the bodies of intact korTTY entries, in file order. Blank entries are left out.
+     */
+    public static List<Paragraph> documentParagraphs(String documentText) {
+        return parts(documentText).stream()
+            .map(part -> new Paragraph(part.entry(), part.id(), part.created(), part.source(), part.position(),
+                part.text()))
+            .toList();
     }
 
     /** The index of the last unit the budget may drop, or -1 when only organisation rules are left. */
@@ -219,6 +258,17 @@ public final class MemoryBlockBuilder {
         return chosen.stream().map(Unit::entryId).filter(id -> id != null).toList();
     }
 
+    /** The user paragraphs and korTTY entries of the global and connection files among the chosen units. */
+    private static List<MemoryBlock.SentPart> sentParts(List<Unit> chosen) {
+        return chosen.stream()
+            .filter(unit -> unit.kind() == Kind.CONNECTION_TEXT || unit.kind() == Kind.CONNECTION_ENTRY
+                || unit.kind() == Kind.GLOBAL_TEXT || unit.kind() == Kind.GLOBAL_ENTRY)
+            .map(unit -> new MemoryBlock.SentPart(
+                unit.kind() == Kind.CONNECTION_TEXT || unit.kind() == Kind.CONNECTION_ENTRY,
+                unit.order(), unit.entryId()))
+            .toList();
+    }
+
     private static String organizationText(OrganizationRule rule) {
         String title = rule.title() == null ? "" : rule.title().strip();
         String content = rule.content() == null ? "" : rule.content().strip();
@@ -240,10 +290,11 @@ public final class MemoryBlockBuilder {
         for (Segment segment : MemoryFormat.parse(documentText == null ? "" : documentText).segments()) {
             if (segment instanceof UserText user) {
                 for (String paragraph : paragraphs(user.text())) {
-                    parts.add(new Part(false, paragraph, null, null, position++));
+                    parts.add(new Part(false, paragraph, null, null, null, position++));
                 }
             } else if (segment instanceof KorttyEntry entry && !entry.body().isBlank()) {
-                parts.add(new Part(true, entry.body().strip(), entry.id(), entry.created(), position++));
+                parts.add(new Part(true, entry.body().strip(), entry.id(), entry.created(), entry.source(),
+                    position++));
             } else {
                 position++;
             }

@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.TerminalAgentCommandSupport;
+import de.kortty.model.AiAgentTriageMode;
 import de.kortty.model.AiChatTerminalActions;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
@@ -56,6 +57,7 @@ final class AiGeneralSettingsPane extends VBox {
     private final CheckBox agentExecutionEnabled = new CheckBox(I18n.get("settings.ai.terminalAgentExecutionEnabled"));
     private final CheckBox agentConfirmMutating = new CheckBox(I18n.get("settings.ai.terminalAgentConfirmMutatingCommandSets"));
     private final CheckBox agentShowRunDialog = new CheckBox(I18n.get("settings.ai.terminalAgentShowRunDialog"));
+    private final ComboBox<AiAgentTriageMode> agentTriage = new ComboBox<>();
     private final TextField agentCommandName = new TextField();
     private final Label agentCommandInfo = new Label();
     private final CheckBox agentCommandCaseInsensitive = new CheckBox(I18n.get("settings.ai.agentCommandNameCaseInsensitive"));
@@ -87,7 +89,7 @@ final class AiGeneralSettingsPane extends VBox {
         setPadding(new Insets(6));
         GlobalSettings settings = settings();
         if (PolicyUiSupport.anyManaged(ManagedSetting.AI_FEATURES, ManagedSetting.AGENT_EXECUTION,
-                ManagedSetting.AGENT_CONFIRM_MUTATING, ManagedSetting.AI_INTERNET)) {
+                ManagedSetting.AGENT_CONFIRM_MUTATING, ManagedSetting.AI_INTERNET, ManagedSetting.AI_AGENT_TRIAGE)) {
             getChildren().add(PolicyUiSupport.managedTabBanner());
         }
         TabPane sections = AiManagerSections.tabPane(
@@ -160,6 +162,24 @@ final class AiGeneralSettingsPane extends VBox {
         agentConfirmMutating.setSelected(s != null && s.isTerminalAgentConfirmMutatingCommandSets());
         PolicyUiSupport.lockIfManaged(agentConfirmMutating, ManagedSetting.AGENT_CONFIRM_MUTATING);
         agentShowRunDialog.setSelected(s == null || s.isTerminalAgentShowRunDialog());
+        agentTriage.getItems().setAll(AiAgentTriageMode.values());
+        agentTriage.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(AiAgentTriageMode value) {
+                return value == null ? "" : I18n.get(switch (value) {
+                    case AUTO -> "settings.ai.triage.auto";
+                    case ALWAYS -> "settings.ai.triage.always";
+                    case NEVER -> "settings.ai.triage.never";
+                });
+            }
+
+            @Override
+            public AiAgentTriageMode fromString(String text) {
+                return null;
+            }
+        });
+        agentTriage.setValue(s != null ? s.getAiAgentTriageMode() : AiAgentTriageMode.AUTO);
+        PolicyUiSupport.lockIfManaged(agentTriage, ManagedSetting.AI_AGENT_TRIAGE);
         agentCommandName.setText(s != null ? s.getTerminalAgentCommandName() : "");
         agentCommandName.setPrefWidth(220);
         agentCommandInfo.setWrapText(true);
@@ -205,6 +225,8 @@ final class AiGeneralSettingsPane extends VBox {
         AiManagerSections.addFieldRow(grid, agentConfirmMutating);
         AiManagerSections.addFieldRow(grid, hint("settings.ai.terminalAgentConfirmMutatingCommandSets.hint"));
         AiManagerSections.addFieldRow(grid, agentShowRunDialog);
+        AiManagerSections.addRow(grid, "settings.ai.triage.label", agentTriage);
+        AiManagerSections.addFieldRow(grid, hint("settings.ai.triage.hint"));
         AiManagerSections.addSeparator(grid);
         AiManagerSections.addRow(grid, "settings.ai.agentCommandName", agentCommandName);
         AiManagerSections.addFieldRow(grid, agentCommandInfo);
@@ -386,6 +408,7 @@ final class AiGeneralSettingsPane extends VBox {
         s.setTerminalAgentExecutionEnabled(agentExecutionEnabled.isSelected());
         s.setTerminalAgentConfirmMutatingCommandSets(agentConfirmMutating.isSelected());
         s.setTerminalAgentShowRunDialog(agentShowRunDialog.isSelected());
+        s.setAiAgentTriageMode(agentTriage.getValue() != null ? agentTriage.getValue() : AiAgentTriageMode.AUTO);
         s.setTerminalAgentCommandName(TerminalAgentCommandSupport.normalizeCommandName(agentCommandName.getText()));
         s.setTerminalAgentCommandNameCaseInsensitive(agentCommandCaseInsensitive.isSelected());
         s.setTerminalAgentExecutionTarget(executionTarget.getValue());

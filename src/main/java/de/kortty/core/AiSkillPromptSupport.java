@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.memory.MemoryBlock;
+import de.kortty.memory.MemoryService;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillLearnedRule;
@@ -418,6 +419,8 @@ public final class AiSkillPromptSupport {
         // Strict-JSON code actions get the hardened preamble so a skill cannot steer the model
         // off the required output format (chat/agent keep the softer, free-form preamble).
         boolean strict = action != null && action.requiresStrictJsonReply();
+        // The rules the user confirmed are memory too: the memory kill switch and the memory setting stop them as well.
+        boolean learnedRulesAllowed = MemoryService.get().isEnabled();
         StringBuilder block = new StringBuilder();
         for (AiSkill skill : promptSkills) {
             AiSkillTarget target = skill.getTarget();
@@ -433,7 +436,7 @@ public final class AiSkillPromptSupport {
                 .append("\">\n")
                 .append(skill.getContent().trim())
                 .append("\n");
-            String learnedRules = learnedRulesSection(skill);
+            String learnedRules = learnedRulesAllowed ? learnedRulesSection(skill) : "";
             if (!learnedRules.isEmpty()) {
                 block.append("\n").append(learnedRules).append("\n");
             }

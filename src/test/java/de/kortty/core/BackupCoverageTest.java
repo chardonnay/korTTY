@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.memory.MemoryStore;
+import de.kortty.memory.external.ExternalMemoryRegistry;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
 import org.testng.annotations.Test;
@@ -64,7 +65,9 @@ class BackupCoverageTest {
     private static final Map<String, String> BACKED_UP_IN_DIRECTORY = Map.ofEntries(
         Map.entry("MemoryScope.GLOBAL_FILE_NAME", MemoryStore.DIRECTORY_NAME),
         Map.entry("MemoryStore.STATE_FILE_NAME", MemoryStore.DIRECTORY_NAME),
-        Map.entry("MemoryStore.ARCHIVE_FILE_NAME", MemoryStore.DIRECTORY_NAME));
+        Map.entry("MemoryStore.ARCHIVE_FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("ExternalMemoryRegistry.FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("LearningState.FILE_NAME", MemoryStore.DIRECTORY_NAME));
 
     /** {@code SimpleClass.CONSTANT} → why the file is deliberately not part of the backup. */
     private static final Map<String, String> EXCLUDED = Map.ofEntries(

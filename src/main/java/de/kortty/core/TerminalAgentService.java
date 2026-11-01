@@ -9,7 +9,9 @@ import com.google.gson.JsonSyntaxException;
 import de.kortty.KorTTYApplication;
 import de.kortty.memory.MemoryBlock;
 import de.kortty.memory.MemoryService;
+import de.kortty.memory.external.LocalCliMemoryReads;
 import de.kortty.model.AgentActionCategory;
+import de.kortty.model.AiAgentTriageMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiTokenizerType;
@@ -20,6 +22,7 @@ import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentOutboundContext;
 import de.kortty.core.agent.AgentCommandRunner.ExecResult;
 import de.kortty.core.agent.AgentCommandRunner.ShellKind;
+import de.kortty.policy.ManagedSetting;
 import de.kortty.ui.I18n;
 import de.kortty.ui.TerminalTab;
 import de.kortty.ui.TerminalView;
@@ -42,9 +45,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
@@ -89,7 +97,25 @@ public class TerminalAgentService {
     private static final Pattern MUTATING_COMMAND_PATTERN =
         Pattern.compile("(?i)(^|[;&|()]\\s*)(?:chmod|chown|chgrp|rm|rmdir|mv|cp|mkdir|touch|ln|tee|dd|truncate|install)\\b");
 
+    /** How long the complexity check may take before the request runs as asked. */
+    static final Duration TRIAGE_CALL_TIMEOUT = Duration.ofSeconds(120);
+    /** How long the user may take to choose a solution before the request runs as asked. */
+    static final Duration SOLUTION_CHOICE_TIMEOUT = Duration.ofMinutes(10);
+    /** How often a waiting run checks whether it was cancelled. */
+    private static final Duration CANCEL_POLL_INTERVAL = Duration.ofMillis(250);
+
     private final Map<String, CachedSudoPassword> cachedSudoPasswordBySessionId = new ConcurrentHashMap<>();
+    private final Duration triageTimeout;
+    private final Duration solutionChoiceTimeout;
+
+    public TerminalAgentService() {
+        this(TRIAGE_CALL_TIMEOUT, SOLUTION_CHOICE_TIMEOUT);
+    }
+
+    TerminalAgentService(Duration triageTimeout, Duration solutionChoiceTimeout) {
+        this.triageTimeout = Objects.requireNonNull(triageTimeout, "triageTimeout");
+        this.solutionChoiceTimeout = Objects.requireNonNull(solutionChoiceTimeout, "solutionChoiceTimeout");
+    }
 
     public interface RunUi {
         void updateState(TerminalAgentModels.RunState state);
@@ -110,6 +136,24 @@ public class TerminalAgentService {
          * block while paused and return once resumed or cancelled.
          */
         default void awaitIfPaused() throws InterruptedException {
+        }
+
+        /**
+         * Whether this UI can show solution options before a run ({@link #requestSolutionChoice}). Swarm and
+         * job runs keep the default, so they never run the complexity check and never wait for an answer.
+         */
+        default boolean supportsChoices() {
+            return false;
+        }
+
+        /**
+         * Shows the solution options and blocks until the user answers. Called on a helper thread, which the
+         * service interrupts when the run is cancelled or the answer takes too long. Implementations close their
+         * prompt when that happens.
+         */
+        default TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal)
+            throws Exception {
+            return TerminalAgentModels.SolutionChoice.asRequested();
         }
     }
 
@@ -544,6 +588,13 @@ public class TerminalAgentService {
             if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
                 return;
             }
+            Optional<TerminalAgentModels.Request> chosenRequest = offerSolutionChoice(
+                terminalTab, aiService, outbound, request, probe, agentConnectionId,
+                triageModeFor(agentPolicy), agentPolicy, ui, runId);
+            if (chosenRequest.isEmpty()) {
+                return;
+            }
+            request = chosenRequest.get();
 
             for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
                 ensureNotCancelled(ui);
@@ -762,6 +813,306 @@ public class TerminalAgentService {
         } finally {
             if (cachedPassword != null && !cachedPassword.isSessionScoped()) {
                 cachedPassword.clear();
+            }
+        }
+    }
+
+    /**
+     * Judges the request before the first turn and, when the mode and the answer ask for it, lets the user choose
+     * a solution. Empty when the user cancelled the run here. Otherwise the request as it runs: with the chosen
+     * plan as its accepted plan context, or unchanged.
+     */
+    Optional<TerminalAgentModels.Request> offerSolutionChoice(
+        TerminalTab terminalTab,
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        String connectionId,
+        AiAgentTriageMode mode,
+        de.kortty.policy.EffectivePolicy policy,
+        RunUi ui,
+        String runId) throws Exception {
+        if (!triageRequested(ui, request, policy, mode)) {
+            return Optional.of(request);
+        }
+        TerminalAgentModels.TriageProposal checked = requestTriageProposal(aiService, outbound, request, probe, ui, runId);
+        if (checked == null) {
+            return Optional.of(request);
+        }
+        TerminalAgentModels.TriageProposal proposal = new TerminalAgentModels.TriageProposal(
+            checked.complex(),
+            checked.reasons(),
+            checked.recommended(),
+            checked.options(),
+            connectionId,
+            request.connectionDisplayName(),
+            connectionHostOf(terminalTab));
+        if (mode == AiAgentTriageMode.AUTO && !proposal.complex()) {
+            return Optional.of(request);
+        }
+        TerminalAgentModels.SolutionChoice choice = awaitSolutionChoice(ui, runId, proposal);
+        return applySolutionChoice(ui, runId, request, proposal, choice);
+    }
+
+    /**
+     * Whether a run gets the complexity check: the UI can show solution options, the run is not a plain question,
+     * it has no accepted plan yet, the policy allows planning, and the mode is not {@link AiAgentTriageMode#NEVER}.
+     */
+    static boolean triageRequested(
+        RunUi ui,
+        TerminalAgentModels.Request request,
+        de.kortty.policy.EffectivePolicy policy,
+        AiAgentTriageMode mode) {
+        return ui.supportsChoices()
+            && !request.queryOnly()
+            && (request.acceptedPlanContext() == null || request.acceptedPlanContext().isBlank())
+            && policy.aiPlanningAllowed()
+            && mode != AiAgentTriageMode.NEVER;
+    }
+
+    /** The triage mode of a run: the enterprise policy's when it sets and locks one, otherwise the user's setting. */
+    static AiAgentTriageMode triageModeFor(de.kortty.policy.EffectivePolicy policy) {
+        if (policy != null && policy.isManaged(ManagedSetting.AI_AGENT_TRIAGE) && policy.aiAgentTriageMode() != null) {
+            return policy.aiAgentTriageMode();
+        }
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        return settings != null ? settings.getAiAgentTriageMode() : AiAgentTriageMode.AUTO;
+    }
+
+    /**
+     * The complexity check: one small JSON call with the run's memory, masked like every agent prompt. Returns
+     * {@code null} when the check failed or gave no usable answer, which the activity log then says; the run goes on
+     * as asked.
+     */
+    private TerminalAgentModels.TriageProposal requestTriageProposal(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        RunUi ui,
+        String runId) throws Exception {
+        String thinkingId = runId + ":thinking-triage";
+        long startedAtNanos = System.nanoTime();
+        publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.RUNNING,
+            "Thinking",
+            "Checking how complex the request is.",
+            "Solution options are offered when the request looks complex.",
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            false);
+        TerminalAgentModels.ProbeSnapshot outboundProbe = outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class);
+        String systemPrompt = buildTriageSystemPrompt();
+        String userPrompt = buildTriageUserPrompt(request, outboundProbe);
+        AiCancellation.Handle handle = AiCancellation.newHandle();
+        AiExecutionResult result;
+        try {
+            result = awaitBounded(ui, "kortty-agent-triage",
+                () -> AiCancellation.callBound(handle,
+                    () -> executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt)),
+                handle,
+                triageTimeout);
+        } catch (AgentCancelledException cancelled) {
+            throw cancelled;
+        } catch (Exception failure) {
+            logger.info("The complexity check failed; the request runs as asked: {}", failure.getMessage());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.FAILED,
+                "Thinking",
+                "The complexity check failed, so the request runs as asked.",
+                failure.getMessage() != null ? failure.getMessage() : failure.getClass().getSimpleName(),
+                TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return null;
+        }
+        publishUsedSkillActivity(ui, runId, aiService);
+        recordTokenUsage(ui, result);
+        try {
+            TerminalAgentModels.TriageProposal proposal = TriageReplyParser.parse(result.content());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                "Thinking",
+                proposal.complex() ? "The request looks complex." : "The request looks simple.",
+                String.join("\n", proposal.reasons()),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return proposal;
+        } catch (RuntimeException unusable) {
+            logger.info("The complexity check gave no usable answer; the request runs as asked: {}", unusable.getMessage());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.FAILED,
+                "Thinking",
+                "The complexity check gave no usable answer, so the request runs as asked.",
+                unusable.getMessage(),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return null;
+        }
+    }
+
+    /**
+     * Waits for the user's answer. A run that is cancelled meanwhile ends with {@link AgentCancelledException}; an
+     * answer that takes too long, or a failing UI, means the request runs as asked.
+     */
+    private TerminalAgentModels.SolutionChoice awaitSolutionChoice(
+        RunUi ui,
+        String runId,
+        TerminalAgentModels.TriageProposal proposal) throws Exception {
+        try {
+            return awaitBounded(ui, "kortty-agent-choice", () -> ui.requestSolutionChoice(proposal), null,
+                solutionChoiceTimeout);
+        } catch (AgentCancelledException cancelled) {
+            throw cancelled;
+        } catch (TimeoutException timeout) {
+            publishMessage(ui, runId, "solution-timeout",
+                "No answer in time, so the request runs as asked.", "");
+            return TerminalAgentModels.SolutionChoice.asRequested();
+        } catch (Exception failure) {
+            logger.warn("The solution options could not be shown; the request runs as asked.", failure);
+            publishMessage(ui, runId, "solution-failed",
+                "The solution options could not be shown, so the request runs as asked.", "");
+            return TerminalAgentModels.SolutionChoice.asRequested();
+        }
+    }
+
+    /**
+     * Turns the answer into the request the run continues with. An option or an own idea becomes the accepted plan of
+     * the run; the instructions the user typed are added to it. Empty when the user chose to cancel.
+     */
+    private Optional<TerminalAgentModels.Request> applySolutionChoice(
+        RunUi ui,
+        String runId,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.TriageProposal proposal,
+        TerminalAgentModels.SolutionChoice choice) {
+        if (choice.kind() == TerminalAgentModels.SolutionChoice.Kind.CANCEL) {
+            ui.updateState(new TerminalAgentModels.RunState(
+                runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
+                "The terminal agent run was cancelled.", "The run was cancelled before the solution was chosen.", null, null, null, 0));
+            publishCancelled(ui, runId, "cancelled-solution", "The run was cancelled before the solution was chosen.");
+            return Optional.empty();
+        }
+        if (choice.kind() == TerminalAgentModels.SolutionChoice.Kind.OPTION
+            && choice.optionIndex() >= 0 && choice.optionIndex() < proposal.options().size()) {
+            TerminalAgentModels.PlanOption option = proposal.options().get(choice.optionIndex());
+            publishMessage(ui, runId, "solution-chosen", "Running with the chosen option: " + option.title(), "");
+            return Optional.of(withAcceptedPlanContext(request,
+                withInstructions(buildAcceptedPlanContext(option), choice.instructions())));
+        }
+        if (choice.kind() == TerminalAgentModels.SolutionChoice.Kind.OWN_IDEA && choice.text() != null) {
+            TerminalAgentModels.PlanOption option = new TerminalAgentModels.PlanOption(
+                "own-idea", "Own idea", choice.text(), "", List.of(), List.of(), List.of(), List.of());
+            publishMessage(ui, runId, "solution-chosen", "Running with your own idea.", "");
+            return Optional.of(withAcceptedPlanContext(request,
+                withInstructions(buildAcceptedPlanContext(option), choice.instructions())));
+        }
+        if (choice.instructions() == null) {
+            publishMessage(ui, runId, "solution-chosen", "Running as requested.", "");
+            return Optional.of(request);
+        }
+        publishMessage(ui, runId, "solution-chosen", "Running as requested, with your instructions.", "");
+        return Optional.of(withAcceptedPlanContext(request,
+            "Additional instructions from the user:\n" + choice.instructions()));
+    }
+
+    private static String withInstructions(String planContext, String instructions) {
+        if (instructions == null) {
+            return planContext;
+        }
+        return planContext + "\nAdditional instructions from the user:\n" + instructions;
+    }
+
+    /** The host of the terminal tab's connection, or {@code null} without a tab or a connection. */
+    static String connectionHostOf(TerminalTab terminalTab) {
+        ServerConnection connection = terminalTab != null ? terminalTab.getConnection() : null;
+        return connection != null ? connection.getHost() : null;
+    }
+
+    private static TerminalAgentModels.Request withAcceptedPlanContext(
+        TerminalAgentModels.Request request,
+        String acceptedPlanContext) {
+        return new TerminalAgentModels.Request(
+            request.sessionId(),
+            request.profileId(),
+            request.userPrompt(),
+            request.connectionDisplayName(),
+            acceptedPlanContext,
+            request.executionTarget(),
+            request.showDebugMessages(),
+            request.showRuntimeMessages(),
+            request.askConfirmationBeforeEveryCommand(),
+            request.autoApproveRootCommands(),
+            request.confirmMutatingCommandSets(),
+            request.queryOnly(),
+            request.mirrorFinalAnswerToTerminal());
+    }
+
+    private String buildTriageSystemPrompt() {
+        return String.join(" ",
+            "You are KorTTY's complexity check for a terminal agent run.",
+            "You judge the user's request against the probed server and propose solution options. You never run anything and never output shell commands.",
+            "Return exactly one JSON object and no Markdown.",
+            "Call the request complex when at least one of these applies: it touches several hosts or services; it has changing or irreversible steps such as deletions, upgrades, restarts or configuration changes; it needs more than three steps or commands; its goal is ambiguous and there are materially different ways to reach it; it takes a long time to run.",
+            "Otherwise call it simple.",
+            "Always return two or three concrete solution options, even for a simple request. Each option is a different way to reach the goal. Put the most suitable option first and name it in `recommended` as its zero-based index.",
+            "JSON schema: {\"complexity\":\"simple|complex\",\"reasons\":[\"short reason\"],\"recommended\":0,\"options\":[{\"title\":\"option title\",\"summary\":\"short summary\",\"feasibility\":\"feasibility note\",\"risks\":[\"risk\"],\"prerequisites\":[\"prerequisite\"],\"steps\":[\"step\"],\"alternatives\":[\"alternative\"]}]}",
+            "Keep every field short.");
+    }
+
+    private String buildTriageUserPrompt(TerminalAgentModels.Request request, TerminalAgentModels.ProbeSnapshot probe) {
+        return "User task: " + request.userPrompt().trim() + "\n"
+            + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
+            + buildPromptSessionContext(probe)
+            + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
+            + "Judge the request and propose the solution options now.";
+    }
+
+    /**
+     * Runs {@code step} on a helper thread and waits for it. Returns its result; throws {@link TimeoutException}
+     * after {@code timeout}, {@link AgentCancelledException} when the run is cancelled, and the step's own exception
+     * otherwise. A step that is still running then is cancelled through {@code handle} and interrupted.
+     */
+    private <T> T awaitBounded(
+        RunUi ui,
+        String threadName,
+        Callable<T> step,
+        AiCancellation.Handle handle,
+        Duration timeout) throws Exception {
+        FutureTask<T> task = new FutureTask<>(step);
+        Thread thread = new Thread(task, threadName);
+        thread.setDaemon(true);
+        thread.start();
+        long deadlineNanos = System.nanoTime() + timeout.toNanos();
+        try {
+            while (true) {
+                ensureNotCancelled(ui);
+                long remainingNanos = deadlineNanos - System.nanoTime();
+                if (remainingNanos <= 0) {
+                    throw new TimeoutException(threadName + " took longer than " + timeout.toSeconds() + " seconds");
+                }
+                try {
+                    return task.get(Math.min(remainingNanos, CANCEL_POLL_INTERVAL.toNanos()), TimeUnit.NANOSECONDS);
+                } catch (TimeoutException pollAgain) {
+                    // Not finished yet: look at the cancellation and the deadline again.
+                } catch (ExecutionException failure) {
+                    if (failure.getCause() instanceof Exception cause) {
+                        throw cause;
+                    }
+                    throw failure;
+                }
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AgentCancelledException("Terminal agent run cancelled");
+        } finally {
+            if (!task.isDone()) {
+                if (handle != null) {
+                    handle.cancel();
+                }
+                task.cancel(true);
             }
         }
     }
@@ -1455,7 +1806,8 @@ public class TerminalAgentService {
         AiTokenizerType tokenizer = profile != null && profile.getTokenizerType() != null
             ? profile.getTokenizerType()
             : AiTokenizerType.ESTIMATE;
-        return MemoryService.get().blockFor(connectionId, tokenizer, configuredMemoryBudget());
+        return MemoryService.get().blockFor(connectionId, tokenizer, configuredMemoryBudget(),
+            LocalCliMemoryReads.excludedFor(profile));
     }
 
     /**

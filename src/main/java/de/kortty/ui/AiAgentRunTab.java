@@ -14,6 +14,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.KeyCode;
@@ -33,6 +34,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -293,6 +296,52 @@ public class AiAgentRunTab extends Tab {
             return dialog.showAndWait()
                 .map(password -> new TerminalAgentModels.PasswordResponse(password, cacheForSessionCheckBox.isSelected()))
                 .orElse(null);
+        }
+
+        @Override
+        public boolean supportsChoices() {
+            return true;
+        }
+
+        /**
+         * Shows the solution options in a dialog and blocks until the user answers. Closing the dialog cancels the
+         * run; a wait that the service ends (cancel, time limit) closes the dialog.
+         */
+        @Override
+        public TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal) {
+            CompletableFuture<TerminalAgentModels.SolutionChoice> future = new CompletableFuture<>();
+            Platform.runLater(() -> showSolutionChoiceDialog(proposal, future));
+            try {
+                return future.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return TerminalAgentModels.SolutionChoice.cancel();
+            } catch (ExecutionException e) {
+                return TerminalAgentModels.SolutionChoice.cancel();
+            } finally {
+                future.complete(TerminalAgentModels.SolutionChoice.cancel());
+            }
+        }
+
+        private void showSolutionChoiceDialog(
+            TerminalAgentModels.TriageProposal proposal,
+            CompletableFuture<TerminalAgentModels.SolutionChoice> future) {
+            Dialog<Void> dialog = new Dialog<>();
+            DialogThemeHelper.applyTheme(dialog);
+            dialog.initOwner(ownerWindow.getStage());
+            dialog.setTitle(I18n.get("ai.triage.title"));
+            dialog.setResizable(true);
+            ScrollPane choices = new ScrollPane(new SolutionChoicePane(proposal, choice -> {
+                future.complete(choice);
+                dialog.close();
+            }, ownerWindow.getStage()));
+            choices.setFitToWidth(true);
+            choices.setPrefViewportWidth(560);
+            choices.setPrefViewportHeight(480);
+            dialog.getDialogPane().setContent(choices);
+            dialog.setOnHidden(event -> future.complete(TerminalAgentModels.SolutionChoice.cancel()));
+            future.whenComplete((choice, failure) -> Platform.runLater(dialog::close));
+            dialog.show();
         }
 
         private boolean hasPasswordText(PasswordField passwordField) {

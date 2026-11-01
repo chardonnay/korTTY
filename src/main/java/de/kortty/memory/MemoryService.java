@@ -3,6 +3,7 @@ package de.kortty.memory;
 import de.kortty.memory.MemoryBlockBuilder.ExternalSource;
 import de.kortty.memory.MemoryBlockBuilder.Input;
 import de.kortty.memory.MemoryBlockBuilder.OrganizationRule;
+import de.kortty.memory.external.ExternalMemoryTool;
 import de.kortty.model.AiTokenizerType;
 import de.kortty.policy.UserMemoryMode;
 import org.slf4j.Logger;
@@ -158,6 +159,16 @@ public final class MemoryService {
      * the id is null or blank. The budget is the smaller of {@code budgetTokens} and the policy's cap.
      */
     public MemoryBlock blockFor(String connectionId, AiTokenizerType tokenizer, int budgetTokens) {
+        return blockFor(connectionId, tokenizer, budgetTokens, Set.of());
+    }
+
+    /**
+     * As {@link #blockFor(String, AiTokenizerType, int)}, without the reference files of the tools in
+     * {@code excludedExternal}: the tools whose CLI reads those files itself, see
+     * {@link de.kortty.memory.external.LocalCliMemoryReads}.
+     */
+    public MemoryBlock blockFor(String connectionId, AiTokenizerType tokenizer, int budgetTokens,
+                                Set<ExternalMemoryTool> excludedExternal) {
         int budget = Math.min(budgetTokens, budgetCap());
         if (budget <= 0 || !aiMemoryAllowed()) {
             return MemoryBlock.empty();
@@ -169,8 +180,9 @@ public final class MemoryService {
             Document global = userReadable ? document(MemoryScope.global()) : null;
             Document connection = userReadable && connectionKey != null
                 ? document(MemoryScope.connection(connectionKey)) : null;
+            Set<ExternalMemoryTool> excluded = excludedExternal == null ? Set.of() : excludedExternal;
             List<ExternalSource> externalSources = userReadable && externalFilesAllowed()
-                ? externalSources(connectionKey) : List.of();
+                ? externalSources(connectionKey, excluded) : List.of();
             BlockKey key = new BlockKey(connectionKey, tokenizer, budget, digestOf(global),
                 digestOf(connection), organizationRules, externalSources);
             synchronized (this) {
@@ -199,19 +211,26 @@ public final class MemoryService {
      * getting the older block until the new one is ready.
      */
     public MemoryBlock cachedBlockFor(String connectionId, AiTokenizerType tokenizer, int budgetTokens) {
-        String key = previewKey(connectionId, tokenizer, budgetTokens);
+        return cachedBlockFor(connectionId, tokenizer, budgetTokens, Set.of());
+    }
+
+    /** As {@link #cachedBlockFor(String, AiTokenizerType, int)}, without the reference files of {@code excludedExternal}. */
+    public MemoryBlock cachedBlockFor(String connectionId, AiTokenizerType tokenizer, int budgetTokens,
+                                      Set<ExternalMemoryTool> excludedExternal) {
+        Set<ExternalMemoryTool> excluded = excludedExternal == null ? Set.of() : Set.copyOf(excludedExternal);
+        String key = previewKey(connectionId, tokenizer, budgetTokens, excluded);
         Preview preview;
         synchronized (this) {
             preview = previews.get(key);
         }
         if (preview == null || System.currentTimeMillis() - preview.computedAt() > PREVIEW_REFRESH_MILLIS) {
-            refreshPreviewInBackground(key, connectionId, tokenizer, budgetTokens);
+            refreshPreviewInBackground(key, connectionId, tokenizer, budgetTokens, excluded);
         }
         return preview == null ? MemoryBlock.empty() : preview.block();
     }
 
     private void refreshPreviewInBackground(String key, String connectionId, AiTokenizerType tokenizer,
-                                            int budgetTokens) {
+                                            int budgetTokens, Set<ExternalMemoryTool> excluded) {
         synchronized (this) {
             if (!previewsInProgress.add(key)) {
                 return;
@@ -219,7 +238,7 @@ public final class MemoryService {
         }
         previewRefresher.execute(() -> {
             try {
-                MemoryBlock block = blockFor(connectionId, tokenizer, budgetTokens);
+                MemoryBlock block = blockFor(connectionId, tokenizer, budgetTokens, excluded);
                 synchronized (this) {
                     previews.put(key, new Preview(block, System.currentTimeMillis()));
                 }
@@ -231,9 +250,11 @@ public final class MemoryService {
         });
     }
 
-    private static String previewKey(String connectionId, AiTokenizerType tokenizer, int budgetTokens) {
+    private static String previewKey(String connectionId, AiTokenizerType tokenizer, int budgetTokens,
+                                     Set<ExternalMemoryTool> excluded) {
         String connectionKey = connectionId == null || connectionId.isBlank() ? "" : connectionId.strip();
-        return connectionKey + "\n" + tokenizer + "\n" + budgetTokens;
+        String excludedNames = excluded.stream().map(Enum::name).sorted().reduce("", (a, b) -> a + "," + b);
+        return connectionKey + "\n" + tokenizer + "\n" + budgetTokens + "\n" + excludedNames;
     }
 
     /** The user's own files are read only with the user's switch on, the mode not disabled and no kill switch. */
@@ -312,10 +333,13 @@ public final class MemoryService {
         }
     }
 
-    private List<ExternalSource> externalSources(String connectionKey) {
+    private List<ExternalSource> externalSources(String connectionKey, Set<ExternalMemoryTool> excluded) {
         try {
             List<ExternalSource> sources = external.apply(connectionKey);
-            return sources == null ? List.of() : List.copyOf(sources);
+            if (sources == null) {
+                return List.of();
+            }
+            return sources.stream().filter(source -> !excluded.contains(source.tool())).toList();
         } catch (RuntimeException e) {
             logger.warn("The external memory files could not be read", e);
             return List.of();

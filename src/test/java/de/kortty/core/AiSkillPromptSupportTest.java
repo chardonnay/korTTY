@@ -1,9 +1,13 @@
 package de.kortty.core;
 
+import de.kortty.memory.MemoryService;
+import de.kortty.memory.MemoryStore;
 import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillLearnedRule;
 import de.kortty.model.AiSkillTarget;
 import org.testng.annotations.Test;
 
+import java.nio.file.Files;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -22,6 +26,26 @@ class AiSkillPromptSupportTest {
         assertThat(prompt).contains("Use short shell examples.");
         assertThat(prompt).startsWith("Task rules.");
         assertThat(prompt.indexOf("Task rules.")).isLessThan(prompt.indexOf("User-defined KorTTY AI skills"));
+    }
+
+    @Test
+    void theLearnedRulesOfASkillStopWithTheMemoryKillSwitch() throws Exception {
+        AiSkill skill = skill("Shell Style", true, AiSkillTarget.CHAT, "Use short shell examples.");
+        skill.getLearnedRules().add(AiSkillLearnedRule.create("Always use tabs.", "chat"));
+        MemoryStore store = new MemoryStore(Files.createTempDirectory("kortty-skill-kill-switch-").resolve("memory"));
+        try {
+            MemoryService.replaceInstanceForTesting(new MemoryService(store, name -> null));
+            assertThat(new AiSkillPromptSupport(true, List.of(skill)).appendChatSkills("Task rules."))
+                .contains("Always use tabs.");
+
+            MemoryService.replaceInstanceForTesting(new MemoryService(store, name -> "off"));
+            String prompt = new AiSkillPromptSupport(true, List.of(skill)).appendChatSkills("Task rules.");
+
+            assertThat(prompt).contains("Use short shell examples.");
+            assertThat(prompt).doesNotContain("Always use tabs.");
+        } finally {
+            MemoryService.replaceInstanceForTesting(null);
+        }
     }
 
     @Test

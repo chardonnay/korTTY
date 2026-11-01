@@ -12439,6 +12439,18 @@ public class MainWindow {
                     }
 
                     @Override
+                    public boolean supportsChoices() {
+                        return true;
+                    }
+
+                    @Override
+                    public TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal) {
+                        TerminalAttentionNotifier.postAiRun(terminalTab,
+                            TerminalNotificationPolicy.AiRunEvent.NEEDS_APPROVAL);
+                        return activityPanel.requestSolutionChoice(runId, proposal);
+                    }
+
+                    @Override
                     public boolean isCancelled() {
                         return cancelled.get();
                     }

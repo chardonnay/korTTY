@@ -2,8 +2,12 @@ package de.kortty.core;
 
 import de.kortty.memory.MemoryBlock;
 import de.kortty.memory.MemoryService;
+import de.kortty.memory.external.ExternalMemoryTool;
+import de.kortty.memory.external.LocalCliMemoryReads;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiTokenizerType;
+
+import java.util.Set;
 
 /**
  * The memory of one prompt: the global memory and, when a connection id is given, that connection's
@@ -49,9 +53,10 @@ public final class AiMemoryPromptSource {
     public MemoryBlock block() {
         AiTokenizerType tokenizer = tokenizer();
         MemoryService service = MemoryService.get();
+        Set<ExternalMemoryTool> readByLocalCli = LocalCliMemoryReads.excludedFor(profile);
         MemoryBlock raw = cachedOnly
-            ? service.cachedBlockFor(connectionId, tokenizer, budgetTokens)
-            : service.blockFor(connectionId, tokenizer, budgetTokens);
+            ? service.cachedBlockFor(connectionId, tokenizer, budgetTokens, readByLocalCli)
+            : service.blockFor(connectionId, tokenizer, budgetTokens, readByLocalCli);
         if (raw.isEmpty()) {
             return raw;
         }

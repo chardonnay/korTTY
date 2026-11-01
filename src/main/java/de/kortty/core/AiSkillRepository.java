@@ -73,6 +73,21 @@ public final class AiSkillRepository {
                 }
             };
         }
+
+        /** Every caller is the owner: writes run at once on the calling thread. */
+        static OwnerThread callingThread() {
+            return new OwnerThread() {
+                @Override
+                public boolean isCurrent() {
+                    return true;
+                }
+
+                @Override
+                public void execute(Runnable task) {
+                    task.run();
+                }
+            };
+        }
     }
 
     private final GlobalSettingsManager settings;
@@ -83,6 +98,14 @@ public final class AiSkillRepository {
     /** Created by {@link GlobalSettingsManager#aiSkillRepository()}, which keeps one per settings file. */
     AiSkillRepository(GlobalSettingsManager settings) {
         this(settings, OwnerThread.javafxApplicationThread(), AiSkillRepository::storableOrSecretRefusal);
+    }
+
+    /**
+     * A repository whose writes run on the calling thread, for tests and headless tools that have no JavaFX
+     * application thread. The caller must be the only writer of {@code settings}.
+     */
+    public static AiSkillRepository onCallingThread(GlobalSettingsManager settings) {
+        return new AiSkillRepository(settings, OwnerThread.callingThread(), AiSkillRepository::storableOrSecretRefusal);
     }
 
     AiSkillRepository(

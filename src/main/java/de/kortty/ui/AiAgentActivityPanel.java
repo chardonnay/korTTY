@@ -115,6 +115,7 @@ public class AiAgentActivityPanel extends VBox {
 
     private volatile CompletableFuture<TerminalAgentService.ApprovalDecision> pendingApproval;
     private volatile CompletableFuture<TerminalAgentModels.PasswordResponse> pendingPassword;
+    private volatile CompletableFuture<TerminalAgentModels.SolutionChoice> pendingChoice;
     private volatile boolean pendingApprovalAllowsAlways;
     private volatile boolean running;
     private boolean embedded;
@@ -654,11 +655,31 @@ public class AiAgentActivityPanel extends VBox {
         }
     }
 
+    /**
+     * Shows the solution options in the panel and blocks until the user answers. Interrupted when the run is
+     * cancelled; the prompt is then removed.
+     */
+    public TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal) {
+        CompletableFuture<TerminalAgentModels.SolutionChoice> future = new CompletableFuture<>();
+        runOnFx(() -> showSolutionChoicePrompt(proposal, future));
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return TerminalAgentModels.SolutionChoice.cancel();
+        } catch (ExecutionException e) {
+            return TerminalAgentModels.SolutionChoice.cancel();
+        } finally {
+            runOnFx(() -> dismissSolutionChoice(future));
+        }
+    }
+
     public void requestCancel() {
         Runnable task = () -> {
             cancelRunButton.setDisable(true);
             completeApproval(TerminalAgentService.ApprovalDecision.CANCEL);
             completePassword(null);
+            completeSolutionChoice(TerminalAgentModels.SolutionChoice.cancel());
             if (cancelCallback != null) {
                 cancelCallback.run();
             }
@@ -1173,6 +1194,10 @@ public class AiAgentActivityPanel extends VBox {
         if (approval != null && !approval.isDone()) {
             return nonBlank(pendingInputStatusText, I18n.get("ai.agent.activity.inputRequired"));
         }
+        CompletableFuture<TerminalAgentModels.SolutionChoice> choice = pendingChoice;
+        if (choice != null && !choice.isDone()) {
+            return nonBlank(pendingInputStatusText, I18n.get("ai.agent.activity.inputRequired"));
+        }
         return I18n.get("ai.agent.activity.running");
     }
 
@@ -1396,6 +1421,27 @@ public class AiAgentActivityPanel extends VBox {
         notifyInputPromptShown();
     }
 
+    private void showSolutionChoicePrompt(
+        TerminalAgentModels.TriageProposal proposal,
+        CompletableFuture<TerminalAgentModels.SolutionChoice> future) {
+        pendingChoice = future;
+        pendingInputStatusText = I18n.get("ai.agent.activity.inputRequired");
+        beginInputPause();
+        promptBox.getChildren().clear();
+        ScrollPane choices = new ScrollPane(new SolutionChoicePane(proposal, this::completeSolutionChoice));
+        choices.setFitToWidth(true);
+        choices.setMaxHeight(320);
+        choices.setPrefViewportHeight(320);
+        promptBox.getChildren().add(choices);
+        updatePromptVisibility();
+        updateHeaderBusyState();
+        updatePauseButtonAvailability();
+        applyFontSizeRecursively(promptBox);
+        requestFocus();
+        scrollToBottom();
+        notifyInputPromptShown();
+    }
+
     private void showPasswordPrompt(
         TerminalAgentModels.PasswordRequest request,
         CompletableFuture<TerminalAgentModels.PasswordResponse> future) {
@@ -1487,6 +1533,7 @@ public class AiAgentActivityPanel extends VBox {
         runOnFx(() -> {
             completeApproval(TerminalAgentService.ApprovalDecision.CANCEL);
             completePassword(null);
+            completeSolutionChoice(TerminalAgentModels.SolutionChoice.cancel());
         });
     }
 
@@ -1501,6 +1548,27 @@ public class AiAgentActivityPanel extends VBox {
         updatePauseButtonAvailability();
         if (future != null && !future.isDone()) {
             future.complete(decision);
+        }
+    }
+
+    private void completeSolutionChoice(TerminalAgentModels.SolutionChoice choice) {
+        CompletableFuture<TerminalAgentModels.SolutionChoice> future = pendingChoice;
+        if (future == null || future.isDone()) {
+            return;
+        }
+        pendingChoice = null;
+        pendingInputStatusText = null;
+        endInputPause();
+        clearPendingPrompt();
+        updateHeaderBusyState();
+        updatePauseButtonAvailability();
+        future.complete(choice);
+    }
+
+    /** Removes the solution prompt of {@code future} when it is still the one showing, after the wait ended. */
+    private void dismissSolutionChoice(CompletableFuture<TerminalAgentModels.SolutionChoice> future) {
+        if (pendingChoice == future) {
+            completeSolutionChoice(TerminalAgentModels.SolutionChoice.cancel());
         }
     }
 

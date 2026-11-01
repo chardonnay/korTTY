@@ -93,6 +93,8 @@ final class AiSkillsPane extends VBox {
 
     private final CheckBox aiSkillsEnabledCheck;
     private final CheckBox aiSkillAutoDetectionCheck;
+    /** Lets korTTY create skills for learned rules and write them into skills; locked by the enterprise policy. */
+    private final CheckBox aiSkillAutoCreateCheck;
     private final CheckBox showHiddenCheck;
     private final TextField aiSkillSearchField;
     private final Label aiSkillCountLabel;
@@ -168,6 +170,13 @@ final class AiSkillsPane extends VBox {
         aiSkillAutoDetectionCheck.setSelected(globalSettings == null || globalSettings.isAiSkillAutoDetectionEnabled());
         aiSkillAutoDetectionCheck.selectedProperty().addListener((obs, wasSelected, isSelected) ->
             onAutoDetectionToggled(wasSelected, isSelected));
+
+        // Creating skills and writing learned rules into them; the enterprise policy may lock it either way.
+        aiSkillAutoCreateCheck = new CheckBox(I18n.get("settings.aiSkills.autoCreate"));
+        aiSkillAutoCreateCheck.setSelected(globalSettings == null || globalSettings.isAiSkillAutoCreate());
+        aiSkillAutoCreateCheck.setTooltip(new Tooltip(I18n.get("settings.aiSkills.autoCreate.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(aiSkillAutoCreateCheck,
+            de.kortty.policy.ManagedSetting.AI_SKILL_CREATION);
 
         showHiddenCheck = new CheckBox(I18n.get("settings.aiSkills.showHidden"));
         showHiddenCheck.selectedProperty().addListener((obs, oldValue, newValue) -> rebuildAiSkillListItems());
@@ -264,7 +273,8 @@ final class AiSkillsPane extends VBox {
         FlowPane aiSkillSortButtons = new FlowPane(8, 8, sortAiSkillButton, showHiddenCheck);
         aiSkillSortButtons.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         aiSkillButtons.getChildren().setAll(localButtons);
-        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, viewSwitch, aiSkillSortButtons,
+        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillAutoCreateCheck,
+            viewSwitch, aiSkillSortButtons,
             aiSkillSearchField, aiSkillListView, aiSkillCountLabel, aiSkillButtons);
         updateAiSkillCounts();
 
@@ -541,6 +551,7 @@ final class AiSkillsPane extends VBox {
         }
         targetSettings.setAiSkillsEnabled(aiSkillsEnabledCheck == null || aiSkillsEnabledCheck.isSelected());
         targetSettings.setAiSkillAutoDetectionEnabled(aiSkillAutoDetectionCheck == null || aiSkillAutoDetectionCheck.isSelected());
+        targetSettings.setAiSkillAutoCreate(aiSkillAutoCreateCheck.isSelected());
         applyingStoredSkills = true;
         AiSkillRepository.Outcome outcome;
         try {
