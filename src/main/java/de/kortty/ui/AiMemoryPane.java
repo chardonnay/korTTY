@@ -269,6 +269,7 @@ final class AiMemoryPane extends VBox {
         HBox saveRow = new HBox(saveSettingsButton);
         saveRow.setAlignment(Pos.CENTER_RIGHT);
         settingsBox.getChildren().addAll(grid, saveRow);
+        AiManagerSections.keepButtonWidths(settingsBox);
     }
 
     private void buildFiles() {
@@ -324,6 +325,7 @@ final class AiMemoryPane extends VBox {
 
         filesBox.getChildren().addAll(scopeRow, budgetBox, toggles, entriesBox, markdownBox, actions, statusLabel,
             externalFilesBox);
+        AiManagerSections.keepButtonWidths(filesBox);
     }
 
     /** Installs the "Weitere Memory-Dateien" section into the empty container at the bottom of the tab. */
@@ -514,7 +516,16 @@ final class AiMemoryPane extends VBox {
             protected void updateItem(Row row, boolean empty) {
                 super.updateItem(row, empty);
                 setText(null);
-                setGraphic(empty || row == null ? null : rowView(row));
+                if (empty || row == null) {
+                    setGraphic(null);
+                    return;
+                }
+                HBox view = rowView(row);
+                // The row takes the list's width, so its text wraps there; the unwrapped text length must not widen the list.
+                view.prefWidthProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
+                    () -> Math.max(0, getWidth() - getInsets().getLeft() - getInsets().getRight()),
+                    widthProperty(), paddingProperty()));
+                setGraphic(view);
             }
         };
     }
@@ -524,13 +535,15 @@ final class AiMemoryPane extends VBox {
             ? I18n.get("settings.ai.memory.badge.user")
             : I18n.get("settings.ai.memory.badge.korttyEntry", row.created(), row.source()));
         badge.setStyle(row.isUserText() ? USER_BADGE_STYLE : KORTTY_BADGE_STYLE);
+        badge.setWrapText(true);
         Label status = new Label(row.sent()
             ? I18n.get("settings.ai.memory.status.sent")
             : I18n.get("settings.ai.memory.status.notSent"));
         status.setStyle(row.sent() ? SENT_STYLE : MutedTextStyle.HINT);
+        status.setWrapText(true);
         VBox meta = new VBox(4, badge, status);
-        meta.setMinWidth(150);
-        meta.setPrefWidth(150);
+        meta.setMinWidth(240);
+        meta.setPrefWidth(240);
         Label text = new Label(row.text());
         text.setWrapText(true);
         text.setMaxWidth(Double.MAX_VALUE);
@@ -544,6 +557,7 @@ final class AiMemoryPane extends VBox {
             delete.setOnAction(event -> deleteRow(row));
             line.getChildren().add(new VBox(6, edit, delete));
         }
+        AiManagerSections.keepButtonWidths(line);
         return line;
     }
 

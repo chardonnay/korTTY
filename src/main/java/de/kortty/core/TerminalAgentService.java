@@ -1899,7 +1899,8 @@ public class TerminalAgentService {
     /**
      * The memory of one agent run or planning step, unmasked: the global memory and, for a non-null
      * {@code connectionId}, that connection's memory, budgeted by the user's setting for the profile's
-     * tokenizer. The caller masks it, with the run's known secrets. Empty when memory is off.
+     * tokenizer. The caller masks it, with the run's known secrets. When the user's memory is off (switch,
+     * user-memory mode or kill switch) only the organisation rules remain; empty when the policy denies memory.
      */
     public static MemoryBlock memoryFor(String connectionId, AiProfile profile) {
         AiTokenizerType tokenizer = profile != null && profile.getTokenizerType() != null

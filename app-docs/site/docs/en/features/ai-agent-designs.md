@@ -107,6 +107,10 @@ These status designs float over the terminal, which keeps its full size. They st
 
 An approval is answered with the keys **1** (allow once), **2** (allow always) and **3** (cancel) in the terminal, or with buttons. Designs with buttons of their own show them: the history panels, the toasts and the picture-in-picture window. With blocks in the terminal, focus mode or the classic panel's history, an approval opens a row below the terminal with the commands and the buttons **1 Allow Once**, **2 Allow Always** and **3 Cancel**. A password request always opens that row, with a masked field, **Use for this SSH session** and **OK**; ++enter++ submits and ++esc++ cancels. The classic panel keeps its own prompts.
 
+## Solution options and memory in designs
+
+With a design other than the classic panel, the solution options of the agent (see [Solution options](ai-tools.md#solution-options)) appear in the design's strip with the same choices. The **Sent along** line of a run is a link in the design's host, and a rule suggestion opens as a popup over the design; see [AI memory](ai-memory.md).
+
 ## Run menu and step menu
 
 Every design offers what the classic panel's buttons do. The bars, the history panels, the frosted glass HUD and the picture-in-picture window have a ⋯ button; the status pill, the orbit, the minimap rail and the badge of the toasts open the same menu with a right-click. It works on the run the design shows:

@@ -121,6 +121,8 @@ Sowohl `.zip`- als auch `.zip.gpg`-Backups enthalten dieselben Dateien:
 * `snippet-analyses/` — Gespeicherte Vollcodeanalysen, eine Datei pro Snippet. Ein Import verschmilzt sie: Analysen, die nur lokal existieren, bleiben erhalten; fehlende werden hinzugefügt, und mit **Überschreiben** wird eine lokale Datei nur ersetzt, wenn die Kopie aus dem Backup neuer ist. Nicht gespeicherte Snippet-Entwürfe (`snippet-drafts/`) sind nicht enthalten
 * `ai-chats.xml` – Gespeicherte KI-Gespräche
 * `swarm-chats.xml` — Gespeicherte KI-Swarm-Chats
+* `memory/` — Das KI-Gedächtnis: `MEMORY.md`, die Notizen jeder Verbindung, der Verlauf, das Archiv und der Zustand (siehe [KI-Gedächtnis](ai-memory.md)). Eine Wiederherstellung fügt nur Dateien hinzu, die lokal nicht existieren, und überschreibt niemals eine. Eine Notiz, die ein mögliches Geheimnis enthält, wird nicht wiederhergestellt, und es wird nichts wiederhergestellt, wenn die Unternehmensrichtlinie das Gedächtnis schreibgeschützt oder deaktiviert. Die Genehmigungen der Referenzdateien anderer Tools (`external.json`) befinden sich im Archiv, werden aber niemals wiederhergestellt, sodass Sie sie auf dem neuen Computer erneut genehmigen
+* `stats/` — Die KI-Skill-Statistiken (`skill-usage.json`); werden nur wiederhergestellt, wo keine lokale Statistikdatei existiert
 * `master.key` — Salt und Prüfhash Ihres Master-Passworts, damit die wiederhergestellten Geheimnisse damit entsperrt werden können
 * `llm/models.xml` – Lokale GGUF-Registrierungen und Laufzeiteinstellungen (Modellgewichte sind nicht enthalten)
 * `llm/mlx-models.json` — MLX-Modellregistrierungen (Modellgewichte sind nicht enthalten)

@@ -15,7 +15,7 @@ Every AI setting lives in one place: **AI → AI Manager**. Its first tab, **Gen
 | Section | Settings |
 | --- | --- |
 | **Features & safety** | Enable AI features, confirmation before sending, AI chat code blocks in the terminal, agent debug and runtime messages |
-| **Terminal agent** | Agent execution, confirmation before changes, setup dialog before each run, command name and case matching, task target, input history size |
+| **Terminal agent** | Agent execution, confirmation before changes, setup dialog before each run, estimate complexity, command name and case matching, task target, input history size |
 | **Defaults** | Security-check profile, default language for AI text in code, optional instructions in the snippet editor, number of alternative solutions |
 | **Internet access** | Tavily, Bright Data and Brave Search secrets, SearXNG URL, MCP server labels and plugin ids, "offer internet research on every step" |
 
@@ -42,10 +42,25 @@ With **Show confirmation dialog before sending AI requests** on, **Summarize**, 
 | Show agent debug messages | toggle | — | Off | `terminalAgentShowDebugMessages` |
 | Show agent runtime messages | toggle | — | Off | `terminalAgentShowRuntimeMessages` |
 | Show terminal agent setup dialog before each run | toggle | — | On | `terminalAgentShowRunDialog` |
+| Estimate complexity | dropdown | Automatic, Always, Never | Automatic | `aiAgentTriageMode` |
 | Agent command name | text | — | agent | `terminalAgentCommandName` |
 | Match agent command name case-insensitively | toggle | — | Off | `terminalAgentCommandNameCaseInsensitive` |
 | AI agent task target | dropdown | Terminal window, New chat window | Terminal window | `terminalAgentExecutionTarget` |
 | Terminal agent input history size | number | 5–100 | 20 | `terminalAgentInputHistorySize` |
+
+**Estimate complexity** decides when the agent offers solution options before it runs. **Automatic** makes one small AI call before each run and offers options only for requests that look complex, **Always** offers them for every run, and **Never** runs requests as they are. Swarm runs and scheduled jobs never offer options. The enterprise policy can lock the setting with `triage` under `[rule.ai-memory]`. See [Solution options](../../features/ai-tools.md#solution-options).
+
+## Memory tab
+
+The **Memory** tab of the AI Manager holds the korTTY memory, the rules that AI chat and agent requests carry along. Its files, scopes, cleanup and protection of your own text are described in [AI memory](../../features/ai-memory.md).
+
+| Setting | Type | Values | Default | Stored as |
+| --- | --- | --- | --- | --- |
+| Use memory | toggle | — | On | `aiMemoryEnabled` |
+| Learning | dropdown | Suggest rules, Off | Suggest rules | `aiMemoryLearningMode` |
+| Token budget | number | 500–4000 | 1500 | `aiMemoryMaxTokens` |
+
+The token budget is the most memory one AI request carries; entries that do not fit are left out of that request, and an enterprise policy can lower the budget. In **Suggest rules** mode korTTY looks at your messages for something to keep for later and proposes it as a rule; nothing is saved without your confirmation. **Off** finds no rules.
 
 ## AI Profiles
 

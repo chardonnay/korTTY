@@ -88,11 +88,15 @@ Durch das Kontrollkästchen **Schreibgeschützt** bleibt jeder Agent auf nicht m
 
 Der Genehmigungsdialog bietet außerdem die Option **Schwarm abbrechen**, um den gesamten Lauf zu stoppen.
 
+Der Agent jedes Servers sendet den globalen KI-Speicher und den Speicher seiner eigenen Verbindung, auf dieselbe Weise maskiert. Swarm-Ausführungen bieten niemals [Lösungsoptionen](ai-tools.md#losungsoptionen). Siehe [KI-Speicher](ai-memory.md).
+
 ## Kombinierte Antwort- und Zeilendetails
 
 Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server in einer Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte trägt immer den Titel **"Fehler"** und listet Abweichungen, fehlende Daten und Fehler (oder `-`, wenn es nichts zu melden gibt) auf, unabhängig von der Antwortsprache.
 
 Die Anfrage, die die Antworten zusammenführt, enthält die Antwort und den Ausgabeauszug jedes Servers; daher wird sie wie die eigenen Prompts der Agenten maskiert, bevor sie an ein Profil geht, das kein integriertes Modell und kein vertrauenswürdiger lokaler Endpunkt ist: die Verbindungspasswörter aller Server, die Ersetzungsregeln Ihrer Organisation und bekannte Tokenformate werden zu `***` (siehe [Geheimnisse vor dem Senden maskieren](ai-assistant.md#geheimnisse-vor-dem-senden-maskieren)). Die Zeilen und die Tabelle, die angezeigt wird, wenn die KI nicht erreichbar ist, behalten den Originaltext, weil sie Ihren Computer nie verlassen.
+
+Die Anfrage, die die Antworten kombiniert, sendet nur den globalen KI-Speicher, nicht den Speicher einer Verbindung.
 
 Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **klicken Sie auf eine beliebige Tabellenzeile**, um sie in einem separaten Fenster *Zeilendetails* mit lesbarem Layout, **A− / A+**-Schriftgrößenschaltflächen und einer Schaltfläche zum Kopieren in die Zwischenablage zu öffnen.
 

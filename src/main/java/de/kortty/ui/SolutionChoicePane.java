@@ -120,6 +120,7 @@ final class SolutionChoicePane extends VBox {
             String title = option.title() + (isRecommended ? " — " + I18n.get("ai.triage.recommended") : "");
             RadioButton radio = new RadioButton(title);
             radio.setWrapText(true);
+            radio.setMnemonicParsing(false);
             radio.setToggleGroup(toggles);
             radio.setSelected(isRecommended);
             radio.selectedProperty().addListener((observed, was, now) -> refreshButtons());

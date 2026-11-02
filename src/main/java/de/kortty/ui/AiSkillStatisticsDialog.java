@@ -22,6 +22,7 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.StackedBarChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -36,8 +37,10 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.Button;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
@@ -125,7 +128,7 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
         if (owner != null) {
             initOwner(owner);
         }
-        getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        getDialogPane().getButtonTypes().add(new ButtonType(I18n.get("dialog.close"), ButtonBar.ButtonData.CANCEL_CLOSE));
         getDialogPane().setPrefSize(1060, 800);
         setResultConverter(button -> null);
         setOnHidden(event -> disposed = true);
@@ -348,11 +351,13 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
                     AiSkillStatisticsFormat.number(hint.tokens()));
             Label label = new Label(text);
             label.setWrapText(true);
+            label.setMaxWidth(Double.MAX_VALUE);
             if (!offersShortening(hint.kind())) {
                 hintsBox.getChildren().add(label);
                 continue;
             }
             Button shorten = new Button(I18n.get("settings.aiSkills.stats.shorten"));
+            shorten.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
             String skillId = hint.skillId();
             shorten.setOnAction(event -> openShortening(skillId));
             HBox.setHgrow(label, Priority.ALWAYS);
@@ -418,34 +423,41 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
     }
 
     private void buildTable() {
-        table.getColumns().add(textColumn("settings.aiSkills.stats.col.skill",
-            line -> line.row().name() != null ? line.row().name() : line.row().skillId(), 180));
-        table.getColumns().add(textColumn("settings.aiSkills.stats.col.badges", Line::badges, 200));
+        // The columns share the table's width, so every figure stays in view without scrolling sideways; the skill's
+        // badge sits under its name instead of in a column of its own.
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        table.getColumns().add(column("settings.aiSkills.stats.col.skill", AiSkillStatisticsDialog::skillName,
+            line -> line.badges() == null || line.badges().isBlank()
+                ? skillName(line) : skillName(line) + "\n" + line.badges(), 220));
         table.getColumns().add(countColumn("settings.aiSkills.stats.col.automatic",
             line -> line.row().automatic(), 90));
         table.getColumns().add(countColumn("settings.aiSkills.stats.col.pinned",
             line -> line.row().pinned(), 80));
         table.getColumns().add(column("settings.aiSkills.stats.col.averageSize",
             line -> AiSkillStatisticsFormat.sortKey(line.row().averageTokens()),
-            line -> AiSkillStatisticsFormat.tokens(line.row().averageTokens()), 120));
+            line -> AiSkillStatisticsFormat.tokens(line.row().averageTokens()), 100));
         table.getColumns().add(column("settings.aiSkills.stats.col.currentSize",
             line -> AiSkillStatisticsFormat.sortKey(line.row().currentTokens() != null
                 ? line.row().currentTokens().doubleValue() : null),
             line -> AiSkillStatisticsFormat.tokens(line.row().currentTokens() != null
-                ? line.row().currentTokens().doubleValue() : null), 120));
+                ? line.row().currentTokens().doubleValue() : null), 100));
         table.getColumns().add(column("settings.aiSkills.stats.col.growth",
             line -> AiSkillStatisticsFormat.sortKey(line.row().growthTokensPerMonth()),
-            line -> AiSkillStatisticsFormat.perMonth(line.row().growthTokensPerMonth()), 110));
+            line -> AiSkillStatisticsFormat.perMonth(line.row().growthTokensPerMonth()), 100));
         table.getColumns().add(column("settings.aiSkills.stats.col.growthPercent",
             line -> AiSkillStatisticsFormat.sortKey(line.row().growthPercent()),
-            line -> AiSkillStatisticsFormat.percent(line.row().growthPercent()), 100));
+            line -> AiSkillStatisticsFormat.percent(line.row().growthPercent()), 80));
         table.getColumns().add(column("settings.aiSkills.stats.col.lastUsed",
             line -> line.row().lastUsed() != null ? line.row().lastUsed().toString() : "",
             line -> line.row().lastUsed() != null
                 ? AiSkillStatisticsFormat.date(line.row().lastUsed())
-                : I18n.get("settings.aiSkills.stats.never"), 110));
+                : I18n.get("settings.aiSkills.stats.never"), 100));
         table.getColumns().add(countColumn("settings.aiSkills.stats.col.rules",
             line -> line.row().learnedRules(), 80));
+    }
+
+    private static String skillName(Line line) {
+        return line.row().name() != null ? line.row().name() : line.row().skillId();
     }
 
     /**
@@ -455,10 +467,31 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
     private static <T extends Comparable<T>> TableColumn<Line, T> column(
         String key, Function<Line, T> sortKey, Function<Line, String> text, double width) {
 
-        TableColumn<Line, T> column = new TableColumn<>(I18n.get(key));
+        TableColumn<Line, T> column = new TableColumn<>();
+        // The header wraps instead of being cut when the columns share a narrow table.
+        Label header = new Label(I18n.get(key)) {
+            // The header row asks for the height without a width, which a wrapping label answers with one line; the
+            // label answers for its own width, so a header that wraps gets the height of all its lines.
+            @Override
+            protected double computePrefHeight(double width) {
+                return super.computePrefHeight(width < 0 ? getPrefWidth() : width);
+            }
+        };
+        header.setWrapText(true);
+        header.setTextAlignment(TextAlignment.CENTER);
+        header.setMinHeight(Region.USE_PREF_SIZE);
+        // A preferred width, not only a maximum: the header row takes its height from the wrapped text at that width.
+        header.prefWidthProperty().bind(column.widthProperty().subtract(14));
+        header.maxWidthProperty().bind(column.widthProperty().subtract(14));
+        column.setGraphic(header);
         column.setPrefWidth(width);
+        column.setMinWidth(56);
         column.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(sortKey.apply(cell.getValue())));
         column.setCellFactory(ignored -> new TableCell<>() {
+            {
+                setWrapText(true);
+            }
+
             @Override
             protected void updateItem(T item, boolean empty) {
                 super.updateItem(item, empty);
@@ -467,10 +500,6 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
             }
         });
         return column;
-    }
-
-    private static TableColumn<Line, String> textColumn(String key, Function<Line, String> text, double width) {
-        return column(key, text, text, width);
     }
 
     private static TableColumn<Line, Long> countColumn(String key, ToLongFunction<Line> value, double width) {

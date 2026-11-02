@@ -40,6 +40,16 @@ class AiManagerUiWiringSourceScanTest {
     }
 
     @Test
+    void theAutomaticFirstSelectionKeepsTheNewBadgeOfAKorttySkill() throws IOException {
+        String pane = source("AiSkillsPane");
+        assertWithMessage("the pane selects the first row only through the helper that skips acknowledging")
+            .that(pane.split("getSelectionModel\\(\\)\\.selectFirst\\(\\)", -1).length - 1).isEqualTo(1);
+        assertThat(methodBody(pane, "private void selectFirstAiSkillWithoutAcknowledging()"))
+            .contains("selectingFirstAiSkill = true");
+        assertThat(pane).contains("if (!selectingFirstAiSkill) {\n                acknowledgeKorttyChanges(newValue);");
+    }
+
+    @Test
     void theHistoryDiffShowsOnlyTheVersionThatIsStillSelected() throws IOException {
         String history = source("AiMemoryHistoryDialog");
         assertThat(methodBody(history, "private void showVersion(HistoryEntry entry)"))

@@ -219,6 +219,27 @@ For a connection where the agent must never run commands, such as a production s
 - **Count in the activity panel** — A **Masked before sending** entry says how many different values were masked in the run. A value that comes back every turn, because the agent resends its command history, counts once.
 - **No commands with the placeholder** — The model is told that `***` stands for a masked secret. If it still plans a command that contains `***`, korTTY does not run it, notes this in the transcript and tells the model in the next turn, because the command would run with the three literal characters instead of the secret.
 
+## Solution options
+
+Before it runs a request, the agent can show how to proceed. **Estimate complexity** in **AI > AI Manager > General** sets when this happens. **Automatic** (the default) makes one small AI call with the run's memory before each run and offers options only when the request looks complex; **Always** offers options for every run; **Never** runs the request as it is. If the check fails, gives no usable answer or takes longer than 120 seconds, the request runs as asked. Swarm runs and scheduled jobs never offer options.
+
+The card gives the reasons why the request looks complex, if it does, and two or three options with the recommended one first. Each option shows its feasibility, risks, prerequisites, steps and alternatives in its details.
+
+| Control | Effect |
+| --- | --- |
+| An option | Selects the approach that **Proceed with selection** runs |
+| **My own idea** | Replaces the options with your own approach or instruction. With it selected, your text is the plan; otherwise it is added to the chosen option |
+| **Permanent rule** | An optional rule that korTTY keeps for later requests. **Save to** chooses **Global memory**, **This connection**, the skill it is about or a new skill |
+| **Proceed with selection** | Runs the request with the selected option or your own idea. Only this button saves a permanent rule |
+| **Run as requested** | Runs the request as written, without options |
+| **Cancel** | Cancels the run |
+
+A rule that korTTY cannot save, for example one that holds a possible secret, keeps the card open with the reason, and the run does not start. If nothing is chosen within 10 minutes, the request runs as asked. The card appears in the classic agent panel, in the run tab of the chat window and in the strip of an agent design.
+
+## Memory in agent runs
+
+Each agent run and planning step sends the korTTY memory: the global memory and, for a connection, that connection's memory, budgeted and masked like the rest of the prompt. The **Sent along** line in the run's panel lists the memory entries, skills and reference files that were sent, with their token counts. In the agent's prompt dialog, **Remember as rule…** saves a rule that you write, without an AI call. See [AI memory](ai-memory.md).
+
 ## Generate Workflow Script
 
 After a finished agent run completes successfully, a **Workflow** button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, **Windows-CMD** batch, or **AppleScript**) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time).
@@ -327,6 +348,7 @@ Configure the Terminal AI Agent in **AI > AI Manager > General**:
 | **Match agent command name case-insensitively** | Make command matching case-insensitive |
 | **AI agent task target** | **Terminal window** (the activity panel at the terminal split) or **New chat window** |
 | **Show terminal agent setup dialog before each run** | Show a setup dialog before each run (disabled uses the default profile) |
+| **Estimate complexity** | **Automatic** (default), **Always** or **Never**: when the agent offers [solution options](#solution-options) |
 | **Terminal agent input history size** | Number of recent prompts to remember (5–100, default 20) |
 | **Default profile** | The AI profile used when the setup dialog is disabled |
 
@@ -341,7 +363,7 @@ AI Skills are reusable local instruction blocks that the agent can use. For agen
 - Language-specific coding guidelines
 - System administration conventions
 
-See the **AI Skills** section in the main AI documentation for setup and management details.
+See the **AI Skills** section in the main AI documentation for setup and management details. The rules you confirmed for a skill are sent with that skill; see [AI memory](ai-memory.md).
 
 ## Internet access
 

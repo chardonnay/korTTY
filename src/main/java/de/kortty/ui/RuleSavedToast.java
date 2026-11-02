@@ -42,9 +42,11 @@ final class RuleSavedToast {
         Label label = new Label(message);
         label.setWrapText(true);
         label.setMinWidth(0);
+        label.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(label, Priority.ALWAYS);
         Button undo = new Button(I18n.get("ai.learn.undo.button"));
         undo.setFocusTraversable(false);
+        undo.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         HBox row = new HBox(10, label, undo);
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(8, 12, 8, 12));

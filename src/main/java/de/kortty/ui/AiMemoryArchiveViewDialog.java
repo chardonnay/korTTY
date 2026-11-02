@@ -91,6 +91,7 @@ final class AiMemoryArchiveViewDialog extends ThemeAwareDialog<Void> {
         }
         Label header = new Label(I18n.get("settings.ai.memory.archive.header"));
         header.setWrapText(true);
+        header.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         list.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         list.setCellFactory(view -> rowCell());
         list.setPlaceholder(new Label(I18n.get("settings.ai.memory.archive.none")));

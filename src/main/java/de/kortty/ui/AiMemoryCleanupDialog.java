@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -61,7 +62,7 @@ final class AiMemoryCleanupDialog extends ThemeAwareDialog<AiMemoryCleanupDialog
         root.setPadding(new Insets(14));
         root.setPrefWidth(560);
         getDialogPane().setContent(root);
-        getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        getDialogPane().getButtonTypes().add(new ButtonType(I18n.get("dialog.close"), ButtonBar.ButtonData.CANCEL_CLOSE));
         setResultConverter(button -> null);
     }
 

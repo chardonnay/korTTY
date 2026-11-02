@@ -29,6 +29,8 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 │   ├── stores.json                    # Knowledge stores and source configuration
 │   └── stores/                        # Local HNSW snapshots
 ├── ai-chats.xml                       # Saved AI conversations
+├── memory/                            # AI memory: MEMORY.md, connection notes, history and state (owner-only; see below)
+├── stats/                             # AI skill usage statistics (owner-only; see below)
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
 ├── snippet-analyses/                  # Stored Full code analyses, one <snippet-id>.json per snippet
@@ -315,6 +317,18 @@ Saved AI conversations and chat history.
 
 **Note:** AI result tabs are not automatically saved. You must explicitly save them from the AI tab using the *Save* button to add them to this file.
 
+### memory/
+
+The AI memory of korTTY, see [AI memory](../features/ai-memory.md). `MEMORY.md` holds the global memory and `connections/<id>.md` the memory of each connection; both are plain Markdown that you can read and edit. korTTY marks the entries it wrote with an HTML comment that carries a hash, so an entry you edit becomes your own text, and korTTY never changes or deletes your text without your confirmation.
+
+The other files in the folder are `state.json` (digests and the state of the memory), `history/` (the snapshots korTTY takes before a change, which the Memory tab can restore), `archive.md` (the korTTY entries that a clean-up archived, which **Show archive...** lists), `learning.json` (the state of rule learning, such as the daily counts and the snoozed and declined proposals) and `external.json` (the reference files of other tools that you approved, with the approved text).
+
+All of them are written owner-only. The folder is included in backups. A restore adds only the files that do not exist locally and never overwrites them; a note that holds a possible secret is not restored; nothing is restored when the enterprise policy makes the memory read-only or disabled. `external.json` is never restored, so you approve the reference files again on each computer.
+
+### stats/
+
+`skill-usage.json` holds the usage counts and the size history of your AI skills for the [skill statistics](settings/ai-skills.md#skill-statistics). Daily values are kept for 400 days, monthly values for five years and yearly values without a limit. The file is written owner-only and is included in backups; a restore adds it only where no local statistics file exists. **Reset...** in the statistics dialog deletes what the file holds.
+
 ### snippets.xml
 Code snippets, scripts, and templates.
 
@@ -508,6 +522,7 @@ Optional directory for copied SSH keys.
 | JobScheduler journal entries | Redacted secrets before persistence |
 | Backup files | Password-protected ZIP or GPG encryption |
 | API keys (AI profiles) | AES-256-GCM encryption with master password |
+| AI memory files and skill statistics | Plain text, written owner-only; a possible secret is refused before it is written to a memory or skill file |
 | Terminal effect plugins | Not encrypted; trusted local code, not sandboxed |
 
 ## File locations by platform
@@ -529,6 +544,8 @@ When you create a backup via *Edit > Create Backup*, the following configuration
 - `ssh-host-keys.properties` interactive host-key trust store (not its transient `.lock` file)
 - `llm/models.xml` local-model registrations
 - `rag/stores.json` knowledge-store/source metadata
+- `memory/` the AI memory files (see [`memory/`](#memory)); a restore never overwrites a local file, and `external.json` is never restored
+- `stats/` the AI skill statistics (see [`stats/`](#stats)); restored only where no local file exists
 
 Managed GGUF weights, native runtime packages, temporary sidecar data, original source documents, and HNSW snapshots are excluded because they are large or regenerable. The `history/` and `i18n/` directories are also not part of a backup, and neither is the auto-login file `master.autounlock`.
 

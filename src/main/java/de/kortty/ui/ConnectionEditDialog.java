@@ -994,6 +994,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             AgentDesignUiSupport.connectionChoices(globalSettings, connection.getAiAgentDesignId());
         aiAgentDesignCombo = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(designChoices));
         aiAgentDesignCombo.setPrefWidth(340);
+        aiAgentDesignCombo.setMaxWidth(Double.MAX_VALUE);
         aiAgentDesignCombo.getSelectionModel().select(
             AgentDesignUiSupport.selectedChoice(designChoices, connection.getAiAgentDesignId()));
         Label designHint = new Label(I18n.get("connEdit.aiAgentDesign.hint"));

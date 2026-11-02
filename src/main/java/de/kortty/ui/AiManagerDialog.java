@@ -898,7 +898,13 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         LazyTabContent.defer(tab, () -> {
             aiSkillsPane = new AiSkillsPane(app, paneOwner);
             aiSkillsPane.activateEditor();
-            return aiSkillsPane;
+            // The list column and the editor are taller than a small dialog: the pane scrolls, the list keeps its rows.
+            ScrollPane scroller = new ScrollPane(aiSkillsPane);
+            scroller.setFitToWidth(true);
+            scroller.setFitToHeight(false);
+            scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            return scroller;
         });
         return tab;
     }

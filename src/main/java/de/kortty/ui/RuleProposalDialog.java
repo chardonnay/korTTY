@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.memory.RuleProposal;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.stage.Window;
 import org.jetbrains.annotations.Nullable;
@@ -17,7 +18,7 @@ final class RuleProposalDialog extends ThemeAwareDialog<Void> {
         RuleProposalCard card = new RuleProposalCard(proposal, owner, answered -> close());
         card.setPrefWidth(480);
         getDialogPane().setContent(card);
-        getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        getDialogPane().getButtonTypes().add(new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE));
     }
 
     /** Opens the dialog without blocking; the card answers it, and the window's close button leaves it unchanged. */

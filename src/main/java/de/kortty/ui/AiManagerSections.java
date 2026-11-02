@@ -82,6 +82,21 @@ final class AiManagerSections {
      * The row under a section's pages: its status text, then {@code save} at the right edge, above the
      * dialog's Close button, as the Profiles editor places its Save.
      */
+    /**
+     * Keeps every button under {@code root} at its text width. In a row with a wrapping label, the label's unwrapped
+     * preferred width otherwise squeezes the buttons to an ellipsis, and the dialog grows to fit them.
+     */
+    static void keepButtonWidths(Node root) {
+        if (root instanceof javafx.scene.control.ButtonBase button) {
+            button.setMinWidth(Region.USE_PREF_SIZE);
+        }
+        if (root instanceof javafx.scene.Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                keepButtonWidths(child);
+            }
+        }
+    }
+
     static HBox saveRow(Button save, Label status) {
         status.setMaxWidth(Double.MAX_VALUE);
         status.setAlignment(Pos.CENTER_RIGHT);

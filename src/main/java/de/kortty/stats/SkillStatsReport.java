@@ -200,6 +200,11 @@ public record SkillStatsReport(
                 hints.addAll(hintsFor(row, history, lastUsed, currentTokens, unusedCutoff, growthBaselineCutoff));
             }
         }
+        // Most used first, then by name: the order a reader scans, stable across runs (ids are random).
+        rows.sort(Comparator.comparingLong(Row::automatic).reversed()
+            .thenComparing(row -> displayName(row.name(), row.skillId()), String.CASE_INSENSITIVE_ORDER));
+        hints.sort(Comparator.comparing(Hint::kind, Comparator.reverseOrder())
+            .thenComparing(hint -> displayName(hint.name(), hint.skillId()), String.CASE_INSENSITIVE_ORDER));
         Kpis kpis = new Kpis(automaticUses, sentTokens,
             sizeCount > 0 ? sizeSum / sizeCount : null,
             growthCount > 0 ? growthSum : null);
@@ -209,6 +214,10 @@ public record SkillStatsReport(
         }
         return new SkillStatsReport(range, periods, series(ids, perSkill, names, periods), kpis, rows, hints,
             hasAnyUsage(data));
+    }
+
+    private static String displayName(String name, String skillId) {
+        return name != null ? name : skillId != null ? skillId : "";
     }
 
     /** The period keys of {@code range}, oldest first. */

@@ -70,6 +70,7 @@ final class ExternalMemoryAddDialog extends ThemeAwareDialog<Void> {
 
         Label header = new Label(I18n.get("settings.ai.memory.external.dialog.header"));
         header.setWrapText(true);
+        header.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         Label readOnly = hint(I18n.get("settings.ai.memory.external.dialog.readOnlyNote"));
 
         toolCombo.getItems().setAll(ExternalMemoryTool.values());
@@ -221,15 +222,18 @@ final class ExternalMemoryAddDialog extends ThemeAwareDialog<Void> {
         return ExternalMemoryTexts.problemText(problem);
     }
 
+    /** A path has no spaces to wrap at: a zero-width space after each separator lets long paths break there. */
     private static Label pathLabel(String path) {
-        Label label = new Label(path);
+        Label label = new Label(path.replace("/", "/\u200B").replace("\\", "\\\u200B"));
         label.setWrapText(true);
+        label.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         return label;
     }
 
     private static Label hint(String text) {
         Label label = new Label(text);
         label.setWrapText(true);
+        label.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         label.setStyle(MutedTextStyle.HINT);
         return label;
     }

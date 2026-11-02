@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -88,7 +89,7 @@ final class AiMemoryHistoryDialog extends ThemeAwareDialog<Void> {
         VBox root = new VBox(10, header, body, footer);
         root.setPadding(new Insets(14));
         getDialogPane().setContent(root);
-        getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        getDialogPane().getButtonTypes().add(new ButtonType(I18n.get("dialog.close"), ButtonBar.ButtonData.CANCEL_CLOSE));
         getDialogPane().setPrefSize(1040, 640);
         setResultConverter(button -> null);
         setOnHidden(event -> {

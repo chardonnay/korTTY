@@ -47,6 +47,22 @@ public class SkillStatsReportTest {
     }
 
     @Test
+    void theTableListsTheMostUsedSkillFirstAndTiesByName() throws IOException {
+        open();
+        List<AiSkill> skills = List.of(skill("id-a", "zsh", "Z."), skill("id-b", "Bash", "B."),
+            skill("id-c", "awk", "A."));
+        store.recordCommitted(List.of(usage("id-a", true, 50, "fp-a")));
+        store.recordCommitted(List.of(usage("id-a", true, 50, "fp-a")));
+        store.recordCommitted(List.of(usage("id-b", true, 50, "fp-b")));
+        store.recordCommitted(List.of(usage("id-c", true, 50, "fp-c")));
+
+        List<SkillStatsReport.Row> rows = store.report(skills, day(30)).rows();
+
+        assertThat(rows.stream().map(SkillStatsReport.Row::name).toList())
+            .containsExactly("zsh", "awk", "Bash").inOrder();
+    }
+
+    @Test
     void pinnedUsesAreKeptApartFromAutomaticOnes() throws IOException {
         open();
         store.recordCommitted(List.of(usage("perl", true, 50, "fp-1"), usage("perl", false, 50, "fp-1")));

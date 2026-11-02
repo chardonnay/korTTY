@@ -124,6 +124,10 @@ Wenn die [Unternehmensrichtlinie](../reference/enterprise-policy.md#ruleterminal
 !!! warning "Gemeinsame Verbindungen können die Warnung nur verschärfen"
     Eine [Teamarbeit](teamwork.md)-Verbindung kann in der gemeinsamen Datei einen eigenen Einfügeschutz mitbringen. Ihre Warnung gilt nur, wenn sie häufiger nachfragt als Ihre eigene Einstellung; wer die Datei pflegt, kann also einen Produktionsserver vor jedem mehrzeiligen Einfügen nachfragen lassen, aber nie eine Warnung ausschalten, die Sie gewählt haben; der Verbindungseditor weist bei einer solchen Verbindung darauf hin. Ihre Pause nach jeder eingefügten Zeile gilt wie angegeben, weil eine Pause das Einfügen nur verlangsamt und ++esc++ es abbricht. Eine Teamwork-Verbindung behält die Werte, die sie beim Öffnen ihres Terminals hatte.
 
+### KI-Memory einer Verbindung
+
+Der **KI**-Tab des Verbindungs-Editors enthält **Verbindungs-Memory bearbeiten...**, das das Memory dieser Verbindung öffnet. Seine Regeln werden nur mit den KI-Anfragen und Agenten-Läufen für diese Verbindung gesendet, neben dem globalen Memory. Die Schaltfläche ist verfügbar, sobald die Verbindung gespeichert wurde, da das Memory der Verbindung unter ihrer gespeicherten Identität abgelegt wird. Siehe [KI-Memory](ai-memory.md).
+
 ## Tags
 
 Jede gespeicherte Verbindung kann ein optionales Freitext-**Tag** tragen – eine Bezeichnung wie `prod`, `staging` oder einen Kundennamen – unabhängig von der Gruppen-/Ordnerhierarchie. Legen Sie es auf der Registerkarte *Verbindung* des Verbindungseditors (neben der Gruppe) oder gesammelt im Connection-Manager fest. Tags werden mit der Verbindung in `connections.xml` gespeichert und überstehen das Duplizieren, Exportieren und Importieren.

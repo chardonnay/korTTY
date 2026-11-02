@@ -125,6 +125,7 @@ KI-Skills sind wiederverwendbare lokale Anweisungsblöcke, die korTTY zu KI-Anfr
 * **Import** akzeptiert `.md`- und `.markdown`-Dateien.
 * **Export** schreibt Markdown-Dateien für den ausgewählten Skill oder alle Skills, wenn keiner ausgewählt ist.
 * Die Fertigkeitsliste kann alphabetisch oder nach aktiviertem/deaktiviertem Status sortiert werden.
+* **Statistik** zeigt, wie oft jedes Skill verwendet wurde und wie groß es ist, mit Hinweisen für Skills, die überprüft werden sollten; siehe [Skill-Statistik](../reference/settings/ai-skills.md#skill-statistik).
 
 ### Import-/Exportformat
 
@@ -142,6 +143,8 @@ Skill instructions as Markdown.
 ```
 
 Einfaches Markdown ohne korTTY-Frontmatter wird mit dem Dateinamen als Skill-Name, Ziel `Both`, importiert und standardmäßig deaktiviert, sodass Sie es vor der Verwendung überprüfen können. `SKILL.md`-Frontmatter im Claude/Codex-Stil mit `name`, `description` und `tags` wird ebenfalls akzeptiert und der Import ist standardmäßig deaktiviert, es sei denn, es handelt sich um das eigene Exportformat von korTTY.
+
+Eine Datei, die ein mögliches Passwort, einen Schlüssel oder ein Token enthält, wird beim Import abgelehnt; siehe [Geheimnisse in Skills](../reference/settings/ai-skills.md#geheimnisse-in-ki-skills).
 
 Wenn eine KI-Agent-Ausführung einen oder mehrere Skills verwendet, protokolliert das Terminal-Agent-Aktivitätsfenster die ausgewählten Skill-Namen. Verbindungstests senden niemals Fertigkeiten, daher bleiben `Reply with exactly OK`-Tests stabil.
 
@@ -216,6 +219,9 @@ Wenn die Auswahl wie ein einzelnes Dateiname aussieht — beispielsweise einen N
 * Die ausgewählte Schriftgröße der KI-Registerkarte wird global gespeichert und für zukünftige KI-Ergebnisregisterkarten wiederverwendet.
 * Die Token-Nutzung wird pro KI-Profil nach erfolgreichen Anfragen aufgezeichnet, sodass Warnungen und Resetzyklen genau bleiben. KI-Swarm-Agenten, geplante KI-Jobs und Sitzungsjournaleinträge zählen zum selben Kontingent.
 * Wenn ein gespeicherter Chat auf ein KI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.
+* **Mitgesendet.** Eine eingeklappte Zeile unter jeder Antwort listet die Speichereinträge, Skills und Referenzdateien auf, die mit der Anfrage gesendet wurden, maskiert wie beim Versand, mit ihren Token-Zahlen; siehe [KI-Speicher](ai-memory.md).
+* **Als Regel merken…** bei einer Ihrer eigenen Nachrichten öffnet die Regelkarte ohne KI-Aufruf. Die Karte zeigt den Text und den Speicherort, und es wird nichts gespeichert, bevor Sie auf **Speichern** klicken.
+* **Regelvorschläge.** Im Lernmodus **Regeln vorschlagen** kann eine Nachricht, die angibt, dass etwas für später aufbewahrt werden sollte, eine Vorschlagskarte unter der Antwort erzeugen. Es wird nichts gespeichert, bis Sie auf **Speichern** drücken, und **Rückgängig** macht eine gespeicherte Regel für 30 Sekunden rückgängig.
 
 ### Codeblöcke im Terminal
 
@@ -290,7 +296,8 @@ Der Manager kombiniert Profil, lokale Inferenz, Abruf und Skill-Management:
 * **Profiles** - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile. The editor keeps **Profile name** and **Use as default profile** at the top and groups the fields into four sections: **Connection**, **Model & capabilities**, **Limits & timeouts** and **Budget & usage**. The Connection and Model sections show only the rows of the selected connection mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for the integrated runtimes). **Setup wizard**, **Add** and **Refresh** act on the list and sit above it; **Test AI Connection**, **Delete** and **Save** act on the selected profile and sit under the editor.
 * **Lokale Modelle** – Hugging Face durchsuchen, GGUF-Dateien importieren/herunterladen/konfigurieren, den Funktionstest nach der Installation ausführen und mehrere llama.cpp-Sidecars starten oder stoppen.
 * **Wissensspeicher** – Erstellen Sie lokale HNSW-Speicher, fügen Sie überprüfte Dateien oder rekursive Ordner hinzu, synchronisieren Sie Quellen und führen Sie eine Testsuche durch.
-* **KI-Skills** - Verwalten Sie die Skill-Bibliothek, wie unter [KI-Skills](#ki-skills) beschrieben.
+* **KI-Skills** – Verwalten Sie die Skill-Bibliothek, die unter [KI-Skills](#ki-skills) beschrieben wird, sowie deren [Statistiken](../reference/settings/ai-skills.md#skill-statistik).
+* **Memory** – Das korTTY-Memory, das Chat- und Agent-Anfragen begleitet: das globale und das pro Verbindung gespeicherte Memory, das Token-Budget, das Lernen, die Bereinigung, der Verlauf und die anderen Memory-Dateien. Siehe [KI-Memory](ai-memory.md).
 * **Local AI** - Three sections: **Profile roles** assigns the Text/translation, Coding and [session journal](session-journal.md#ki-zusammenfassungen) profiles; **Local runtime** selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; **Hugging Face** stores an encrypted Hugging Face token. **Save** under the sections writes all of them.
 
 Gespeicherte Chats sind kein Tab des KI-Managers. **KI > Gespeicherte Chats...** öffnet sie in einem eigenen Fenster, mit einem **Chats**-Tab für gespeicherte KI-Unterhaltungen und einem **Swarm-Chats**-Tab für gespeicherte [KI-Swarm](ai-swarm.md)-Unterhaltungen, einschließlich der von geplanten Swarm-Jobs erzeugten. Dort können Sie einen Eintrag öffnen, umbenennen, aktualisieren oder löschen.

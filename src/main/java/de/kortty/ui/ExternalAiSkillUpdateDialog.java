@@ -74,7 +74,7 @@ final class ExternalAiSkillUpdateDialog extends ThemeAwareDialog<ExternalAiSkill
             decisions.put(new ButtonType(label(decision), buttonData(decision)), decision);
         }
         List<ButtonType> buttonTypes = new ArrayList<>(decisions.keySet());
-        buttonTypes.add(ButtonType.CANCEL);
+        buttonTypes.add(new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE));
         getDialogPane().getButtonTypes().setAll(buttonTypes);
         for (ButtonType decisionButton : decisions.keySet()) {
             ((Button) getDialogPane().lookupButton(decisionButton)).setDefaultButton(false);

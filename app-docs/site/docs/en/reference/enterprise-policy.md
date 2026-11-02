@@ -135,7 +135,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `serial-connections` | string | `allow`, `deny` | [Serial connections](../features/serial.md) to a serial port of the computer. A serial port has no host, so `[rule.servers]` cannot cover it; `deny` blocks them as a whole: the connection editor and Quick Connect no longer offer **Serial** for new connections, and every attempt to open a serial port — a saved or imported serial connection, a restored tab, a reconnect — is refused with *Your organization's policy does not allow serial connections.* Saved serial connections stay stored. Lockdown denies it too. There is no Settings control, so `allow` changes nothing |
 | `desktop-notifications` | string | `allow`, `deny` | Every desktop notification korTTY shows: [coding agents](../features/coding-agents.md#app-icon-badge-and-notifications), the [terminal bell, finished commands, OSC 9 / OSC 777 requests, AI runs, activity and silence](../features/terminal-notifications.md), highlight-rule notifications, JobScheduler jobs and the `notify` call of the control API. `deny` shows none of them and forces the five notification switches in *Settings → Messaging* off and locks them; the marks on tabs and the app icon badge stay, and webhooks stay under `job-webhooks`. `allow` leaves every switch with the user and never switches one on |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands, and greys out **Run** on the [code blocks of an AI chat](../features/ai-assistant.md#code-blocks-in-the-terminal) (**Insert** stays, since it runs nothing). Scheduled jobs: under `confirm` an [AI Agent or AI Swarm job](../features/jobscheduler.md#security-and-secrets) blocks every server-changing command, whatever its **AI agent may change the server without runtime confirmation** says, because nobody is there to approve it; under `read-only` both AI job types end as blocked before they connect. A job is also blocked up front when `ai` or `ai-agent` is denied, and a swarm job when `ai-swarm` is denied |
-| `ai-memory` | string | `allow`, `deny` | The user's korTTY memory: the `MEMORY.md` files, reference files of other tools and learned rules. `deny` switches the user's memory files off, so they are neither read into prompts nor written; organisation memory is not covered by this key. `allow` changes nothing on its own. The details are set under [`[rule.ai-memory]`](#ruleai-memory) |
+| `ai-memory` | string | `allow`, `deny` | The korTTY memory: the `MEMORY.md` files, the reference files of other tools and the learned rules. `deny` turns all of it off: no memory is sent with any request, no rule is learned, the user's files are neither read nor written, and organisation memory is not sent either. `allow` keeps the user's choice but locks the **Use memory** switch in the position the user has. The details are set under [`[rule.ai-memory]`](#ruleai-memory) |
 
 !!! note "Naming a feature takes it over, whichever way you decide it"
     A policy file that mentions a key locks the corresponding control, in the position the policy chose. Writing `control-api = "allow"` therefore locks the checkbox **on** — users can no longer switch the API off themselves. Leave the key out entirely to leave the choice with the user; write `deny` to take it away.
@@ -205,22 +205,26 @@ groups = ["compliance"]
 - **Tiers** — Like every setting the most specific tier that sets the key wins (user, then group, then all); rules of the same tier take the smaller value, so `0` beats every positive cap. The key is not a `0`-means-unlimited value.
 - **Invalid values** — A negative number or a non-integer (for example `"5 MB"`) is a policy error like any other malformed value, so the whole file is rejected and the lockdown fallback applies; the fallback forbids storing script text too. Write bytes, optionally with TOML digit separators (`5_242_880`).
 
-### `[rule.ai-memory]` and organisation memory
+### `[rule.ai-memory]`
 
-The `[rule.ai-memory]` table sets how the korTTY memory may be used. Every key is optional; a key the policy does not set keeps the user's own choice. A value outside the listed ones rejects the whole file. An unknown key is a warning in the log and is ignored, like in every other table.
+The `[rule.ai-memory]` table sets how the korTTY memory may be used. Every key is optional; a key the policy does not set keeps the user's own choice. A value outside the listed ones rejects the whole file. An unknown key is a warning in the log and is ignored, like in every other table. As with the other keys, the most specific tier that sets a key wins (user, then group, then all); inside one tier the strictest value applies: `disabled` over `read-only` over `editable`, `propose` under `off`, `never` over `always` over `auto`, the smaller token cap, and `false` over `true` for the switches.
 
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |
 | `user-memory` | string | `editable`, `read-only`, `disabled` | `read-only` reads the user's `MEMORY.md` files into prompts but never writes them; `disabled` neither reads nor writes them, and organisation memory is still sent |
-| `learning` | string | `propose`, `off` | `off` finds no rules in conversations and proposes none |
-| `skill-creation` | boolean | `false` | `false`: korTTY never creates a new skill for a learned rule; a rule may still go into a skill the user already has |
-| `external-files` | string | `allow`, `deny` | Whether reference files of other tools (CLAUDE.md, AGENTS.md and similar) may be read |
+| `learning` | string | `propose`, `off` | `off` finds no rules in conversations and proposes none; the **Learning** setting of the Memory tab is set to the value and locked |
+| `skill-creation` | boolean | `true`, `false` | The switch **korTTY may create skills and save learned rules in them** is set to the value and locked. `false` means that no rule goes into a skill, new or existing; every rule goes into a memory instead |
+| `external-files` | string | `allow`, `deny` | Whether reference files of other tools (CLAUDE.md, AGENTS.md and similar) may be read; `deny` reads none of them |
 | `external-file-roots` | array of paths | absolute or `~/` paths | The folders external files must lie in; an empty list allows any folder |
 | `max-tokens` | integer | `300` to `4000` | The memory budget per AI request; the smaller of this and the user's own setting applies |
-| `triage` | string | `auto`, `always`, `never` | When the agent offers solution options |
-| `statistics` | boolean | `true`, `false` | `false` records no skill statistics |
+| `triage` | string | `auto`, `always`, `never` | When the agent offers solution options: `auto` judges each request, `always` offers options for every run, `never` runs requests as asked. The user's **Estimate complexity** setting is set to the value and locked |
+| `statistics` | boolean | `true`, `false` | Whether skill statistics are recorded: `false` records none. Both values set the **Record statistics** switch and lock it |
 
-Organisation memory is set with `[[organization-memory]]` blocks, each with a `title` and a `content` text, and it is sent with every AI request of every user. A block whose title or content is longer than 8000 characters, or that the secret guard refuses, is dropped with a warning that names the field and the line, never the value. Organisation memory holds at most 20 blocks and 16000 characters in all. A block that would exceed either limit is dropped with a warning, and the blocks after it are still checked.
+### Organisation memory
+
+`[[organization-memory]]` blocks hold rules for the AI that users cannot change. Each block has a `title` and a `content` text. korTTY sends the blocks in full, ahead of the user's own memory, with every AI request of every user, and does not cut them to the token budget. A block whose title or content is longer than 8000 characters, or that the secret guard refuses, is dropped with a warning that names the field and the line, never the value. The file holds at most 20 blocks and 16000 characters in all; a block that would exceed either limit is dropped with a warning, and the blocks after it are still checked.
+
+Organisation memory is sent only while the policy allows the AI features and does not deny `ai-memory`. The user's own **Use memory** switch and the `user-memory` key do not stop it.
 
 ### `[rule.ai-runtime]`
 

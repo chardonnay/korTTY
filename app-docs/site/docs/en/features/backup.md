@@ -121,6 +121,8 @@ Both `.zip` and `.zip.gpg` backups contain the same files:
 * `snippet-analyses/` — Stored Full code analyses, one file per snippet. An import merges them: analyses that exist only locally are kept, missing ones are added, and with **Overwrite** a local file is replaced only when the backup's copy is newer. Unsaved snippet drafts (`snippet-drafts/`) are not included
 * `ai-chats.xml` — Saved AI conversations
 * `swarm-chats.xml` — Saved AI Swarm chats
+* `memory/` — The AI memory: `MEMORY.md`, the notes of each connection, the history, the archive and the state (see [AI memory](ai-memory.md)). A restore adds only the files that do not exist locally and never overwrites one. A note that holds a possible secret is not restored, and nothing is restored when the enterprise policy makes the memory read-only or disabled. The approvals of other tools' reference files (`external.json`) are in the archive but are never restored, so you approve them again on the new computer
+* `stats/` — The AI skill statistics (`skill-usage.json`); restored only where no local statistics file exists
 * `master.key` — Salt and verification hash of your master password, so the restored secrets can be unlocked with it
 * `llm/models.xml` — Local GGUF registrations and runtime settings (model weights are not included)
 * `llm/mlx-models.json` — MLX model registrations (model weights are not included)

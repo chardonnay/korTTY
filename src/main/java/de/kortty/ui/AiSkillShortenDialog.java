@@ -395,6 +395,7 @@ final class AiSkillShortenDialog extends ThemeAwareDialog<Void> {
     private static Label hint(String text) {
         Label label = new Label(text);
         label.setWrapText(true);
+        label.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         label.setStyle(MutedTextStyle.HINT);
         return label;
     }

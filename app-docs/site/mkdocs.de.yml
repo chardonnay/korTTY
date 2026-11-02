@@ -83,6 +83,7 @@ nav:
       - features/ai-tools.md
       - features/ai-agent-designs.md
       - features/ai-swarm.md
+      - features/ai-memory.md
       - features/security.md
       - features/session-isolation.md
       - features/backup.md

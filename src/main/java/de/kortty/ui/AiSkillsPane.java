@@ -89,6 +89,8 @@ final class AiSkillsPane extends VBox {
     private final AiSkillRepository repository;
     /** Set while the pane applies its own save or a background change, so the change is not echoed back. */
     private boolean applyingStoredSkills;
+    /** Set while the pane selects the first row itself, which does not count as the user opening that skill. */
+    private boolean selectingFirstAiSkill;
     private final Runnable storedSkillsListener = this::onStoredSkillsChanged;
 
     private static final String MUTED_STYLE_CLASS = "ai-skill-muted";
@@ -195,6 +197,7 @@ final class AiSkillsPane extends VBox {
         aiSkillListView = new ListView<>();
         aiSkillListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         aiSkillListView.setPrefWidth(300);
+        aiSkillListView.setPrefHeight(260);
         aiSkillListView.setMinWidth(260);
         aiSkillListView.setCellFactory(listView -> new ListCell<>() {
             @Override
@@ -448,6 +451,7 @@ final class AiSkillsPane extends VBox {
         statusLabel.setStyle("-fx-font-size: 0.8462em;");
 
         getChildren().addAll(aiSkillsContent, AiManagerSections.saveRow(saveButton, statusLabel));
+        AiManagerSections.keepButtonWidths(aiSkillsContent);
 
         aiSkillListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             if (applyingStoredSkills) {
@@ -455,11 +459,13 @@ final class AiSkillsPane extends VBox {
             }
             snapshotSelectedAiSkillEditorState();
             selectedAiSkill = newValue;
-            acknowledgeKorttyChanges(newValue);
+            if (!selectingFirstAiSkill) {
+                acknowledgeKorttyChanges(newValue);
+            }
             loadAiSkillIntoEditor(newValue);
         });
         if (!aiSkillListView.getItems().isEmpty()) {
-            aiSkillListView.getSelectionModel().selectFirst();
+            selectFirstAiSkillWithoutAcknowledging();
         } else {
             loadAiSkillIntoEditor(null);
         }
@@ -738,7 +744,7 @@ final class AiSkillsPane extends VBox {
             selectedAiSkill = null;
             loadAiSkillIntoEditor(null);
         } else {
-            aiSkillListView.getSelectionModel().selectFirst();
+            selectFirstAiSkillWithoutAcknowledging();
         }
         aiSkillListView.refresh();
         updateAiSkillCounts();
@@ -848,7 +854,7 @@ final class AiSkillsPane extends VBox {
         }
         if (!anySelected) {
             if (!visible.isEmpty()) {
-                aiSkillListView.getSelectionModel().selectFirst();
+                selectFirstAiSkillWithoutAcknowledging();
             } else {
                 selectedAiSkill = null;
                 loadAiSkillIntoEditor(null);
@@ -1075,7 +1081,7 @@ final class AiSkillsPane extends VBox {
             selectedAiSkill = currentSkill;
             loadAiSkillIntoEditor(currentSkill);
         } else if (!visible.isEmpty()) {
-            aiSkillListView.getSelectionModel().selectFirst();
+            selectFirstAiSkillWithoutAcknowledging();
         } else {
             selectedAiSkill = null;
             loadAiSkillIntoEditor(null);
@@ -1481,8 +1487,10 @@ final class AiSkillsPane extends VBox {
         deleteLearnedRuleButton.setOnAction(event -> deleteSelectedLearnedRule());
         Label title = new Label(I18n.get("settings.aiSkills.learnedRules.title"));
         title.setStyle("-fx-font-weight: bold;");
+        title.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         Label hint = new Label(I18n.get("settings.aiSkills.learnedRules.hint"));
         hint.setWrapText(true);
+        hint.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
         hint.setStyle("-fx-font-size: 0.8462em;");
         VBox box = new VBox(4, title, hint, learnedRulesView, new HBox(8, editLearnedRuleButton, deleteLearnedRuleButton));
         box.setVisible(false);
@@ -1495,6 +1503,19 @@ final class AiSkillsPane extends VBox {
         learnedRulesBox.setVisible(!rules.isEmpty());
         learnedRulesBox.setManaged(!rules.isEmpty());
         learnedRulesView.getItems().setAll(rules);
+    }
+
+    /**
+     * Selects the first row the way the pane does on opening or after the list changes. That selection is not the
+     * user's choice, so a skill korTTY created keeps its "new" badge until the user selects it.
+     */
+    private void selectFirstAiSkillWithoutAcknowledging() {
+        selectingFirstAiSkill = true;
+        try {
+            aiSkillListView.getSelectionModel().selectFirst();
+        } finally {
+            selectingFirstAiSkill = false;
+        }
     }
 
     /**
