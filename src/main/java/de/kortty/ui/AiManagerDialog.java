@@ -51,7 +51,6 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -898,14 +897,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         LazyTabContent.defer(tab, () -> {
             aiSkillsPane = new AiSkillsPane(app, paneOwner);
             aiSkillsPane.activateEditor();
-            // The list column and the editor are taller than a small dialog: the pane scrolls, the list keeps its rows.
-            ScrollPane scroller = new ScrollPane(aiSkillsPane);
-            scroller.setFitToWidth(true);
-            scroller.setFitToHeight(false);
-            scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-            scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-            AiManagerSections.revealFocusedControl(scroller);
-            return scroller;
+            // The list and the editor take the dialog's height; a small dialog scrolls and the list keeps its rows.
+            return AiManagerSections.fillingScroller(aiSkillsPane);
         });
         return tab;
     }
@@ -915,14 +908,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         Tab tab = new Tab(I18n.get("settings.tab.aiMemory"));
         LazyTabContent.defer(tab, () -> {
             aiMemoryPane = new AiMemoryPane(app, paneOwner, null);
-            // The pane is taller than a small dialog: its lower sections (save row, cleanup, external files) scroll.
-            ScrollPane scroller = new ScrollPane(aiMemoryPane);
-            scroller.setFitToWidth(true);
-            scroller.setFitToHeight(false);
-            scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-            scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-            AiManagerSections.revealFocusedControl(scroller);
-            return scroller;
+            // The entries and the Markdown editor take the dialog's height; a small dialog scrolls the lower sections
+            // (save row, cleanup, external files) instead of squeezing them.
+            return AiManagerSections.fillingScroller(aiMemoryPane);
         });
         return tab;
     }

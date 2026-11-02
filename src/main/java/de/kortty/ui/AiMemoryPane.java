@@ -182,6 +182,7 @@ final class AiMemoryPane extends VBox {
         installExternalFilesSection(externalSection);
         rebuildBanners();
         getChildren().addAll(bannerBox, secretBox, settingsBox, filesBox);
+        VBox.setVgrow(filesBox, Priority.ALWAYS);
         scopeCombo.valueProperty().addListener((obs, was, now) -> onScopeChanged(was, now));
         store.addChangeListener(storeListener);
         refresh();
@@ -325,6 +326,9 @@ final class AiMemoryPane extends VBox {
 
         filesBox.getChildren().addAll(scopeRow, budgetBox, toggles, entriesBox, markdownBox, actions, statusLabel,
             externalFilesBox);
+        // The view on show takes the height the tab has to spare.
+        VBox.setVgrow(entriesBox, Priority.ALWAYS);
+        VBox.setVgrow(markdownBox, Priority.ALWAYS);
         AiManagerSections.keepButtonWidths(filesBox);
     }
 

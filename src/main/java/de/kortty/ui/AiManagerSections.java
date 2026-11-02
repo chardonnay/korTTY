@@ -99,6 +99,24 @@ final class AiManagerSections {
     }
 
     /**
+     * A scroller for a tab whose lists and editors should use the whole dialog: the content grows with the window, its
+     * growing parts take the extra height, and the tab scrolls only when the window is shorter than the content's
+     * preferred height, so a small dialog keeps the list rows and the editor instead of squeezing them.
+     */
+    static ScrollPane fillingScroller(Region content) {
+        // Fit-to-height sizes the content to the viewport but never below its minimum, so the preferred height is
+        // the floor below which the tab scrolls.
+        content.setMinHeight(Region.USE_PREF_SIZE);
+        ScrollPane scroller = new ScrollPane(content);
+        scroller.setFitToWidth(true);
+        scroller.setFitToHeight(true);
+        scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        revealFocusedControl(scroller);
+        return scroller;
+    }
+
+    /**
      * Scrolls {@code scroller} so the control that takes the keyboard focus is shown. A ScrollPane does not follow the
      * focus by itself, so Tab could otherwise move the focus to a control below or above the visible part of a tab.
      */

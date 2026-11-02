@@ -29,9 +29,17 @@ class AiManagerUiWiringSourceScanTest {
     }
 
     @Test
-    void theMemoryTabScrollsBecauseItIsTallerThanASmallDialog() throws IOException {
+    void theMemoryAndSkillsTabsFillTheDialogAndScrollOnlyWhenItIsSmall() throws IOException {
         String dialog = source("AiManagerDialog");
-        assertThat(methodBody(dialog, "private Tab buildAiMemoryTab()")).contains("new ScrollPane(aiMemoryPane)");
+        assertThat(methodBody(dialog, "private Tab buildAiMemoryTab()")).contains("AiManagerSections.fillingScroller(aiMemoryPane)");
+        assertThat(methodBody(dialog, "private Tab buildAiSkillsTab()")).contains("AiManagerSections.fillingScroller(aiSkillsPane)");
+        String scroller = methodBody(source("AiManagerSections"), "static ScrollPane fillingScroller(Region content)");
+        assertThat(scroller).contains("scroller.setFitToHeight(true)");
+        assertThat(scroller).contains("content.setMinHeight(Region.USE_PREF_SIZE)");
+        String memory = source("AiMemoryPane");
+        assertThat(memory).contains("VBox.setVgrow(filesBox, Priority.ALWAYS)");
+        assertThat(memory).contains("VBox.setVgrow(entriesBox, Priority.ALWAYS)");
+        assertThat(memory).contains("VBox.setVgrow(markdownBox, Priority.ALWAYS)");
     }
 
     @Test
