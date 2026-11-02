@@ -15,6 +15,44 @@ secret:
     - name: korTTY auto-unlock bootstrap password (documented non-secret)
       match: 2860f7e4fca9048e6b290f37004a79fc09c0da35a7e9c6eef4d6829808a632d2
 
+    # Made-up passwords in the tests of the AI memory and skill secret guard (PR #664). The guard keeps
+    # passwords out of AI skills and memory, so its tests need secret-shaped samples to check that it
+    # refuses and masks them. Each value below exists only in those tests (and, for the PWD sample, in an
+    # earlier revision of AiSecretGuard's Javadoc); none is or was a credential. Listed by value, so a
+    # real secret in the same files still trips the scanner.
+    - name: AI secret guard tests - sample PWD password (with its leading tilde)
+      match: b145df14ed299eefe38b962a6b81e9db7f2cbc0a19521af4ac8065e30470621d
+    - name: AI secret guard tests - sample PWD password (without the tilde)
+      match: 9aa0fcb0ba3ba7160b97f2f6a4ff6264d550b669ee663581daf9273ef6bf64d5
+    - name: AI secret guard tests - sample German password with "!" (several guard and memory tests)
+      match: bc39dd530b3a762d086a0031394753e6d75a13efaecd2b32fb20d1eb67942588
+    - name: AI secret guard tests - the same sample as a PWD path value
+      match: 58cd0f1ace89e434c5882b8a5ba674a521260e48e40f314d7bc8f5da1773733b
+    - name: AI secret guard tests - sample German password without "!"
+      match: 7da48e647c7af4a2cc8330c0f4ed45d8ab79b79a4c358d6699b8686b80155bb2
+    - name: AI secret guard tests - partly masked sample value
+      match: 2f2b73c096e78c685b4ab9578a34f30e07983b12df9c7f8e41ee746aaab2699a
+    - name: AI secret guard tests - partly masked sample DB password
+      match: 14ad0e8ddfca14bdadd7e92915fc349c7bc577aa788a6995864f98f13bf69a69
+    - name: AI secret guard tests - sample API key in hex
+      match: 42069524abe8af441ea63215ae42beadc3e34fb66816fd39dcfe9636e8946765
+    - name: AI secret guard tests - sample DB password in leetspeak
+      match: b43c4ca964539269dbfe5ac2fa30ca9a932bcdc4604a12ecef7b5871d425abd0
+    - name: AI memory tests - sample memory secret
+      match: 8baccb639beb116da03e20554f59855da6068e41084ac7acab07ef4d49f54579
+    - name: AI memory tests - sample session password
+      match: fe96f59ebf2cb6f40d017e3cdc4629c4848adcb092f1a868112deebda2630ae8
+    - name: AI memory tests - sample server password
+      match: 94257e08dc4be2306b6f2d94b6e1aae93efe4b737e5778f54c8783e960b46c6f
+    - name: Vault known-values tests - sample connection password
+      match: e96b60ab223ba303b91a35203ac4a68dee132266d9e3baeae06b336e2dbd9f13
+    - name: Vault known-values tests - sample SSH key passphrase
+      match: cd75e9fc050eafcdbf40de8266e621dca320fa9460093b91b90e0c9efe44d43f
+    - name: Vault known-values tests - sample AI profile API key
+      match: 16deb39ed38109460ef49ebf664b6ba533f0a929ce66c469ef2289f2a3d9f5c4
+    - name: Vault known-values tests - sample web-search API key
+      match: cffd30fb7a9314c665408a2c88c85d3c3e7ce81b68110c0bbf9ca534220d8d48
+
   ignored-paths:
     # UI strings, not credentials: the security warnings for the master-password settings are prose
     # containing the word "password", which trips the generic-password detector.
@@ -27,6 +65,13 @@ secret:
     # values), there so the masking patterns can be checked. None of them is or was a credential.
     - "src/test/java/de/kortty/core/SecretTokenPatternsTest.java"
     - "src/test/java/de/kortty/core/AiOutboundRedactionTest.java"
+    # Test fixtures for the secret guard that keeps passwords out of AI skills and memory (PR #664):
+    # corpora of made-up secret-shaped samples (German and English prose, key=value, .env and CLI
+    # forms, high-entropy strings) and throwaway vault values, there so the guard's refusals can be
+    # checked. None of them is or was a credential.
+    - "src/test/java/de/kortty/core/AiSecretGuardTest.java"
+    - "src/test/java/de/kortty/core/AiSecretGuardCorpusTest.java"
+    - "src/test/java/de/kortty/security/VaultKnownSecretsTest.java"
     # Generated MkDocs search indexes. Not a credential and not authored: they are one-line JSON
     # rebuilt in full by build-docs-site.py, so every docs change re-adds the whole file and the
     # scanner reads long-standing content as new. The concrete match is the heading anchor
