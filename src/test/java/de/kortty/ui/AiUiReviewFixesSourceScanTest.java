@@ -53,13 +53,19 @@ class AiUiReviewFixesSourceScanTest {
     @Test
     void theScrollingAiManagerTabsRevealTheFocusedControl() throws IOException {
         String manager = source("AiManagerDialog");
-        String call = "AiManagerSections.revealFocusedControl(scroller)";
-        int reveals = 0;
+        String call = "AiManagerSections.fillingScroller(";
+        int scrollers = 0;
         for (int at = manager.indexOf(call); at >= 0; at = manager.indexOf(call, at + call.length())) {
-            reveals++;
+            scrollers++;
         }
 
-        assertWithMessage("scrolling tabs that reveal their focused control").that(reveals).isEqualTo(2);
-        assertThat(source("AiManagerSections")).contains("scene.focusOwnerProperty()");
+        // The skills and memory tabs scroll through the shared scroller, which reveals the focused control.
+        assertWithMessage("scrolling tabs built by the shared scroller").that(scrollers).isEqualTo(2);
+        String sections = source("AiManagerSections");
+        int scroller = sections.indexOf("static ScrollPane fillingScroller(Region content)");
+        assertThat(scroller).isAtLeast(0);
+        assertThat(sections.substring(scroller, sections.indexOf("\n    }\n", scroller)))
+            .contains("revealFocusedControl(scroller)");
+        assertThat(sections).contains("scene.focusOwnerProperty()");
     }
 }
