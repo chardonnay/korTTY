@@ -40,7 +40,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  # Job-level `if:` cannot read secrets, so this job checks for the App credentials and the
+  # release job runs only when they are there. Without them a merged security PR gets a notice
+  # instead of a red run; a manual dispatch, where someone asked for a release, still fails.
+  credentials:
     runs-on: ubuntu-latest
 
     # GATE: proceed only for (a) a merged, security-labeled PR into main,
@@ -52,6 +55,34 @@ jobs:
         github.event.pull_request.base.ref == 'main' &&
         contains(github.event.pull_request.labels.*.name, 'security')
       )
+
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+
+    steps:
+      - name: Check for the release App credentials
+        id: check
+        env:
+          APP_ID: ${{ secrets.RELEASE_APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ -n "$APP_ID" ] && [ -n "$APP_PRIVATE_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          message="RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY are not set, so no security release is cut."
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "::error::$message"
+            exit 1
+          fi
+          echo "::notice::$message Cut the release by hand or set the secrets."
+
+  release:
+    needs: credentials
+    if: needs.credentials.outputs.ready == 'true'
+    runs-on: ubuntu-latest
 
     steps:
       # --- Mint a non-default token (REQUIRED so the release triggers build-release.yml) ---

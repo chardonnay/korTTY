@@ -18,9 +18,11 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
+    # No "security" label here: auto-security-release.yml cuts a patch release for every merged PR
+    # that carries it, and this list is applied to routine version bumps and advisory-driven
+    # security updates alike. Label a PR "security" by hand when it really fixes a vulnerability.
     labels:
       - "dependencies"
-      - "security"
     commit-message:
       prefix: "deps"
       include: "scope"
