@@ -156,8 +156,14 @@ public class RemoteArchiveExtractorIntegrationTest {
         ArchiveExtractException error = expectThrows(ArchiveExtractException.class,
             () -> extractor.extract(archive.toString(), new RemoteCommandCancellation(), null));
 
-        assertThat(error.reason()).isEqualTo(ArchiveExtractException.Reason.UNSAFE_LINK);
-        assertThat(error.detail()).isEqualTo("esc");
+        // Apple's unzip refuses escaping links itself ("symlink error: Permission denied", exit 2),
+        // so on macOS the client-side check never sees one; the staging folder must go either way
+        boolean refusedByUnzip = error.reason() == ArchiveExtractException.Reason.EXTRACT_FAILED
+            && error.detail().startsWith("symlink error");
+        if (!refusedByUnzip) {
+            assertThat(error.reason()).isEqualTo(ArchiveExtractException.Reason.UNSAFE_LINK);
+            assertThat(error.detail()).isEqualTo("esc");
+        }
         assertThat(names(parent)).containsExactly("links.zip");
     }
 
