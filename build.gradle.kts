@@ -409,7 +409,7 @@ dependencies {
     implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.31.0")
     implementation("com.knuddels:jtokkit:1.1.0")
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
-    implementation("com.google.googlejavaformat:google-java-format:1.37.0")
+    implementation("com.google.googlejavaformat:google-java-format:2.0.0")
 
     // The JDK's built-in jdk.jsobject module is deprecated for removal on JDK 25,
     // so on JDK 25+ we supply it externally via the JavaFX artifact. On JDK 21
@@ -1503,8 +1503,8 @@ tasks.register("copyBundledFormatterManifest") {
         target.parentFile.mkdirs()
         target.writeText(
             """
-            google-java-format.version=1.37.0
-            google-java-format.source=https://central.sonatype.com/artifact/com.google.googlejavaformat/google-java-format/1.37.0
+            google-java-format.version=2.0.0
+            google-java-format.source=https://central.sonatype.com/artifact/com.google.googlejavaformat/google-java-format/2.0.0
             web-formatter.engine=javafx-web
             shfmt.version=$formatterShfmtVersion
             shfmt.source=https://github.com/mvdan/sh/releases/tag/v$formatterShfmtVersion
