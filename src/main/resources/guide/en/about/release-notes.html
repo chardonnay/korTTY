@@ -839,35 +839,7 @@
     <article>
         <p><h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
-<h2 id="v2240">v2.24.0<a class="headerlink" href="#v2240" title="Permanent link">&para;</a></h2>
-<h3 id="connection-manager">Connection Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>New layout</strong> — the Connection Manager shows a library on the left (all connections, favorites, recently used, open now, folders, tags, teamwork), the chosen connections in the middle and an inspector on the right, with every detail of the selected connection and quick edits of its name and tag. The toolbar uses icons in the style of the icon toolbar, and the list shows each connection's address, tag and marks for jump server, tunnels, isolation and incognito instead of emoji. See <a href="../features/connections.html#connection-manager">Connection Manager</a>.</li>
-<li><strong>Map</strong> — <strong>Map</strong> shows the connections as a network plan: a zone per folder in its tab color, jump-server routes and tunnels as lines, double-click connects and dragging a node into another zone moves the connection into that folder. See <a href="../features/connections.html#list-and-map">List and map</a>.</li>
-<li><strong>Favorites</strong> — mark connections with the star to find them under <strong>Favorites</strong>; teamwork connections can be favorites too.</li>
-<li><strong>Teamwork beside local connections</strong> — the general lists show teamwork connections too, marked with a small people symbol and read-only. See <a href="../features/connections.html#library">Library</a>.</li>
-<li><strong>OS symbols</strong> — give each server the symbol of its operating system (Windows, macOS, Linux distributions, ChromeOS, Unix, BSD, z/OS) or one of your own images, shown in the list, on the map and in the inspector. See <a href="../features/connections.html#os-symbols">OS symbols</a>.</li>
-<li><strong>Map as PDF</strong> — <strong>PDF</strong> on the map saves it as a vector PDF with the korTTY logo, in landscape or portrait.</li>
-<li><strong>Overview export</strong> — <strong>Export overview</strong> writes your servers as JSON, YAML, TOML or XML, with the parts you choose and never a password or key. See <a href="../features/connections.html#exporting-an-overview">Exporting an overview</a>.</li>
-<li><strong>Inspector</strong> — the route from this computer through the jump server, security as chips, usage bars for the last 14 days and an SFTP button.</li>
-<li><strong>Toolbar for an empty connection row</strong> — while <strong>View → Connection toolbar</strong> is switched on but holds no servers or groups yet, the row stays visible and offers <strong>Add connection</strong>, which opens customizing on the connections catalog. See <a href="../getting-started/main-window.html#customizing-the-icon-toolbar">Customizing the icon toolbar</a>.</li>
-</ul>
-<h3 id="serial-connections">Serial connections<a class="headerlink" href="#serial-connections" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Serial ports</strong> — the new <strong>Serial</strong> protocol opens a terminal on a serial port, like PuTTY's serial sessions: a router or switch console, a microcontroller board or a USB-to-serial adapter, on Windows, macOS and Linux. Pick the port from the list or type it, and set the speed, data bits, parity, stop bits, flow control, what Enter sends, DTR/RTS and local echo. <strong>Send Break</strong> is in the terminal's context menu and in the Connections menu, and can get a key in the keyboard settings. Serial sessions from MobaXterm and PuTTY Connection Manager files are imported too. See <a href="../features/serial.html">Serial connections</a>.</li>
-</ul>
-<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Clipboard protocol of kitty (OSC 5522)</strong> — programs that speak kitty's clipboard protocol, such as Neovim and <code>kitten clipboard</code>, can copy to the clipboard under the OSC 52 setting, and with the new <strong>Let programs in the terminal ask to read the clipboard (OSC 5522)</strong> setting they can ask to read it. Every read asks you first, <strong>Deny</strong> is the default, and a paste into a program that asked for paste events counts as your consent. Only text is exchanged; the strict terminal mode drops the protocol, and the policy key <code>allow-osc5522-clipboard-read = false</code> forbids reading. See <a href="../features/terminal-notifications.html#programs-reading-the-clipboard-osc-5522">Programs reading the clipboard</a>.</li>
-<li><strong>Scrollback memory limit</strong> — the new <strong>Scrollback memory</strong> slider in the Terminal settings sets the most memory the scrollback of one pane may use, from 1 to 50 MB (10 MB by default), next to the line count; whichever limit is reached first drops the oldest lines. A saved change applies to open terminals at once. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</li>
-<li><strong>Scrollback compression</strong> — while a terminal has no output, korTTY compresses the scrollback lines that are not on screen in the background, so the same memory holds several times as many lines. A line is unpacked as soon as you scroll to it. Switch it off with <strong>Compress the scrollback in the background while idle</strong>. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</li>
-<li><strong>Pixel size for image tools over SSH</strong> — SSH sessions, isolated ones included, now tell the server the size of the terminal in pixels, so image tools that use the kitty graphics protocol size their images correctly instead of seeing 0×0.</li>
-</ul>
-<h3 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Disable the AI agent per connection</strong> — for systems such as production servers, switch on <strong>Disable AI agent for this connection</strong> on the <strong>AI</strong> tab of the connection editor. Every agent run on that connection is then refused, from the menu, the <code>agent ...</code> shortcut, accepted plans, swarm members and scheduled AI Agent jobs; <strong>Ask Agent</strong>, <strong>AI Planning</strong> and the other AI features stay available. See <a href="../features/ai-tools.html#connections-without-the-agent">Connections without the agent</a>.</li>
-<li><strong>Search the connection skills</strong> — a search field above the AI Skills list in the connection editor filters them by name, description and tags.</li>
-</ul>
+<h2 id="v2250">v2.25.0<a class="headerlink" href="#v2250" title="Permanent link">&para;</a></h2>
 <h3 id="ai-memory-and-skills">AI memory and skills<a class="headerlink" href="#ai-memory-and-skills" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>AI memory</strong> — korTTY keeps a memory that AI chat and the agent send with their requests: a global memory and one per connection, as plain Markdown files you can read and edit. It has a token budget per request, your own text is never changed without your confirmation, and the entries korTTY wrote can be merged, archived and restored from the archive (Show archive…); the history keeps earlier versions of a memory file that you can restore. See <a href="../features/ai-memory.html">AI memory</a>.</li>
@@ -882,18 +854,13 @@
 <li><strong>Enterprise policy</strong> — the <code>[rule.ai-memory]</code> table sets how the memory may be used, how rules are learned, whether korTTY may create skills, which reference files may be read, the token budget, the triage mode and the statistics. <code>[[organization-memory]]</code> adds rules that every user gets and cannot change. See <a href="../reference/enterprise-policy.html#ruleai-memory">Enterprise policy</a>.</li>
 <li><strong>Backups</strong> — the memory and the skill statistics are part of a backup. See <a href="../features/backup.html#backup-file-contents">Backup &amp; restore</a>.</li>
 </ul>
-<h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Snippet Manager windows no longer block the main window</strong> — the terminals stay usable while a Snippet Manager window is open, also while it asks a question or runs a Full code analysis. <strong>Tools → New Snippet Manager Window</strong> opens a further one, and <strong>Move to new window</strong> on a tab moves a snippet or a folder analysis into a window of its own, for example on a second screen. See <a href="../features/snippets.html#opening-the-snippet-manager">Opening the Snippet Manager</a>.</li>
-</ul>
 <h3 id="coding-agents">Coding agents<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Cline and Antigravity CLI</strong> — the Coding Agents panel now recognises <strong>Cline</strong> and Google's <strong>Antigravity CLI</strong> (<code>agy</code>), the successor to Gemini CLI; the rules of every other agent were re-checked against its latest version, and Gemini CLI's folder-trust and sign-in dialogs now count as waiting for you. See <a href="../features/coding-agents.html#what-it-detects">What it detects</a>.</li>
+<li><strong>Kilo CLI</strong> — the Coding Agents panel now recognises <strong>Kilo</strong> (<code>kilo</code> or <code>kilocode</code>, npm package <code>@kilocode/cli</code>), a fork of OpenCode: working, waiting for your answer and idle at its prompt. <strong>Reject</strong> in its permission dialog first asks what Kilo should do differently, so the pane stays <em>waiting for you</em> until you confirm with <span class="keys"><kbd class="key-enter">Enter</kbd></span>. See <a href="../features/coding-agents.html#what-it-detects">What it detects</a>.</li>
 </ul>
-<h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
+<h3 id="local-models">Local models<a class="headerlink" href="#local-models" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Copying from the AI chat</strong> — <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> and <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-a">A</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-a">A</kbd></span> now work after clicking into a chat message, and the chat's scrollbar is wider and easier to see.</li>
-<li><strong>Wide dialogs open at their size in the AtlantaFX designs</strong> — under an AtlantaFX design, a dialog laid out wider than 600 px (such as the settings, <strong>Compare folders</strong> in the SFTP manager or the <strong>Logfile Manager</strong>) opened squeezed or grew after it appeared; it now opens as wide as in the Normal design, and a long message still wraps.</li>
+<li><strong>Real compute backend</strong> — the <strong>Backend</strong> column of the Runtimes and model tables shows the GPU or CPU backend a runtime computes on, as CPU, Metal, Vulkan or Auto: MLX runtimes and MLX models show Metal instead of "MLX", and before a runtime is installed the column shows the backend an installation would bring, such as "Metal (on install)". See <a href="../features/local-models.html#runtimes">Runtimes</a>.</li>
 </ul></p>
     </article>
 </section>
@@ -902,7 +869,7 @@
             <!-- block footer -->
 <footer class="kt-footer">
   <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
-  <div class="kt-footer__line">korTTY <strong>v2.24.0</strong></div>
+  <div class="kt-footer__line">korTTY <strong>v2.25.0</strong></div>
 </footer>
 
             <!-- endblock -->
