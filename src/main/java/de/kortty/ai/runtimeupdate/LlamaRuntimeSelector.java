@@ -84,13 +84,7 @@ public final class LlamaRuntimeSelector {
             return selectBackend(index, compatible, requestedBackend);
         }
 
-        // Metal is the native default on macOS. Vulkan remains an explicit opt-in on Windows and
-        // Linux because merely having a Vulkan-linked package does not prove that a usable driver
-        // or GPU is present. AUTO therefore chooses the portable CPU package there, with the other
-        // package only as a last-resort channel fallback.
-        LlamaBackend preferredBackend = platform == LlamaRuntimePlatform.MACOS
-            ? LlamaBackend.METAL
-            : LlamaBackend.CPU;
+        LlamaBackend preferredBackend = automaticBackend(platform);
         LlamaBackend fallbackBackend = platform == LlamaRuntimePlatform.MACOS
             ? LlamaBackend.CPU
             : LlamaBackend.VULKAN;
@@ -99,6 +93,17 @@ public final class LlamaRuntimeSelector {
         return preferred.isPresent()
             ? preferred
             : selectBackend(index, compatible, fallbackBackend);
+    }
+
+    /**
+     * The backend {@link LlamaBackend#AUTO} installs on {@code platform} when the channel offers it.
+     * Metal is the native default on macOS. Vulkan remains an explicit opt-in on Windows and Linux
+     * because merely having a Vulkan-linked package does not prove that a usable driver or GPU is
+     * present, so AUTO chooses the portable CPU package there, with the other package only as a
+     * last-resort channel fallback.
+     */
+    public static LlamaBackend automaticBackend(LlamaRuntimePlatform platform) {
+        return platform == LlamaRuntimePlatform.MACOS ? LlamaBackend.METAL : LlamaBackend.CPU;
     }
 
     /** Shared compatibility gate for automatic selection and explicit local-archive installation. */

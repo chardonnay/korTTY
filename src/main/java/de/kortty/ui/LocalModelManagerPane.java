@@ -39,7 +39,9 @@ import de.kortty.ai.mlx.MlxRuntimeUpdateCoordinator;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeInstallation;
 import de.kortty.ai.runtimeupdate.LlamaRuntimePackageDescriptor;
 import de.kortty.ai.runtimeupdate.LlamaRuntimePackageInstaller;
+import de.kortty.ai.runtimeupdate.LlamaRuntimePlatform;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeProvisioner;
+import de.kortty.ai.runtimeupdate.LlamaRuntimeSelector;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateCoordinator;
 import de.kortty.ai.runtimeupdate.LlamaRuntimeUpdateResult;
 import de.kortty.core.AiSkillPromptSupport;
@@ -887,15 +889,51 @@ final class LocalModelManagerPane extends VBox {
      */
     private String backendCell(InstalledModel model) {
         if (model.isMlx()) {
-            return "MLX";
+            return backendLabel(LlamaBackend.METAL);
         }
         LlamaBackend configured = model.llama().getBackend();
         LlamaBackend active = activeLlamaBackend;
         if (active != null && LlamaRuntimeBackendCompatibility.evaluate(active, List.of(model.llama())).status()
             == LlamaRuntimeBackendCompatibility.Status.REQUIRES_DIFFERENT_RUNTIME) {
-            return I18n.get("ai.local.models.backend.runtimeMismatch", configured.name(), active.name());
+            return I18n.get("ai.local.models.backend.runtimeMismatch", backendLabel(configured), backendLabel(active));
         }
-        return configured.name();
+        return backendLabel(configured);
+    }
+
+    /** The display name of a backend: CPU, Metal or Vulkan, and Auto for a model that follows the runtime. */
+    static String backendLabel(LlamaBackend backend) {
+        return backend == null || backend == LlamaBackend.AUTO
+            ? I18n.get("ai.local.models.backend.auto")
+            : I18n.get("ai.local.runtime.backend." + backend.name().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * A runtime row's Backend cell: the installed package's backend, or before an install the backend an install
+     * would bring, marked as such. For llama.cpp that is the preferred backend, with Auto resolved the way the
+     * installer resolves it on this platform; MLX always runs on Metal. {@code planned} is {@code null} when no
+     * install is possible here.
+     */
+    static String runtimeBackendCell(LlamaBackend installed, LlamaBackend planned) {
+        if (installed != null) {
+            return backendLabel(installed);
+        }
+        return planned != null ? I18n.get("ai.local.models.runtime.backend.planned", backendLabel(planned)) : "—";
+    }
+
+    /** The llama.cpp backend an install would bring on {@code platform}; {@code null} without a platform. */
+    static LlamaBackend plannedLlamaBackend(LlamaBackend preferred, LlamaRuntimePlatform platform) {
+        if (preferred != null && preferred != LlamaBackend.AUTO) {
+            return preferred;
+        }
+        return platform != null ? LlamaRuntimeSelector.automaticBackend(platform) : null;
+    }
+
+    private static LlamaRuntimePlatform currentRuntimePlatform() {
+        try {
+            return LlamaRuntimePlatform.current();
+        } catch (IllegalStateException unsupported) {
+            return null;
+        }
     }
 
     private void configureInstalledTable() {
@@ -2653,7 +2691,8 @@ final class LocalModelManagerPane extends VBox {
         rows.add(new RuntimeRow(
             RuntimeKind.LLAMA,
             llama.map(installation -> runtimeVersionLabel(installation.descriptor().runtimeId())).orElse("—"),
-            llama.map(installation -> installation.descriptor().backend().name()).orElse("—"),
+            runtimeBackendCell(activeLlamaBackend,
+                plannedLlamaBackend(preferredRuntimeBackend(), currentRuntimePlatform())),
             withPinnedMarker(llamaState, RuntimeKind.LLAMA)));
         if (MlxPlatform.isSupported()) {
             Optional<MlxRuntimeLocator.MlxRuntimeInstallation> mlx = mlxRuntimeLocator.locateActive();
@@ -2663,7 +2702,7 @@ final class LocalModelManagerPane extends VBox {
             rows.add(new RuntimeRow(
                 RuntimeKind.MLX,
                 mlx.map(installation -> runtimeVersionLabel(installation.id())).orElse("—"),
-                "MLX",
+                runtimeBackendCell(mlx.isPresent() ? LlamaBackend.METAL : null, LlamaBackend.METAL),
                 withPinnedMarker(mlx.isPresent()
                     ? I18n.get("ai.local.models.runtime.state.ready")
                     : mlxRevoked
@@ -2766,10 +2805,6 @@ final class LocalModelManagerPane extends VBox {
         } catch (Exception error) {
             status.setText(I18n.get("ai.local.preferences.save.failed") + ": " + message(error));
         }
-    }
-
-    private static String backendLabel(LlamaBackend backend) {
-        return I18n.get("ai.local.runtime.backend." + backend.name().toLowerCase(Locale.ROOT));
     }
 
     /**
