@@ -3,10 +3,14 @@
 # Only verified false positives belong here. Every entry names what the match actually is and why
 # it is not a credential — do not add blanket ignores (e.g. whole main-source directories or the
 # "Generic Password" detector), which would hide a real leak.
+#
+# This file configures ggshield (CLI, pre-commit) only. The "GitGuardian Security Checks" run on pull
+# requests comes from the GitGuardian GitHub App, which does not read it: findings there are ignored
+# as incidents in the GitGuardian dashboard (or its API), then the check is re-run.
 version: 2
 
 secret:
-  ignored-matches:
+  ignored_matches:
     # de/kortty/security/MasterPasswordManager.java — AUTO_UNLOCK_DEFAULT_PASSWORD.
     # Deliberately NOT a secret: the bootstrap password korTTY sets up on a brand-new profile when
     # passwordless auto-login is enabled, so a throwaway/test VM starts without any input. The
@@ -53,7 +57,7 @@ secret:
     - name: Vault known-values tests - sample web-search API key
       match: cffd30fb7a9314c665408a2c88c85d3c3e7ce81b68110c0bbf9ca534220d8d48
 
-  ignored-paths:
+  ignored_paths:
     # UI strings, not credentials: the security warnings for the master-password settings are prose
     # containing the word "password", which trips the generic-password detector.
     - "src/main/resources/i18n/messages*.properties"
