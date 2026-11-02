@@ -1,8 +1,10 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiSentContext;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.memory.RuleProposal;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.Theme;
@@ -273,6 +275,37 @@ public class AiAgentActivityTabsPanel extends VBox {
             return null;
         }
         return panel.requestPassword(request);
+    }
+
+    /** What the run has sent so far, in that run's panel; nothing is shown when the run has no panel here. */
+    public void showSentContext(String runId, AiSentContext context) {
+        AiAgentActivityPanel panel = runPanels.get(runId);
+        if (panel != null) {
+            panel.showSentContext(context);
+        }
+    }
+
+    /** The proposal card of a finished run, in that run's panel; nothing is shown when the run has no panel here. */
+    public void showRuleProposal(String runId, RuleProposal proposal) {
+        AiAgentActivityPanel panel = runPanels.get(runId);
+        if (panel != null) {
+            panel.showRuleProposal(proposal);
+        }
+    }
+
+    /**
+     * The run's solution options in its panel; the run goes on as requested when the run has no panel here. {@code shown}
+     * runs once the options are on screen, and never when there is no panel.
+     */
+    public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+        String runId,
+        TerminalAgentModels.TriageProposal proposal,
+        Runnable shown) {
+        AiAgentActivityPanel panel = runPanels.get(runId);
+        if (panel == null) {
+            return TerminalAgentModels.SolutionChoice.asRequested();
+        }
+        return panel.requestSolutionChoice(proposal, shown);
     }
 
     /**

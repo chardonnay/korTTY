@@ -45,22 +45,6 @@ class AiSkillStorageGuardTest {
     }
 
     @Test
-    void onCloseARefusedSkillKeepsItsStoredVersionAndANewOneIsLeftOut() {
-        AiSkill storedVersion = skill("a", "stored text");
-        AiSkill editedA = skill("a", "edited\u0007");
-        AiSkill editedB = skill("b", "fine edit");
-        AiSkill newBroken = skill("c", "\u0001");
-
-        List<AiSkill> kept = AiSkillStorageGuard.withStoredVersionOfRefused(
-            List.of(editedA, editedB, newBroken), List.of(storedVersion));
-
-        assertThat(kept.stream().map(AiSkill::getId).toList()).containsExactly("a", "b").inOrder();
-        assertThat(kept.get(0).getContent()).isEqualTo("stored text");
-        assertThat(kept.get(0)).isNotSameInstanceAs(storedVersion);
-        assertThat(kept.get(1)).isSameInstanceAs(editedB);
-    }
-
-    @Test
     void everyBundleTranslatesTheMessageAndQuotesTheCharacter() throws IOException {
         for (String suffix : List.of("", "_de", "_es", "_fr", "_hr", "_it", "_nl", "_pt")) {
             Properties bundle = new Properties();

@@ -7,6 +7,7 @@ import de.kortty.core.TerminalAgentService;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -35,6 +36,7 @@ import javafx.scene.Parent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -71,6 +73,8 @@ public class AiAgentPlanTab extends Tab {
     private final AiPromptService aiService;
     private final TerminalTab terminalTab;
     private final AgentCommandRunner runConnector;
+    // The connection the planning probes and runs on, which may be a split pane's rather than the tab's; null if unknown.
+    private final @Nullable ServerConnection runConnection;
     private final Supplier<String> sudoCacheSessionIdSupplier;
     private final ExecutionStarter executionStarter;
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -111,6 +115,7 @@ public class AiAgentPlanTab extends Tab {
         AiPromptService aiService,
         TerminalAgentModels.PlanRequest request,
         AgentCommandRunner runConnector,
+        @Nullable ServerConnection runConnection,
         Supplier<String> sudoCacheSessionIdSupplier,
         ExecutionStarter executionStarter) {
         this.ownerWindow = ownerWindow;
@@ -120,6 +125,7 @@ public class AiAgentPlanTab extends Tab {
         this.aiService = aiService;
         this.request = request;
         this.runConnector = runConnector;
+        this.runConnection = runConnection;
         this.sudoCacheSessionIdSupplier = sudoCacheSessionIdSupplier;
         this.executionStarter = executionStarter;
         loadPersistedPlanFontSize();
@@ -220,6 +226,23 @@ public class AiAgentPlanTab extends Tab {
         return TerminalAgentService.knownSecretsFor(terminalTab, runConnector);
     }
 
+    /** The connection the planning runs on, whose memory joins the global one; null without a connection. */
+    private String connectionId() {
+        return memoryConnectionId(runConnection != null ? runConnection.getId() : null,
+            TerminalAgentService.connectionIdOf(terminalTab));
+    }
+
+    /**
+     * The connection whose memory the planning sends: the one the run drives, which is the focused pane's, else the
+     * tab's. Blank ids count as unknown; {@code null} when neither is known.
+     */
+    static @Nullable String memoryConnectionId(@Nullable String runConnectionId, @Nullable String tabConnectionId) {
+        if (runConnectionId != null && !runConnectionId.isBlank()) {
+            return runConnectionId;
+        }
+        return tabConnectionId;
+    }
+
     public void start() {
         statusLabel.setText(I18n.get("ai.plan.status.probing"));
         Task<TerminalAgentService.PlanningQuestions> task = new Task<>() {
@@ -227,7 +250,7 @@ public class AiAgentPlanTab extends Tab {
             protected TerminalAgentService.PlanningQuestions call() throws Exception {
                 probeSnapshot = service.probeTerminalSession(terminalTab, runConnector);
                 return service.requestPlanningQuestions(
-                    profile, aiService, request, probeSnapshot, outboundSecrets());
+                    profile, aiService, request, probeSnapshot, outboundSecrets(), connectionId());
             }
         };
         task.setOnSucceeded(event -> applyQuestions(task.getValue()));
@@ -370,7 +393,8 @@ public class AiAgentPlanTab extends Tab {
                     currentQuestions,
                     answers,
                     refinement,
-                    outboundSecrets());
+                    outboundSecrets(),
+                    connectionId());
             }
         };
         task.setOnSucceeded(event -> applyOptions(task.getValue()));
@@ -481,7 +505,8 @@ public class AiAgentPlanTab extends Tab {
                     latestAnswers,
                     acceptedOption,
                     latestRefinement,
-                    outboundSecrets());
+                    outboundSecrets(),
+                    connectionId());
             }
         };
         task.setOnSucceeded(event -> applyReport(task.getValue()));

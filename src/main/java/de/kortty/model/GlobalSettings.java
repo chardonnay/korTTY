@@ -703,6 +703,30 @@ public class GlobalSettings {
     @XmlElement
     private boolean aiSkillAutoDetectionEnabled = true;
 
+    /** Whether the korTTY memory (global and per-connection MEMORY.md files) is read into AI prompts. */
+    @XmlElement
+    private boolean aiMemoryEnabled = true;
+
+    /** Token budget of the memory block in one AI request; {@link #getAiMemoryMaxTokens()} keeps it in range. */
+    @XmlElement
+    private int aiMemoryMaxTokens = AI_MEMORY_TOKENS_DEFAULT;
+
+    /** Whether korTTY proposes rules it found in the conversation; {@link AiMemoryLearningMode#OFF} finds none. */
+    @XmlElement
+    private AiMemoryLearningMode aiMemoryLearningMode = AiMemoryLearningMode.PROPOSE;
+
+    /** Whether korTTY may create an AI skill for a learned rule, after the user confirmed it. */
+    @XmlElement
+    private boolean aiSkillAutoCreate = true;
+
+    /** When the AI agent offers solution options before it runs; see {@link AiAgentTriageMode}. */
+    @XmlElement
+    private AiAgentTriageMode aiAgentTriageMode = AiAgentTriageMode.AUTO;
+
+    /** Whether the use of AI skills is recorded for the skill statistics. */
+    @XmlElement
+    private boolean aiSkillStatisticsEnabled = true;
+
     /** User-defined AI skills appended to AI prompts. */
     @XmlElementWrapper(name = "aiSkills")
     @XmlElement(name = "skill")
@@ -3242,6 +3266,62 @@ public class GlobalSettings {
 
     public void setAiSkillAutoDetectionEnabled(boolean aiSkillAutoDetectionEnabled) {
         this.aiSkillAutoDetectionEnabled = aiSkillAutoDetectionEnabled;
+    }
+
+    /** Default token budget of the memory block in one AI request. */
+    public static final int AI_MEMORY_TOKENS_DEFAULT = 1500;
+    /** Smallest memory budget a setting can hold: a few short rules. */
+    public static final int AI_MEMORY_TOKENS_MIN = 500;
+    /** Largest memory budget a setting can hold. */
+    public static final int AI_MEMORY_TOKENS_MAX = 4000;
+
+    public boolean isAiMemoryEnabled() {
+        return aiMemoryEnabled;
+    }
+
+    public void setAiMemoryEnabled(boolean aiMemoryEnabled) {
+        this.aiMemoryEnabled = aiMemoryEnabled;
+    }
+
+    /** Token budget of the memory block, clamped to {@value #AI_MEMORY_TOKENS_MIN} to {@value #AI_MEMORY_TOKENS_MAX}. */
+    public int getAiMemoryMaxTokens() {
+        return Math.max(AI_MEMORY_TOKENS_MIN, Math.min(aiMemoryMaxTokens, AI_MEMORY_TOKENS_MAX));
+    }
+
+    public void setAiMemoryMaxTokens(int aiMemoryMaxTokens) {
+        this.aiMemoryMaxTokens = Math.max(AI_MEMORY_TOKENS_MIN, Math.min(aiMemoryMaxTokens, AI_MEMORY_TOKENS_MAX));
+    }
+
+    public AiMemoryLearningMode getAiMemoryLearningMode() {
+        return aiMemoryLearningMode != null ? aiMemoryLearningMode : AiMemoryLearningMode.PROPOSE;
+    }
+
+    public void setAiMemoryLearningMode(AiMemoryLearningMode aiMemoryLearningMode) {
+        this.aiMemoryLearningMode = aiMemoryLearningMode != null ? aiMemoryLearningMode : AiMemoryLearningMode.PROPOSE;
+    }
+
+    public boolean isAiSkillAutoCreate() {
+        return aiSkillAutoCreate;
+    }
+
+    public void setAiSkillAutoCreate(boolean aiSkillAutoCreate) {
+        this.aiSkillAutoCreate = aiSkillAutoCreate;
+    }
+
+    public AiAgentTriageMode getAiAgentTriageMode() {
+        return aiAgentTriageMode != null ? aiAgentTriageMode : AiAgentTriageMode.AUTO;
+    }
+
+    public void setAiAgentTriageMode(AiAgentTriageMode aiAgentTriageMode) {
+        this.aiAgentTriageMode = aiAgentTriageMode != null ? aiAgentTriageMode : AiAgentTriageMode.AUTO;
+    }
+
+    public boolean isAiSkillStatisticsEnabled() {
+        return aiSkillStatisticsEnabled;
+    }
+
+    public void setAiSkillStatisticsEnabled(boolean aiSkillStatisticsEnabled) {
+        this.aiSkillStatisticsEnabled = aiSkillStatisticsEnabled;
     }
 
     public java.util.List<AiSkill> getAiSkills() {

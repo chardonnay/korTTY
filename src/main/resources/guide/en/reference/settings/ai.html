@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -848,7 +856,7 @@
 </tr>
 <tr>
 <td><strong>Terminal agent</strong></td>
-<td>Agent execution, confirmation before changes, setup dialog before each run, command name and case matching, task target, input history size</td>
+<td>Agent execution, confirmation before changes, setup dialog before each run, estimate complexity, command name and case matching, task target, input history size</td>
 </tr>
 <tr>
 <td><strong>Defaults</strong></td>
@@ -946,6 +954,13 @@
 <td><code>terminalAgentShowRunDialog</code></td>
 </tr>
 <tr>
+<td>Estimate complexity</td>
+<td>dropdown</td>
+<td>Automatic, Always, Never</td>
+<td>Automatic</td>
+<td><code>aiAgentTriageMode</code></td>
+</tr>
+<tr>
 <td>Agent command name</td>
 <td>text</td>
 <td>—</td>
@@ -975,6 +990,44 @@
 </tr>
 </tbody>
 </table>
+<p><strong>Estimate complexity</strong> decides when the agent offers solution options before it runs. <strong>Automatic</strong> makes one small AI call before each run and offers options only for requests that look complex, <strong>Always</strong> offers them for every run, and <strong>Never</strong> runs requests as they are. Swarm runs and scheduled jobs never offer options. The enterprise policy can lock the setting with <code>triage</code> under <code>[rule.ai-memory]</code>. See <a href="../../features/ai-tools.html#solution-options">Solution options</a>.</p>
+<h2 id="memory-tab">Memory tab<a class="headerlink" href="#memory-tab" title="Permanent link">&para;</a></h2>
+<p>The <strong>Memory</strong> tab of the AI Manager holds the korTTY memory, the rules that AI chat and agent requests carry along. Its files, scopes, cleanup and protection of your own text are described in <a href="../../features/ai-memory.html">AI memory</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Values</th>
+<th>Default</th>
+<th>Stored as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Use memory</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>aiMemoryEnabled</code></td>
+</tr>
+<tr>
+<td>Learning</td>
+<td>dropdown</td>
+<td>Suggest rules, Off</td>
+<td>Suggest rules</td>
+<td><code>aiMemoryLearningMode</code></td>
+</tr>
+<tr>
+<td>Token budget</td>
+<td>number</td>
+<td>500–4000</td>
+<td>1500</td>
+<td><code>aiMemoryMaxTokens</code></td>
+</tr>
+</tbody>
+</table>
+<p>The token budget is the most memory one AI request carries; entries that do not fit are left out of that request, and an enterprise policy can lower the budget. In <strong>Suggest rules</strong> mode korTTY looks at your messages for something to keep for later and proposes it as a rule; nothing is saved without your confirmation. <strong>Off</strong> finds no rules.</p>
 <h2 id="ai-profiles">AI Profiles<a class="headerlink" href="#ai-profiles" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

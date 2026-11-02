@@ -15,7 +15,7 @@ Jede KI-Einstellung befindet sich an einem Ort: **KI → KI-Manager**. Ihr erste
 | Abschnitt | Einstellungen |
 | --- | --- |
 | **Funktionen & Sicherheit** | KI-Funktionen aktivieren, Bestätigung vor dem Senden, KI-Chat-Codeblöcke im Terminal, Agenten-Debug und Laufzeitnachrichten |
-| **Terminal-Agent** | Agenten-Ausführung, Bestätigung vor Änderungen, Setup-Dialog vor jedem Lauf, Befehlsname und Groß-/Kleinschreibung, Aufgabenziel, Eingabeverlaufgröße |
+| **Terminal-Agent** | Agent-Ausführung, Bestätigung vor Änderungen, Setup-Dialog vor jeder Ausführung, Komplexität einschätzen, Befehlsname und Groß-/Kleinschreibung, Aufgabenziel, Größe des Eingabeverlaufs |
 | **Standards** | Security-Check-Profil, Standardsprache für KI-Text im Code, optionale Anweisungen im Snippet-Editor, Anzahl alternativer Lösungen |
 | **Internetzugang** | Geheimnisse von Tavily, Bright Data und Brave Search, SearXNG-URL, MCP-Server-Labels und Plugin-IDs, „Internetrecherche bei jedem Schritt anbieten" |
 
@@ -42,10 +42,25 @@ Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, ze
 | Agent-Debugmeldungen anzeigen | umschalten | — | Aus | `terminalAgentShowDebugMessages` |
 | Agent-Laufzeitmeldungen anzeigen | umschalten | — | Aus | `terminalAgentShowRuntimeMessages` |
 | Terminal-Agent-Abfrage vor jedem Start anzeigen | umschalten | — | Ein | `terminalAgentShowRunDialog` |
+| Komplexität einschätzen | Dropdown | Automatisch, Immer, Nie | Automatisch | `aiAgentTriageMode` |
 | Agent-Kommando | Text | — | agent | `terminalAgentCommandName` |
 | Den Agent-Befehl namensmäßig unabhängig von Groß- und Kleinschreibung abgleichen | umschalten | — | Aus | `terminalAgentCommandNameCaseInsensitive` |
 | Ziel für KI-Agent-Aufgaben | Dropdown-Menü | Terminalfenster, Neues Chatfenster | Terminalfenster | `terminalAgentExecutionTarget` |
 | Größe der Terminal-Agent-Eingabehistorie | Zahl | 5–100 | 20 | `terminalAgentInputHistorySize` |
+
+**Komplexität einschätzen** bestimmt, wann der Agent vor der Ausführung Lösungsoptionen anbietet. **Automatisch** führt vor jeder Ausführung einen kleinen KI-Aufruf durch und bietet Optionen nur für Anfragen an, die komplex erscheinen, **Immer** bietet sie für jede Ausführung an, und **Nie** führt Anfragen so aus, wie sie sind. Swarm-Ausführungen und geplante Jobs bieten niemals Optionen an. Die Unternehmensrichtlinie kann die Einstellung mit `triage` unter `[rule.ai-memory]` sperren. Siehe [Lösungsoptionen](../../features/ai-tools.md#losungsoptionen).
+
+## Memory-Tab
+
+Der **Memory**-Tab des KI-Managers enthält das korTTY-Memory, die Regeln, die KI-Chat- und Agent-Anfragen mitführen. Seine Dateien, Bereiche, Bereinigung und der Schutz Ihres eigenen Textes werden in [KI-Memory](../../features/ai-memory.md) beschrieben.
+
+| Einstellung | Typ | Werte | Standard | Speichert als |
+| --- | --- | --- | --- | --- |
+| Memory verwenden | Schalter | — | Ein | `aiMemoryEnabled` |
+| Lernen | Dropdown | Regeln vorschlagen, Aus | Regeln vorschlagen | `aiMemoryLearningMode` |
+| Token-Budget | Zahl | 500–4000 | 1500 | `aiMemoryMaxTokens` |
+
+Das Token-Budget ist der größte Speicherplatz, den eine einzelne KI-Anfrage mit sich trägt; Einträge, die nicht passen, werden aus dieser Anfrage ausgeschlossen, und eine Unternehmensrichtlinie kann das Budget senken. Im Modus **Regeln vorschlagen** prüft korTTY Ihre Nachrichten auf Inhalte, die für später aufbewahrt werden sollten, und schlägt sie als Regel vor; nichts wird ohne Ihre Bestätigung gespeichert. **Aus** findet keine Regeln.
 
 ## KI-Profile
 

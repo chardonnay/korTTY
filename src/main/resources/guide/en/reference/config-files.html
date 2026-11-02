@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -852,45 +860,47 @@
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   ├── stores.json                    # Knowledge stores and source configuration
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│   └── stores/                        # Local HNSW snapshots
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── ai-chats.xml                       # Saved AI conversations
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── snippets.xml                       # Code snippets and scripts
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── snippet-variables.xml              # Snippet variable storage
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── snippet-analyses/                  # Stored Full code analyses, one &lt;snippet-id&gt;.json per snippet
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── master.key                         # Hashed master password (PBKDF2)
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── master.autounlock                  # Optional auto-login password (owner-only; not encrypted with the master password)
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── themes.xml                         # Your terminal themes (color profiles)
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── swarm-chats.xml                    # Saved AI Swarm conversations
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── journal-search-visited.xml         # Journal search hits you have already opened
-</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── sftp-resume-index.json             # Unfinished SFTP transfers that a retry can continue (not backed up)
-</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── jvm-launch.properties              # JVM resource profile (Settings → Resources)
-</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── teamwork-cache.xml                 # Cached connections of teamwork sources
-</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── teamwork-recycle-bin.xml           # Teamwork connections you deleted locally
-</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── teamwork-repos/                    # Local clones of Git-based teamwork sources
-</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>├── telemetry-spool.json               # Anonymous usage events waiting to be sent (see Anonymous data)
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>├── telemetry-run.marker               # Present while korTTY runs; a leftover marker marks an unclean exit
-</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
-</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
-</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
-</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
-</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
-</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>├── logs/                              # Application log (kortty.log) and its archives; ai-answers/ keeps unusable AI answers
-</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>├── history/                           # Terminal session history (compressed)
-</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>├── journals/                          # Session journals (one directory per journal)
-</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
-</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>├── recordings/                        # Default folder for terminal recordings (Video Manager)
-</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>├── mosh4j/                            # Downloaded mosh4j release and its dependency JARs for built-in Mosh
-</span><span id="__span-0-52"><a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>├── guide/                             # Generated translations of the manual and their translation memory
-</span><span id="__span-0-53"><a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>├── shell-integration/                 # Wrapper folders of local shells (left-behind folders are removed after a day)
-</span><span id="__span-0-54"><a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>├── plugins/                           # Imported terminal-effect plugin JARs
-</span><span id="__span-0-55"><a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
-</span><span id="__span-0-56"><a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>├── projects/                          # Project files (.kortty)
-</span><span id="__span-0-57"><a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
-</span><span id="__span-0-58"><a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>├── i18n/                              # Generated language files (messages_*.properties)
-</span><span id="__span-0-59"><a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── memory/                            # AI memory: MEMORY.md, connection notes, history and state (owner-only; see below)
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── stats/                             # AI skill usage statistics (owner-only; see below)
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── snippets.xml                       # Code snippets and scripts
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── snippet-variables.xml              # Snippet variable storage
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── snippet-analyses/                  # Stored Full code analyses, one &lt;snippet-id&gt;.json per snippet
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── master.key                         # Hashed master password (PBKDF2)
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── master.autounlock                  # Optional auto-login password (owner-only; not encrypted with the master password)
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── themes.xml                         # Your terminal themes (color profiles)
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── swarm-chats.xml                    # Saved AI Swarm conversations
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── journal-search-visited.xml         # Journal search hits you have already opened
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── sftp-resume-index.json             # Unfinished SFTP transfers that a retry can continue (not backed up)
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── jvm-launch.properties              # JVM resource profile (Settings → Resources)
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── teamwork-cache.xml                 # Cached connections of teamwork sources
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>├── teamwork-recycle-bin.xml           # Teamwork connections you deleted locally
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>├── teamwork-repos/                    # Local clones of Git-based teamwork sources
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>├── telemetry-spool.json               # Anonymous usage events waiting to be sent (see Anonymous data)
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>├── telemetry-run.marker               # Present while korTTY runs; a leftover marker marks an unclean exit
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>├── logs/                              # Application log (kortty.log) and its archives; ai-answers/ keeps unusable AI answers
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>├── history/                           # Terminal session history (compressed)
+</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>├── journals/                          # Session journals (one directory per journal)
+</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
+</span><span id="__span-0-52"><a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>├── recordings/                        # Default folder for terminal recordings (Video Manager)
+</span><span id="__span-0-53"><a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>├── mosh4j/                            # Downloaded mosh4j release and its dependency JARs for built-in Mosh
+</span><span id="__span-0-54"><a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>├── guide/                             # Generated translations of the manual and their translation memory
+</span><span id="__span-0-55"><a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>├── shell-integration/                 # Wrapper folders of local shells (left-behind folders are removed after a day)
+</span><span id="__span-0-56"><a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>├── plugins/                           # Imported terminal-effect plugin JARs
+</span><span id="__span-0-57"><a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+</span><span id="__span-0-58"><a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>├── projects/                          # Project files (.kortty)
+</span><span id="__span-0-59"><a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a>├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
+</span><span id="__span-0-60"><a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-61"><a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
 </span></code></pre></div>
 <h2 id="core-configuration-files">Core configuration files<a class="headerlink" href="#core-configuration-files" title="Permanent link">&para;</a></h2>
 <h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
@@ -1102,6 +1112,12 @@
 - Associated AI profile used for the chat
 - Follow-up prompt history (for context)</p>
 <p><strong>Note:</strong> AI result tabs are not automatically saved. You must explicitly save them from the AI tab using the <em>Save</em> button to add them to this file.</p>
+<h3 id="memory">memory/<a class="headerlink" href="#memory" title="Permanent link">&para;</a></h3>
+<p>The AI memory of korTTY, see <a href="../features/ai-memory.html">AI memory</a>. <code>MEMORY.md</code> holds the global memory and <code>connections/&lt;id&gt;.md</code> the memory of each connection; both are plain Markdown that you can read and edit. korTTY marks the entries it wrote with an HTML comment that carries a hash, so an entry you edit becomes your own text, and korTTY never changes or deletes your text without your confirmation.</p>
+<p>The other files in the folder are <code>state.json</code> (digests and the state of the memory), <code>history/</code> (the snapshots korTTY takes before a change, which the Memory tab can restore), <code>archive.md</code> (the korTTY entries that a clean-up archived, which <strong>Show archive...</strong> lists), <code>learning.json</code> (the state of rule learning, such as the daily counts and the snoozed and declined proposals) and <code>external.json</code> (the reference files of other tools that you approved, with their paths and the SHA-256 of the approved text).</p>
+<p>All of them are written owner-only. The folder is included in backups. A restore adds only the files that do not exist locally and never overwrites them; a note that holds a possible secret is not restored; nothing is restored when the enterprise policy makes the memory read-only or disabled. <code>external.json</code> is never restored, so you approve the reference files again on each computer.</p>
+<h3 id="stats">stats/<a class="headerlink" href="#stats" title="Permanent link">&para;</a></h3>
+<p><code>skill-usage.json</code> holds the usage counts and the size history of your AI skills for the <a href="settings/ai-skills.html#skill-statistics">skill statistics</a>. Daily values are kept for 400 days, monthly values for five years and yearly values without a limit. The file is written owner-only and is included in backups; a restore adds it only where no local statistics file exists. <strong>Reset...</strong> in the statistics dialog deletes what the file holds.</p>
 <h3 id="snippetsxml">snippets.xml<a class="headerlink" href="#snippetsxml" title="Permanent link">&para;</a></h3>
 <p>Code snippets, scripts, and templates.</p>
 <p><strong>Includes:</strong>
@@ -1278,6 +1294,10 @@
 <td>AES-256-GCM encryption with master password</td>
 </tr>
 <tr>
+<td>AI memory files and skill statistics</td>
+<td>Plain text, written owner-only; a possible secret is refused before it is written to a memory or skill file</td>
+</tr>
+<tr>
 <td>Terminal effect plugins</td>
 <td>Not encrypted; trusted local code, not sandboxed</td>
 </tr>
@@ -1300,6 +1320,8 @@
 <li><code>ssh-host-keys.properties</code> interactive host-key trust store (not its transient <code>.lock</code> file)</li>
 <li><code>llm/models.xml</code> local-model registrations</li>
 <li><code>rag/stores.json</code> knowledge-store/source metadata</li>
+<li><code>memory/</code> the AI memory files (see <a href="#memory"><code>memory/</code></a>); a restore never overwrites a local file, and <code>external.json</code> is never restored</li>
+<li><code>stats/</code> the AI skill statistics (see <a href="#stats"><code>stats/</code></a>); restored only where no local file exists</li>
 </ul>
 <p>Managed GGUF weights, native runtime packages, temporary sidecar data, original source documents, and HNSW snapshots are excluded because they are large or regenerable. The <code>history/</code> and <code>i18n/</code> directories are also not part of a backup, and neither is the auto-login file <code>master.autounlock</code>.</p>
 <p>The backup is encrypted (password-protected ZIP or GPG) and saved to a location you specify.</p>

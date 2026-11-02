@@ -11,6 +11,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
  * <p>{@link #getRevision()} is what the provider reports for the imported SKILL.md (the Git blob SHA
  * on GitHub, a SHA-256 of the body for a plain HTTP server); {@link #getContentSha256()} is the SHA-256
  * of the skill text as imported, which tells a local edit apart from an upstream change.
+ * {@link #getDescriptionSha256()} does the same for the description, and {@link #getSkippedRevision()} is a
+ * provider revision the user chose not to take: the update check does not offer it again.
  */
 @XmlRootElement(name = "aiSkillExternalSource")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -33,6 +35,17 @@ public class AiSkillExternalSource {
     @XmlElement
     private String contentSha256;
 
+    /**
+     * SHA-256 of the description as imported or as last adopted from an update; null for an import from before
+     * descriptions were tracked, whose description is then never replaced by an update.
+     */
+    @XmlElement
+    private String descriptionSha256;
+
+    /** Revision the user declined with "skip this version"; the update check does not offer it again. */
+    @XmlElement
+    private String skippedRevision;
+
     /** Epoch milliseconds of the import or of the last adopted update. */
     @XmlElement
     private long importedAt;
@@ -49,6 +62,8 @@ public class AiSkillExternalSource {
         this.sourceUrl = source.sourceUrl;
         this.revision = source.revision;
         this.contentSha256 = source.contentSha256;
+        this.descriptionSha256 = source.descriptionSha256;
+        this.skippedRevision = source.skippedRevision;
         this.importedAt = source.importedAt;
     }
 
@@ -92,6 +107,22 @@ public class AiSkillExternalSource {
         this.contentSha256 = contentSha256;
     }
 
+    public String getDescriptionSha256() {
+        return descriptionSha256;
+    }
+
+    public void setDescriptionSha256(String descriptionSha256) {
+        this.descriptionSha256 = descriptionSha256;
+    }
+
+    public String getSkippedRevision() {
+        return skippedRevision;
+    }
+
+    public void setSkippedRevision(String skippedRevision) {
+        this.skippedRevision = skippedRevision;
+    }
+
     public long getImportedAt() {
         return importedAt;
     }
@@ -102,13 +133,15 @@ public class AiSkillExternalSource {
 
     /** Removes characters {@code global-settings.xml} cannot hold; reports whether anything changed. */
     boolean stripUnstorableText() {
-        String[] before = {providerId, reference, sourceUrl, revision, contentSha256};
+        String[] before = {providerId, reference, sourceUrl, revision, contentSha256, descriptionSha256, skippedRevision};
         providerId = AiSkill.withoutUnstorable(providerId);
         reference = AiSkill.withoutUnstorable(reference);
         sourceUrl = AiSkill.withoutUnstorable(sourceUrl);
         revision = AiSkill.withoutUnstorable(revision);
         contentSha256 = AiSkill.withoutUnstorable(contentSha256);
-        String[] after = {providerId, reference, sourceUrl, revision, contentSha256};
+        descriptionSha256 = AiSkill.withoutUnstorable(descriptionSha256);
+        skippedRevision = AiSkill.withoutUnstorable(skippedRevision);
+        String[] after = {providerId, reference, sourceUrl, revision, contentSha256, descriptionSha256, skippedRevision};
         return !java.util.Arrays.equals(before, after);
     }
 }

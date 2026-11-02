@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -994,6 +1002,8 @@
 <li><code>snippet-analyses/</code> — Stored Full code analyses, one file per snippet. An import merges them: analyses that exist only locally are kept, missing ones are added, and with <strong>Overwrite</strong> a local file is replaced only when the backup's copy is newer. Unsaved snippet drafts (<code>snippet-drafts/</code>) are not included</li>
 <li><code>ai-chats.xml</code> — Saved AI conversations</li>
 <li><code>swarm-chats.xml</code> — Saved AI Swarm chats</li>
+<li><code>memory/</code> — The AI memory: <code>MEMORY.md</code>, the notes of each connection, the history, the archive and the state (see <a href="ai-memory.html">AI memory</a>). A restore adds only the files that do not exist locally and never overwrites one. A note that holds a possible secret is not restored, and nothing is restored when the enterprise policy makes the memory read-only or disabled. The approvals of other tools' reference files (<code>external.json</code>) are in the archive but are never restored, so you approve them again on the new computer</li>
+<li><code>stats/</code> — The AI skill statistics (<code>skill-usage.json</code>); restored only where no local statistics file exists</li>
 <li><code>master.key</code> — Salt and verification hash of your master password, so the restored secrets can be unlocked with it</li>
 <li><code>llm/models.xml</code> — Local GGUF registrations and runtime settings (model weights are not included)</li>
 <li><code>llm/mlx-models.json</code> — MLX model registrations (model weights are not included)</li>

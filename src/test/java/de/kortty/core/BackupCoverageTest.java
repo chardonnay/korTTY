@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import de.kortty.memory.MemoryStore;
+import de.kortty.memory.external.ExternalMemoryRegistry;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
 import org.testng.annotations.Test;
@@ -34,7 +36,7 @@ class BackupCoverageTest {
     private static final Path JAVA_ROOT = Path.of("src/main/java");
 
     private static final Pattern STORE_CONSTANT = Pattern.compile(
-        "static final String (\\w+)\\s*=\\s*\"([\\w.-]+\\.(xml|json|properties|key|enc|toml))\"");
+        "static final String (\\w+)\\s*=\\s*\"([\\w.-]+\\.(xml|json|properties|key|enc|toml|md))\"");
 
     /** {@code SimpleClass.CONSTANT} → the archive entry the file is backed up as. */
     private static final Map<String, String> BACKED_UP = Map.ofEntries(
@@ -55,6 +57,18 @@ class BackupCoverageTest {
         Map.entry("SwarmChatManager.SWARM_CHATS_FILE", "swarm-chats.xml"),
         Map.entry("LlamaModelRegistry.REGISTRY_FILE_NAME", "llm/models.xml"),
         Map.entry("MlxModelRegistry.REGISTRY_FILE_NAME", "llm/mlx-models.json"));
+
+    /**
+     * {@code SimpleClass.CONSTANT} → the backed-up directory the file lives in. The directory is
+     * backed up as a whole, so these files need no entry in {@link BackupManager#managedBackupFiles()}.
+     */
+    private static final Map<String, String> BACKED_UP_IN_DIRECTORY = Map.ofEntries(
+        Map.entry("MemoryScope.GLOBAL_FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("MemoryStore.STATE_FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("MemoryStore.ARCHIVE_FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("ExternalMemoryRegistry.FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("LearningState.FILE_NAME", MemoryStore.DIRECTORY_NAME),
+        Map.entry("SkillStatsStore.FILE_NAME", BackupManager.STATS_DIRECTORY_NAME));
 
     /** {@code SimpleClass.CONSTANT} → why the file is deliberately not part of the backup. */
     private static final Map<String, String> EXCLUDED = Map.ofEntries(
@@ -82,7 +96,9 @@ class BackupCoverageTest {
         Map.entry("SessionSnapshotStore.SNAPSHOT_FILE",
             "per-device session state in ~/.kortty/session/, rewritten while korTTY runs"),
         Map.entry("SessionSnapshotStore.PREVIOUS_FILE",
-            "per-device session state in ~/.kortty/session/; a restored backup must not reopen another device's tabs"));
+            "per-device session state in ~/.kortty/session/; a restored backup must not reopen another device's tabs"),
+        Map.entry("GitHubSkillReference.SKILL_FILE",
+            "the SKILL.md name inside a remote GitHub repository, not a korTTY store"));
 
     /** Files in ~/.kortty that must never end up in a backup archive. */
     private static final List<String> NEVER_BACKED_UP = List.of(
@@ -112,6 +128,8 @@ class BackupCoverageTest {
                 assertWithMessage(name + " is backed up as " + BACKED_UP.get(name)
                         + " but names " + constant.getValue())
                     .that(BACKED_UP.get(name)).endsWith(constant.getValue());
+            } else if (BACKED_UP_IN_DIRECTORY.containsKey(name)) {
+                continue;
             } else if (!EXCLUDED.containsKey(name)) {
                 unclassified.add("classify " + name + " (\"" + constant.getValue() + "\") in BackupCoverageTest");
             }
@@ -130,8 +148,19 @@ class BackupCoverageTest {
                 stale.add(name);
             }
         }
+        for (String name : BACKED_UP_IN_DIRECTORY.keySet()) {
+            if (!discovered.containsKey(name)) {
+                stale.add(name);
+            }
+        }
         assertWithMessage("remove these entries from BackupCoverageTest, the constants are gone")
             .that(stale).isEmpty();
+    }
+
+    @Test
+    void everyDirectoryStoreIsInManagedBackupDirectories() {
+        assertThat(BackupManager.managedBackupDirectories())
+            .containsAtLeastElementsIn(new java.util.TreeSet<>(BACKED_UP_IN_DIRECTORY.values()));
     }
 
     @Test
@@ -221,13 +250,58 @@ class BackupCoverageTest {
             .that(Files.exists(restoreDir.resolve(ThemeManager.THEMES_FILE))).isTrue();
     }
 
+    @Test
+    void aiMemoryIsBackedUpAndRestoredWithoutOverwritingLocalFiles() throws Exception {
+        Path root = Files.createTempDirectory("kortty-backup-memory-");
+        Path configDir = Files.createDirectories(root.resolve("config"));
+        Path memoryDir = Files.createDirectories(configDir.resolve(MemoryStore.DIRECTORY_NAME));
+        Files.writeString(memoryDir.resolve("MEMORY.md"), "Use tabs in Perl.\n");
+        Files.createDirectories(memoryDir.resolve("connections"));
+        Files.writeString(memoryDir.resolve("connections").resolve("conn-1.md"), "Host note.\n");
+
+        char[] masterPassword = "master-pw".toCharArray();
+        CredentialManager credentialManager = new CredentialManager(configDir);
+        StoredCredential credential = new StoredCredential(
+            "backup", "user", StoredCredential.Environment.PRODUCTION);
+        credentialManager.setPassword(credential, "backup-pw", masterPassword);
+        credentialManager.addCredential(credential);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.PASSWORD);
+        settings.setBackupCredentialId(credential.getId());
+        Path backup = new BackupManager(configDir, settings)
+            .createBackup(root.resolve("target"), credentialManager, null, masterPassword);
+
+        Path restoreDir = Files.createDirectories(root.resolve("restore"));
+        Path localMemory = Files.createDirectories(restoreDir.resolve(MemoryStore.DIRECTORY_NAME))
+            .resolve("MEMORY.md");
+        Files.writeString(localMemory, "Local rule.\n");
+        // The application wires the policy gates at startup; a restore runs with them, under the default policy.
+        de.kortty.memory.MemoryService policyService = new de.kortty.memory.MemoryService(
+            new MemoryStore(root.resolve("policy-memory")), name -> null);
+        policyService.setAiMemoryAllowedSupplier(() -> true);
+        policyService.setUserMemoryModeSupplier(() -> de.kortty.policy.UserMemoryMode.EDITABLE);
+        de.kortty.memory.MemoryService.replaceInstanceForTesting(policyService);
+        try {
+            new BackupManager(restoreDir, new GlobalSettings()).importBackup(backup, "backup-pw", true);
+        } finally {
+            de.kortty.memory.MemoryService.replaceInstanceForTesting(null);
+        }
+
+        assertWithMessage("a restore must not replace the local memory file")
+            .that(Files.readString(localMemory)).isEqualTo("Local rule.\n");
+        assertWithMessage("a memory file missing locally must be restored")
+            .that(Files.readString(restoreDir.resolve(MemoryStore.DIRECTORY_NAME).resolve("connections")
+                .resolve("conn-1.md"))).isEqualTo("Host note.\n");
+    }
+
     /** {@code SimpleClass.CONSTANT} → file name, for every store-file constant in main. */
     private static Map<String, String> discoverStoreConstants() throws IOException {
         Map<String, String> constants = new TreeMap<>();
         try (Stream<Path> sources = Files.walk(JAVA_ROOT)) {
             for (Path source : sources.filter(p -> p.toString().endsWith(".java")).toList()) {
                 String className = source.getFileName().toString().replaceFirst("\\.java$", "");
-                Matcher matcher = STORE_CONSTANT.matcher(Files.readString(source, StandardCharsets.UTF_8));
+                Matcher matcher = STORE_CONSTANT.matcher(Files.readString(source, StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n"));
                 while (matcher.find()) {
                     constants.put(className + "." + matcher.group(1), matcher.group(2));
                 }

@@ -6,14 +6,24 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import de.kortty.KorTTYApplication;
+import de.kortty.memory.MemoryBlock;
+import de.kortty.memory.MemoryService;
+import de.kortty.memory.external.LocalCliMemoryReads;
 import de.kortty.model.AgentActionCategory;
+import de.kortty.model.AiAgentTriageMode;
 import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiTokenizerType;
+import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentOutboundContext;
 import de.kortty.core.agent.AgentCommandRunner.ExecResult;
 import de.kortty.core.agent.AgentCommandRunner.ShellKind;
+import de.kortty.policy.ManagedSetting;
+import de.kortty.stats.SkillUsageCollector;
 import de.kortty.ui.I18n;
 import de.kortty.ui.TerminalTab;
 import de.kortty.ui.TerminalView;
@@ -31,14 +41,22 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
@@ -61,6 +79,10 @@ public class TerminalAgentService {
 
     private final AtomicLong webActivitySequence = new AtomicLong();
     private static final int MAX_AGENT_TURNS = 8;
+    /** How many questions one run may ask the user; a further one is answered with "decide yourself". */
+    static final int MAX_USER_QUESTIONS = 3;
+    /** How many suggested answers a question shows. */
+    private static final int MAX_SUGGESTED_ANSWERS = 4;
     /** Title of the agent activity row that lists a step's internet research. */
     public static final String WEB_RESEARCH_ACTIVITY_TITLE = "Web research";
     private static final int MAX_COMMANDS_PER_TURN = 3;
@@ -83,7 +105,25 @@ public class TerminalAgentService {
     private static final Pattern MUTATING_COMMAND_PATTERN =
         Pattern.compile("(?i)(^|[;&|()]\\s*)(?:chmod|chown|chgrp|rm|rmdir|mv|cp|mkdir|touch|ln|tee|dd|truncate|install)\\b");
 
+    /** How long the complexity check may take before the request runs as asked. */
+    static final Duration TRIAGE_CALL_TIMEOUT = Duration.ofSeconds(120);
+    /** How long the user may take to choose a solution before the request runs as asked. */
+    static final Duration SOLUTION_CHOICE_TIMEOUT = Duration.ofMinutes(10);
+    /** How often a waiting run checks whether it was cancelled. */
+    private static final Duration CANCEL_POLL_INTERVAL = Duration.ofMillis(250);
+
     private final Map<String, CachedSudoPassword> cachedSudoPasswordBySessionId = new ConcurrentHashMap<>();
+    private final Duration triageTimeout;
+    private final Duration solutionChoiceTimeout;
+
+    public TerminalAgentService() {
+        this(TRIAGE_CALL_TIMEOUT, SOLUTION_CHOICE_TIMEOUT);
+    }
+
+    TerminalAgentService(Duration triageTimeout, Duration solutionChoiceTimeout) {
+        this.triageTimeout = Objects.requireNonNull(triageTimeout, "triageTimeout");
+        this.solutionChoiceTimeout = Objects.requireNonNull(solutionChoiceTimeout, "solutionChoiceTimeout");
+    }
 
     public interface RunUi {
         void updateState(TerminalAgentModels.RunState state);
@@ -104,6 +144,43 @@ public class TerminalAgentService {
          * block while paused and return once resumed or cancelled.
          */
         default void awaitIfPaused() throws InterruptedException {
+        }
+
+        /**
+         * Whether this UI can show solution options before a run ({@link #requestSolutionChoice}). Swarm and
+         * job runs keep the default, so they never run the complexity check and never wait for an answer.
+         */
+        default boolean supportsChoices() {
+            return false;
+        }
+
+        /**
+         * Shows the solution options and blocks until the user answers. Called on a helper thread, which the
+         * service interrupts when the run is cancelled or the answer takes too long. Implementations close their
+         * prompt when that happens.
+         */
+        default TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal)
+            throws Exception {
+            return TerminalAgentModels.SolutionChoice.asRequested();
+        }
+
+        /**
+         * Same as {@link #requestSolutionChoice(TerminalAgentModels.TriageProposal)}, but {@code shown} runs once the
+         * card is on screen. The time to answer starts then, not while the card waits in a queue behind another
+         * prompt. The default runs {@code shown} at once and then asks the plain method.
+         */
+        default TerminalAgentModels.SolutionChoice requestSolutionChoice(
+            TerminalAgentModels.TriageProposal proposal,
+            Runnable shown) throws Exception {
+            shown.run();
+            return requestSolutionChoice(proposal);
+        }
+
+        /**
+         * What the run has sent so far: its memory and the skills of every turn, masked as sent. Called after each turn
+         * that sent something; each call carries the whole run so far, so the view replaces its earlier copy.
+         */
+        default void publishSentContext(String runId, AiSentContext context) {
         }
     }
 
@@ -224,7 +301,22 @@ public class TerminalAgentService {
         TerminalAgentModels.PlanRequest request,
         TerminalAgentModels.ProbeSnapshot probe,
         SessionJournalRedactor knownSecrets) throws Exception {
-        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
+        return requestPlanningQuestions(profile, aiService, request, probe, knownSecrets, null);
+    }
+
+    /**
+     * @param connectionId the connection the planning is about, whose memory joins the global one;
+     *                     {@code null} sends the global memory alone
+     */
+    public PlanningQuestions requestPlanningQuestions(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        SessionJournalRedactor knownSecrets,
+        String connectionId) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(
+            profile, memoryFor(connectionId, profile), null, knownSecrets);
         String systemPrompt = buildPlanQuestionSystemPrompt();
         String userPrompt = buildPlanQuestionUserPrompt(request, outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class));
         AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
@@ -260,7 +352,23 @@ public class TerminalAgentService {
         String answers,
         String customApproach,
         SessionJournalRedactor knownSecrets) throws Exception {
-        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
+        return requestPlanningOptions(
+            profile, aiService, request, probe, questions, answers, customApproach, knownSecrets, null);
+    }
+
+    /** {@link #requestPlanningOptions} with the connection whose memory joins the global one. */
+    public PlanningOptions requestPlanningOptions(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        String customApproach,
+        SessionJournalRedactor knownSecrets,
+        String connectionId) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(
+            profile, memoryFor(connectionId, profile), null, knownSecrets);
         String systemPrompt = buildPlanOptionSystemPrompt();
         String userPrompt = buildPlanOptionUserPrompt(
             request, outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class), questions, answers, customApproach);
@@ -305,7 +413,24 @@ public class TerminalAgentService {
         TerminalAgentModels.PlanOption selectedOption,
         String customApproach,
         SessionJournalRedactor knownSecrets) throws Exception {
-        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
+        return requestPlanningReport(
+            profile, aiService, request, probe, questions, answers, selectedOption, customApproach, knownSecrets, null);
+    }
+
+    /** {@link #requestPlanningReport} with the connection whose memory joins the global one. */
+    public PlanningReport requestPlanningReport(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        TerminalAgentModels.PlanOption selectedOption,
+        String customApproach,
+        SessionJournalRedactor knownSecrets,
+        String connectionId) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(
+            profile, memoryFor(connectionId, profile), null, knownSecrets);
         String systemPrompt = buildPlanReportSystemPrompt();
         String userPrompt = buildPlanReportUserPrompt(
             request,
@@ -333,6 +458,19 @@ public class TerminalAgentService {
      * concise object and usually recovers without failing the whole planning step.
      */
     private <T> T requestPlanDecisionWithRepair(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        String systemPrompt,
+        String userPrompt,
+        Function<String, T> parser) throws Exception {
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            T decision = decidePlanWithRepair(aiService, outbound, systemPrompt, userPrompt, parser);
+            usage.commit();
+            return decision;
+        }
+    }
+
+    private <T> T decidePlanWithRepair(
         AiPromptService aiService,
         AgentOutboundContext outbound,
         String systemPrompt,
@@ -414,9 +552,27 @@ public class TerminalAgentService {
         runAgent(terminalTab, runner, profile, aiService, request, UUID.randomUUID().toString(), ui);
     }
 
+    /** The run for a terminal tab: its connection's memory joins the global one. */
     public void runAgent(
         TerminalTab terminalTab,
         AgentCommandRunner runner,
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.Request request,
+        String requestedRunId,
+        RunUi ui) throws Exception {
+        runAgent(terminalTab, runner, null, profile, aiService, request, requestedRunId, ui);
+    }
+
+    /**
+     * The run with its connection's memory. A {@code null} or blank {@code connectionId} takes the terminal
+     * tab's connection; without one either, only the global memory is sent. Swarm and job runs pass the
+     * connection they drive, because they may have no terminal tab.
+     */
+    public void runAgent(
+        TerminalTab terminalTab,
+        AgentCommandRunner runner,
+        String connectionId,
         AiProfile profile,
         AiPromptService aiService,
         TerminalAgentModels.Request request,
@@ -444,15 +600,20 @@ public class TerminalAgentService {
         String runId = requestedRunId != null && !requestedRunId.isBlank()
             ? requestedRunId
             : UUID.randomUUID().toString();
+        String agentConnectionId = connectionId != null && !connectionId.isBlank()
+            ? connectionId
+            : connectionIdOf(terminalTab);
         String sessionId = request.sessionId();
         CachedSudoPassword cachedPassword = null;
         try {
             publishAgentProfile(ui, runId, profile);
             TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
             // Created after the probe: a lazily connected swarm runner knows its password only then.
-            // Per run, never a field — one service instance runs parallel swarm agents.
+            // Per run, never a field — one service instance runs parallel swarm agents. The memory is read
+            // once here and sent unchanged in every turn of the run.
             AgentOutboundContext outbound = AgentOutboundContext.forRun(
                 profile,
+                memoryFor(agentConnectionId, profile),
                 count -> publishOutboundMasking(ui, runId, count),
                 knownSecretsFor(terminalTab, runner));
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
@@ -467,6 +628,14 @@ public class TerminalAgentService {
             if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
                 return;
             }
+            Optional<TerminalAgentModels.Request> chosenRequest = offerSolutionChoice(
+                terminalTab, aiService, outbound, request, probe, agentConnectionId,
+                triageModeFor(agentPolicy), agentPolicy, ui, runId);
+            if (chosenRequest.isEmpty()) {
+                return;
+            }
+            request = chosenRequest.get();
+            int questionsAsked = 0;
 
             for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
                 ensureNotCancelled(ui);
@@ -533,6 +702,21 @@ public class TerminalAgentService {
                         decision.summary(), decision.userMessage(), null, null, null, turn));
                     publishMessage(ui, runId, "blocked-" + turn, decision.userMessage(), decision.summary());
                     return;
+                }
+                if (decision.status() == AgentDecisionStatus.needs_input) {
+                    boolean canAsk = ui.supportsChoices() && questionsAsked < MAX_USER_QUESTIONS;
+                    Optional<TerminalAgentModels.Request> answered = askUser(
+                        terminalTab, request, decision, agentConnectionId, canAsk, ui, runId, turn);
+                    if (answered.isEmpty()) {
+                        return;
+                    }
+                    request = answered.get();
+                    if (canAsk) {
+                        // A question the user answered is not a planning turn: the run keeps its turns for the work.
+                        questionsAsked++;
+                        turn--;
+                    }
+                    continue;
                 }
 
                 List<TerminalAgentModels.PlannedCommand> commands = validateCommands(decision.commands(), probe, request.queryOnly());
@@ -685,6 +869,422 @@ public class TerminalAgentService {
         } finally {
             if (cachedPassword != null && !cachedPassword.isSessionScoped()) {
                 cachedPassword.clear();
+            }
+        }
+    }
+
+    /**
+     * Judges the request before the first turn and, when the mode and the answer ask for it, lets the user choose
+     * a solution. Empty when the user cancelled the run here. Otherwise the request as it runs: with the chosen
+     * plan as its accepted plan context, or unchanged.
+     */
+    Optional<TerminalAgentModels.Request> offerSolutionChoice(
+        TerminalTab terminalTab,
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        String connectionId,
+        AiAgentTriageMode mode,
+        de.kortty.policy.EffectivePolicy policy,
+        RunUi ui,
+        String runId) throws Exception {
+        if (!triageRequested(ui, request, policy, mode)) {
+            return Optional.of(request);
+        }
+        TerminalAgentModels.TriageProposal checked = requestTriageProposal(aiService, outbound, request, probe, ui, runId);
+        if (checked == null) {
+            return Optional.of(request);
+        }
+        TerminalAgentModels.TriageProposal proposal = new TerminalAgentModels.TriageProposal(
+            checked.complex(),
+            checked.reasons(),
+            checked.recommended(),
+            checked.options(),
+            connectionId,
+            request.connectionDisplayName(),
+            connectionHostOf(terminalTab));
+        if (mode == AiAgentTriageMode.AUTO && !proposal.complex()) {
+            return Optional.of(request);
+        }
+        TerminalAgentModels.SolutionChoice choice = awaitSolutionChoice(ui, runId, proposal);
+        return applySolutionChoice(ui, runId, request, proposal, choice);
+    }
+
+    /**
+     * Whether a run gets the complexity check: the UI can show solution options, the run is not a plain question,
+     * it has no accepted plan yet, the policy allows planning, and the mode is not {@link AiAgentTriageMode#NEVER}.
+     */
+    static boolean triageRequested(
+        RunUi ui,
+        TerminalAgentModels.Request request,
+        de.kortty.policy.EffectivePolicy policy,
+        AiAgentTriageMode mode) {
+        return ui.supportsChoices()
+            && !request.queryOnly()
+            && (request.acceptedPlanContext() == null || request.acceptedPlanContext().isBlank())
+            && policy.aiPlanningAllowed()
+            && mode != AiAgentTriageMode.NEVER;
+    }
+
+    /** The triage mode of a run: the enterprise policy's when it sets and locks one, otherwise the user's setting. */
+    static AiAgentTriageMode triageModeFor(de.kortty.policy.EffectivePolicy policy) {
+        if (policy != null && policy.isManaged(ManagedSetting.AI_AGENT_TRIAGE) && policy.aiAgentTriageMode() != null) {
+            return policy.aiAgentTriageMode();
+        }
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        return settings != null ? settings.getAiAgentTriageMode() : AiAgentTriageMode.AUTO;
+    }
+
+    /**
+     * The complexity check: one small JSON call with the run's memory, masked like every agent prompt. Returns
+     * {@code null} when the check failed or gave no usable answer, which the activity log then says; the run goes on
+     * as asked.
+     */
+    private TerminalAgentModels.TriageProposal requestTriageProposal(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        RunUi ui,
+        String runId) throws Exception {
+        String thinkingId = runId + ":thinking-triage";
+        long startedAtNanos = System.nanoTime();
+        publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.RUNNING,
+            "Thinking",
+            "Checking how complex the request is.",
+            "Solution options are offered when the request looks complex.",
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            false);
+        TerminalAgentModels.ProbeSnapshot outboundProbe = outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class);
+        String systemPrompt = buildTriageSystemPrompt();
+        String userPrompt = buildTriageUserPrompt(request, outboundProbe);
+        AiCancellation.Handle handle = AiCancellation.newHandle();
+        AiExecutionResult result;
+        try {
+            result = awaitBounded(ui, "kortty-agent-triage",
+                () -> AiCancellation.callBound(handle,
+                    () -> executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt)),
+                handle,
+                triageTimeout);
+        } catch (AgentCancelledException cancelled) {
+            throw cancelled;
+        } catch (Exception failure) {
+            logger.info("The complexity check failed; the request runs as asked: {}", failure.getMessage());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.FAILED,
+                "Thinking",
+                "The complexity check failed, so the request runs as asked.",
+                failure.getMessage() != null ? failure.getMessage() : failure.getClass().getSimpleName(),
+                TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return null;
+        }
+        publishUsedSkillActivity(ui, runId, aiService, outbound);
+        recordTokenUsage(ui, result);
+        try {
+            TerminalAgentModels.TriageProposal proposal = TriageReplyParser.parse(result.content());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
+                "Thinking",
+                proposal.complex() ? "The request looks complex." : "The request looks simple.",
+                String.join("\n", proposal.reasons()),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return proposal;
+        } catch (RuntimeException unusable) {
+            logger.info("The complexity check gave no usable answer; the request runs as asked: {}", unusable.getMessage());
+            publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.FAILED,
+                "Thinking",
+                "The complexity check gave no usable answer, so the request runs as asked.",
+                unusable.getMessage(),
+                tokenUsageOf(result),
+                elapsedSecondsSince(startedAtNanos),
+                true);
+            return null;
+        }
+    }
+
+    /**
+     * Waits for the user's answer. A run that is cancelled meanwhile ends with {@link AgentCancelledException}; an
+     * answer that takes too long, or a failing UI, means the request runs as asked.
+     */
+    private TerminalAgentModels.SolutionChoice awaitSolutionChoice(
+        RunUi ui,
+        String runId,
+        TerminalAgentModels.TriageProposal proposal) throws Exception {
+        CountDownLatch shown = new CountDownLatch(1);
+        try {
+            return awaitBounded(ui, "kortty-agent-choice",
+                () -> ui.requestSolutionChoice(proposal, shown::countDown), null, solutionChoiceTimeout, shown);
+        } catch (AgentCancelledException cancelled) {
+            throw cancelled;
+        } catch (TimeoutException timeout) {
+            publishMessage(ui, runId, "solution-timeout",
+                "No answer in time, so the request runs as asked.", "");
+            return TerminalAgentModels.SolutionChoice.asRequested();
+        } catch (Exception failure) {
+            logger.warn("The solution options could not be shown; the request runs as asked.", failure);
+            publishMessage(ui, runId, "solution-failed",
+                "The solution options could not be shown, so the request runs as asked.", "");
+            return TerminalAgentModels.SolutionChoice.asRequested();
+        }
+    }
+
+    /**
+     * Turns the answer into the request the run continues with. An option or an own idea becomes the accepted plan of
+     * the run; the instructions the user typed are added to it. Empty when the user chose to cancel.
+     */
+    private Optional<TerminalAgentModels.Request> applySolutionChoice(
+        RunUi ui,
+        String runId,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.TriageProposal proposal,
+        TerminalAgentModels.SolutionChoice choice) {
+        if (choice.kind() == TerminalAgentModels.SolutionChoice.Kind.CANCEL) {
+            ui.updateState(new TerminalAgentModels.RunState(
+                runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
+                "The terminal agent run was cancelled.", "The run was cancelled before the solution was chosen.", null, null, null, 0));
+            publishCancelled(ui, runId, "cancelled-solution", "The run was cancelled before the solution was chosen.");
+            return Optional.empty();
+        }
+        if (choice.kind() == TerminalAgentModels.SolutionChoice.Kind.OPTION
+            && choice.optionIndex() >= 0 && choice.optionIndex() < proposal.options().size()) {
+            TerminalAgentModels.PlanOption option = proposal.options().get(choice.optionIndex());
+            publishMessage(ui, runId, "solution-chosen", "Running with the chosen option: " + option.title(), "");
+            return Optional.of(withAcceptedPlanContext(request,
+                withInstructions(buildAcceptedPlanContext(option), choice.instructions())));
+        }
+        if (choice.kind() == TerminalAgentModels.SolutionChoice.Kind.OWN_IDEA && choice.text() != null) {
+            TerminalAgentModels.PlanOption option = new TerminalAgentModels.PlanOption(
+                "own-idea", "Own idea", choice.text(), "", List.of(), List.of(), List.of(), List.of());
+            publishMessage(ui, runId, "solution-chosen", "Running with your own idea.", "");
+            return Optional.of(withAcceptedPlanContext(request,
+                withInstructions(buildAcceptedPlanContext(option), choice.instructions())));
+        }
+        if (choice.instructions() == null) {
+            publishMessage(ui, runId, "solution-chosen", "Running as requested.", "");
+            return Optional.of(request);
+        }
+        publishMessage(ui, runId, "solution-chosen", "Running as requested, with your instructions.", "");
+        return Optional.of(withAcceptedPlanContext(request,
+            "Additional instructions from the user:\n" + choice.instructions()));
+    }
+
+    private static String withInstructions(String planContext, String instructions) {
+        if (instructions == null) {
+            return planContext;
+        }
+        return planContext + "\nAdditional instructions from the user:\n" + instructions;
+    }
+
+    /** The host of the terminal tab's connection, or {@code null} without a tab or a connection. */
+    static String connectionHostOf(TerminalTab terminalTab) {
+        ServerConnection connection = terminalTab != null ? terminalTab.getConnection() : null;
+        return connection != null ? connection.getHost() : null;
+    }
+
+    /**
+     * Asks the user the question of a {@code needs_input} decision on the same card as the solution options, in its
+     * question form. Returns the request the run goes on with, the answer added to its accepted plan context, or empty
+     * when the user stopped the run. When nobody can answer (a UI without prompts such as a swarm or job run, a question
+     * past {@link #MAX_USER_QUESTIONS}, no answer in time, or a card that cannot be shown) the agent is told to decide
+     * by itself and to say what it chose.
+     */
+    private Optional<TerminalAgentModels.Request> askUser(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        AgentDecision decision,
+        String connectionId,
+        boolean canAsk,
+        RunUi ui,
+        String runId,
+        int turn) throws Exception {
+        String question = decision.question().strip();
+        String why = decision.userMessage() != null && !decision.userMessage().strip().equals(question)
+            ? decision.userMessage().strip()
+            : "";
+        if (!canAsk) {
+            publishMessage(ui, runId, "question-unasked-" + turn,
+                "The agent decides by itself: " + question, why);
+            return Optional.of(withUserAnswer(request, question, null));
+        }
+        TerminalAgentModels.TriageProposal proposal = TerminalAgentModels.TriageProposal.question(
+            question, why.isEmpty() ? List.of() : List.of(why), decision.answers(),
+            connectionId, request.connectionDisplayName(), connectionHostOf(terminalTab));
+        publishQuestion(ui, runId, "input-" + turn, question, why);
+        CountDownLatch shown = new CountDownLatch(1);
+        TerminalAgentModels.SolutionChoice choice;
+        try {
+            choice = awaitBounded(ui, "kortty-agent-question",
+                () -> ui.requestSolutionChoice(proposal, shown::countDown), null, solutionChoiceTimeout, shown);
+        } catch (AgentCancelledException cancelled) {
+            throw cancelled;
+        } catch (TimeoutException timeout) {
+            publishMessage(ui, runId, "question-timeout-" + turn,
+                "No answer in time, so the agent decides by itself.", "");
+            return Optional.of(withUserAnswer(request, question, null));
+        } catch (Exception failure) {
+            logger.warn("The agent's question could not be shown; the agent decides by itself.", failure);
+            publishMessage(ui, runId, "question-failed-" + turn,
+                "The question could not be shown, so the agent decides by itself.", "");
+            return Optional.of(withUserAnswer(request, question, null));
+        }
+        if (choice.kind() == TerminalAgentModels.SolutionChoice.Kind.CANCEL) {
+            ui.updateState(new TerminalAgentModels.RunState(
+                runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
+                "The terminal agent run was cancelled.", "The run was stopped at the agent's question.",
+                null, null, null, turn));
+            publishCancelled(ui, runId, "cancelled-question-" + turn, "The run was stopped at the agent's question.");
+            return Optional.empty();
+        }
+        String answer = answerOf(choice, proposal);
+        publishMessage(ui, runId, "answer-" + turn,
+            answer != null ? "Your answer: " + answer : "The agent decides by itself.", "");
+        return Optional.of(withUserAnswer(request, question, answer));
+    }
+
+    /** The answer the user gave on a question card; {@code null} when the agent is to decide by itself. */
+    static String answerOf(TerminalAgentModels.SolutionChoice choice, TerminalAgentModels.TriageProposal question) {
+        String answer = switch (choice.kind()) {
+            case OPTION -> choice.optionIndex() >= 0 && choice.optionIndex() < question.options().size()
+                ? question.options().get(choice.optionIndex()).title()
+                : null;
+            case OWN_IDEA -> choice.text() != null && !choice.text().isBlank() ? choice.text().strip() : null;
+            case AS_REQUESTED, CANCEL -> null;
+        };
+        String instructions = choice.instructions() != null ? choice.instructions().strip() : "";
+        if (answer == null) {
+            return instructions.isEmpty() ? null : instructions;
+        }
+        return instructions.isEmpty() ? answer : answer + " (" + instructions + ")";
+    }
+
+    /**
+     * The request with the user's answer to the agent's question added to its accepted plan context, which binds the
+     * following turns. A {@code null} answer tells the agent that nobody could answer and it decides by itself.
+     */
+    static TerminalAgentModels.Request withUserAnswer(
+        TerminalAgentModels.Request request,
+        String question,
+        String answer) {
+        String line = answer != null
+            ? "The user answered your question \"" + question + "\": " + answer + ". Follow this answer and do not ask it again."
+            : "Nobody could answer your question \"" + question + "\". Decide by yourself: choose the safest sensible "
+                + "option, name your choice in `userMessage`, and do not ask it again.";
+        String existing = request.acceptedPlanContext();
+        return withAcceptedPlanContext(request,
+            existing == null || existing.isBlank() ? line : existing.strip() + "\n" + line);
+    }
+
+    private static TerminalAgentModels.Request withAcceptedPlanContext(
+        TerminalAgentModels.Request request,
+        String acceptedPlanContext) {
+        return new TerminalAgentModels.Request(
+            request.sessionId(),
+            request.profileId(),
+            request.userPrompt(),
+            request.connectionDisplayName(),
+            acceptedPlanContext,
+            request.executionTarget(),
+            request.showDebugMessages(),
+            request.showRuntimeMessages(),
+            request.askConfirmationBeforeEveryCommand(),
+            request.autoApproveRootCommands(),
+            request.confirmMutatingCommandSets(),
+            request.queryOnly(),
+            request.mirrorFinalAnswerToTerminal());
+    }
+
+    private String buildTriageSystemPrompt() {
+        return String.join(" ",
+            "You are KorTTY's complexity check for a terminal agent run.",
+            "You judge the user's request against the probed server and propose solution options. You never run anything and never output shell commands.",
+            "Return exactly one JSON object and no Markdown.",
+            "Call the request complex when at least one of these applies: it touches several hosts or services; it has changing or irreversible steps such as deletions, upgrades, restarts or configuration changes; it needs more than three steps or commands; its goal is ambiguous and there are materially different ways to reach it; it takes a long time to run.",
+            "Otherwise call it simple.",
+            "Always return two or three concrete solution options, even for a simple request. Each option is a different way to reach the goal. Put the most suitable option first and name it in `recommended` as its zero-based index.",
+            "JSON schema: {\"complexity\":\"simple|complex\",\"reasons\":[\"short reason\"],\"recommended\":0,\"options\":[{\"title\":\"option title\",\"summary\":\"short summary\",\"feasibility\":\"feasibility note\",\"risks\":[\"risk\"],\"prerequisites\":[\"prerequisite\"],\"steps\":[\"step\"],\"alternatives\":[\"alternative\"]}]}",
+            "Keep every field short.");
+    }
+
+    private String buildTriageUserPrompt(TerminalAgentModels.Request request, TerminalAgentModels.ProbeSnapshot probe) {
+        return "User task: " + request.userPrompt().trim() + "\n"
+            + "Connection: " + nonBlank(request.connectionDisplayName(), "unknown connection") + "\n"
+            + buildPromptSessionContext(probe)
+            + "Remote probe snapshot:\n```json\n" + GSON.toJson(probe) + "\n```\n\n"
+            + "Judge the request and propose the solution options now.";
+    }
+
+    /**
+     * Runs {@code step} on a helper thread and waits for it. Returns its result; throws {@link TimeoutException}
+     * after {@code timeout}, {@link AgentCancelledException} when the run is cancelled, and the step's own exception
+     * otherwise. A step that is still running then is cancelled through {@code handle} and interrupted.
+     */
+    private <T> T awaitBounded(
+        RunUi ui,
+        String threadName,
+        Callable<T> step,
+        AiCancellation.Handle handle,
+        Duration timeout) throws Exception {
+        return awaitBounded(ui, threadName, step, handle, timeout, null);
+    }
+
+    /**
+     * {@link #awaitBounded(RunUi, String, Callable, AiCancellation.Handle, Duration)} whose deadline starts when
+     * {@code armedOn} counts down, rather than at once; {@code null} starts it at once.
+     */
+    private <T> T awaitBounded(
+        RunUi ui,
+        String threadName,
+        Callable<T> step,
+        AiCancellation.Handle handle,
+        Duration timeout,
+        CountDownLatch armedOn) throws Exception {
+        FutureTask<T> task = new FutureTask<>(step);
+        Thread thread = new Thread(task, threadName);
+        thread.setDaemon(true);
+        thread.start();
+        Long deadlineNanos = armedOn == null ? System.nanoTime() + timeout.toNanos() : null;
+        try {
+            while (true) {
+                ensureNotCancelled(ui);
+                if (deadlineNanos == null && armedOn.getCount() == 0) {
+                    deadlineNanos = System.nanoTime() + timeout.toNanos();
+                }
+                long pollNanos = CANCEL_POLL_INTERVAL.toNanos();
+                if (deadlineNanos != null) {
+                    long remainingNanos = deadlineNanos - System.nanoTime();
+                    if (remainingNanos <= 0) {
+                        throw new TimeoutException(
+                            threadName + " took longer than " + timeout.toSeconds() + " seconds");
+                    }
+                    pollNanos = Math.min(remainingNanos, pollNanos);
+                }
+                try {
+                    return task.get(pollNanos, TimeUnit.NANOSECONDS);
+                } catch (TimeoutException pollAgain) {
+                    // Not finished yet: look at the cancellation and the deadline again.
+                } catch (ExecutionException failure) {
+                    if (failure.getCause() instanceof Exception cause) {
+                        throw cause;
+                    }
+                    throw failure;
+                }
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AgentCancelledException("Terminal agent run cancelled");
+        } finally {
+            if (!task.isDone()) {
+                if (handle != null) {
+                    handle.cancel();
+                }
+                task.cancel(true);
             }
         }
     }
@@ -1116,6 +1716,25 @@ public class TerminalAgentService {
         boolean sudoPasswordCached,
         RunUi ui,
         String runId) throws Exception {
+        // A repair round of the same turn is the same request for the skill statistics: a skill it sends counts once.
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            AgentDecision decision = decideAgentTurn(
+                aiService, outbound, request, probe, history, turn, sudoPasswordCached, ui, runId);
+            usage.commit();
+            return decision;
+        }
+    }
+
+    private AgentDecision decideAgentTurn(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history,
+        int turn,
+        boolean sudoPasswordCached,
+        RunUi ui,
+        String runId) throws Exception {
         // The prompts are built from masked copies; the decision is validated against the raw probe.
         TerminalAgentModels.ProbeSnapshot outboundProbe = outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class);
         String systemPrompt = buildAgentSystemPrompt(request.queryOnly(), outboundProbe);
@@ -1131,7 +1750,7 @@ public class TerminalAgentService {
             0L,
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
-        publishUsedSkillActivity(ui, runId, aiService);
+        publishUsedSkillActivity(ui, runId, aiService, outbound);
         publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
         try {
@@ -1177,7 +1796,7 @@ public class TerminalAgentService {
                 outbound,
                 systemPrompt,
                 buildAgentDecisionRepairPrompt(userPrompt, result.content(), firstFailure.getMessage()));
-            publishUsedSkillActivity(ui, runId, aiService);
+            publishUsedSkillActivity(ui, runId, aiService, outbound);
             publishWebToolActivity(ui, runId, repaired);
             recordTokenUsage(ui, repaired);
             try {
@@ -1232,6 +1851,21 @@ public class TerminalAgentService {
         List<TerminalAgentModels.CommandResult> history,
         RunUi ui,
         String runId) throws Exception {
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
+            AgentDecision decision = decideTurnLimitFinal(aiService, outbound, request, probe, history, ui, runId);
+            usage.commit();
+            return decision;
+        }
+    }
+
+    private AgentDecision decideTurnLimitFinal(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history,
+        RunUi ui,
+        String runId) throws Exception {
         String systemPrompt = buildAgentTurnLimitFinalSystemPrompt();
         String userPrompt = buildAgentTurnLimitFinalUserPrompt(
             request,
@@ -1250,7 +1884,7 @@ public class TerminalAgentService {
             0L,
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
-        publishUsedSkillActivity(ui, runId, aiService);
+        publishUsedSkillActivity(ui, runId, aiService, outbound);
         publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
         try {
@@ -1290,7 +1924,7 @@ public class TerminalAgentService {
                 0L,
                 false);
             AiExecutionResult repaired = executeAgentJsonPrompt(aiService, outbound, systemPrompt, buildAgentRepairPrompt(userPrompt, result.content()));
-            publishUsedSkillActivity(ui, runId, aiService);
+            publishUsedSkillActivity(ui, runId, aiService, outbound);
             publishWebToolActivity(ui, runId, repaired);
             recordTokenUsage(ui, repaired);
             AgentDecision decision;
@@ -1336,15 +1970,25 @@ public class TerminalAgentService {
         String systemPrompt,
         String userPrompt) throws Exception {
         Objects.requireNonNull(outbound, "outbound");
-        String outboundSystemPrompt = outbound.mask(systemPrompt);
+        // The memory goes in before the mask, so the run's known secrets are masked inside it too. The
+        // transport adds the skills later, in front of the memory marker.
+        String outboundSystemPrompt = outbound.mask(insertMemory(systemPrompt, outbound.memory().text()));
         String outboundUserPrompt = outbound.mask(userPrompt);
-        try {
-            return aiService.executeJsonPrompt(outboundSystemPrompt, outboundUserPrompt);
-        } catch (IOException e) {
-            if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
-                throw e;
+        // The skills are added by the transport on this thread, so the turn's scope sees exactly what this call sent.
+        try (AiSentContextCollector.Scope sent = AiSentContextCollector.open()) {
+            try {
+                try {
+                    return aiService.executeJsonPrompt(outboundSystemPrompt, outboundUserPrompt);
+                } catch (IOException e) {
+                    if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
+                        throw e;
+                    }
+                    return aiService.executeJsonPromptWithoutResponseFormat(outboundSystemPrompt, outboundUserPrompt);
+                }
+            } finally {
+                // A call that fails after its prompt left the machine (a timeout, a server error) still sent it.
+                outbound.sentLedger().recordTurn(sent.summary().withMemory(outbound.sentMemory()));
             }
-            return aiService.executeJsonPromptWithoutResponseFormat(outboundSystemPrompt, outboundUserPrompt);
         }
     }
 
@@ -1359,6 +2003,47 @@ public class TerminalAgentService {
         SessionJournalRedactor tabSecrets = terminalView != null ? terminalView.createSecretRedactor() : null;
         SessionJournalRedactor runnerSecrets = runner != null ? runner.knownSecrets() : null;
         return AgentOutboundContext.combine(tabSecrets, runnerSecrets);
+    }
+
+    /** The id of the connection a terminal tab drives, or {@code null} without a tab or a connection. */
+    public static String connectionIdOf(TerminalTab terminalTab) {
+        ServerConnection connection = terminalTab != null ? terminalTab.getConnection() : null;
+        return connection != null ? connection.getId() : null;
+    }
+
+    /**
+     * The memory of one agent run or planning step, unmasked: the global memory and, for a non-null
+     * {@code connectionId}, that connection's memory, budgeted by the user's setting for the profile's
+     * tokenizer. The caller masks it, with the run's known secrets. When the user's memory is off (switch,
+     * user-memory mode or kill switch) only the organisation rules remain; empty when the policy denies memory.
+     */
+    public static MemoryBlock memoryFor(String connectionId, AiProfile profile) {
+        AiTokenizerType tokenizer = profile != null && profile.getTokenizerType() != null
+            ? profile.getTokenizerType()
+            : AiTokenizerType.ESTIMATE;
+        return MemoryService.get().blockFor(connectionId, tokenizer, configuredMemoryBudget(),
+            LocalCliMemoryReads.excludedFor(profile));
+    }
+
+    /**
+     * Inserts a memory text into a system prompt: after the skills, in front of RAG and the model preset.
+     * The text is not masked here; a caller that sends the prompt masks it. A blank text leaves the prompt
+     * unchanged, and the prompt never gets a second block.
+     */
+    public static String insertMemory(String systemPrompt, String memoryText) {
+        if (memoryText == null || memoryText.isBlank()) {
+            return systemPrompt;
+        }
+        return AiPromptPipeline.insertMemory(systemPrompt, memoryText);
+    }
+
+    /** The user's memory budget in tokens; the default when no settings are loaded. */
+    static int configuredMemoryBudget() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        return settings != null ? settings.getAiMemoryMaxTokens() : GlobalSettings.AI_MEMORY_TOKENS_DEFAULT;
     }
 
     private static void rememberSudoPassword(AgentOutboundContext outbound, CachedSudoPassword password) {
@@ -1430,7 +2115,12 @@ public class TerminalAgentService {
             true));
     }
 
-    private void publishUsedSkillActivity(RunUi ui, String runId, AiPromptService aiService) {
+    /**
+     * Shows the skills the last call of the run sent, and publishes what the run has sent so far. Called after every call,
+     * so the sent context is current at the end of each turn, whether or not the turn used a skill.
+     */
+    private void publishUsedSkillActivity(RunUi ui, String runId, AiPromptService aiService, AgentOutboundContext outbound) {
+        publishSentContext(ui, runId, outbound);
         if (!(aiService instanceof AiSkillUsageTracker tracker)) {
             return;
         }
@@ -1468,6 +2158,17 @@ public class TerminalAgentService {
             0L,
             true,
             true));
+    }
+
+    /** Publishes the run's sent context so far, unless the run has sent nothing yet. */
+    private static void publishSentContext(RunUi ui, String runId, AgentOutboundContext outbound) {
+        if (ui == null || outbound == null) {
+            return;
+        }
+        AiSentContext sent = outbound.sentLedger().snapshot();
+        if (!sent.isEmpty()) {
+            ui.publishSentContext(runId, sent);
+        }
     }
 
     /**
@@ -1609,6 +2310,10 @@ public class TerminalAgentService {
             && (decision.commands == null || decision.commands.isEmpty())) {
             throw new JsonSyntaxException("Command decisions must include commands");
         }
+        if (decision.status == AgentDecisionStatus.needs_input && blank(decision.question)) {
+            // A model that puts the question only into userMessage still asked one.
+            decision.question = decision.userMessage;
+        }
         return decision;
     }
 
@@ -1637,6 +2342,8 @@ public class TerminalAgentService {
             case "confirm", "confirmation", "requires_confirmation", "need_confirmation" -> object.addProperty("status", "needs_confirmation");
             case "complete", "completed", "success" -> object.addProperty("status", "done");
             case "cannot", "failed", "failure" -> object.addProperty("status", "blocked");
+            case "ask", "ask_user", "question", "needs_answer", "need_input", "input_required", "needs_user_input" ->
+                object.addProperty("status", "needs_input");
             default -> object.addProperty("status", normalized);
         }
     }
@@ -2920,12 +3627,16 @@ public class TerminalAgentService {
                 "For read-only inventory, counting, or classification tasks, prefer one aggregate command and finish once its output contains the requested data.",
                 "If the task cannot be completed with the known facts or needs unavailable privileges, set `status` to `blocked`.",
                 "If commands would change the system, use `needs_confirmation`.",
-                "Allowed `status` values: `run_commands`, `needs_confirmation`, `done`, `blocked`.",
+                "If a decision only the user can make blocks the task, such as which of several valid ports, paths, names or versions to use, or a required value is unknown, set `status` to `needs_input`: put one short question in `question`, 2 to 4 concrete suggested answers in `answers` with the recommended one first, and why you ask in `userMessage`. Base the suggestions on facts from the command results, e.g. ports you verified are free. Do not ask what a read-only command can find out, never ask for passwords or other secrets, and never ask again what the accepted plan context already answers.",
+                "When a resource the task needs is already in use, such as a TCP or UDP port, do not retry the same action: find out what uses it (e.g. `ss -ltnp`), then ask the user with `needs_input` which alternative to use, offering free alternatives you verified, or, when the user's task leaves that choice to you, pick a free alternative yourself and say so in `userMessage`. When you move a service to another port, change every place that still listens on the old one, including a default server block in the main configuration file (for example the `server` block in /etc/nginx/nginx.conf, not only a new file in conf.d), then validate the configuration and check that the service runs.",
+                "Never repeat a command or approach that already failed with the same error in the previous command results. If two attempts failed for the same reason, change the approach or ask the user with `needs_input`.",
+                "To write a file the current user cannot write, such as one under /etc, use `sudo -n tee 'path' >/dev/null <<'EOF'` instead of `cat > 'path'`; run `nginx -t` and similar checks that read root-owned files with `sudo -n` as well.",
+                "Allowed `status` values: `run_commands`, `needs_confirmation`, `needs_input`, `done`, `blocked`.",
                 "Allowed `risk` values for each command: `read_only`, `requires_confirmation`.",
                 "Always include BOTH a non-empty `summary` (one short line) and a non-empty `userMessage` in every response.",
                 "When `status` is `done`, `userMessage` MUST be the complete answer to the user's task, including the concrete results/data found copied from the command output — not a meta-description like 'Provided X'.",
                 "Exception: for tasks that create, modify, or migrate files, keep `userMessage` to a SHORT confirmation that names the resulting file path(s); do NOT paste the file's contents into `userMessage`.",
-                "JSON schema: {\"status\":\"run_commands|needs_confirmation|done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[{\"command\":\"shell command\",\"purpose\":\"why this command is needed\",\"risk\":\"read_only|requires_confirmation\"}],\"needsReprobe\":false}");
+                "JSON schema: {\"status\":\"run_commands|needs_confirmation|needs_input|done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[{\"command\":\"shell command\",\"purpose\":\"why this command is needed\",\"risk\":\"read_only|requires_confirmation\"}],\"needsReprobe\":false,\"question\":\"only with needs_input\",\"answers\":[\"only with needs_input\"]}");
         }
         return String.join(" ",
             "You are the planner for a terminal automation helper.",
@@ -2948,12 +3659,16 @@ public class TerminalAgentService {
             "For read-only inventory, counting, or classification tasks, prefer one aggregate shell command and finish once its output contains the requested counts.",
             "If the task cannot be completed with the known facts or there is no root access and no sudo available for privileged work, set `status` to `blocked`.",
             "If commands would change the system or need privilege, use `needs_confirmation`.",
-            "Allowed `status` values: `run_commands`, `needs_confirmation`, `done`, `blocked`.",
+            "If a decision only the user can make blocks the task, such as which of several valid ports, paths, names or versions to use, or a required value is unknown, set `status` to `needs_input`: put one short question in `question`, 2 to 4 concrete suggested answers in `answers` with the recommended one first, and why you ask in `userMessage`. Base the suggestions on facts from the command results, e.g. ports you verified are free. Do not ask what a read-only command can find out, never ask for passwords or other secrets, and never ask again what the accepted plan context already answers.",
+                "When a resource the task needs is already in use, such as a TCP or UDP port, do not retry the same action: find out what uses it (e.g. `ss -ltnp`), then ask the user with `needs_input` which alternative to use, offering free alternatives you verified, or, when the user's task leaves that choice to you, pick a free alternative yourself and say so in `userMessage`. When you move a service to another port, change every place that still listens on the old one, including a default server block in the main configuration file (for example the `server` block in /etc/nginx/nginx.conf, not only a new file in conf.d), then validate the configuration and check that the service runs.",
+                "Never repeat a command or approach that already failed with the same error in the previous command results. If two attempts failed for the same reason, change the approach or ask the user with `needs_input`.",
+                "To write a file the current user cannot write, such as one under /etc, use `sudo -n tee 'path' >/dev/null <<'EOF'` instead of `cat > 'path'`; run `nginx -t` and similar checks that read root-owned files with `sudo -n` as well.",
+                "Allowed `status` values: `run_commands`, `needs_confirmation`, `needs_input`, `done`, `blocked`.",
             "Allowed `risk` values for each command: `read_only`, `requires_confirmation`.",
             "Always include BOTH a non-empty `summary` (one short line) and a non-empty `userMessage` in every response.",
             "When `status` is `done`, `userMessage` MUST be the complete answer to the user's task, including the concrete results/data found (e.g. the requested counts, values, or list) copied from the command output — not a meta-description like 'Provided X'.",
             "Exception: for tasks that create, modify, or migrate files, keep `userMessage` to a SHORT confirmation that names the resulting file path(s); do NOT paste the file's contents (or large blocks of text) into `userMessage` — the file on disk is the result, not its echoed contents.",
-            "JSON schema: {\"status\":\"run_commands|needs_confirmation|done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[{\"command\":\"shell command\",\"purpose\":\"why this command is needed\",\"risk\":\"read_only|requires_confirmation\"}],\"needsReprobe\":false}");
+            "JSON schema: {\"status\":\"run_commands|needs_confirmation|needs_input|done|blocked\",\"summary\":\"short summary\",\"userMessage\":\"complete answer for the user, including the actual results/data\",\"commands\":[{\"command\":\"shell command\",\"purpose\":\"why this command is needed\",\"risk\":\"read_only|requires_confirmation\"}],\"needsReprobe\":false,\"question\":\"only with needs_input\",\"answers\":[\"only with needs_input\"]}");
     }
 
     private String buildAgentUserPrompt(
@@ -2982,9 +3697,63 @@ public class TerminalAgentService {
             + "Runtime state:\n```json\n" + runtimeStateJson + "\n```\n\n"
             + "Remote probe snapshot:\n```json\n" + probeJson + "\n```\n\n"
             + "Previous command results:\n```json\n" + historyJson + "\n```\n\n"
+            + repeatedFailureNote(history)
             + acceptedPlanInstruction
             + acceptedPlanContext
             + "Plan the next step now.";
+    }
+
+    /** Words that mark an output line as an error, in English and in the German messages of common tools. */
+    private static final Pattern ERROR_LINE = Pattern.compile(
+        "(?i)error|fail|denied|refused|not found|no such|in use|unable|cannot|can't|permission|invalid|conflict"
+            + "|keine berechtigung|fehlgeschlagen|nicht gefunden|bereits belegt|verweigert");
+
+    /**
+     * A note for the planner when the same error line came back from two or more failed commands of the run, so the
+     * next turn changes its approach or asks instead of trying the same thing again. Empty otherwise.
+     */
+    static String repeatedFailureNote(List<TerminalAgentModels.CommandResult> history) {
+        Map<String, String> firstSeen = new LinkedHashMap<>();
+        Map<String, Integer> failedCommands = new HashMap<>();
+        for (TerminalAgentModels.CommandResult result : history) {
+            if (result == null || result.exitStatus() == null || result.exitStatus() == 0) {
+                continue;
+            }
+            Set<String> keys = new LinkedHashSet<>();
+            for (String tail : new String[] {result.stderrTail(), result.stdoutTail()}) {
+                if (tail == null) {
+                    continue;
+                }
+                for (String line : tail.split("\\R")) {
+                    String key = errorLineKey(line);
+                    if (key != null && keys.add(key)) {
+                        firstSeen.putIfAbsent(key, line.strip());
+                    }
+                }
+            }
+            keys.forEach(key -> failedCommands.merge(key, 1, Integer::sum));
+        }
+        List<String> repeated = firstSeen.entrySet().stream()
+            .filter(entry -> failedCommands.getOrDefault(entry.getKey(), 0) >= 2)
+            .map(Map.Entry::getValue)
+            .limit(3)
+            .toList();
+        if (repeated.isEmpty()) {
+            return "";
+        }
+        return "Repeated failure: these errors came back from more than one command:\n- "
+            + String.join("\n- ", repeated)
+            + "\nDo not try the same approach again. Change it, or ask the user with `needs_input`.\n\n";
+    }
+
+    /** An error line in a form that matches the same error from another command; {@code null} for other lines. */
+    private static String errorLineKey(String line) {
+        String stripped = line == null ? "" : line.strip();
+        if (stripped.length() < 20 || !ERROR_LINE.matcher(stripped).find()) {
+            return null;
+        }
+        String key = stripped.toLowerCase(Locale.ROOT).replaceAll("\\d+", "#").replaceAll("\\s+", " ");
+        return key.length() > 200 ? key.substring(0, 200) : key;
     }
 
     String buildAgentTurnLimitFinalSystemPrompt() {
@@ -3279,9 +4048,30 @@ public class TerminalAgentService {
         private String userMessage;
         private List<AgentCommandDecision> commands = Collections.emptyList();
         private boolean needsReprobe;
+        private String question;
+        private List<String> answers = Collections.emptyList();
 
         public AgentDecisionStatus status() {
             return status;
+        }
+
+        /** The question of a {@link AgentDecisionStatus#needs_input} decision. */
+        public String question() {
+            return question;
+        }
+
+        /** The suggested answers of a {@link AgentDecisionStatus#needs_input} decision, the recommended one first. */
+        public List<String> answers() {
+            if (answers == null) {
+                return List.of();
+            }
+            List<String> cleaned = new ArrayList<>();
+            for (String answer : answers) {
+                if (answer != null && !answer.isBlank() && cleaned.size() < MAX_SUGGESTED_ANSWERS) {
+                    cleaned.add(answer.strip());
+                }
+            }
+            return cleaned;
         }
 
         public String summary() {
@@ -3314,6 +4104,7 @@ public class TerminalAgentService {
     enum AgentDecisionStatus {
         run_commands,
         needs_confirmation,
+        needs_input,
         done,
         blocked;
 

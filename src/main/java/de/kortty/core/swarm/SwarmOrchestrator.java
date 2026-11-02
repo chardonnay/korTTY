@@ -349,8 +349,10 @@ public final class SwarmOrchestrator {
                 return ui.snapshot();
             }
             TerminalAgentModels.Request agentRequest = buildAgentRequest(target, context.request(), context.profile());
+            // The agent's memory joins the global one with the target's connection, when it has one.
+            String connectionId = target.connection() != null ? target.connection().getId() : null;
             agentService.runAgent(
-                target.terminalTab(), target.runner(), context.profile(), aiService, agentRequest,
+                target.terminalTab(), target.runner(), connectionId, context.profile(), aiService, agentRequest,
                 target.agentId(), ui);
             ui.markCompletedIfRunning();
         } catch (Exception e) {

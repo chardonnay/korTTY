@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -863,6 +871,13 @@
 <td><code>aiSkillAutoDetectionEnabled</code></td>
 </tr>
 <tr>
+<td>korTTY may create skills and save learned rules in them</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>aiSkillAutoCreate</code></td>
+</tr>
+<tr>
 <td>Local / External</td>
 <td>switch</td>
 <td>Local: your own and built-in skills; External: skills imported from the internet</td>
@@ -887,6 +902,13 @@
 <td>Sort</td>
 <td>menu button</td>
 <td>Alphabetical, Status (enabled first)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Statistics</td>
+<td>button</td>
+<td>Opens the usage and size statistics of the skills, see <a href="#skill-statistics">Skill statistics</a></td>
 <td>—</td>
 <td>—</td>
 </tr>
@@ -1005,7 +1027,7 @@
 <p class="admonition-title">Imported skills start deactivated</p>
 <p>korTTY sends a skill's text to the AI model word for word, so a skill from the internet can contain instructions you do not want. Every imported skill therefore arrives <strong>deactivated</strong>, whatever its front matter says. Read it in the editor, then tick <strong>Active</strong> and click <strong>Save</strong>. Only the <code>SKILL.md</code> file is imported; scripts, reference files and other files that belong to a skill are never downloaded or run.</p>
 </div>
-<p>When an external skill is selected, the banner above the editor shows its provider, its source and the imported revision. <strong>Open source</strong> opens the skill's page in the browser. If you edit the text, the banner and the list mark the skill as <strong>Edited locally</strong>. After <strong>Check for updates</strong> has found a newer version, <strong>Show update…</strong> opens a side-by-side comparison of your version and the provider's version. <strong>Apply update</strong> replaces the text and description and keeps your name, tags, target and active state; local edits of the text are replaced, which the dialog points out. Nothing is updated without this confirmation.</p>
+<p>When an external skill is selected, the banner above the editor shows its provider, its source and the imported revision. <strong>Open source</strong> opens the skill's page in the browser. If you edit the text or the description, the banner and the list mark the skill as <strong>Changed locally</strong>; <strong>Shorten...</strong> never changes the text of an imported skill, only its learned rules. After <strong>Check for updates</strong> has found a newer version, <strong>Show update…</strong> opens a side-by-side comparison of your version and the provider's version. <strong>Apply update</strong> replaces the text and description and keeps your name, tags, target, active state and learned rules; a skill imported before descriptions were tracked keeps its description. A skill that is <strong>Changed locally</strong> is never overwritten, and the dialog says so: it offers <strong>Import as copy</strong>, which adds the provider version as a new, deactivated skill named after the revision, and <strong>Skip this version</strong>, which hides that revision while a newer one is still offered. Nothing is updated without a click, and every change takes effect when you click <strong>Save</strong>.</p>
 <h3 id="importing-skills">Importing skills<a class="headerlink" href="#importing-skills" title="Permanent link">&para;</a></h3>
 <p><img alt="Import AI skills from the internet" src="../../assets/screenshots/ai/ai-skills-import.png" /></p>
 <p>Choose a provider, enter a search and click <strong>Search</strong>. Selecting a result loads its <code>SKILL.md</code> into the preview. The results table shows each skill's name, source, GitHub stars and description; a ✓ before the name marks a skill that is already in the library. Select one or more results and click <strong>Import selected</strong>; results marked ✓ are skipped. What you enter depends on the provider type:</p>
@@ -1091,6 +1113,58 @@
 <p class="admonition-title">Network safety</p>
 <p>korTTY talks to providers over HTTPS only; plain HTTP is accepted for this computer alone (<code>localhost</code>). Redirects are not followed, so a token or password is never sent on to another host, and a <code>SKILL.md</code> larger than 256 KiB is refused.</p>
 </div>
+<h2 id="skills-created-by-kortty-and-learned-rules">Skills created by korTTY and learned rules<a class="headerlink" href="#skills-created-by-kortty-and-learned-rules" title="Permanent link">&para;</a></h2>
+<p>korTTY can save rules that you confirm into your skills, and it can create a skill for a topic that has none yet. Nothing is saved without your confirmation: the rule card shows the exact text and where it goes, and <strong>Save</strong> writes it. The switch <strong>korTTY may create skills and save learned rules in them</strong> controls both, and the enterprise policy can lock it.</p>
+<p>A rule that names a connection goes into that connection's memory; a rule about a topic that already has a skill, built-in or your own, goes into that skill's learned rules; a rule about a language or tool without a skill creates one; any other rule goes into the global memory. The memory itself is described in <a href="../../features/ai-memory.html">AI memory</a>.</p>
+<ul>
+<li>A skill korTTY created shows the badge <strong>NEW · created by korTTY</strong> until you select it in the list; then it shows <strong>korTTY</strong>. The skill the list selects by itself when it opens does not count.</li>
+<li>A <strong>+N rule(s)</strong> chip counts the learned rules you have not seen yet; opening the skill marks them as seen and removes the chip.</li>
+<li>The editor lists the learned rules of a skill under <strong>Learned rules</strong>, shown only when the skill has any. <strong>Edit</strong> changes a rule's text in a dialog, <strong>Delete</strong> removes it after a confirmation, and both are saved with the skill when you click <strong>Save</strong>.</li>
+<li>Learned rules are sent with their skill whenever the skill is selected for a request, as long as the memory is on and the policy allows it.</li>
+</ul>
+<p>Rules are proposed from your messages only in the <strong>Suggest rules</strong> learning mode; <strong>Remember as rule…</strong> saves a rule that you write yourself.</p>
+<h2 id="secrets-in-skills">Secrets in skills<a class="headerlink" href="#secrets-in-skills" title="Permanent link">&para;</a></h2>
+<p>korTTY does not store a possible password, key or token in a skill, a learned rule, the memory or an approved memory file. The check looks for keyword phrases in German and English, <code>key=value</code> assignments (also in <code>.env</code> files and command-line flags), long random-looking strings, token formats it knows, and values saved in the password vault while the vault is unlocked.</p>
+<p>When you change a skill so that it holds a possible secret, <strong>Save</strong> refuses to save the library and selects that skill. A flagged skill that you do not change does not block <strong>Save</strong>; its badge stays until the secret is removed. The message names the line, the field and the kind of secret, never the value, for example <em>Line 4 in the skill text looks like it holds a secret (a password or token assignment). Remove it and try again.</em> A Markdown file or a skill from the internet that holds a finding is refused on import in the same way.</p>
+<p>At startup korTTY checks the existing skills and marks one that holds a possible secret with a <strong>⚠ possible secret</strong> badge in the list. It does not change or delete that skill. A flagged skill is still sent with requests until the secret line is removed; only the outbound masking applies.</p>
+<p>The check is no guarantee. A password you chose yourself, without a keyword and not saved in the vault, cannot be recognized reliably, so do not write one into a skill.</p>
+<h2 id="skill-statistics">Skill statistics<a class="headerlink" href="#skill-statistics" title="Permanent link">&para;</a></h2>
+<p><strong>Statistics</strong> in the list's header opens the statistics of your skills: how often each one was sent with a request, how large it is and how that changes. The figures come from the local file <code>stats/skill-usage.json</code>, see <a href="../config-files.html#stats">Configuration files</a>.</p>
+<p><img alt="Skill statistics dialog" src="../../assets/screenshots/ai/ai-skill-statistics.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Day</strong>, <strong>Month</strong>, <strong>Year</strong></td>
+<td>Sets the granularity of the chart and of the size history; the range list follows it</td>
+</tr>
+<tr>
+<td>Range</td>
+<td>Day: last 30, 90 or 400 days. Month: last 12, 24 or 60 months. Year: all years</td>
+</tr>
+<tr>
+<td><strong>Record statistics</strong></td>
+<td>Turns recording on or off; while it is off nothing is counted or stored. The enterprise policy can lock it</td>
+</tr>
+<tr>
+<td><strong>Include pinned</strong></td>
+<td>Also counts the uses of skills that are assigned to a connection or picked explicitly. Off shows automatic uses only</td>
+</tr>
+<tr>
+<td><strong>Reset...</strong></td>
+<td>Deletes every recorded use and size history after a confirmation; the skills stay unchanged</td>
+</tr>
+</tbody>
+</table>
+<p>The four figures at the top are <strong>Automatic uses</strong>, <strong>Average size of active skills</strong> in tokens, <strong>Skill tokens sent</strong> and <strong>Growth per month</strong> in tokens per month. The stacked bar chart shows the uses per skill over the range: the eight most used skills and <strong>Others</strong>. The table lists each skill, most used first, with its badge under the name, automatic and pinned uses, average and current size, growth per month and in percent, last use and learned rules. Select a row to see its size history below the table.</p>
+<p><strong>Hints</strong> name the skills to review: one not used for 90 days, one that more than doubled within 30 days, and one above 1,000 tokens. The last two offer <strong>Shorten...</strong>.</p>
+<p><strong>Shorten...</strong> asks the default AI profile for a shorter version of the skill and of its learned rules, shows the change as a diff with the token sizes before and after, and saves nothing until you click <strong>Apply</strong>. The text of a skill you wrote yourself can be shortened. For a built-in or an imported skill only its learned rules are shortened, so its text keeps receiving updates. Set a default AI profile first; the dialog says so when none is set.</p>
+<p>Daily values are kept for 400 days, monthly values for five years and yearly values without a limit. The enterprise policy key <code>statistics</code> in <code>[rule.ai-memory]</code> can switch recording off for everyone; see <a href="../enterprise-policy.html#ruleai-memory">Enterprise policy</a>.</p>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Auto-detection behavior</p>

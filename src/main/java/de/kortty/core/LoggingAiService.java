@@ -3,6 +3,7 @@ package de.kortty.core;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.AiReasoningEffort;
+import de.kortty.stats.SkillUsageCollector;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link #testConnection()} is delegated silently: a connection test is configuration
  * validation, not a submitted request, and logging it would only add noise.
+ *
+ * <p>Each call also opens a {@link SkillUsageCollector} scope around the delegate call. The skills sent with the
+ * request are counted for the statistics once it succeeds, and discarded when it fails or is stopped.
  */
 final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
 
@@ -227,7 +231,7 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
         LOG.info("AI request sent: action={} provider={} model='{}' profile='{}' reasoningEffort={} inputChars={}",
             action, provider, model, profile, reasoning, inputChars);
         long startNanos = System.nanoTime();
-        try {
+        try (SkillUsageCollector.Scope usage = SkillUsageCollector.open()) {
             AiExecutionResult result = call.run();
             if (AiCancellation.isCancelled()) {
                 LOG.info("AI request stopped: action={} model='{}' after {} ms — late result discarded",
@@ -236,6 +240,7 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
             }
             LOG.info("AI request done: action={} model='{}' in {} ms, {}, reasoning={}",
                 action, model, elapsedMillis(startNanos), tokenSummary(result), reasoningFlag(result));
+            usage.commit();
             return result;
         } catch (AiCancelledException stopped) {
             throw stopped;

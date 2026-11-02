@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -82,6 +83,88 @@ final class AiManagerSections {
      * The row under a section's pages: its status text, then {@code save} at the right edge, above the
      * dialog's Close button, as the Profiles editor places its Save.
      */
+    /**
+     * Keeps every button under {@code root} at its text width. In a row with a wrapping label, the label's unwrapped
+     * preferred width otherwise squeezes the buttons to an ellipsis, and the dialog grows to fit them.
+     */
+    static void keepButtonWidths(Node root) {
+        if (root instanceof javafx.scene.control.ButtonBase button) {
+            button.setMinWidth(Region.USE_PREF_SIZE);
+        }
+        if (root instanceof javafx.scene.Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                keepButtonWidths(child);
+            }
+        }
+    }
+
+    /**
+     * A scroller for a tab whose lists and editors should use the whole dialog: the content grows with the window, its
+     * growing parts take the extra height, and the tab scrolls only when the window is shorter than the content's
+     * preferred height, so a small dialog keeps the list rows and the editor instead of squeezing them.
+     */
+    static ScrollPane fillingScroller(Region content) {
+        // Fit-to-height sizes the content to the viewport but never below its minimum, so the preferred height is
+        // the floor below which the tab scrolls.
+        content.setMinHeight(Region.USE_PREF_SIZE);
+        ScrollPane scroller = new ScrollPane(content);
+        scroller.setFitToWidth(true);
+        scroller.setFitToHeight(true);
+        scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        revealFocusedControl(scroller);
+        return scroller;
+    }
+
+    /**
+     * Scrolls {@code scroller} so the control that takes the keyboard focus is shown. A ScrollPane does not follow the
+     * focus by itself, so Tab could otherwise move the focus to a control below or above the visible part of a tab.
+     */
+    static void revealFocusedControl(ScrollPane scroller) {
+        if (scroller.getScene() != null) {
+            watchFocus(scroller, scroller.getScene());
+        }
+        scroller.sceneProperty().addListener((obs, oldScene, scene) -> {
+            if (scene != null) {
+                watchFocus(scroller, scene);
+            }
+        });
+    }
+
+    private static void watchFocus(ScrollPane scroller, javafx.scene.Scene scene) {
+        scene.focusOwnerProperty().addListener((focusObs, oldOwner, owner) -> revealIfInside(scroller, owner));
+    }
+
+    private static void revealIfInside(ScrollPane scroller, Node focused) {
+        Node content = scroller.getContent();
+        if (content == null || focused == null || !isWithin(focused, content) || focused.getScene() == null) {
+            return;
+        }
+        double scrollable = content.getLayoutBounds().getHeight() - scroller.getViewportBounds().getHeight();
+        if (scrollable <= 0) {
+            return;
+        }
+        double viewport = scroller.getViewportBounds().getHeight();
+        Bounds inContent = content.sceneToLocal(focused.localToScene(focused.getLayoutBounds()));
+        double offset = scroller.getVvalue() * scrollable;
+        double target = offset;
+        if (inContent.getMaxY() > offset + viewport) {
+            target = inContent.getMaxY() - viewport;
+        } else if (inContent.getMinY() < offset) {
+            target = inContent.getMinY();
+        }
+        scroller.setVvalue(Math.max(0, Math.min(1, target / scrollable)));
+    }
+
+    private static boolean isWithin(Node node, Node ancestor) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == ancestor) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static HBox saveRow(Button save, Label status) {
         status.setMaxWidth(Double.MAX_VALUE);
         status.setAlignment(Pos.CENTER_RIGHT);

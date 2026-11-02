@@ -4,6 +4,84 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "korTTY darf KI-Skills erstellen und erlernte Regeln darin speichern",
+      "to": "korTTY darf Skills anlegen und gelernte Regeln in Skills speichern",
+      "scope": "markdown",
+      "note": "The UI label of settings.aiSkills.autoCreate; the translator paraphrased it."
+    },
+    {
+      "from": "korTTY darf Skills erstellen und gelernte Regeln darin speichern",
+      "to": "korTTY darf Skills anlegen und gelernte Regeln in Skills speichern",
+      "scope": "markdown",
+      "note": "The UI label of settings.aiSkills.autoCreate; the translator paraphrased it."
+    },
+    {
+      "from": "korTTY kann Skills erstellen und erlernte Regeln darin speichern",
+      "to": "korTTY darf Skills anlegen und gelernte Regeln in Skills speichern",
+      "scope": "markdown",
+      "note": "The UI label of settings.aiSkills.autoCreate; the translator paraphrased it."
+    },
+    {
+      "from": "den globalen KI-Speicher",
+      "to": "das globale KI-Memory",
+      "scope": "markdown",
+      "note": "Memory is neuter in the guide (das KI-Memory), so the article follows it."
+    },
+    {
+      "from": "KI-Speicherdateien",
+      "to": "KI-Memory-Dateien",
+      "scope": "markdown",
+      "note": "The memory term of the guide is KI-Memory, as in the UI (settings.ai.memory.policy.denied)."
+    },
+    {
+      "from": "Schlage auch Kürzungen meiner Absätze vor",
+      "to": "Auch meine eigenen Absätze zum Kürzen vorschlagen",
+      "scope": "markdown",
+      "note": "The UI label of settings.ai.memory.cleanup.userShorten; the translator wrote an imperative."
+    },
+    {
+      "from": "Entlang gesendet",
+      "to": "Mitgesendet",
+      "scope": "markdown",
+      "note": "The UI label of ai.memory.sent.toggle (Mitgesendet: {0})."
+    },
+    {
+      "from": "Mitsendet",
+      "to": "Mitgesendet",
+      "scope": "markdown",
+      "note": "The UI label of ai.memory.sent.toggle (Mitgesendet: {0})."
+    },
+    {
+      "from": "mögliches Geheimnis",
+      "to": "mögliches Secret",
+      "scope": "markdown",
+      "note": "The UI badge is settings.aiSkills.badge.possibleSecret (⚠ mögliches Secret)."
+    },
+    {
+      "from": "Ein Wiederherstellen",
+      "to": "Eine Wiederherstellung",
+      "scope": "markdown",
+      "note": "Grammar: the German noun is feminine here."
+    },
+    {
+      "from": "Speicher-Tab",
+      "to": "Memory-Tab",
+      "scope": "markdown",
+      "note": "The tab is named Memory in the UI (settings.tab.aiMemory)."
+    },
+    {
+      "from": "KI-Gedächtnis",
+      "to": "KI-Memory",
+      "scope": "markdown",
+      "note": "The memory term of the guide is KI-Memory, as in the UI."
+    },
+    {
+      "from": "KI-Speicher",
+      "to": "KI-Memory",
+      "scope": "markdown",
+      "note": "The memory term of the guide is KI-Memory, as in the UI."
+    },
+    {
       "from": "| umschalten | — | Aktiv |",
       "to": "| umschalten | — | Ein |",
       "scope": "markdown",

@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiSkillSecretCheck;
 import de.kortty.core.ExternalAiSkillException;
 import de.kortty.core.ExternalAiSkillSupport;
 import de.kortty.model.AiSkillProvider;
@@ -93,6 +94,13 @@ final class ExternalAiSkillUiSupport {
         if (cause instanceof ExternalAiSkillException external) {
             return I18n.get("settings.aiSkills.external.error." + external.reason().name().toLowerCase(Locale.ROOT),
                 external.detail());
+        }
+        // Not a network problem: the skill was refused because it holds a possible secret; the message says where.
+        if (cause instanceof AiSkillSecretCheck.RefusedException refused) {
+            return refused.getMessage();
+        }
+        if (cause instanceof ExternalAiSkillSupport.LocallyModifiedException modified) {
+            return I18n.get("settings.aiSkills.external.update.refused", modified.skillName());
         }
         Throwable shown = cause != null ? cause : failure;
         String message = shown != null && shown.getMessage() != null ? shown.getMessage()

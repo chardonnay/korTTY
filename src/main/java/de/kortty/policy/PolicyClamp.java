@@ -81,6 +81,23 @@ public final class PolicyClamp {
         if (policy.agentExecution() == AgentExecutionMode.CONFIRM) {
             settings.setTerminalAgentConfirmMutatingCommandSets(true);
         }
+        if (policy.aiMemoryFeatureDenied() || policy.userMemoryMode() == UserMemoryMode.DISABLED) {
+            // The user's own memory files switch off with the feature or with user-memory = "disabled". Organisation
+            // memory is not switched by this setting: the memory service sends it on its own gate.
+            settings.setAiMemoryEnabled(false);
+        }
+        if (policy.isManaged(ManagedSetting.AI_MEMORY_LEARNING) && policy.aiMemoryLearningMode() != null) {
+            settings.setAiMemoryLearningMode(policy.aiMemoryLearningMode());
+        }
+        if (policy.isManaged(ManagedSetting.AI_SKILL_CREATION)) {
+            settings.setAiSkillAutoCreate(policy.aiSkillCreationAllowed());
+        }
+        if (policy.isManaged(ManagedSetting.AI_AGENT_TRIAGE) && policy.aiAgentTriageMode() != null) {
+            settings.setAiAgentTriageMode(policy.aiAgentTriageMode());
+        }
+        if (policy.isManaged(ManagedSetting.AI_SKILL_STATISTICS)) {
+            settings.setAiSkillStatisticsEnabled(policy.aiSkillStatisticsAllowed());
+        }
         if (!policy.updatesEnabled()) {
             settings.setUpdateChecksEnabled(false);
         }

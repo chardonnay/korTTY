@@ -60,6 +60,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private ComboBox<AiProfileOption> aiProfileCombo;
     private ComboBox<AgentDesignUiSupport.Choice> aiAgentDesignCombo;
     private CheckBox aiAgentDisabledCheck;
+    /** Whether the connection exists in the configuration; a new one has no memory file to edit yet. */
+    private boolean savedConnection;
     private java.util.Map<String, javafx.beans.property.BooleanProperty> aiSkillChecksById;
     private java.util.List<String> unavailableAssignedAiSkillIds = java.util.List.of();
 
@@ -204,6 +206,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             this.connection = newConnection;
         } else {
             this.connection = existingConnection;
+            this.savedConnection = true;
         }
         
         this.credentialManager = credentialManager;
@@ -946,6 +949,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         aiProfileCombo = new ComboBox<>();
         aiProfileCombo.setPrefWidth(340);
+        // Same width policy as the design combo below, so the two AI choices in this section line up.
+        aiProfileCombo.setMaxWidth(Double.MAX_VALUE);
         aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
             @Override
             public String toString(AiProfileOption option) {
@@ -991,6 +996,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             AgentDesignUiSupport.connectionChoices(globalSettings, connection.getAiAgentDesignId());
         aiAgentDesignCombo = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(designChoices));
         aiAgentDesignCombo.setPrefWidth(340);
+        aiAgentDesignCombo.setMaxWidth(Double.MAX_VALUE);
         aiAgentDesignCombo.getSelectionModel().select(
             AgentDesignUiSupport.selectedChoice(designChoices, connection.getAiAgentDesignId()));
         Label designHint = new Label(I18n.get("connEdit.aiAgentDesign.hint"));
@@ -1004,6 +1010,17 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         agentDisabledHint.setWrapText(true);
         agentDisabledHint.setStyle(MutedTextStyle.HINT);
         aiAgentDesignCombo.disableProperty().bind(aiAgentDisabledCheck.selectedProperty());
+
+        // The memory of this connection: a file of its own, so it needs a saved connection.
+        Button memoryButton = new Button(I18n.get("connEdit.ai.memory"));
+        memoryButton.setOnAction(event -> openConnectionMemory());
+        memoryButton.setDisable(!savedConnection);
+        if (!savedConnection) {
+            memoryButton.setTooltip(new Tooltip(I18n.get("connEdit.ai.memory.unsaved")));
+        }
+        Label memoryHint = new Label(I18n.get("connEdit.ai.memory.hint"));
+        memoryHint.setWrapText(true);
+        memoryHint.setStyle(MutedTextStyle.HINT);
 
         java.util.Set<String> assignedSkillIds = new java.util.LinkedHashSet<>(connection.getAiSkillIds());
         java.util.List<AiSkill> connectionSkills = new java.util.ArrayList<>();
@@ -1041,6 +1058,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             profileHint,
             aiAgentDisabledCheck,
             agentDisabledHint,
+            memoryButton,
+            memoryHint,
             new Label(I18n.get("connEdit.aiAgentDesign")),
             aiAgentDesignCombo,
             designHint,
@@ -1080,6 +1099,13 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         tab.setContent(content);
         return tab;
+    }
+
+    /** Opens this connection's memory in its own window. The connection is saved, so it has an id that names its file. */
+    private void openConnectionMemory() {
+        javafx.stage.Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        new AiMemoryDialog(window, connection.getId(), java.util.Objects.toString(connection.getDisplayName(), ""))
+            .show();
     }
 
     private static String aiProfileLabel(AiProfile profile) {

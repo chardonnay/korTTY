@@ -88,11 +88,15 @@ The **Read-only** checkbox keeps every agent restricted to non-mutating commands
 
 The approval dialog also offers **Cancel swarm** to stop the whole run.
 
+Each server's agent sends the global AI memory and the memory of its own connection, masked the same way. Swarm runs never offer [solution options](ai-tools.md#solution-options). See [AI memory](ai-memory.md).
+
 ## Combined answer and row details
 
 When all agents finish, the swarm combines the per-server answers into one Markdown comparison table with exactly one row per server. The last column is always titled **"Fehler"** and lists deviations, missing data, and errors (or `-` when there is nothing to report), regardless of the response language.
 
 The request that combines the answers carries every server's answer and output excerpt, so it is masked like the agents' own prompts before it goes to a profile other than an integrated model or a trusted local endpoint: the connection passwords of all servers, your organization's replacement rules and well-known token formats become `***` (see [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending)). The rows and the table shown when the AI cannot be reached keep the original text, because they never leave your computer.
+
+The request that combines the answers sends the global AI memory only, not the memory of a connection.
 
 Table cells are often too small for full command output — **click any table row** to open it in a separate *Row details* window with a readable layout, **A− / A+** font-size buttons, and a copy-to-clipboard button.
 

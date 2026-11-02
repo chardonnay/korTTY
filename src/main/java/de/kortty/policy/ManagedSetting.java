@@ -79,5 +79,19 @@ public enum ManagedSetting {
      */
     DESKTOP_NOTIFICATIONS,
     /** Serial-port connections ({@link PolicyFeature#SERIAL_CONNECTIONS}); no Settings control of its own. */
-    SERIAL_CONNECTIONS
+    SERIAL_CONNECTIONS,
+    /** The korTTY memory as a whole ({@link PolicyFeature#AI_MEMORY}); no Settings control of its own. */
+    AI_MEMORY,
+    /** Learning of rules in Settings ({@code [rule.ai-memory] learning}). */
+    AI_MEMORY_LEARNING,
+    /** Creating skills for learned rules, {@code [rule.ai-memory] skill-creation}. */
+    AI_SKILL_CREATION,
+    /** Reference files of other tools, {@code [rule.ai-memory] external-files} and {@code external-file-roots}. */
+    AI_MEMORY_EXTERNAL,
+    /** The memory token budget, {@code [rule.ai-memory] max-tokens}: a cap, the user may stay below it. */
+    AI_MEMORY_TOKENS,
+    /** The agent's triage mode in Settings, {@code [rule.ai-memory] triage}. */
+    AI_AGENT_TRIAGE,
+    /** Recording skill statistics, {@code [rule.ai-memory] statistics}. */
+    AI_SKILL_STATISTICS
 }

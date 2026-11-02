@@ -1,10 +1,13 @@
 package de.kortty.ui;
 
+import de.kortty.core.AiSecretScanRegistry;
 import de.kortty.core.BuiltinAiSkillSupport;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -16,27 +19,66 @@ final class AiSkillListFormat {
     private AiSkillListFormat() {
     }
 
-    /** Two-line list text: {@code [🔄 ]Name\n<target> - <Enabled/Disabled>[ - <badge>]}. */
+    /**
+     * Two-line list text: {@code [🔄 ]Name\n<target> - <Enabled/Disabled>[ - <badge>][ - <possible secret>][ - <korTTY badge>][ - <rules chip>]}.
+     * The possible-secret warning and the korTTY badges come after the built-in state, so no state badge is ever pushed out.
+     */
     static String listText(AiSkill skill, BuiltinAiSkillSupport.AiSkillStatus status) {
+        return listText(skill, status, AiSecretScanRegistry.shared());
+    }
+
+    /** {@link #listText(AiSkill, BuiltinAiSkillSupport.AiSkillStatus)} with the findings of {@code secrets}. */
+    static String listText(AiSkill skill, BuiltinAiSkillSupport.AiSkillStatus status, AiSecretScanRegistry secrets) {
         String name = trimToNull(skill.getName());
         String enabledStatus = skill.isEnabled()
             ? I18n.get("settings.aiSkills.status.enabled")
             : I18n.get("settings.aiSkills.status.disabled");
         String badge = badge(status);
-        return glyphPrefix(status)
-            + (name != null ? name : I18n.get("settings.aiSkills.defaultName"))
-            + "\n"
-            + targetLabel(skill.getTarget())
-            + " - "
-            + enabledStatus
-            + (badge.isEmpty() ? "" : " - " + badge);
+        StringBuilder text = new StringBuilder(glyphPrefix(status))
+            .append(name != null ? name : I18n.get("settings.aiSkills.defaultName"))
+            .append("\n")
+            .append(targetLabel(skill.getTarget()))
+            .append(" - ")
+            .append(enabledStatus);
+        if (!badge.isEmpty()) {
+            text.append(" - ").append(badge);
+        }
+        if (secrets.hasSkillFinding(skill.getId())) {
+            text.append(" - ").append(I18n.get("settings.aiSkills.badge.possibleSecret"));
+        }
+        for (String korttyBadge : korttyBadges(skill)) {
+            text.append(" - ").append(korttyBadge);
+        }
+        return text.toString();
+    }
+
+    /**
+     * The badges korTTY adds: "NEW · created by korTTY" until the user opens a skill korTTY created, then a
+     * persistent "korTTY"; and "+N rules" while learned rules are unseen. Empty for other skills.
+     */
+    static List<String> korttyBadges(AiSkill skill) {
+        List<String> badges = new ArrayList<>();
+        if (skill == null) {
+            return badges;
+        }
+        if (skill.isCreatedByKortty()) {
+            badges.add(I18n.get(skill.isOriginAcknowledged()
+                ? "settings.aiSkills.badge.kortty"
+                : "settings.aiSkills.badge.korttyNew"));
+        }
+        int unseenRules = skill.unacknowledgedLearnedRuleCount();
+        if (unseenRules > 0) {
+            badges.add(I18n.get("settings.aiSkills.badge.learnedRules", unseenRules));
+        }
+        return badges;
     }
 
     /**
      * Two-line list text of an imported external skill:
-     * {@code [🔄 ]Name\n<target> - <Enabled/Disabled> - <provider>[ - Update available][ - Edited locally]}.
+     * {@code [🔄 ]Name\n<target> - <Enabled/Disabled> - <provider>[ - Update available][ - Changed locally]}.
+     * "Changed locally" covers the user's edits and the skill optimizer's, since both block an update.
      */
-    static String externalListText(AiSkill skill, String providerName, boolean updateAvailable, boolean editedLocally) {
+    static String externalListText(AiSkill skill, String providerName, boolean updateAvailable, boolean changedLocally) {
         String name = trimToNull(skill.getName());
         String enabledStatus = skill.isEnabled()
             ? I18n.get("settings.aiSkills.status.enabled")
@@ -50,7 +92,7 @@ final class AiSkillListFormat {
             + " - "
             + providerName
             + (updateAvailable ? " - " + I18n.get("settings.aiSkills.badge.updateAvailable") : "")
-            + (editedLocally ? " - " + I18n.get("settings.aiSkills.badge.edited") : "");
+            + (changedLocally ? " - " + I18n.get("settings.aiSkills.badge.changed") : "");
     }
 
     /** Badge priority: hidden > overridden > update available > modified > built-in > none. */

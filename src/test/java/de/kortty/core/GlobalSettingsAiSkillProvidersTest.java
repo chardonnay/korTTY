@@ -86,6 +86,49 @@ class GlobalSettingsAiSkillProvidersTest {
     }
 
     @Test
+    void theDescriptionHashAndTheSkippedRevisionSurviveAReload() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-skill-tracking");
+        GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+        AiSkill tracked = new AiSkill();
+        tracked.setId("ext-tracked");
+        tracked.setName("pdf");
+        tracked.setContent("# PDF");
+        tracked.setEnabled(false);
+        AiSkillExternalSource source = new AiSkillExternalSource();
+        source.setProviderId(AiSkillProvider.DEFAULT_GITHUB_ID);
+        source.setReference("https://github.com/anthropics/skills/tree/main/skills/pdf");
+        source.setRevision("abc123");
+        source.setContentSha256("feed");
+        source.setDescriptionSha256("beef");
+        source.setSkippedRevision("def456");
+        tracked.setExternalSource(source);
+        AiSkill older = new AiSkill();
+        older.setId("ext-older");
+        older.setName("docx");
+        older.setContent("# DOCX");
+        older.setEnabled(false);
+        AiSkillExternalSource olderSource = new AiSkillExternalSource();
+        olderSource.setProviderId(AiSkillProvider.DEFAULT_GITHUB_ID);
+        olderSource.setReference("https://github.com/anthropics/skills/tree/main/skills/docx");
+        olderSource.setRevision("old1");
+        olderSource.setContentSha256("cafe");
+        older.setExternalSource(olderSource);
+        manager.getSettings().setAiSkills(List.of(tracked, older));
+        manager.save();
+
+        GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+        reloaded.load();
+
+        List<AiSkill> loaded = reloaded.getSettings().getAiSkills();
+        assertThat(loaded.get(0).getExternalSource().getDescriptionSha256()).isEqualTo("beef");
+        assertThat(loaded.get(0).getExternalSource().getSkippedRevision()).isEqualTo("def456");
+        // A skill saved before these fields existed loads with them unknown.
+        assertThat(loaded.get(1).getExternalSource().getContentSha256()).isEqualTo("cafe");
+        assertThat(loaded.get(1).getExternalSource().getDescriptionSha256()).isNull();
+        assertThat(loaded.get(1).getExternalSource().getSkippedRevision()).isNull();
+    }
+
+    @Test
     void anEmptiedProviderListStaysEmptyAfterReload() throws Exception {
         Path dir = Files.createTempDirectory("kortty-skill-providers-empty");
         GlobalSettingsManager manager = new GlobalSettingsManager(dir);

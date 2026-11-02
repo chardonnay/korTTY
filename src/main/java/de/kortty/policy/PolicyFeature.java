@@ -11,6 +11,12 @@ public enum PolicyFeature {
     AI_CHAT("ai-chat"),
     AI_SWARM("ai-swarm"),
     AI_PLANNING("ai-planning"),
+    /**
+     * The korTTY memory: the user's own memory files, the organisation memory from
+     * {@code [[organization-memory]]} and the learning of rules. Denied, no memory is read into a prompt
+     * (organisation memory included), nothing can be written and nothing is learned. Needs {@link #AI}.
+     */
+    AI_MEMORY("ai-memory"),
     /** Shared-connections sync ("Teamwork") — not an AI feature. */
     TEAMWORK("teamwork"),
     /** Plugins, e.g. terminal effect plugins. */

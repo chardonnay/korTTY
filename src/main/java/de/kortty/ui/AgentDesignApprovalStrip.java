@@ -8,6 +8,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
@@ -26,8 +27,14 @@ final class AgentDesignApprovalStrip extends HBox {
     private final Label icon = new Label("?");
     private final Label message = new Label();
     private final HBox controls = new HBox(6);
+    // The solution options of a run, shown in place of the row while they wait for an answer.
+    private final ScrollPane choiceHost = new ScrollPane();
 
     AgentDesignApprovalStrip() {
+        choiceHost.setFitToWidth(true);
+        choiceHost.setMaxHeight(320);
+        choiceHost.setPrefViewportHeight(320);
+        HBox.setHgrow(choiceHost, Priority.ALWAYS);
         getStyleClass().add("ai-agent-design-strip");
         setSpacing(8);
         setAlignment(Pos.CENTER_LEFT);
@@ -60,6 +67,7 @@ final class AgentDesignApprovalStrip extends HBox {
         boolean allowAlways = approval != null && approval.allowAlways();
         Button once = button("1 " + I18n.get("ai.agent.approval.once"), true);
         once.setOnAction(event -> answer.accept(TerminalAgentService.ApprovalDecision.APPROVE_ONCE));
+        showRow();
         controls.getChildren().setAll(once);
         if (allowAlways) {
             Button always = button("2 " + I18n.get("ai.agent.approval.always"), false);
@@ -105,14 +113,29 @@ final class AgentDesignApprovalStrip extends HBox {
         });
         Button cancel = button(I18n.get("dialog.cancel"), false);
         cancel.setOnAction(event -> answer.accept(null));
+        showRow();
         controls.getChildren().setAll(field, cache, ok, cancel);
         showStrip();
         javafx.application.Platform.runLater(field::requestFocus);
     }
 
+    /**
+     * Shows the solution card of a run in the strip. The card is the caller's, so what the user typed in it survives the
+     * strip showing an approval or another run's prompt in between.
+     */
+    void showChoice(SolutionChoicePane card) {
+        choiceHost.setContent(card);
+        getChildren().setAll(choiceHost);
+        setAlignment(Pos.TOP_LEFT);
+        showStrip();
+    }
+
     void hideStrip() {
         controls.getChildren().clear();
         message.setText("");
+        choiceHost.setContent(null);
+        getChildren().setAll(icon, message, controls);
+        setAlignment(Pos.CENTER_LEFT);
         setVisible(false);
         setManaged(false);
     }
@@ -120,6 +143,13 @@ final class AgentDesignApprovalStrip extends HBox {
     private void showStrip() {
         setVisible(true);
         setManaged(true);
+    }
+
+    /** Puts the row back in place of a solution card that may still be showing. */
+    private void showRow() {
+        choiceHost.setContent(null);
+        getChildren().setAll(icon, message, controls);
+        setAlignment(Pos.CENTER_LEFT);
     }
 
     private static Button button(String text, boolean primary) {

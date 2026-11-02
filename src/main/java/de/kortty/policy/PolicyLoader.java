@@ -1,5 +1,8 @@
 package de.kortty.policy;
 
+import de.kortty.core.AiSecretGuard;
+import de.kortty.model.AiAgentTriageMode;
+import de.kortty.model.AiMemoryLearningMode;
 import org.tomlj.Toml;
 import org.tomlj.TomlArray;
 import org.tomlj.TomlInvalidTypeException;
@@ -7,6 +10,7 @@ import org.tomlj.TomlParseResult;
 import org.tomlj.TomlTable;
 
 import java.io.IOException;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -30,12 +34,20 @@ public final class PolicyLoader {
     static final Set<String> KNOWN_RUNTIMES = Set.of("llama", "mlx");
     static final Set<String> KNOWN_TEAMWORK_TYPES = Set.of("git", "shared-file");
 
+    /** Lower and upper bound of {@code [rule.ai-memory] max-tokens}, the memory budget in tokens. */
+    public static final int AI_MEMORY_MIN_MAX_TOKENS = 300;
+    public static final int AI_MEMORY_MAX_MAX_TOKENS = 4000;
+
     private static final Set<String> TOP_LEVEL_KEYS = Set.of(
-        "meta", "groups", "rule", "script-header", "ai-profile", "ai-runtime", "teamwork-source");
+        "meta", "groups", "rule", "script-header", "ai-profile", "ai-runtime", "teamwork-source",
+        "organization-memory");
     private static final Set<String> META_KEYS = Set.of("schema-version", "organization");
     private static final Set<String> RULE_KEYS = Set.of("name", "users", "groups", "servers",
         "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates",
-        "terminal", "logging", "session-journal", "sftp", "job-scheduler", "isolation", "backup");
+        "terminal", "logging", "session-journal", "sftp", "job-scheduler", "isolation", "backup", "ai-memory");
+    private static final Set<String> AI_MEMORY_KEYS = Set.of("user-memory", "learning", "skill-creation",
+        "external-files", "external-file-roots", "max-tokens", "triage", "statistics");
+    private static final Set<String> ORGANIZATION_MEMORY_KEYS = Set.of("title", "content");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "allow-port-forwarding",
@@ -112,12 +124,13 @@ public final class PolicyLoader {
         List<PolicyFile.AiProfileDef> aiProfiles = parseAiProfiles(toml);
         List<PolicyFile.RuntimeModel> runtimeModels = parseRuntimeModels(toml);
         List<PolicyFile.TeamworkSourceDef> teamworkSources = parseTeamworkSources(toml);
+        List<PolicyFile.OrganizationMemoryBlock> organizationMemory = parseOrganizationMemory(toml);
 
         if (!errors.isEmpty()) {
             return null;
         }
         return new PolicyFile(schemaVersion, organization, groups, rules,
-            scriptHeaders, aiProfiles, runtimeModels, teamworkSources);
+            scriptHeaders, aiProfiles, runtimeModels, teamworkSources, organizationMemory);
     }
 
     private int parseMeta(TomlParseResult toml) {
@@ -182,6 +195,7 @@ public final class PolicyLoader {
             parseRuleAiRuntime(table, context, builder);
             parseRuleUpdates(table, context, builder);
             parseRuleBackup(table, context, builder);
+            parseRuleAiMemory(table, context, builder);
             parseRuleTerminal(table, context, builder);
             parseRuleLogging(table, context, builder);
             parseRuleSessionJournal(table, context, builder);
@@ -375,6 +389,112 @@ public final class PolicyLoader {
         PolicyRule.BackupRule backup = new PolicyRule.BackupRule(interval, directory);
         if (!backup.isEmpty()) {
             builder.backup(backup);
+        }
+    }
+
+    /**
+     * The {@code [rule.ai-memory]} table: how the user's memory files may be used, the learning of rules and
+     * the limits of the memory. Every value is validated like the other keys: a value the policy does not know
+     * is an error and the whole file is rejected. An unknown key is a warning, as in every other table, so a newer
+     * korTTY may add a key without locking down an older one.
+     */
+    private void parseRuleAiMemory(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "ai-memory", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.ai-memory]";
+        warnUnknownKeys(table, AI_MEMORY_KEYS, tableContext);
+        UserMemoryMode userMemory = null;
+        String userMemoryValue = getString(table, "user-memory", tableContext);
+        if (userMemoryValue != null) {
+            userMemory = UserMemoryMode.fromToml(userMemoryValue);
+            if (userMemory == null) {
+                errors.add(tableContext + ": user-memory must be \"editable\", \"read-only\" or \"disabled\"");
+            }
+        }
+        AiMemoryLearningMode learning = null;
+        String learningValue = getString(table, "learning", tableContext);
+        if (learningValue != null) {
+            learning = switch (learningValue.toLowerCase(Locale.ROOT)) {
+                case "propose" -> AiMemoryLearningMode.PROPOSE;
+                case "off" -> AiMemoryLearningMode.OFF;
+                default -> null;
+            };
+            if (learning == null) {
+                errors.add(tableContext + ": learning must be \"propose\" or \"off\"");
+            }
+        }
+        Boolean skillCreation = getBoolean(table, "skill-creation", tableContext);
+        Boolean externalFiles = null;
+        String externalValue = getString(table, "external-files", tableContext);
+        if (externalValue != null) {
+            PolicyDecision decision = PolicyDecision.fromToml(externalValue);
+            if (decision == null) {
+                errors.add(tableContext + ": external-files must be \"allow\" or \"deny\"");
+            } else {
+                externalFiles = decision == PolicyDecision.ALLOW;
+            }
+        }
+        List<String> externalFileRoots = parseExternalFileRoots(table, tableContext);
+        Integer maxTokens = null;
+        Long tokens = getLong(table, "max-tokens", tableContext);
+        if (tokens != null) {
+            if (tokens < AI_MEMORY_MIN_MAX_TOKENS || tokens > AI_MEMORY_MAX_MAX_TOKENS) {
+                errors.add(tableContext + ": max-tokens must be between " + AI_MEMORY_MIN_MAX_TOKENS + " and "
+                    + AI_MEMORY_MAX_MAX_TOKENS);
+            } else {
+                maxTokens = tokens.intValue();
+            }
+        }
+        AiAgentTriageMode triage = null;
+        String triageValue = getString(table, "triage", tableContext);
+        if (triageValue != null) {
+            triage = switch (triageValue.toLowerCase(Locale.ROOT)) {
+                case "auto" -> AiAgentTriageMode.AUTO;
+                case "always" -> AiAgentTriageMode.ALWAYS;
+                case "never" -> AiAgentTriageMode.NEVER;
+                default -> null;
+            };
+            if (triage == null) {
+                errors.add(tableContext + ": triage must be \"auto\", \"always\" or \"never\"");
+            }
+        }
+        Boolean statistics = getBoolean(table, "statistics", tableContext);
+        PolicyRule.AiMemoryRule aiMemory = new PolicyRule.AiMemoryRule(userMemory, learning, skillCreation,
+            externalFiles, externalFileRoots, maxTokens, triage, statistics);
+        if (!aiMemory.isEmpty()) {
+            builder.aiMemory(aiMemory);
+        }
+    }
+
+    /**
+     * The {@code external-file-roots} list: absolute or {@code ~/}-relative folders, checked like
+     * {@code [rule.backup] auto-directory}. Null when the key is not set.
+     */
+    private List<String> parseExternalFileRoots(TomlTable table, String tableContext) {
+        List<String> roots = getStringArray(table, "external-file-roots", tableContext);
+        if (roots == null) {
+            return null;
+        }
+        List<String> valid = new ArrayList<>();
+        for (String root : roots) {
+            boolean homeRelative = "~".equals(root) || root.startsWith("~/");
+            if (!homeRelative && !isAbsolutePath(root)) {
+                errors.add(tableContext + ": external-file-roots entry \"" + root
+                    + "\" must be an absolute or ~/-relative path");
+            } else {
+                valid.add(root);
+            }
+        }
+        return valid;
+    }
+
+    private static boolean isAbsolutePath(String value) {
+        try {
+            return Path.of(value).isAbsolute();
+        } catch (InvalidPathException e) {
+            return false;
         }
     }
 
@@ -802,6 +922,71 @@ public final class PolicyLoader {
             }
         }
         return sources;
+    }
+
+    /**
+     * The {@code [[organization-memory]]} array. Type and presence errors reject the whole file like every other
+     * key. A text problem only drops that block, with a warning: the title or the content over
+     * {@value PolicyFile#ORGANIZATION_MEMORY_MAX_CHARS} characters, or one the secret guard refuses. The warning
+     * names the field, the category and the line, never the value.
+     */
+    private List<PolicyFile.OrganizationMemoryBlock> parseOrganizationMemory(TomlParseResult toml) {
+        TomlArray array = getTableArray(toml, "organization-memory", "");
+        if (array == null) {
+            return List.of();
+        }
+        List<PolicyFile.OrganizationMemoryBlock> blocks = new ArrayList<>();
+        int totalCharacters = 0;
+        for (int i = 0; i < array.size(); i++) {
+            TomlTable table = array.getTable(i);
+            String context = "[[organization-memory]] #" + (i + 1);
+            warnUnknownKeys(table, ORGANIZATION_MEMORY_KEYS, context);
+            String title = requireString(table, "title", context);
+            String content = requireString(table, "content", context);
+            if (title == null || content == null) {
+                continue;
+            }
+            if (blocks.size() >= PolicyFile.ORGANIZATION_MEMORY_MAX_BLOCKS) {
+                warnings.add(context + ": more than " + PolicyFile.ORGANIZATION_MEMORY_MAX_BLOCKS
+                    + " organisation memory blocks; this block is ignored");
+                continue;
+            }
+            boolean titleAccepted = organizationTextAccepted(title, "title", context);
+            boolean contentAccepted = organizationTextAccepted(content, "content", context);
+            if (!titleAccepted || !contentAccepted) {
+                continue;
+            }
+            int characters = title.codePointCount(0, title.length()) + content.codePointCount(0, content.length());
+            if (totalCharacters + characters > PolicyFile.ORGANIZATION_MEMORY_MAX_TOTAL_CHARS) {
+                warnings.add(context + ": the organisation memory would exceed "
+                    + PolicyFile.ORGANIZATION_MEMORY_MAX_TOTAL_CHARS + " characters in all; this block is ignored");
+                continue;
+            }
+            totalCharacters += characters;
+            blocks.add(new PolicyFile.OrganizationMemoryBlock(title, content));
+        }
+        return blocks;
+    }
+
+    /** Whether one text of an organisation memory block passes the length limit and the secret guard. */
+    private boolean organizationTextAccepted(String text, String field, String context) {
+        int length = text.codePointCount(0, text.length());
+        if (length > PolicyFile.ORGANIZATION_MEMORY_MAX_CHARS) {
+            warnings.add(context + ": " + field + " has " + length + " characters, the limit is "
+                + PolicyFile.ORGANIZATION_MEMORY_MAX_CHARS + "; the block is ignored");
+            return false;
+        }
+        // The text is checked as the other write paths check it: invisible characters are removed first, so a zero-width
+        // space inside a keyword cannot hide the secret.
+        AiSecretGuard.Result check = AiSecretGuard.check(
+            de.kortty.memory.external.ExternalMemoryReader.sanitize(text).text(), List.of());
+        if (!check.ok()) {
+            AiSecretGuard.Finding first = check.first().orElseThrow();
+            warnings.add(context + ": " + field + " looks like a secret (" + first.category() + " on line "
+                + first.line() + "); the block is ignored");
+            return false;
+        }
+        return true;
     }
 
     // ---- typed getters that convert tomlj type mismatches into admin-readable errors ----------

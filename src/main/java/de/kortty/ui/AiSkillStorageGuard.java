@@ -1,18 +1,25 @@
 package de.kortty.ui;
 
+import de.kortty.core.AiSkillRepository;
+import de.kortty.core.AiSkillSecretCheck;
 import de.kortty.model.AiSkill;
 import de.kortty.model.XmlStorableText;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Keeps the AI-skills editor from saving a skill whose name, description, tags or Markdown hold a
  * character {@code global-settings.xml} cannot store ({@link XmlStorableText}): JAXB would write it, the
  * next start would fail to read the file and put every setting back to its default. The Markdown editor
  * is a WebView and, unlike a JavaFX text field, takes control characters as they are pasted.
+ *
+ * <p>The same editor refuses a skill that holds a possible secret ({@link SecretRefusal}), the way it refuses an
+ * unstorable character. The check covers only skills the editor changed, so a legacy secret does not block an
+ * unrelated save; the startup scan flags it instead.
  *
  * <p>No JavaFX; any thread.
  */
@@ -28,7 +35,41 @@ final class AiSkillStorageGuard {
         }
     }
 
+    /** A changed skill holding a possible secret, and the message that says where, for the save button. */
+    record SecretRefusal(AiSkill skill, String message) {
+    }
+
     private AiSkillStorageGuard() {
+    }
+
+    /**
+     * The first skill of {@code edited} that holds a possible secret and differs from {@code base}, the list the
+     * editor loaded; {@code null} when none. A skill that is new counts as changed.
+     */
+    static SecretRefusal firstSecretRefusal(List<AiSkill> edited, List<AiSkill> base) {
+        if (edited == null) {
+            return null;
+        }
+        Map<String, AiSkill> baseById = new HashMap<>();
+        for (AiSkill original : base != null ? base : List.<AiSkill>of()) {
+            if (original != null) {
+                baseById.putIfAbsent(original.getId(), original);
+            }
+        }
+        for (AiSkill skill : edited) {
+            if (skill == null) {
+                continue;
+            }
+            AiSkill original = baseById.get(skill.getId());
+            if (original != null && AiSkillRepository.sameSkill(original, skill)) {
+                continue;
+            }
+            Optional<String> refusal = AiSkillSecretCheck.refusal(skill);
+            if (refusal.isPresent()) {
+                return new SecretRefusal(skill, refusal.get());
+            }
+        }
+        return null;
     }
 
     /** The first skill, in list order, holding text the settings file cannot store; {@code null} when none. */
@@ -52,31 +93,5 @@ final class AiSkillStorageGuard {
     static String messageFor(String text) {
         int codePoint = XmlStorableText.firstUnstorableCodePoint(text);
         return codePoint < 0 ? null : I18n.get(MESSAGE_KEY, String.format(Locale.ROOT, "U+%04X", codePoint));
-    }
-
-    /**
-     * {@code edited} as it may be stored: a skill the settings file cannot hold keeps the version
-     * {@code stored} has under its id, or is left out when it was never stored. Used when the editor
-     * closes and can no longer ask the user to fix the text; every other skill is saved as edited.
-     */
-    static List<AiSkill> withStoredVersionOfRefused(List<AiSkill> edited, List<AiSkill> stored) {
-        List<AiSkill> kept = new ArrayList<>();
-        if (edited == null) {
-            return kept;
-        }
-        for (AiSkill skill : edited) {
-            if (skill == null || skill.firstUnstorableText() == null) {
-                kept.add(skill);
-                continue;
-            }
-            AiSkill previous = stored == null ? null : stored.stream()
-                .filter(candidate -> candidate != null && Objects.equals(candidate.getId(), skill.getId()))
-                .findFirst()
-                .orElse(null);
-            if (previous != null && previous.firstUnstorableText() == null) {
-                kept.add(new AiSkill(previous));
-            }
-        }
-        return kept;
     }
 }

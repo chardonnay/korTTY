@@ -219,6 +219,27 @@ Für eine Verbindung, bei der der Agent niemals Befehle ausführen darf, etwa ei
 - **Zähler im Aktivitätspanel** — Ein Eintrag **Vor dem Senden maskiert** gibt an, wie viele verschiedene Werte im Lauf maskiert wurden. Ein Wert, der in jeder Runde wiederkommt, weil der Agent seinen Befehlsverlauf erneut sendet, zählt einmal.
 - **Keine Befehle mit dem Platzhalter** — Das Modell erfährt, dass `***` für ein maskiertes Geheimnis steht. Plant es trotzdem einen Befehl, der `***` enthält, führt korTTY ihn nicht aus, vermerkt dies im Transkript und teilt es dem Modell in der nächsten Runde mit, weil der Befehl sonst mit den drei wörtlichen Zeichen statt des Geheimnisses liefe.
 
+## Lösungsoptionen
+
+Bevor der Agent eine Anfrage ausführt, kann er anzeigen, wie fortzufahren ist. **Komplexität einschätzen** in **KI > KI-Manager > Allgemein** legt fest, wann dies geschieht. **Automatisch** (Standard) führt vor jeder Ausführung einen kleinen KI-Aufruf mit dem Speicher der Ausführung durch und bietet Optionen nur an, wenn die Anfrage komplex erscheint; **Immer** bietet Optionen für jede Ausführung an; **Nie** führt die Anfrage so aus, wie sie ist. Falls die Prüfung fehlschlägt, keine verwertbare Antwort liefert oder länger als 120 Sekunden dauert, wird die Anfrage wie gewünscht ausgeführt. Swarm-Ausführungen und geplante Jobs bieten niemals Optionen an.
+
+Die Karte nennt die Gründe, warum die Anfrage komplex erscheint, sofern dies der Fall ist, sowie zwei oder drei Optionen, wobei die empfohlene zuerst steht. Jede Option zeigt in ihren Details Durchführbarkeit, Risiken, Voraussetzungen, Schritte und Alternativen.
+
+| Steuerung | Wirkung |
+| --- | --- |
+| Eine Option | Wählt den Ansatz aus, den **Mit Auswahl fortfahren** ausführt |
+| **Eigene Idee** | Ersetzt die Optionen durch Ihren eigenen Ansatz oder Ihre eigene Anweisung. Ist sie ausgewählt, ist Ihr Text der Plan; andernfalls wird er zur gewählten Option hinzugefügt |
+| **Dauerhafte Regel** | Eine optionale Regel, die korTTY für spätere Anfragen aufbewahrt. **Speichern in** wählt **Globales Memory**, **Diese Verbindung**, das Skill, um das es geht, oder ein neues Skill |
+| **Mit Auswahl fortfahren** | Führt die Anfrage mit der gewählten Option oder Ihrer eigenen Idee aus. Nur diese Schaltfläche speichert eine dauerhafte Regel |
+| **Wie angefragt ausführen** | Führt die Anfrage so aus, wie sie geschrieben ist, ohne Optionen |
+| **Abbrechen** | Bricht die Ausführung ab |
+
+Eine Regel, die korTTY nicht speichern kann, z. B. eine, die ein mögliches Secret enthält, lässt die Karte mit dem Grund geöffnet, und der Lauf startet nicht. Wenn innerhalb von 10 Minuten nichts ausgewählt wird, wird die Anfrage wie gewünscht ausgeführt. Die Karte erscheint im klassischen Agent-Panel, im Lauf-Tab des Chat-Fensters und in der Leiste eines Agent-Designs.
+
+## Gedächtnis in Agent-Läufen
+
+Jeder Agentlauf und jeder Planungsschritt sendet den korTTY-Speicher: den globalen Speicher und, für eine Verbindung, den Speicher dieser Verbindung – budgetiert und maskiert wie der restliche Prompt. Die Zeile **Mitgesendet** im Panel des Laufs listet die Speichereinträge, Skills und Referenzdateien, die gesendet wurden, mit ihren Token-Zahlen. Im Prompt-Dialog des Agents speichert **Als Regel merken…** eine Regel, die Sie schreiben, ohne KI-Aufruf. Siehe [KI-Memory](ai-memory.md).
+
 ## Workflow-Skript generieren
 
 Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).
@@ -327,6 +348,7 @@ Konfigurieren Sie den Terminal KI-Agenten in **KI > KI-Manager > Allgemein**:
 | **Agent-Befehlsnamen ohne Groß-/Kleinschreibung vergleichen** | Befehlsabgleich ohne Berücksichtigung der Groß-/Kleinschreibung |
 | **Ziel für KI-Agent-Aufgaben** | **Terminalfenster** (das Aktivitätspanel im Terminalsplit) oder **Neues Chatfenster** |
 | **Terminal-Agent-Abfrage vor jedem Start anzeigen** | Zeigen Sie vor jedem Start einen Setup-Dialog an (bei deaktiviert wird das Standardprofil verwendet) |
+| **Komplexität einschätzen** | **Automatisch** (Standard), **Immer** oder **Nie**: wenn der Agent [Lösungsoptionen](#losungsoptionen) |
 | **Größe der Terminal-Agent-Eingabehistorie** | Anzahl der zuletzt gespeicherten Prompts zu merken (5–100, Standard 20) |
 | **Standardprofil** | Das KI-Profil, das verwendet wird, wenn der Setup-Dialog deaktiviert ist |
 
@@ -341,7 +363,7 @@ AI Skills sind wiederverwendbare lokale Anweisungsblöcke, die der Agent verwend
 - Sprachspezifische Codierungsrichtlinien
 - Systemverwaltungskonventionen
 
-Einzelheiten zur Einrichtung und Verwaltung finden Sie im Abschnitt **KI-Skills** in der Hauptdokumentation zu KI.
+Siehe den **KI-Skills**-Abschnitt in der Hauptdokumentation zur KI für Details zur Einrichtung und Verwaltung. Die für ein Skill bestätigten Regeln werden mit diesem Skill gesendet; siehe [KI-Memory](ai-memory.md).
 
 ## Internetzugang
 

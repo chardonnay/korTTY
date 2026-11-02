@@ -116,6 +116,24 @@ public enum AiAction {
     }
 
     /**
+     * Whether the user's memory may be attached to this action's chat prompt. Memory is standing
+     * personal guidance, so it is withheld from every action that must return an exact shape: the
+     * correction and translation actions, Mermaid generation, the ASCII-art picture (whose drawing
+     * contract forbids prose, as for RAG), and every strict-JSON action (see
+     * {@link #requiresStrictJsonReply()}), whose output is parsed and must not drift.
+     */
+    public boolean allowsMemory() {
+        if (requiresStrictJsonReply()) {
+            return false;
+        }
+        return switch (this) {
+            case CORRECT_SNIPPET_DESCRIPTION, CORRECT_SNIPPET_SELECTION_TEXT,
+                 TRANSLATE_SNIPPET_SELECTION_TEXT, GENERATE_SNIPPET_MERMAID, GENERATE_ASCII_ART -> false;
+            default -> true;
+        };
+    }
+
+    /**
      * Whether the hybrid (remote LLM) skill-relevance classifier may run before this action's main
      * request. The staged full-code-analysis apply actions send one mechanical full-file rewrite per
      * stage over near-identical context, so a per-stage classification round-trip adds latency

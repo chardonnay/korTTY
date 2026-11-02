@@ -38,7 +38,8 @@ class ExternalAiSkillsI18nCoverageTest {
         "settings.aiSkills.external.",
         "settings.aiSkills.providers.",
         "settings.aiSkills.view.",
-        "settings.aiSkills.badge.edited");
+        "settings.aiSkills.badge.edited",
+        "settings.aiSkills.badge.changed");
 
     /** Words several languages share with English: product names, "Skill", "Token (Bearer)", "Name", "Type". */
     private static final Set<String> MAY_EQUAL_ENGLISH = Set.of(
@@ -116,6 +117,21 @@ class ExternalAiSkillsI18nCoverageTest {
                 }
             }
         }
+    }
+
+    /** The English texts only; the eight bundles are checked by {@link #everyKeyExistsInEveryBundleWithTheEnglishPlaceholders}. */
+    @Test
+    void everyUpdateOutcomeAndTheRefusalHaveAnEnglishText() throws Exception {
+        Properties english = loadBundle("messages.properties");
+        Set<String> keys = keys();
+        for (String key : List.of("modifiedWarning", "apply", "copy", "skip", "copied", "skipped", "refused",
+                "modifiedTitle", "modifiedHeader", "gone", "changedWhileOpen", "alreadyCopied")) {
+            String name = "settings.aiSkills.external.update." + key;
+            assertWithMessage("update text " + key).that(keys).contains(name);
+            assertWithMessage("English text of " + key).that(english.getProperty(name)).isNotEmpty();
+        }
+        assertWithMessage("banner of a changed skill").that(keys).contains("settings.aiSkills.external.banner.changed");
+        assertWithMessage("list badge of a changed skill").that(keys).contains("settings.aiSkills.badge.changed");
     }
 
     private static Set<String> placeholders(String value) {

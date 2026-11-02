@@ -50,6 +50,8 @@ public class GlobalSettingsManager {
                 de.kortty.model.AiSkill.class,
                 de.kortty.model.AiSkillBuiltinBaseline.class,
                 de.kortty.model.AiSkillTarget.class,
+                de.kortty.model.AiSkillLearnedRule.class,
+                de.kortty.model.AiSkillOrigin.class,
                 de.kortty.model.ConnectionSettings.class,
                 de.kortty.model.SnippetEditorProfile.class,
                 de.kortty.model.TerminalRecordingFormat.class,
@@ -88,10 +90,21 @@ public class GlobalSettingsManager {
     private LoadRecovery loadRecovery;
     /** Set when the defaults replaced an unreadable file that could not be copied aside. */
     private boolean saveBlocked;
+    private AiSkillRepository aiSkillRepository;
 
     public GlobalSettingsManager(Path configDir) {
         this.configDir = configDir;
         this.settings = new GlobalSettings();
+    }
+
+    /**
+     * The one repository that writes this file's AI skills; every writer and every listener shares it.
+     */
+    public synchronized AiSkillRepository aiSkillRepository() {
+        if (aiSkillRepository == null) {
+            aiSkillRepository = new AiSkillRepository(this);
+        }
+        return aiSkillRepository;
     }
 
     /**

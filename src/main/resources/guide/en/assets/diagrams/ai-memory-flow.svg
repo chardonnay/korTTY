@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">AI memory: what a prompt gets and how a rule is learned</title>
+  <desc id="desc">Left: the sources of the memory (organization rules, global memory, connection memory, approved reference files) pass the secret guard and the token budget and become the Memory block of a request, placed in the prompt order Base, Skills, Memory, RAG, preset, masking and provider. Right: a rule in a user message passes the local cue filter and a masked detection call, becomes a proposal card, and is written to a memory file or a skill only after the user presses Save.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2}.note{fill:#0b1a2c;stroke:#64748b;stroke-width:1.5;stroke-dasharray:6 5}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.label{font-size:13px;font-weight:700;fill:#67e8f9;letter-spacing:1px}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.wire{stroke:#67e8f9;stroke-width:2.6;fill:none}.policy{stroke:#f59e0b}.file{stroke:#34d399}.service{stroke:#60a5fa}.ai{stroke:#a78bfa}.secure{stroke:#f59e0b}.bold{font-weight:700}</style>
+  </defs>
+  <rect class="bg" width="1280" height="720"/>
+  <text class="title" x="40" y="52">AI memory: what a prompt gets, and how a rule is learned</text>
+  <text class="subtitle" x="40" y="80">Memory is budgeted and masked before each request. A rule from your message is saved only after you press Save.</text>
+
+  <text class="label" x="40" y="118">SEND TO THE AI</text>
+  <text class="label" x="660" y="118">LEARN FROM YOUR MESSAGE</text>
+
+  <rect class="box policy" x="40" y="130" width="230" height="76" rx="12"/>
+  <text class="bold" x="54" y="160">Organization rules</text>
+  <text class="small" x="54" y="184">Policy, read-only, in full</text>
+
+  <rect class="box file" x="40" y="226" width="230" height="76" rx="12"/>
+  <text class="bold" x="54" y="256">Global memory</text>
+  <text class="small" x="54" y="280">memory/MEMORY.md</text>
+
+  <rect class="box service" x="40" y="322" width="230" height="76" rx="12"/>
+  <text class="bold" x="54" y="352">Connection memory</text>
+  <text class="small" x="54" y="376">connections/&lt;id&gt;.md</text>
+
+  <rect class="box file" x="40" y="418" width="230" height="76" rx="12"/>
+  <text class="bold" x="54" y="448">Other memory files</text>
+  <text class="small" x="54" y="472">Approved .md, read-only</text>
+
+  <path class="wire policy" d="M270 168 H304"/>
+  <path class="wire file" d="M270 264 H304"/>
+  <path class="wire service" d="M270 360 H304"/>
+  <path class="wire file" d="M270 456 H304"/>
+  <path class="wire" d="M304 168 V456"/>
+  <path class="line" d="M304 330 H340"/>
+
+  <rect class="box" x="340" y="262" width="240" height="136" rx="12"/>
+  <text class="bold" x="358" y="292">Guard and budget</text>
+  <text class="small" x="358" y="318">Secret guard: refuses new</text>
+  <text class="small" x="358" y="338">text, and marks flagged files</text>
+  <text class="small" x="358" y="364">Budget: whole entries only,</text>
+  <text class="small" x="358" y="384">default 1500 tokens</text>
+
+  <path class="line" d="M460 398 V556"/>
+  <text class="small" x="470" y="484">budgeted block</text>
+
+  <text class="label" x="40" y="540">PROMPT ORDER OF ONE REQUEST</text>
+
+  <rect class="box" x="40" y="560" width="136" height="84" rx="12"/>
+  <text class="bold" x="52" y="592">Base</text>
+  <text class="small" x="52" y="618">action contract</text>
+
+  <rect class="box ai" x="216" y="560" width="136" height="84" rx="12"/>
+  <text class="bold" x="228" y="592">Skills</text>
+  <text class="small" x="228" y="618">selected AI skills</text>
+
+  <rect class="box file" x="392" y="560" width="136" height="84" rx="12"/>
+  <text class="bold" x="404" y="592">Memory</text>
+  <text class="small" x="404" y="618">this block</text>
+
+  <rect class="box" x="568" y="560" width="136" height="84" rx="12"/>
+  <text class="bold" x="580" y="592">RAG</text>
+  <text class="small" x="580" y="618">retrieved excerpts</text>
+
+  <rect class="box" x="744" y="560" width="136" height="84" rx="12"/>
+  <text class="bold" x="756" y="592">Preset</text>
+  <text class="small" x="756" y="618">model family</text>
+
+  <rect class="box policy" x="920" y="560" width="136" height="84" rx="12"/>
+  <text class="bold" x="932" y="592">Mask</text>
+  <text class="small" x="932" y="618">for the profile</text>
+
+  <rect class="box service" x="1096" y="560" width="136" height="84" rx="12"/>
+  <text class="bold" x="1108" y="592">Provider</text>
+  <text class="small" x="1108" y="618">sends the request</text>
+
+  <path class="line" d="M176 602 H216"/>
+  <path class="line" d="M352 602 H392"/>
+  <path class="line" d="M528 602 H568"/>
+  <path class="line" d="M704 602 H744"/>
+  <path class="line" d="M880 602 H920"/>
+  <path class="line" d="M1056 602 H1096"/>
+
+  <rect class="box" x="660" y="130" width="170" height="76" rx="12"/>
+  <text class="bold" x="674" y="160">Your message</text>
+  <text class="small" x="674" y="184">Chat or agent prompt</text>
+
+  <rect class="box ai" x="866" y="130" width="170" height="76" rx="12"/>
+  <text class="bold" x="880" y="160">Cue filter</text>
+  <text class="small" x="880" y="184">Local word cues</text>
+
+  <rect class="box ai" x="1072" y="130" width="168" height="76" rx="12"/>
+  <text class="bold" x="1086" y="160">Detection call</text>
+  <text class="small" x="1086" y="184">Masked, max 10 a day</text>
+
+  <rect class="box ai" x="1072" y="250" width="168" height="76" rx="12"/>
+  <text class="bold" x="1086" y="280">Proposal card</text>
+  <text class="small" x="1086" y="304">3 a day, one per run</text>
+
+  <rect class="box" x="866" y="250" width="170" height="76" rx="12"/>
+  <text class="bold" x="880" y="280">You press Save</text>
+  <text class="small" x="880" y="304">Nothing saved before</text>
+
+  <rect class="box file" x="660" y="250" width="170" height="76" rx="12"/>
+  <text class="bold" x="674" y="280">Skill rules</text>
+  <text class="small" x="674" y="304">Learned in a skill</text>
+
+  <rect class="box file" x="866" y="370" width="170" height="76" rx="12"/>
+  <text class="bold" x="880" y="400">Memory file</text>
+  <text class="small" x="880" y="424">Consent and history</text>
+
+  <path class="line" d="M830 168 H866"/>
+  <path class="line" d="M1036 168 H1072"/>
+  <path class="line" d="M1156 206 V246"/>
+  <path class="line" d="M1072 288 H1036"/>
+  <path class="line" d="M866 288 H830"/>
+  <path class="line" d="M951 326 V366"/>
+
+  <rect class="note" x="660" y="470" width="576" height="56" rx="10"/>
+  <text class="small" x="676" y="494">KORTTY_AI_MEMORY=off: no user memory is sent, nothing is learned or saved by korTTY.</text>
+  <text class="small" x="676" y="514">Organization rules still follow the enterprise policy.</text>
+
+  <text class="small" x="40" y="690">Only approved text is sent. korTTY never changes or deletes your own text without a confirmation, and every change keeps a history version.</text>
+</svg>

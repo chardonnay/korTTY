@@ -108,6 +108,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private LocalModelManagerPane localModelManagerPane;
     private RagKnowledgeStorePane knowledgeStorePane;
     private AiSkillsPane aiSkillsPane;
+    private AiMemoryPane aiMemoryPane;
+    private Tab aiSkillsTab;
     private final javafx.stage.Window paneOwner;
     private Tab localModelsTab;
     /** "Use as default profile" for the selected profile; a default always exists, so it can only move. */
@@ -294,6 +296,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             buildLocalModelsTab(),
             buildKnowledgeStoresTab(),
             buildAiSkillsTab(),
+            buildAiMemoryTab(),
             buildLocalPreferencesTab());
         primaryTabs.forEach(tab -> tab.getStyleClass().add("ai-manager-primary-tab"));
         tabPane.getTabs().addAll(primaryTabs);
@@ -314,7 +317,21 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         // saved even when the user does not click the explicit "Save" button. saveProfiles() is
         // silent on success and only surfaces genuine save failures (missing name, locked vault).
         // The user-adjusted window size/position is remembered the same way, via saveGeometry().
-        setOnCloseRequest(event -> saveGeometry());
+        setOnCloseRequest(event -> {
+            if (aiMemoryPane != null && !aiMemoryPane.confirmClose()) {
+                event.consume();
+                return;
+            }
+            // A skill edit the store would refuse keeps the dialog open on the Skills tab, as the Save button does.
+            if (aiSkillsPane != null && !aiSkillsPane.confirmClose()) {
+                if (aiSkillsTab != null) {
+                    tabPane.getSelectionModel().select(aiSkillsTab);
+                }
+                event.consume();
+                return;
+            }
+            saveGeometry();
+        });
         setOnHidden(event -> {
             saveGeometry();
             if (localModelManagerPane != null) {
@@ -328,6 +345,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                     if (aiSkillsPane != null) {
                         aiSkillsPane.save(true); // quiet: no status/alerts while the dialog is closing
                     }
+                    if (aiMemoryPane != null) {
+                        aiMemoryPane.save(true);
+                    }
                     saveProfiles(true); // quiet: no modal alerts while the dialog is closing
                     if (generalPane != null) {
                         generalPane.save(true);
@@ -338,6 +358,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
             if (aiSkillsPane != null) {
                 aiSkillsPane.close();
+            }
+            if (aiMemoryPane != null) {
+                aiMemoryPane.close();
             }
         });
 
@@ -867,13 +890,27 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private Tab buildAiSkillsTab() {
         Tab tab = new Tab(I18n.get("settings.tab.aiSkills"));
+        aiSkillsTab = tab;
         // The pane (and with it the Monaco WebView: native WebKit + JS bridge + web workers) is
         // built and activated on the first visit, so merely opening the AI Manager never spins up
         // that path.
         LazyTabContent.defer(tab, () -> {
             aiSkillsPane = new AiSkillsPane(app, paneOwner);
             aiSkillsPane.activateEditor();
-            return aiSkillsPane;
+            // The list and the editor take the dialog's height; a small dialog scrolls and the list keeps its rows.
+            return AiManagerSections.fillingScroller(aiSkillsPane);
+        });
+        return tab;
+    }
+
+    /** The korTTY memory: the global and per-connection MEMORY.md files. Built on the first visit, like the skills tab. */
+    private Tab buildAiMemoryTab() {
+        Tab tab = new Tab(I18n.get("settings.tab.aiMemory"));
+        LazyTabContent.defer(tab, () -> {
+            aiMemoryPane = new AiMemoryPane(app, paneOwner, null);
+            // The entries and the Markdown editor take the dialog's height; a small dialog scrolls the lower sections
+            // (save row, cleanup, external files) instead of squeezing them.
+            return AiManagerSections.fillingScroller(aiMemoryPane);
         });
         return tab;
     }

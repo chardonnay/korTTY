@@ -1,10 +1,12 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiSentContext;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.TerminalAgentActivityExportService;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.memory.RuleProposal;
 import de.kortty.model.AgentActionCategory;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
@@ -23,6 +25,7 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -32,6 +35,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Alert;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
@@ -115,6 +119,7 @@ public class AiAgentActivityPanel extends VBox {
 
     private volatile CompletableFuture<TerminalAgentService.ApprovalDecision> pendingApproval;
     private volatile CompletableFuture<TerminalAgentModels.PasswordResponse> pendingPassword;
+    private volatile CompletableFuture<TerminalAgentModels.SolutionChoice> pendingChoice;
     private volatile boolean pendingApprovalAllowsAlways;
     private volatile boolean running;
     private boolean embedded;
@@ -124,6 +129,8 @@ public class AiAgentActivityPanel extends VBox {
     private Runnable inputPromptListener;
     private RunSnapshot activeRunSnapshot;
     private ActivityRow lastThinkingRow;
+    /** The "Mitgesendet" row of the run shown, at the end of the activity list; {@code null} until the run sent something. */
+    private Node sentContextRow;
     private PasswordField pendingPasswordField;
     private CheckBox pendingPasswordCacheCheckBox;
     private String pendingInputStatusText;
@@ -407,6 +414,7 @@ public class AiAgentActivityPanel extends VBox {
             rowsById.clear();
             accountedTokenActivityIds.clear();
             lastThinkingRow = null;
+            sentContextRow = null;
             activeRunSnapshot = new RunSnapshot(title, userPrompt, reloadCallback, metadata, startedAt);
             runHistory.add(activeRunSnapshot);
             historyIndex = runHistory.size() - 1;
@@ -571,7 +579,12 @@ public class AiAgentActivityPanel extends VBox {
 
     /** True while this run is blocked waiting for the user (a sudo password or a command approval). */
     public boolean isAwaitingInput() {
-        return pendingApproval != null || pendingPassword != null;
+        return awaitsInput(pendingApproval != null, pendingPassword != null, pendingChoice != null);
+    }
+
+    /** Whether one of the three prompts waits for the user: a command approval, a password or the solution options. */
+    static boolean awaitsInput(boolean approvalPending, boolean passwordPending, boolean choicePending) {
+        return approvalPending || passwordPending || choicePending;
     }
 
     /** Toggles the run's paused state (used by the collapsed tabs-panel status bar). */
@@ -591,7 +604,7 @@ public class AiAgentActivityPanel extends VBox {
             toggleLastThinkingDetails();
             return true;
         }
-        if (isCancelKey(event)) {
+        if (isCancelKey(event) && !typingInSolutionCard(event)) {
             requestCancel();
             return true;
         }
@@ -654,11 +667,77 @@ public class AiAgentActivityPanel extends VBox {
         }
     }
 
+    /**
+     * Shows the solution options in the panel and blocks until the user answers. {@code shown} runs once the options are
+     * on screen, which starts the time to answer. Interrupted when the run is cancelled; the prompt is then removed.
+     */
+    public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+        TerminalAgentModels.TriageProposal proposal,
+        Runnable shown) {
+        CompletableFuture<TerminalAgentModels.SolutionChoice> future = new CompletableFuture<>();
+        runOnFx(() -> {
+            try {
+                showSolutionChoicePrompt(proposal, future);
+            } finally {
+                // Also when the prompt failed: the time to answer then runs out as usual instead of never starting.
+                shown.run();
+            }
+        });
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return TerminalAgentModels.SolutionChoice.cancel();
+        } catch (ExecutionException e) {
+            return TerminalAgentModels.SolutionChoice.cancel();
+        } finally {
+            runOnFx(() -> dismissSolutionChoice(future));
+        }
+    }
+
+    /**
+     * Shows what the run has sent so far as one "Mitgesendet" row at the end of the activity list. The row is updated in
+     * place after each turn, and kept with the run for the history. FX thread safe.
+     */
+    public void showSentContext(AiSentContext context) {
+        if (context == null || context.isEmpty()) {
+            return;
+        }
+        runOnFx(() -> {
+            Node row = SentContextView.create(context, SentContextView.Style.AGENT, activityFontSize);
+            int index = sentContextRow != null ? activityBox.getChildren().indexOf(sentContextRow) : -1;
+            if (index >= 0) {
+                activityBox.getChildren().set(index, row);
+            } else {
+                activityBox.getChildren().add(row);
+            }
+            sentContextRow = row;
+            if (activeRunSnapshot != null) {
+                activeRunSnapshot.sent = context;
+            }
+            scrollToBottom();
+        });
+    }
+
+    /**
+     * Adds the rule proposal of the finished run at the end of the activity list. The card is removed when the run starts
+     * again, and when the user answers it. Shown on the FX thread.
+     */
+    public void showRuleProposal(RuleProposal proposal) {
+        runOnFx(() -> {
+            RuleProposalCard card = new RuleProposalCard(proposal, ownerWindow(),
+                answered -> activityBox.getChildren().remove(answered));
+            activityBox.getChildren().add(card);
+            scrollToBottom();
+        });
+    }
+
     public void requestCancel() {
         Runnable task = () -> {
             cancelRunButton.setDisable(true);
             completeApproval(TerminalAgentService.ApprovalDecision.CANCEL);
             completePassword(null);
+            completeSolutionChoice(TerminalAgentModels.SolutionChoice.cancel());
             if (cancelCallback != null) {
                 cancelCallback.run();
             }
@@ -692,7 +771,7 @@ public class AiAgentActivityPanel extends VBox {
 
     /** Disables the pause control while a blocking approval/password prompt is awaiting input. */
     private void updatePauseButtonAvailability() {
-        boolean blockedByPrompt = pendingApproval != null || pendingPassword != null;
+        boolean blockedByPrompt = awaitsInput(pendingApproval != null, pendingPassword != null, pendingChoice != null);
         pauseRunButton.setDisable(blockedByPrompt);
     }
 
@@ -1079,6 +1158,11 @@ public class AiAgentActivityPanel extends VBox {
                 lastThinkingRow = row;
             }
         }
+        sentContextRow = null;
+        if (snapshot.sent != null && !snapshot.sent.isEmpty()) {
+            sentContextRow = SentContextView.create(snapshot.sent, SentContextView.Style.AGENT, activityFontSize);
+            activityBox.getChildren().add(sentContextRow);
+        }
         stopRunningIndicators();
         updateHeaderBusyState();
         setVisible(true);
@@ -1171,6 +1255,10 @@ public class AiAgentActivityPanel extends VBox {
         }
         CompletableFuture<TerminalAgentService.ApprovalDecision> approval = pendingApproval;
         if (approval != null && !approval.isDone()) {
+            return nonBlank(pendingInputStatusText, I18n.get("ai.agent.activity.inputRequired"));
+        }
+        CompletableFuture<TerminalAgentModels.SolutionChoice> choice = pendingChoice;
+        if (choice != null && !choice.isDone()) {
             return nonBlank(pendingInputStatusText, I18n.get("ai.agent.activity.inputRequired"));
         }
         return I18n.get("ai.agent.activity.running");
@@ -1396,6 +1484,27 @@ public class AiAgentActivityPanel extends VBox {
         notifyInputPromptShown();
     }
 
+    private void showSolutionChoicePrompt(
+        TerminalAgentModels.TriageProposal proposal,
+        CompletableFuture<TerminalAgentModels.SolutionChoice> future) {
+        pendingChoice = future;
+        pendingInputStatusText = I18n.get("ai.agent.activity.inputRequired");
+        beginInputPause();
+        promptBox.getChildren().clear();
+        ScrollPane choices = new ScrollPane(new SolutionChoicePane(proposal, this::completeSolutionChoice));
+        choices.setFitToWidth(true);
+        choices.setMaxHeight(320);
+        choices.setPrefViewportHeight(320);
+        promptBox.getChildren().add(choices);
+        updatePromptVisibility();
+        updateHeaderBusyState();
+        updatePauseButtonAvailability();
+        applyFontSizeRecursively(promptBox);
+        requestFocus();
+        scrollToBottom();
+        notifyInputPromptShown();
+    }
+
     private void showPasswordPrompt(
         TerminalAgentModels.PasswordRequest request,
         CompletableFuture<TerminalAgentModels.PasswordResponse> future) {
@@ -1487,6 +1596,7 @@ public class AiAgentActivityPanel extends VBox {
         runOnFx(() -> {
             completeApproval(TerminalAgentService.ApprovalDecision.CANCEL);
             completePassword(null);
+            completeSolutionChoice(TerminalAgentModels.SolutionChoice.cancel());
         });
     }
 
@@ -1501,6 +1611,27 @@ public class AiAgentActivityPanel extends VBox {
         updatePauseButtonAvailability();
         if (future != null && !future.isDone()) {
             future.complete(decision);
+        }
+    }
+
+    private void completeSolutionChoice(TerminalAgentModels.SolutionChoice choice) {
+        CompletableFuture<TerminalAgentModels.SolutionChoice> future = pendingChoice;
+        if (future == null || future.isDone()) {
+            return;
+        }
+        pendingChoice = null;
+        pendingInputStatusText = null;
+        endInputPause();
+        clearPendingPrompt();
+        updateHeaderBusyState();
+        updatePauseButtonAvailability();
+        future.complete(choice);
+    }
+
+    /** Removes the solution prompt of {@code future} when it is still the one showing, after the wait ended. */
+    private void dismissSolutionChoice(CompletableFuture<TerminalAgentModels.SolutionChoice> future) {
+        if (pendingChoice == future) {
+            completeSolutionChoice(TerminalAgentModels.SolutionChoice.cancel());
         }
     }
 
@@ -1597,6 +1728,32 @@ public class AiAgentActivityPanel extends VBox {
             return TerminalAgentService.ApprovalDecision.CANCEL;
         }
         return null;
+    }
+
+    /**
+     * Whether the key is meant for the text field or combo box of the solution card that waits for an answer: Ctrl+C copies
+     * the text and Esc closes the popup there. The cancel key keeps working everywhere else in the panel.
+     */
+    private boolean typingInSolutionCard(KeyEvent event) {
+        CompletableFuture<TerminalAgentModels.SolutionChoice> choice = pendingChoice;
+        Object target = event.getTarget();
+        boolean editing = target instanceof TextInputControl || target instanceof ComboBoxBase<?>;
+        return keyGoesToSolutionCard(choice != null && !choice.isDone(), editing,
+            target instanceof Node node && isWithin(node, promptBox));
+    }
+
+    /** Whether a key goes to the card's own control: the card waits, the control edits, and the control is in the card. */
+    static boolean keyGoesToSolutionCard(boolean cardWaiting, boolean editingControl, boolean insideCard) {
+        return cardWaiting && editingControl && insideCard;
+    }
+
+    private static boolean isWithin(Node node, Node container) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == container) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isCancelKey(KeyEvent event) {
@@ -2050,6 +2207,8 @@ public class AiAgentActivityPanel extends VBox {
         private final String connectionName;
         private final LocalDateTime startedAt;
         private final List<TerminalAgentModels.AgentActivity> activities = new ArrayList<>();
+        /** What the run sent, shown as its "Mitgesendet" row when the run is reopened from the history. */
+        private AiSentContext sent;
         private LocalDateTime finishedAt;
         private long reportedTokens;
         private boolean hasReportedTokens;

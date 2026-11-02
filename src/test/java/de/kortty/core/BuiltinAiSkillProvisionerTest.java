@@ -203,6 +203,32 @@ class BuiltinAiSkillProvisionerTest {
     }
 
     @Test
+    void blankContentHealKeepsTheUsersNameDescriptionTagsAndTarget() {
+        GlobalSettings settings = new GlobalSettings();
+        AiSkill shipped = shippedSkill("builtin.shell.perl", "Perl", "Use strict.");
+        BuiltinAiSkillProvisioner.sync(settings, catalogOf(bundled(shipped, 1)));
+
+        // The user renamed the skill, wrote a description and tags, then cleared the content box.
+        AiSkill edited = settings.getAiSkills().get(0);
+        edited.setName("Perl (team)");
+        edited.setDescription("Our team's Perl rules, see the wiki.");
+        edited.setTags(List.of("perl", "team"));
+        edited.setTarget(AiSkillTarget.CHAT);
+        edited.setContent("");
+
+        BuiltinAiSkillProvisioner.Result result =
+            BuiltinAiSkillProvisioner.sync(settings, catalogOf(bundled(shipped, 1)));
+
+        assertThat(result.healed()).isEqualTo(1);
+        AiSkill healed = settings.getAiSkills().get(0);
+        assertThat(healed.getContent()).isEqualTo("Use strict.");
+        assertThat(healed.getName()).isEqualTo("Perl (team)");
+        assertThat(healed.getDescription()).isEqualTo("Our team's Perl rules, see the wiki.");
+        assertThat(healed.getTags()).containsExactly("perl", "team").inOrder();
+        assertThat(healed.getTarget()).isEqualTo(AiSkillTarget.CHAT);
+    }
+
+    @Test
     void duplicateBuiltinIdsAreHealedKeepingTheModifiedCopy() {
         GlobalSettings settings = new GlobalSettings();
         AiSkill shipped = shippedSkill("builtin.shell.bash", "Bash", "Quote everything.");
@@ -282,5 +308,44 @@ class BuiltinAiSkillProvisionerTest {
         assertThat(settings.getAiSkills().get(0).getBuiltinTopics())
             .containsExactly("go", "golang").inOrder();
         assertThat(settings.getAiSkills().get(0).getContent()).isEqualTo("My own go rules.");
+    }
+
+    @Test
+    void learnedRulesKeepABuiltinUnmodifiedThroughAutoUpdateAndReset() {
+        GlobalSettings settings = new GlobalSettings();
+        BuiltinAiSkillCatalog shippedV1 = catalogOf(bundled(shippedSkill("builtin.lang.perl", "Perl", "Use strict."), 1));
+        BuiltinAiSkillProvisioner.sync(settings, shippedV1);
+        AiSkill perl = settings.getAiSkills().get(0);
+        perl.getLearnedRules().add(de.kortty.model.AiSkillLearnedRule.create(
+            "Prefer Moose for classes.", de.kortty.model.AiSkillLearnedRule.SOURCE_CHAT));
+
+        // A learned rule is not an edit of the delivered text.
+        assertThat(BuiltinAiSkillSupport.isModified(perl)).isFalse();
+        assertThat(BuiltinAiSkillSupport.statusOf(perl, settings.getAiSkills(), shippedV1).state())
+            .isEqualTo(BuiltinAiSkillSupport.BuiltinSkillState.BUILTIN_UNMODIFIED);
+
+        // Still auto-updated, and the rule survives the update.
+        BuiltinAiSkillProvisioner.Result updated = BuiltinAiSkillProvisioner.sync(settings,
+            catalogOf(bundled(shippedSkill("builtin.lang.perl", "Perl", "Use strict, always."), 2)));
+        assertThat(updated.autoUpdated()).isEqualTo(1);
+        AiSkill afterUpdate = settings.getAiSkills().get(0);
+        assertThat(afterUpdate.getContent()).isEqualTo("Use strict, always.");
+        assertThat(afterUpdate.getLearnedRules()).hasSize(1);
+        assertThat(BuiltinAiSkillSupport.isModified(afterUpdate)).isFalse();
+
+        // Reset restores the delivered text and leaves the rule in place.
+        afterUpdate.setContent("My own edit.");
+        assertThat(BuiltinAiSkillSupport.isModified(afterUpdate)).isTrue();
+        assertThat(BuiltinAiSkillSupport.reset(afterUpdate)).isTrue();
+        assertThat(afterUpdate.getContent()).isEqualTo("Use strict, always.");
+        assertThat(afterUpdate.getLearnedRules()).hasSize(1);
+        assertThat(afterUpdate.getLearnedRules().get(0).getText()).isEqualTo("Prefer Moose for classes.");
+
+        // The "Update" button adopts the latest delivery and keeps the rule as well.
+        afterUpdate.setContent("Yet another edit.");
+        assertThat(BuiltinAiSkillSupport.replaceWithLatest(afterUpdate, catalogOf(
+            bundled(shippedSkill("builtin.lang.perl", "Perl", "Use strict, always, and warnings."), 3)))).isTrue();
+        assertThat(afterUpdate.getContent()).isEqualTo("Use strict, always, and warnings.");
+        assertThat(afterUpdate.getLearnedRules()).hasSize(1);
     }
 }

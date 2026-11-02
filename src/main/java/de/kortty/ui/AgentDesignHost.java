@@ -7,8 +7,10 @@ import de.kortty.agentdesign.AgentModuleCatalog;
 import de.kortty.agentdesign.AgentRole;
 import de.kortty.agentdesign.AgentRunRegistry;
 import de.kortty.agentdesign.MetroStationModel;
+import de.kortty.core.AiSentContext;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.TerminalAgentService;
+import de.kortty.memory.RuleProposal;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.Theme;
@@ -28,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,12 +96,18 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         }
     }
 
-    /** An approval or password request waiting for the user. */
+    /**
+     * An approval, password or solution-options request waiting for the user. Exactly one of the three kinds is set:
+     * the approval and its future, the password request and its future, or the proposal and its choice future.
+     */
     private record PendingPrompt(
         String runId,
         @Nullable TerminalAgentModels.Approval approval,
         @Nullable CompletableFuture<TerminalAgentService.ApprovalDecision> approvalFuture,
-        @Nullable CompletableFuture<TerminalAgentModels.PasswordResponse> passwordFuture) {
+        @Nullable CompletableFuture<TerminalAgentModels.PasswordResponse> passwordFuture,
+        @Nullable TerminalAgentModels.PasswordRequest passwordRequest,
+        @Nullable TerminalAgentModels.TriageProposal proposal,
+        @Nullable CompletableFuture<TerminalAgentModels.SolutionChoice> choiceFuture) {
     }
 
     private final @Nullable AgentTerminalSurface surface;
@@ -109,6 +118,10 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     private final Map<String, Long> runTokens = new HashMap<>();
     private final Map<String, Set<String>> runTokenIds = new HashMap<>();
     private final Map<String, PendingPrompt> pendingPrompts = new ConcurrentHashMap<>();
+    // The prompts in the order they reach the strip below the terminal or the design's approval row.
+    private final AgentPromptQueue<PendingPrompt> prompts = new AgentPromptQueue<>(AgentDesignHost::isWaiting);
+    // The solution cards by their prompt, kept while the prompt is open, so a card brought back keeps what was typed.
+    private final Map<PendingPrompt, SolutionChoicePane> choiceCards = new IdentityHashMap<>();
     // Commands the user took over with Tab at the cursor line; typed at the prompt once their run ended.
     private final Map<String, String> pendingInserts = new HashMap<>();
     // What the run menu needs of each run: the profile, users and connection, and how to start it again.
@@ -116,6 +129,8 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     private final Map<String, Runnable> runReloads = new ConcurrentHashMap<>();
     private final AgentRunRegistry registry = new AgentRunRegistry();
     private final AgentDesignApprovalStrip approvalStrip = new AgentDesignApprovalStrip();
+    // The "Mitgesendet" line of the designs without an activity list; it sits above the bottom displays and the strip.
+    private final AgentDesignSentLink sentLink = new AgentDesignSentLink();
     // Designs beside or over the terminal by module id, created on first use, and the run state they show.
     private final Map<String, AgentRunPresenter> presenters = new LinkedHashMap<>();
     private final Map<String, AgentInlineBlockLayout.BlockState> traces = new HashMap<>();
@@ -143,8 +158,9 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         this.surface = surface;
         getStyleClass().add(STYLE_CLASS);
         setFillWidth(true);
-        getChildren().addAll(approvalStrip);
+        getChildren().addAll(sentLink, approvalStrip);
         approvalStrip.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
+        sentLink.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
         topSlot.setFillWidth(true);
         topSlot.setVisible(false);
         topSlot.setManaged(false);
@@ -189,6 +205,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         }
         runOnFx(() -> {
             applyDesignSettings();
+            sentLink.reset();
             registry.begin(runId, prompt, System.currentTimeMillis());
             if (!runDesign.classic() || runDesign.hasStatus() || runDesign.pictureInPicture()) {
                 metroModels.put(runId, new MetroStationModel());
@@ -289,6 +306,42 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         return design.inline() || design.focus();
     }
 
+    /**
+     * Shows the rule proposal of a finished run. The classic design gets it at the end of the run's activity list; the other
+     * designs get a small popup over the main window, so that the designs themselves stay as they are.
+     */
+    public void showRuleProposal(String runId, RuleProposal proposal) {
+        RunDesign design = runDesigns.get(runId);
+        if (design == null || proposal == null) {
+            return;
+        }
+        runOnFx(() -> {
+            if (design.classic() && classicPanel != null) {
+                classicPanel.showRuleProposal(runId, proposal);
+            } else {
+                RuleProposalPopup.show(windowOf(topSlot), proposal);
+            }
+        });
+    }
+
+    /**
+     * Shows what the run has sent so far. The classic design shows it in its activity list; the other designs show it in
+     * the "Mitgesendet" line above their rows, which every design has and which keeps the design's own layout.
+     */
+    public void showSentContext(String runId, AiSentContext context) {
+        RunDesign design = runDesigns.get(runId);
+        if (design == null || context == null || context.isEmpty()) {
+            return;
+        }
+        runOnFx(() -> {
+            if (design.classic() && classicPanel != null) {
+                classicPanel.showSentContext(runId, context);
+            } else if (!design.classic()) {
+                sentLink.publish(context);
+            }
+        });
+    }
+
     public TerminalAgentService.ApprovalDecision requestApproval(String runId, TerminalAgentModels.Approval approval) {
         RunDesign design = runDesigns.get(runId);
         if (design == null) {
@@ -308,7 +361,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             }
         }
         CompletableFuture<TerminalAgentService.ApprovalDecision> future = new CompletableFuture<>();
-        PendingPrompt prompt = new PendingPrompt(runId, approval, future, null);
+        PendingPrompt prompt = new PendingPrompt(runId, approval, future, null, null, null, null);
         pendingPrompts.put(runId, prompt);
         runOnFx(() -> openApproval(prompt));
         try {
@@ -320,7 +373,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             return TerminalAgentService.ApprovalDecision.CANCEL;
         } finally {
             pendingPrompts.remove(runId, prompt);
-            runOnFx(() -> closePrompt(runId));
+            runOnFx(() -> closePrompt(prompt));
         }
     }
 
@@ -341,7 +394,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             }
         }
         CompletableFuture<TerminalAgentModels.PasswordResponse> future = new CompletableFuture<>();
-        PendingPrompt prompt = new PendingPrompt(runId, null, null, future);
+        PendingPrompt prompt = new PendingPrompt(runId, null, null, future, request, null, null);
         pendingPrompts.put(runId, prompt);
         runOnFx(() -> openPassword(prompt, request));
         try {
@@ -353,7 +406,51 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             return null;
         } finally {
             pendingPrompts.remove(runId, prompt);
-            runOnFx(() -> closePrompt(runId));
+            runOnFx(() -> closePrompt(prompt));
+        }
+    }
+
+    /**
+     * Shows the solution options of a run and blocks until the user answers. Classic designs use the classic panel;
+     * the others show the card in the row below the terminal, whatever their own design. {@code shown} runs once the card
+     * is on screen: at once, or when the card comes forward after the prompt on screen closed. A run that is not known
+     * here goes on as requested, and its card is never shown, so {@code shown} does not run.
+     */
+    public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+        String runId,
+        TerminalAgentModels.TriageProposal proposal,
+        Runnable shown) {
+        RunDesign design = runDesigns.get(runId);
+        if (design == null) {
+            return TerminalAgentModels.SolutionChoice.asRequested();
+        }
+        if (design.classic()) {
+            runOnFx(() -> markAwaitingInput(runId, true));
+            try {
+                return classicPanel != null
+                    ? classicPanel.requestSolutionChoice(runId, proposal, shown)
+                    : TerminalAgentModels.SolutionChoice.asRequested();
+            } finally {
+                runOnFx(() -> {
+                    markAwaitingInput(runId, false);
+                    questionAnswered(runId);
+                });
+            }
+        }
+        CompletableFuture<TerminalAgentModels.SolutionChoice> future = new CompletableFuture<>();
+        PendingPrompt prompt = new PendingPrompt(runId, null, null, null, null, proposal, future);
+        pendingPrompts.put(runId, prompt);
+        runOnFx(() -> openChoice(prompt, shown));
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return TerminalAgentModels.SolutionChoice.cancel();
+        } catch (ExecutionException e) {
+            return TerminalAgentModels.SolutionChoice.cancel();
+        } finally {
+            pendingPrompts.remove(runId, prompt);
+            runOnFx(() -> closePrompt(prompt));
         }
     }
 
@@ -423,6 +520,10 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
 
     /** The run the run controls (Esc, Ctrl+C, Ctrl+R) act on, or {@code null}. */
     public @Nullable String selectedRunId() {
+        PendingPrompt shown = prompts.shown();
+        if (shown != null) {
+            return shown.runId();
+        }
         for (PendingPrompt prompt : pendingPrompts.values()) {
             return prompt.runId();
         }
@@ -586,7 +687,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
      * reach the shell. FX thread.
      */
     public boolean handlePromptKey(KeyEvent event) {
-        PendingPrompt prompt = firstApprovalPrompt();
+        PendingPrompt prompt = shownApprovalPrompt();
         if (prompt == null || event == null || event.isControlDown() || event.isAltDown() || event.isMetaDown()) {
             return false;
         }
@@ -625,7 +726,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             swallowTypedCharacters = null;
             return true;
         }
-        PendingPrompt open = firstApprovalPrompt();
+        PendingPrompt open = shownApprovalPrompt();
         if (open == null) {
             return false;
         }
@@ -990,6 +1091,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
 
     private void openApproval(PendingPrompt prompt) {
         String runId = prompt.runId();
+        prompts.open(prompt, AgentPromptQueue.Kind.APPROVAL);
         markAwaitingInput(runId, true);
         RunDesign design = runDesigns.get(runId);
         AgentDesignInlineBlocks inTerminal = design != null ? inTerminalFor(design, false) : null;
@@ -1021,6 +1123,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
 
     private void openPassword(PendingPrompt prompt, TerminalAgentModels.PasswordRequest request) {
         String runId = prompt.runId();
+        prompts.open(prompt, AgentPromptQueue.Kind.PASSWORD);
         markAwaitingInput(runId, true);
         RunDesign design = runDesigns.get(runId);
         AgentDesignInlineBlocks inTerminal = design != null ? inTerminalFor(design, false) : null;
@@ -1039,7 +1142,24 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         refreshStatus();
     }
 
-    private void closePrompt(String runId) {
+    private void openChoice(PendingPrompt prompt, Runnable shown) {
+        String runId = prompt.runId();
+        markAwaitingInput(runId, true);
+        // The queue runs shown when the card is on screen, now or after the prompt in front of it closes.
+        if (!prompts.open(prompt, AgentPromptQueue.Kind.CHOICE, shown)) {
+            // The card follows the prompt on screen; closePrompt shows it once that one is closed.
+            return;
+        }
+        approvalStrip.showChoice(choiceCard(prompt));
+        statusBarDismissed = false;
+        panelDismissed = false;
+        pinnedRunId = null;
+        refreshStatus();
+    }
+
+    private void closePrompt(PendingPrompt closed) {
+        String runId = closed.runId();
+        choiceCards.remove(closed);
         markAwaitingInput(runId, false);
         for (AgentDesignInlineBlocks inTerminal : inTerminalDesigns()) {
             inTerminal.clearPrompt(runId);
@@ -1050,17 +1170,39 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             trace.pendingPassword = null;
             trace.completeOpenQuestions();
         }
+        questionAnswered(runId);
+        if (!prompts.close(closed)) {
+            // It was not on screen, so what is shown stays.
+            refreshStatus();
+            return;
+        }
         if (cursorApproval != null) {
             cursorApproval.hide();
         }
-        questionAnswered(runId);
-        PendingPrompt next = pendingPrompts.values().stream().findFirst().orElse(null);
-        if (next == null || next.approval() == null) {
+        PendingPrompt next = prompts.shown();
+        if (next == null) {
             approvalStrip.hideStrip();
         } else {
-            offerApproval(next, runDesigns.get(next.runId()), traces.get(next.runId()));
+            showQueued(next);
         }
         refreshStatus();
+    }
+
+    /** Shows a prompt the queue brings forward again: an approval, a password request or a solution card. */
+    private void showQueued(PendingPrompt prompt) {
+        if (prompt.approvalFuture() != null) {
+            offerApproval(prompt, runDesigns.get(prompt.runId()), traces.get(prompt.runId()));
+        } else if (prompt.passwordFuture() != null) {
+            approvalStrip.showPassword(prompt.passwordRequest(), response -> completePrompt(prompt, null, response));
+        } else if (prompt.proposal() != null) {
+            approvalStrip.showChoice(choiceCard(prompt));
+        }
+    }
+
+    /** The solution card of a prompt: created once, so a card that waits behind another prompt keeps its state. */
+    private SolutionChoicePane choiceCard(PendingPrompt prompt) {
+        return choiceCards.computeIfAbsent(prompt,
+            open -> new SolutionChoicePane(open.proposal(), choice -> completeChoice(open, choice)));
     }
 
     /** Whether a design of the run has its own buttons for an approval, so the row below can stay hidden. */
@@ -1095,20 +1237,31 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         }
     }
 
+    private void completeChoice(PendingPrompt prompt, TerminalAgentModels.SolutionChoice choice) {
+        if (prompt.choiceFuture() != null && !prompt.choiceFuture().isDone()) {
+            prompt.choiceFuture().complete(choice);
+        }
+    }
+
     private void answerPendingPrompt(String runId, boolean cancel) {
         PendingPrompt prompt = pendingPrompts.get(runId);
         if (prompt != null && cancel) {
             completePrompt(prompt, TerminalAgentService.ApprovalDecision.CANCEL, null);
+            completeChoice(prompt, TerminalAgentModels.SolutionChoice.cancel());
         }
     }
 
-    private @Nullable PendingPrompt firstApprovalPrompt() {
-        for (PendingPrompt prompt : pendingPrompts.values()) {
-            if (prompt.approvalFuture() != null && !prompt.approvalFuture().isDone()) {
-                return prompt;
-            }
-        }
-        return null;
+    /** The approval on screen, which the prompt keys answer; {@code null} when the screen shows something else. */
+    private @Nullable PendingPrompt shownApprovalPrompt() {
+        PendingPrompt shown = prompts.shown();
+        return shown != null && shown.approvalFuture() != null && isWaiting(shown) ? shown : null;
+    }
+
+    /** Whether the prompt still waits for its answer, that is, its future is not done. */
+    private static boolean isWaiting(PendingPrompt prompt) {
+        CompletableFuture<?> future = prompt.approvalFuture() != null ? prompt.approvalFuture()
+            : prompt.passwordFuture() != null ? prompt.passwordFuture() : prompt.choiceFuture();
+        return future != null && !future.isDone();
     }
 
     /** Types a command the user took over with Tab at the cursor line, once its run let go of the prompt. */
@@ -1549,11 +1702,8 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         @Override
         public void answerApproval(TerminalAgentService.ApprovalDecision decision) {
             String runId = followedRunId();
-            PendingPrompt prompt = runId != null ? pendingPrompts.get(runId) : null;
-            if (prompt == null) {
-                prompt = firstApprovalPrompt();
-            }
-            if (prompt != null && prompt.approvalFuture() != null) {
+            PendingPrompt prompt = shownApprovalPrompt();
+            if (prompt != null && (runId == null || runId.equals(prompt.runId()))) {
                 completePrompt(prompt, decision, null);
             }
         }

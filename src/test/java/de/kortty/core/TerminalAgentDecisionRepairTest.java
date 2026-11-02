@@ -469,7 +469,7 @@ class TerminalAgentDecisionRepairTest {
                 return List.of();
             }
             usagesDrained = true;
-            return List.of(new AiSkillPromptSupport.SkillUsage("skill-1", "bash-quality", AiSkillTarget.AGENT));
+            return List.of(new AiSkillPromptSupport.SkillUsage("skill-1", "bash-quality", AiSkillTarget.AGENT, true));
         }
 
         @Override

@@ -125,6 +125,7 @@ Open **AI > AI Manager > AI Skills**. The library moved here from the global set
 * **Import** accepts `.md` and `.markdown` files.
 * **Export** writes Markdown files for the selected skill, or all skills if none is selected.
 * The skill list can be sorted alphabetically or by enabled/disabled status.
+* **Statistics** opens how often each skill was used and how large it is, with hints for skills to review; see [Skill statistics](../reference/settings/ai-skills.md#skill-statistics).
 
 ### Import/export format
 
@@ -142,6 +143,8 @@ Skill instructions as Markdown.
 ```
 
 Plain Markdown without korTTY frontmatter is imported with the file name as the skill name, target `Both`, and disabled by default so you can review it before use. Claude/Codex-style `SKILL.md` frontmatter with `name`, `description`, and `tags` is also accepted and imported disabled by default unless it is korTTY's own export format.
+
+A file that holds a possible password, key or token is refused on import; see [Secrets in skills](../reference/settings/ai-skills.md#secrets-in-skills).
 
 When an AI Agent run uses one or more skills, the terminal-agent activity panel logs the selected skill names. Connection tests never send skills, so `Reply with exactly OK` tests remain stable.
 
@@ -216,6 +219,9 @@ When the selection looks like a single file name — for example a name from `ls
 * The chosen AI tab font size is stored globally and reused for future AI result tabs.
 * Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate. AI Swarm agents, scheduled AI jobs and session journal calls count towards the same quota.
 * If a saved chat references an AI profile that no longer exists, korTTY asks you to choose a replacement profile before you continue with follow-up prompts.
+* **Sent along.** A collapsed line under each answer lists the memory entries, skills and reference files that were sent with the request, masked as they were sent, with their token counts; see [AI memory](ai-memory.md).
+* **Remember as rule…** on one of your own messages opens the rule card without an AI call. The card shows the text and where it would be stored, and nothing is saved before you press **Save**.
+* **Rule suggestions.** In **Suggest rules** learning mode a message that says something should be kept for later can produce a suggestion card under the answer. Nothing is saved until you press **Save**, and **Undo** reverts a saved rule for 30 seconds.
 
 ### Code blocks in the terminal
 
@@ -290,7 +296,8 @@ The manager combines profile, local-inference, retrieval, and skill management:
 * **Profiles** - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile. The editor keeps **Profile name** and **Use as default profile** at the top and groups the fields into four sections: **Connection**, **Model & capabilities**, **Limits & timeouts** and **Budget & usage**. The Connection and Model sections show only the rows of the selected connection mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for the integrated runtimes). **Test AI Connection** shows its result in a coloured bar under the profile name (green on success, red with the error). **Setup wizard**, **Add** and **Refresh** act on the list and sit above it; **Test AI Connection**, **Delete** and **Save** act on the selected profile and sit under the editor.
 * **Local Models** - Search Hugging Face, import/download/configure GGUF files, run the post-install function test, and start or stop several llama.cpp sidecars.
 * **Knowledge Stores** - Create local HNSW stores, add reviewed files or recursive folders, synchronize sources, and run a test search.
-* **AI Skills** - Manage the skill library described under [AI Skills](#ai-skills).
+* **AI Skills** - Manage the skill library described under [AI Skills](#ai-skills) and its [statistics](../reference/settings/ai-skills.md#skill-statistics).
+* **Memory** - The korTTY memory that chat and agent requests carry: the global and the per-connection memory, the token budget, learning, clean-up, history and the other memory files. See [AI memory](ai-memory.md).
 * **Local AI** - Three sections: **Profile roles** assigns the Text/translation, Coding and [session journal](session-journal.md#ai-summaries) profiles; **Local runtime** selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; **Hugging Face** stores an encrypted Hugging Face token. **Save** under the sections writes all of them.
 
 Saved chats are not a tab of the AI Manager. **AI > Saved Chats...** opens them in their own window, with a **Chats** tab for saved AI conversations and a **Swarm Chats** tab for saved [AI Swarm](ai-swarm.md) conversations, including those produced by scheduled swarm jobs. There you can open, rename, refresh, or delete an entry.

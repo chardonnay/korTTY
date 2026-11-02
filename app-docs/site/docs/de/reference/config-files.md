@@ -29,6 +29,8 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 │   ├── stores.json                    # Knowledge stores and source configuration
 │   └── stores/                        # Local HNSW snapshots
 ├── ai-chats.xml                       # Saved AI conversations
+├── memory/                            # AI memory: MEMORY.md, connection notes, history and state (owner-only; see below)
+├── stats/                             # AI skill usage statistics (owner-only; see below)
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
 ├── snippet-analyses/                  # Stored Full code analyses, one <snippet-id>.json per snippet
@@ -315,6 +317,18 @@ Gespeicherte KI-Gespräche und Chat-Verlauf.
 
 **Hinweis:** KI-Ergebnisregisterkarten werden nicht automatisch gespeichert. Sie müssen sie explizit auf der Registerkarte „AI“ mit der Schaltfläche „Speichern“ speichern, um sie dieser Datei hinzuzufügen.
 
+### memory/
+
+Das KI-Memory von korTTY, siehe [KI-Memory](../features/ai-memory.md). `MEMORY.md` enthält das globale Gedächtnis und `connections/<id>.md` das Gedächtnis jeder Verbindung; beide sind reines Markdown, das Sie lesen und bearbeiten können. korTTY markiert die von ihm geschriebenen Einträge mit einem HTML-Kommentar, der einen Hash enthält, sodass ein von Ihnen bearbeiteter Eintrag Ihr eigener Text wird und korTTY Ihren Text niemals ohne Ihre Bestätigung ändert oder löscht.
+
+Die anderen Dateien im Ordner sind `state.json` (Digests und der Zustand des Speichers), `history/` (die Snapshots, die korTTY vor einer Änderung erstellt, die der Memory-Tab wiederherstellen kann), `archive.md` (die korTTY-Einträge, die eine Bereinigung archiviert hat, die **Archiv anzeigen...** auflistet), `learning.json` (der Zustand des Regellernens, wie die täglichen Zähler und die aufgeschobenen und abgelehnten Vorschläge) und `external.json` (die Referenzdateien anderer Tools, die Sie genehmigt haben, mit ihren Pfaden und dem SHA-256 des genehmigten Textes).
+
+Alle werden ausschließlich für den Besitzer geschrieben. Der Ordner ist in Backups enthalten. Eine Wiederherstellung fügt nur Dateien hinzu, die lokal nicht existieren, und überschreibt sie niemals; eine Notiz, die ein mögliches Secret enthält, wird nicht wiederhergestellt; wird der Speicher durch die Unternehmensrichtlinie schreibgeschützt oder deaktiviert, wird nichts wiederhergestellt. `external.json` wird niemals wiederhergestellt, sodass Sie die Referenzdateien auf jedem Computer erneut bestätigen.
+
+### stats/
+
+`skill-usage.json` enthält die Nutzungszahlen und die Größenhistorie Ihrer KI-Skills für die [Skill-Statistiken](settings/ai-skills.md#skill-statistik). Tägliche Werte werden 400 Tage, monatliche Werte fünf Jahre und jährliche Werte unbegrenzt aufbewahrt. Die Datei wird ausschließlich für den Besitzer geschrieben und ist in Backups enthalten; ein Wiederherstellen fügt sie nur hinzu, wo keine lokale Statistikdatei existiert. **Zurücksetzen...** im Statistikdialog löscht, was die Datei enthält.
+
 ### snippets.xml
 Codeausschnitte, Skripte und Vorlagen.
 
@@ -508,6 +522,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 | JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor Persistenz |
 | Sicherungsdateien | Passwortgeschützte ZIP- oder GPG-Verschlüsselung |
 | API-Schlüssel (KI-Profile) | AES-256-GCM-Verschlüsselung mit Master-Passwort |
+| KI-Memory-Dateien und Skill-Statistiken | Plain Text, mit nur-Besitzer-Rechten geschrieben; ein möglicher Geheimniswert wird abgelehnt, bevor er in eine Speicher- oder Skill-Datei geschrieben wird |
 | Terminaleffekt-Plugins | Nicht verschlüsselt; Vertrauenswürdiger lokaler Code, kein Sandbox-Code |
 
 ## Dateispeicherorte nach Plattform
@@ -529,6 +544,8 @@ Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, ist die fol
 - `ssh-host-keys.properties` interaktiver Hostschlüssel-Truststore (nicht seine transiente `.lock`-Datei)
 - `llm/models.xml` lokale Modellregistrierungen
 - `rag/stores.json` Wissensspeicher-/Quellenmetadaten
+- `memory/` die KI-Memory-Dateien (siehe [`memory/`](#memory)); eine Wiederherstellung überschreibt niemals eine lokale Datei, und `external.json` wird niemals wiederhergestellt
+- `stats/` die KI-Skill-Statistiken (siehe [`stats/`](#stats)); nur wiederhergestellt, wenn keine lokale Datei vorhanden ist
 
 Verwaltete GGUF-Gewichte, native Laufzeitpakete, temporäre Sidecar-Daten, Originalquelldokumente und HNSW-Snapshots sind ausgeschlossen, da sie groß oder regenerierbar sind. Die Verzeichnisse `history/` und `i18n/` sind ebenfalls nicht Teil eines Backups, ebenso wenig wie die Auto-Login-Datei `master.autounlock`.
 

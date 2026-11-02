@@ -17,10 +17,12 @@ Configure custom AI skills that enhance AI interactions. This tab lets you manag
 | --- | --- | --- | --- | --- |
 | Enable AI Skills | toggle | — | On | `aiSkillsEnabled` |
 | Automatically send only matching skills | toggle | — | On | `aiSkillAutoDetectionEnabled` |
+| korTTY may create skills and save learned rules in them | toggle | — | On | `aiSkillAutoCreate` |
 | Local / External | switch | Local: your own and built-in skills; External: skills imported from the internet | Local | — (view filter) |
 | Show hidden built-in skills | toggle | — | Off | — (view filter) |
 | Search skills | text | Filters the list by name, description or tags | — | — (view filter) |
 | Sort | menu button | Alphabetical, Status (enabled first) | — | — |
+| Statistics | button | Opens the usage and size statistics of the skills, see [Skill statistics](#skill-statistics) | — | — |
 | Save | button | Writes the library to the global settings file | — | — |
 
 A count line below the list summarizes the whole library — **Total**, **Active** (enabled and not hidden), and **Inactive/hidden** — regardless of the current search or hidden filter.
@@ -71,7 +73,7 @@ The **External** view lists skills imported from internet skill directories. Ext
 !!! warning "Imported skills start deactivated"
     korTTY sends a skill's text to the AI model word for word, so a skill from the internet can contain instructions you do not want. Every imported skill therefore arrives **deactivated**, whatever its front matter says. Read it in the editor, then tick **Active** and click **Save**. Only the `SKILL.md` file is imported; scripts, reference files and other files that belong to a skill are never downloaded or run.
 
-When an external skill is selected, the banner above the editor shows its provider, its source and the imported revision. **Open source** opens the skill's page in the browser. If you edit the text, the banner and the list mark the skill as **Edited locally**. After **Check for updates** has found a newer version, **Show update…** opens a side-by-side comparison of your version and the provider's version. **Apply update** replaces the text and description and keeps your name, tags, target and active state; local edits of the text are replaced, which the dialog points out. Nothing is updated without this confirmation.
+When an external skill is selected, the banner above the editor shows its provider, its source and the imported revision. **Open source** opens the skill's page in the browser. If you edit the text or the description, the banner and the list mark the skill as **Changed locally**; **Shorten...** never changes the text of an imported skill, only its learned rules. After **Check for updates** has found a newer version, **Show update…** opens a side-by-side comparison of your version and the provider's version. **Apply update** replaces the text and description and keeps your name, tags, target, active state and learned rules; a skill imported before descriptions were tracked keeps its description. A skill that is **Changed locally** is never overwritten, and the dialog says so: it offers **Import as copy**, which adds the provider version as a new, deactivated skill named after the revision, and **Skip this version**, which hides that revision while a newer one is still offered. Nothing is updated without a click, and every change takes effect when you click **Save**.
 
 ### Importing skills
 
@@ -109,6 +111,51 @@ The **SkillsMP** provider searches the SkillsMP index through `https://skillsmp.
 
 !!! note "Network safety"
     korTTY talks to providers over HTTPS only; plain HTTP is accepted for this computer alone (`localhost`). Redirects are not followed, so a token or password is never sent on to another host, and a `SKILL.md` larger than 256 KiB is refused.
+
+## Skills created by korTTY and learned rules
+
+korTTY can save rules that you confirm into your skills, and it can create a skill for a topic that has none yet. Nothing is saved without your confirmation: the rule card shows the exact text and where it goes, and **Save** writes it. The switch **korTTY may create skills and save learned rules in them** controls both, and the enterprise policy can lock it.
+
+A rule that names a connection goes into that connection's memory; a rule about a topic that already has a skill, built-in or your own, goes into that skill's learned rules; a rule about a language or tool without a skill creates one; any other rule goes into the global memory. The memory itself is described in [AI memory](../../features/ai-memory.md).
+
+* A skill korTTY created shows the badge **NEW · created by korTTY** until you select it in the list; then it shows **korTTY**. The skill the list selects by itself when it opens does not count.
+* A **+N rule(s)** chip counts the learned rules you have not seen yet; opening the skill marks them as seen and removes the chip.
+* The editor lists the learned rules of a skill under **Learned rules**, shown only when the skill has any. **Edit** changes a rule's text in a dialog, **Delete** removes it after a confirmation, and both are saved with the skill when you click **Save**.
+* Learned rules are sent with their skill whenever the skill is selected for a request, as long as the memory is on and the policy allows it.
+
+Rules are proposed from your messages only in the **Suggest rules** learning mode; **Remember as rule…** saves a rule that you write yourself.
+
+## Secrets in skills
+
+korTTY does not store a possible password, key or token in a skill, a learned rule, the memory or an approved memory file. The check looks for keyword phrases in German and English, `key=value` assignments (also in `.env` files and command-line flags), long random-looking strings, token formats it knows, and values saved in the password vault while the vault is unlocked.
+
+When you change a skill so that it holds a possible secret, **Save** refuses to save the library and selects that skill. A flagged skill that you do not change does not block **Save**; its badge stays until the secret is removed. The message names the line, the field and the kind of secret, never the value, for example *Line 4 in the skill text looks like it holds a secret (a password or token assignment). Remove it and try again.* A Markdown file or a skill from the internet that holds a finding is refused on import in the same way.
+
+At startup korTTY checks the existing skills and marks one that holds a possible secret with a **⚠ possible secret** badge in the list. It does not change or delete that skill. A flagged skill is still sent with requests until the secret line is removed; only the outbound masking applies.
+
+The check is no guarantee. A password you chose yourself, without a keyword and not saved in the vault, cannot be recognized reliably, so do not write one into a skill.
+
+## Skill statistics
+
+**Statistics** in the list's header opens the statistics of your skills: how often each one was sent with a request, how large it is and how that changes. The figures come from the local file `stats/skill-usage.json`, see [Configuration files](../config-files.md#stats).
+
+![Skill statistics dialog](../../assets/screenshots/ai/ai-skill-statistics.png)
+
+| Control | Effect |
+| --- | --- |
+| **Day**, **Month**, **Year** | Sets the granularity of the chart and of the size history; the range list follows it |
+| Range | Day: last 30, 90 or 400 days. Month: last 12, 24 or 60 months. Year: all years |
+| **Record statistics** | Turns recording on or off; while it is off nothing is counted or stored. The enterprise policy can lock it |
+| **Include pinned** | Also counts the uses of skills that are assigned to a connection or picked explicitly. Off shows automatic uses only |
+| **Reset...** | Deletes every recorded use and size history after a confirmation; the skills stay unchanged |
+
+The four figures at the top are **Automatic uses**, **Average size of active skills** in tokens, **Skill tokens sent** and **Growth per month** in tokens per month. The stacked bar chart shows the uses per skill over the range: the eight most used skills and **Others**. The table lists each skill, most used first, with its badge under the name, automatic and pinned uses, average and current size, growth per month and in percent, last use and learned rules. Select a row to see its size history below the table.
+
+**Hints** name the skills to review: one not used for 90 days, one that more than doubled within 30 days, and one above 1,000 tokens. The last two offer **Shorten...**.
+
+**Shorten...** asks the default AI profile for a shorter version of the skill and of its learned rules, shows the change as a diff with the token sizes before and after, and saves nothing until you click **Apply**. The text of a skill you wrote yourself can be shortened. For a built-in or an imported skill only its learned rules are shortened, so its text keeps receiving updates. Set a default AI profile first; the dialog says so when none is set.
+
+Daily values are kept for 400 days, monthly values for five years and yearly values without a limit. The enterprise policy key `statistics` in `[rule.ai-memory]` can switch recording off for everyone; see [Enterprise policy](../enterprise-policy.md#ruleai-memory).
 
 ## Notes
 

@@ -1,17 +1,22 @@
 package de.kortty.core;
 
 import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillLearnedRule;
+import de.kortty.model.AiSkillOrigin;
 import de.kortty.model.AiSkillTarget;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Imports and exports KorTTY AI skills as Markdown files with simple front matter.
@@ -23,6 +28,10 @@ public final class AiSkillMarkdownCodec {
     private static final String BUILTIN_ID_KEY = "kortty-builtin-id";
     private static final String BUILTIN_VERSION_KEY = "kortty-builtin-version";
     private static final String BUILTIN_TOPICS_KEY = "kortty-builtin-topics";
+    private static final String ORIGIN_KEY = "kortty-origin";
+    private static final String CREATED_AT_KEY = "kortty-created-at";
+    private static final String LEARNED_RULES_START = "<!-- kortty:learned-rules -->";
+    private static final String LEARNED_RULES_END = "<!-- /kortty:learned-rules -->";
     private static final java.util.regex.Pattern BUILTIN_ID_PATTERN =
         java.util.regex.Pattern.compile("[a-z0-9][a-z0-9._-]{0,63}");
 
@@ -82,7 +91,7 @@ public final class AiSkillMarkdownCodec {
      * Reads a skill from a Markdown file the user picked. Characters {@code global-settings.xml} cannot
      * hold — a control character such as BEL, U+FFFE, U+FFFF or a lone surrogate — are removed from the
      * name, description, tags and content: they are invisible, and kept they would be refused when the
-     * skills are saved.
+     * skills are saved. A skill holding a possible secret is refused with an {@link IOException} instead.
      */
     public static AiSkill importFromMarkdown(Path file) throws IOException {
         if (file == null) {
@@ -125,12 +134,91 @@ public final class AiSkillMarkdownCodec {
         skill.setTags(parseTags(frontMatter.get("tags")));
         skill.setEnabled(parseEnabled(frontMatter.get("enabled")));
         skill.setTarget(parseTarget(frontMatter.get("target")));
-        skill.setContent(parsed.body());
+        LearnedSection learned = splitLearnedRules(parsed.body());
+        skill.setContent(learned.content());
+        skill.setLearnedRules(learned.rules());
+        applyProvenance(skill, frontMatter);
         return storable(skill);
     }
 
-    private static AiSkill storable(AiSkill skill) {
+    /**
+     * {@link #importFromMarkdownText(String, String)} for a document a provider served. Such a document cannot
+     * claim to be korTTY's, and it cannot add rules: the rules of its learned-rules block are dropped, so only
+     * the user can confirm a rule.
+     */
+    public static AiSkill importFromExternalMarkdownText(String text, String fallbackName) throws IOException {
+        AiSkill skill = importFromMarkdownText(text, fallbackName);
+        skill.setLearnedRules(List.of());
+        skill.setOrigin(null);
+        skill.setOriginAcknowledged(false);
+        skill.setCreatedAt(null);
+        return skill;
+    }
+
+    /**
+     * Restores korTTY's provenance from an exported file. The user chose to import the skill, so it
+     * counts as seen, and its rules too.
+     */
+    private static void applyProvenance(AiSkill skill, Map<String, String> frontMatter) {
+        if (AiSkillOrigin.KORTTY.name().equalsIgnoreCase(frontMatter.get(ORIGIN_KEY))) {
+            skill.setOrigin(AiSkillOrigin.KORTTY);
+            skill.setOriginAcknowledged(true);
+        }
+        skill.setCreatedAt(parseCreatedAt(frontMatter.get(CREATED_AT_KEY)));
+    }
+
+    private static String parseCreatedAt(String rawDate) {
+        if (rawDate == null || rawDate.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(rawDate.trim()).toString();
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Splits an exported body into its content and the rules after it. The rules section is the last
+     * marked block; the separator written before it is removed again, so the content comes back exactly.
+     */
+    private static LearnedSection splitLearnedRules(String body) {
+        int start = body.lastIndexOf(LEARNED_RULES_START);
+        int end = start < 0 ? -1 : body.indexOf(LEARNED_RULES_END, start + LEARNED_RULES_START.length());
+        if (end < 0) {
+            return new LearnedSection(body, List.of());
+        }
+        String before = body.substring(0, start);
+        if (before.endsWith("\n\n")) {
+            before = before.substring(0, before.length() - 2);
+        }
+        String after = body.substring(end + LEARNED_RULES_END.length());
+        if (after.equals("\n") || after.equals("\r\n")) {
+            after = "";
+        }
+        List<AiSkillLearnedRule> rules = new ArrayList<>();
+        for (String line : body.substring(start + LEARNED_RULES_START.length(), end).split("\\R")) {
+            String trimmed = line.strip();
+            String text = trimmed.startsWith("- ") ? trimmed.substring(2).strip() : "";
+            if (!text.isEmpty()) {
+                AiSkillLearnedRule rule = AiSkillLearnedRule.create(text, AiSkillLearnedRule.SOURCE_MANUAL);
+                rule.setAcknowledged(true);
+                rules.add(rule);
+            }
+        }
+        return new LearnedSection(before + after, rules);
+    }
+
+    /**
+     * The skill without characters the settings file cannot hold. A skill that holds a possible secret is refused:
+     * the message names the line and the kind of secret, never the value.
+     */
+    private static AiSkill storable(AiSkill skill) throws IOException {
         skill.stripUnstorableText();
+        Optional<String> refusal = AiSkillSecretCheck.refusal(skill);
+        if (refusal.isPresent()) {
+            throw new AiSkillSecretCheck.RefusedException(refusal.get());
+        }
         return skill;
     }
 
@@ -153,6 +241,13 @@ public final class AiSkillMarkdownCodec {
                     .append(skill.getBuiltinBaseline().getVersion()).append("\n");
             }
         }
+        if (skill.getOrigin() != null) {
+            markdown.append(ORIGIN_KEY).append(": ").append(skill.getOrigin().name()).append("\n");
+            String createdAt = parseCreatedAt(skill.getCreatedAt());
+            if (createdAt != null) {
+                markdown.append(CREATED_AT_KEY).append(": ").append(createdAt).append("\n");
+            }
+        }
         markdown.append("name: ").append(quoteFrontMatter(nonBlank(skill.getName(), "AI Skill"))).append("\n");
         appendOptionalFrontMatter(markdown, "description", skill.getDescription());
         if (!skill.getTags().isEmpty()) {
@@ -162,7 +257,28 @@ public final class AiSkillMarkdownCodec {
         markdown.append("target: ").append(skill.getTarget().name()).append("\n");
         markdown.append("---\n\n");
         markdown.append(skill.getContent() != null ? skill.getContent() : "");
+        appendLearnedRules(markdown, skill.getLearnedRules());
         Files.writeString(file, markdown.toString(), StandardCharsets.UTF_8);
+    }
+
+    /** Appends the rules as one "- " line each in a marked block; nothing is written for no rules. */
+    private static void appendLearnedRules(StringBuilder markdown, List<AiSkillLearnedRule> rules) {
+        boolean any = false;
+        for (AiSkillLearnedRule rule : rules) {
+            if (rule.getText() != null && !rule.getText().isBlank()) {
+                any = true;
+            }
+        }
+        if (!any) {
+            return;
+        }
+        markdown.append("\n\n").append(LEARNED_RULES_START).append("\n");
+        for (AiSkillLearnedRule rule : rules) {
+            if (rule.getText() != null && !rule.getText().isBlank()) {
+                markdown.append("- ").append(rule.getText().strip().replaceAll("\\s*\\R\\s*", " ")).append("\n");
+            }
+        }
+        markdown.append(LEARNED_RULES_END).append("\n");
     }
 
     private static ParsedMarkdown parse(String text) {
@@ -344,6 +460,9 @@ public final class AiSkillMarkdownCodec {
     }
 
     private record ParsedMarkdown(Map<String, String> frontMatter, String body) {
+    }
+
+    private record LearnedSection(String content, List<AiSkillLearnedRule> rules) {
     }
 
     private record BlockValue(String value, int lastLineIndex) {

@@ -107,6 +107,10 @@ Diese Status-Designs schweben über dem Terminal, das seine volle Größe beibeh
 
 Eine Genehmigung wird im Terminal mit den Tasten **1** (einmal erlauben), **2** (immer erlauben) und **3** (abbrechen) oder mit Buttons beantwortet. Designs mit eigenen Buttons zeigen diese an: die Verlaufs-Panels, die Meldungen am Rand und das Bild-im-Bild-Fenster. Bei Blöcken im Terminal, im Fokus-Modus oder im Verlauf des klassischen Panels öffnet eine Genehmigung eine Zeile unter dem Terminal mit den Befehlen und den Buttons **1 Einmal erlauben**, **2 Immer erlauben** und **3 Abbrechen**. Eine Passwortanfrage öffnet diese Zeile immer, mit einem maskierten Feld, **Für diese SSH-Sitzung verwenden** und **OK**; ++enter++ sendet ab und ++esc++ bricht ab. Das klassische Panel behält seine eigenen Prompts bei.
 
+## Lösungsoptionen und Speicher in Designs
+
+Bei einem Design, das nicht das klassische Panel ist, erscheinen die Lösungsoptionen des Agents (siehe [Lösungsoptionen](ai-tools.md#losungsoptionen)) in der Leiste des Designs mit denselben Auswahlmöglichkeiten. Die **Mitgesendet**-Zeile eines Laufs ist ein Link im Host des Designs, und ein Regelvorschlag öffnet sich als Popup über dem Design; siehe [KI-Memory](ai-memory.md).
+
 ## Lauf-Menü und Schritt-Menü
 
 Jedes Design bietet das, was die Buttons des klassischen Panels tun. Die Leisten, die Verlaufs-Panels, das Milchglas-HUD und das Bild-im-Bild-Fenster haben einen ⋯-Button; die Statuspille, die Orbit-Anzeige, die Minimap-Schiene und das Abzeichen der Meldungen am Rand öffnen dasselbe Menü per Rechtsklick. Es funktioniert bei dem Lauf, den das Design zeigt:

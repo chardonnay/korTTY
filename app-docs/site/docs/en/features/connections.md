@@ -124,6 +124,10 @@ When your organization's [enterprise policy](../reference/enterprise-policy.md#r
 !!! warning "Shared connections can only make the warning stricter"
     A [teamwork](teamwork.md) connection can carry a paste protection of its own in the shared file. Its warning applies only when it asks more often than your own setting, so whoever maintains the file can make a production server ask before every multi-line paste but can never switch off a warning you chose; the connection editor says so for such a connection. Its pause after each pasted line applies as written, because a pause only slows a paste down and ++esc++ stops it. A teamwork connection keeps the values it had when its terminal was opened.
 
+### AI memory of a connection
+
+The **AI** tab of the connection editor has **Edit connection memory...**, which opens the memory of this connection. Its rules are sent only with the AI requests and agent runs for this connection, next to the global memory. The button is available once the connection is saved, because the connection's memory is kept under its saved identity. See [AI memory](ai-memory.md).
+
 ## Tags
 
 Every saved connection can carry one optional free-text **tag** — a label such as `prod`, `staging` or a customer name — independent of the group/folder hierarchy. Set it on the connection editor's *Connection* tab (next to the group), or in bulk in the Connection Manager. Tags are stored with the connection in `connections.xml` and survive duplicating, exporting and importing.
