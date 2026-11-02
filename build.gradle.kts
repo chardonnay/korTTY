@@ -453,7 +453,7 @@ dependencies {
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.20")
-    implementation("ch.qos.logback:logback-classic:1.6.5")
+    implementation("ch.qos.logback:logback-classic:1.6.6")
     
     // Testing
     testImplementation("com.google.truth:truth:1.4.5")
