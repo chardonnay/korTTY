@@ -116,7 +116,7 @@ public class BackupManager {
      * from it). A merge import of a backup made under another master password re-encrypts them —
      * see {@link BackupSecretReKeyer} — or does not import them.
      */
-    static final List<String> SECRET_BEARING_FILES = List.of(
+    static final List<String> MASTER_KEY_ENCRYPTED_FILES = List.of(
         XMLConnectionRepository.CONNECTIONS_FILE,
         CredentialManager.CREDENTIALS_FILE,
         SSHKeyManager.SSH_KEYS_FILE,
@@ -728,7 +728,7 @@ public class BackupManager {
             return List.of();
         }
         List<String> files = new java.util.ArrayList<>();
-        for (String name : SECRET_BEARING_FILES) {
+        for (String name : MASTER_KEY_ENCRYPTED_FILES) {
             if (Files.isRegularFile(extractDir.resolve(name))
                     && (overwriteExisting || !Files.exists(configDir.resolve(name)))) {
                 files.add(name);

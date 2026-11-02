@@ -1433,9 +1433,9 @@ public final class WorkflowScriptSupport {
     static String buildShortScriptStem(String sourcePrompt) {
         String normalized = sourcePrompt == null ? "" : sourcePrompt.strip().toLowerCase(Locale.ROOT);
         List<String> words = new ArrayList<>();
-        for (String token : normalized.split("[^a-z0-9]+")) {
-            if (!token.isEmpty()) {
-                words.add(token);
+        for (String part : normalized.split("[^a-z0-9]+")) {
+            if (!part.isEmpty()) {
+                words.add(part);
             }
         }
         List<String> meaningful = new ArrayList<>();

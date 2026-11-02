@@ -863,9 +863,9 @@ public class ServerConnection {
      * the configured shell's base name, or a generic fallback.
      */
     public String localShellDisplayLabel() {
-        java.util.List<String> tokens = tokenizeLocalShellCommand(localShellCommand);
-        if (!tokens.isEmpty()) {
-            String baseName = tokens.get(0)
+        java.util.List<String> commandWords = tokenizeLocalShellCommand(localShellCommand);
+        if (!commandWords.isEmpty()) {
+            String baseName = commandWords.get(0)
                 .replace('\\', '/')
                 .replaceAll(".*/", "");
             if (!baseName.isBlank()) {
@@ -881,19 +881,19 @@ public class ServerConnection {
      * are kept intact. Unquoted runs of non-space characters become individual tokens.
      */
     public static java.util.List<String> tokenizeLocalShellCommand(String command) {
-        java.util.List<String> tokens = new java.util.ArrayList<>();
+        java.util.List<String> words = new java.util.ArrayList<>();
         if (command == null || command.isBlank()) {
-            return tokens;
+            return words;
         }
         java.util.regex.Matcher matcher =
             java.util.regex.Pattern.compile("\"([^\"]*)\"|(\\S+)").matcher(command.trim());
         while (matcher.find()) {
-            String token = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            if (token != null && !token.isEmpty()) {
-                tokens.add(token);
+            String word = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            if (word != null && !word.isEmpty()) {
+                words.add(word);
             }
         }
-        return tokens;
+        return words;
     }
     
     /**
