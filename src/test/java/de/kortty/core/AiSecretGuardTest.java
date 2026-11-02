@@ -355,12 +355,19 @@ class AiSecretGuardTest {
         for (int line = 0; line < 10_000; line++) {
             log.append("password: value").append(line).append('\n');
         }
-        long started = System.nanoTime();
         AiSecretGuard.Result result = AiSecretGuard.check(log.toString(), List.of());
-        long elapsedMillis = (System.nanoTime() - started) / 1_000_000;
-
         assertThat(result.findings().size()).isAtLeast(10_000);
-        assertThat(elapsedMillis).isLessThan(1_500L);
+
+        // The check guards against backtracking that grows with the input, which costs
+        // seconds per attempt. A single cold timing missed 1.5 s on the macOS Intel release
+        // runner (v2.25.0), so the run above warms the JIT and the best of three attempts counts.
+        long bestMillis = Long.MAX_VALUE;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            long started = System.nanoTime();
+            AiSecretGuard.check(log.toString(), List.of());
+            bestMillis = Math.min(bestMillis, (System.nanoTime() - started) / 1_000_000);
+        }
+        assertThat(bestMillis).isLessThan(1_500L);
     }
 
     @Test

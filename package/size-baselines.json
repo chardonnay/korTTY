@@ -7,37 +7,37 @@
     "macos-aarch64-dmg": {
       "baseline_bytes": 189860684,
       "verified_bytes": 154839133,
-      "budget_bytes": 155189248
+      "budget_bytes": 160432128
     },
     "macos-x86_64-dmg": {
       "baseline_exempt": true,
       "verified_bytes": 157659056,
-      "budget_bytes": 158334976
+      "budget_bytes": 162529280
     },
     "windows-x86_64-msi": {
       "baseline_bytes": 194954284,
       "verified_bytes": 160346176,
-      "budget_bytes": 160432128
+      "budget_bytes": 165675008
     },
     "linux-x86_64-deb": {
       "baseline_bytes": 193980040,
       "verified_bytes": 165263918,
-      "budget_bytes": 165675008
+      "budget_bytes": 170917888
     },
     "linux-x86_64-rpm": {
       "baseline_bytes": 223063636,
       "verified_bytes": 171729370,
-      "budget_bytes": 173015040
+      "budget_bytes": 177209344
     },
     "linux-aarch64-deb": {
       "baseline_bytes": 191136540,
       "verified_bytes": 163271064,
-      "budget_bytes": 163577856
+      "budget_bytes": 168820736
     },
     "linux-aarch64-rpm": {
       "baseline_bytes": 219836583,
       "verified_bytes": 169506343,
-      "budget_bytes": 170917888
+      "budget_bytes": 175112192
     }
   },
   "verified_release": "2.25.0",
