@@ -20,7 +20,7 @@ import org.testng.annotations.Test;
  */
 class AiTriageI18nCoverageTest {
 
-    private static final List<String> PREFIXES = List.of("ai.triage.", "settings.ai.triage.");
+    private static final List<String> PREFIXES = List.of("ai.triage.", "settings.ai.triage.", "ai.agent.question.");
 
     private static final List<String> BUNDLES = List.of(
         "messages.properties",

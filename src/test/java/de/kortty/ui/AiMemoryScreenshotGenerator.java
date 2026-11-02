@@ -77,6 +77,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * <ul>
  *   <li>{@code ai/ai-memory-tab.png}: the REAL {@link AiManagerDialog} on its Memory tab, global scope, entries view;</li>
  *   <li>{@code ai/ai-triage-card.png}: the REAL {@link SolutionChoicePane} with a demo triage proposal;</li>
+ *   <li>{@code ai/ai-agent-question.png}: the same pane in its question form, with a demo question of the agent;</li>
  *   <li>{@code ai/ai-rule-proposal.png}: the REAL {@link RuleProposalCard} with a demo rule;</li>
  *   <li>{@code ai/ai-sent-context.png}: the REAL {@link SentContextView}, expanded, with demo memory parts;</li>
  *   <li>{@code ai/ai-skill-statistics.png}: the REAL {@link AiSkillStatisticsDialog} over a demo statistics file.</li>
@@ -93,6 +94,7 @@ public final class AiMemoryScreenshotGenerator {
 
     private static final String MEMORY_TAB_FILE = "app-docs/screenshots/ai/ai-memory-tab.png";
     private static final String TRIAGE_FILE = "app-docs/screenshots/ai/ai-triage-card.png";
+    private static final String QUESTION_FILE = "app-docs/screenshots/ai/ai-agent-question.png";
     private static final String RULE_FILE = "app-docs/screenshots/ai/ai-rule-proposal.png";
     private static final String SENT_FILE = "app-docs/screenshots/ai/ai-sent-context.png";
     private static final String STATS_FILE = "app-docs/screenshots/ai/ai-skill-statistics.png";
@@ -295,6 +297,7 @@ public final class AiMemoryScreenshotGenerator {
         runSteps(List.of(
             AiMemoryScreenshotGenerator::memoryTab,
             AiMemoryScreenshotGenerator::triageCard,
+            AiMemoryScreenshotGenerator::questionCard,
             AiMemoryScreenshotGenerator::ruleCard,
             AiMemoryScreenshotGenerator::sentContext,
             AiMemoryScreenshotGenerator::statistics), 0);
@@ -312,7 +315,7 @@ public final class AiMemoryScreenshotGenerator {
         }
     }
 
-    // ----- the five captures ----------------------------------------------------------------------
+    // ----- the six captures -----------------------------------------------------------------------
 
     /** The AI Manager on its Memory tab, global scope, entries view, at the size the dialog opens at. */
     private static void memoryTab(Runnable next) throws Exception {
@@ -339,6 +342,24 @@ public final class AiMemoryScreenshotGenerator {
         Stage stage = showOffscreen(card);
         after(0.8, () -> {
             writePng(card, TRIAGE_FILE);
+            stage.close();
+            next.run();
+        });
+    }
+
+    /** A question of the agent during a run: why it asks, two suggested answers, and a rule with a place. */
+    private static void questionCard(Runnable next) throws Exception {
+        SolutionChoicePane pane = new SolutionChoicePane(TerminalAgentModels.TriageProposal.question(
+            "Which port should nginx listen on?",
+            List.of("Apache httpd already listens on port 80 and a Java service on 8080. Ports 8081 and 8888 are free."),
+            List.of("8081", "8888"),
+            "web-demo-01", "web-demo-01", "web-demo-01.example.test"), choice -> { });
+        TextArea ruleArea = field(pane, "ruleArea");
+        ruleArea.setText("On this server, nginx listens on port 8081.");
+        VBox card = wrap(pane, CARD_WIDTH);
+        Stage stage = showOffscreen(card);
+        after(0.8, () -> {
+            writePng(card, QUESTION_FILE);
             stage.close();
             next.run();
         });

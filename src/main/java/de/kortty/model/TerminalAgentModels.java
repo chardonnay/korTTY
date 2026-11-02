@@ -290,11 +290,48 @@ public final class TerminalAgentModels {
         List<PlanOption> options,
         String connectionId,
         String connectionName,
-        String connectionHost) {
+        String connectionHost,
+        String question) {
 
         public TriageProposal {
             reasons = reasons == null ? List.of() : List.copyOf(reasons);
             options = options == null ? List.of() : List.copyOf(options);
+        }
+
+        /** The complexity check's proposal before a run. */
+        public TriageProposal(
+            boolean complex,
+            List<String> reasons,
+            int recommended,
+            List<PlanOption> options,
+            String connectionId,
+            String connectionName,
+            String connectionHost) {
+            this(complex, reasons, recommended, options, connectionId, connectionName, connectionHost, null);
+        }
+
+        /**
+         * A question the agent asks during a run, with its suggested answers as {@code options} (the recommended one
+         * first) and why it asks as {@code reasons}. The same card shows it, in its question form.
+         */
+        public static TriageProposal question(
+            String question,
+            List<String> why,
+            List<String> answers,
+            String connectionId,
+            String connectionName,
+            String connectionHost) {
+            List<PlanOption> options = new java.util.ArrayList<>();
+            for (int index = 0; index < answers.size(); index++) {
+                options.add(new PlanOption("answer-" + (index + 1), answers.get(index), "", "",
+                    List.of(), List.of(), List.of(), List.of()));
+            }
+            return new TriageProposal(false, why, 0, options, connectionId, connectionName, connectionHost, question);
+        }
+
+        /** Whether this is a question during a run rather than the solution options before it. */
+        public boolean isQuestion() {
+            return question != null && !question.isBlank();
         }
     }
 

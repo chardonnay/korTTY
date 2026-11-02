@@ -397,7 +397,7 @@ public class AiAgentRunTab extends Tab {
             Dialog<Void> dialog = new Dialog<>();
             DialogThemeHelper.applyTheme(dialog);
             dialog.initOwner(ownerWindow.getStage());
-            dialog.setTitle(I18n.get("ai.triage.title"));
+            dialog.setTitle(I18n.get(proposal.isQuestion() ? "ai.agent.question.title" : "ai.triage.title"));
             dialog.setResizable(true);
             ScrollPane choices = new ScrollPane(new SolutionChoicePane(proposal, choice -> {
                 future.complete(choice);

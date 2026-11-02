@@ -174,6 +174,26 @@ Die **Speichern in**-Auswahl bietet **Globales Memory**, **Diese Verbindung**, e
 
 Wenn Sie innerhalb von 10 Minuten nach dem Erscheinen der Karte nicht antworten, wird die Anfrage wie gewünscht ausgeführt.
 
+### Fragen während einer Ausführung
+
+Wenn eine Entscheidung, die nur Sie treffen können, die Aufgabe blockiert, fragt der Agent Sie, anstatt zu raten oder erneut zu versuchen. Ein typischer Fall ist ein Port, den ein anderer Dienst bereits belegt: Der Agent prüft, welche Ports frei sind, und fragt, welchen Sie verwenden möchten. Die Frage erscheint auf derselben Karte, in einer kürzeren Form:
+
+![Der Agent fragt, auf welchem Port nginx lauschen soll](../assets/screenshots/ai/ai-agent-question.png)
+
+- **Der Agent braucht Ihre Entscheidung**, mit der Frage und, unter **Warum er fragt**, der Grund des Agents;
+- die vorgeschlagenen Antworten, die empfohlene zuerst und mit **Empfohlen** markiert;
+- **Andere Antwort**, mit einem Textfeld für Ihre eigene Antwort; Text, den Sie dort eingeben, während eine vorgeschlagene Antwort ausgewählt ist, wird zu dieser Antwort hinzugefügt;
+- die optionale **Dauerhafte Regel**, wie auf der Optionskarte, zum Beispiel, um einen Port für diese Verbindung beizubehalten.
+
+| Button | Ergebnis |
+| --- | --- |
+| **Antwort senden** | Setzt den Lauf mit Ihrer Antwort fort, die die folgenden Schritte bindet. Speichert die dauerhafte Regel, falls Sie eine formuliert haben. |
+| **Lauf beenden** | Beendet den Lauf an der Frage. |
+
+Eine Frage verbraucht keinen der Planungsschritte eines Laufs. Ein Lauf stellt höchstens drei Fragen. Danach, und wenn Sie nicht innerhalb von 10 Minuten antworten, entscheidet der Agent selbst und benennt seine Wahl. Swarm-Läufe und geplante Jobs fragen nie: Dort entscheidet der Agent ebenfalls selbst.
+
+Wenn derselbe Fehler von mehr als einem Befehl zurückkommt, teilt korTTY dies dem Agenten mit, und der Agent ändert seinen Ansatz oder fragt Sie, anstatt dasselbe erneut zu versuchen.
+
 ## Regellernen
 
 Bei **Lernen** auf **Regeln vorschlagen** eingestellt sucht korTTY in Ihren eigenen Nachrichten nach einer dauerhaften Regel, nachdem die Antwort oder der Lauf abgeschlossen ist. Die Prüfung erfolgt in Schritten, und bei den meisten Nachrichten wird früh gestoppt.

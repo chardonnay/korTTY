@@ -378,6 +378,7 @@ pages:
     screenshots:
       - ai/ai-memory-tab.png
       - ai/ai-triage-card.png
+      - ai/ai-agent-question.png
       - ai/ai-rule-proposal.png
       - ai/ai-sent-context.png
     last_synced_ref: "8a4dad95"

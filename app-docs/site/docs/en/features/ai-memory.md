@@ -174,6 +174,26 @@ The **Save to** choice offers **Global memory**, **This connection**, an existin
 
 If you do not answer within 10 minutes after the card appears, the request runs as asked.
 
+### Questions during a run
+
+When a decision only you can make blocks the task, the agent asks you instead of guessing or retrying. A typical case is a port that another service already uses: the agent checks which ports are free and asks which one to use. The question appears on the same card, in a shorter form:
+
+![The agent asks which port nginx should listen on](../assets/screenshots/ai/ai-agent-question.png)
+
+- **The agent needs your decision**, with the question and, under **Why it asks**, the agent's reason;
+- the suggested answers, the recommended one first and marked **Recommended**;
+- **Another answer**, with a text field for your own answer; text you type there while a suggested answer is selected is added to that answer;
+- the optional **Permanent rule**, as on the options card, for example to keep a port for this connection.
+
+| Button | Result |
+| --- | --- |
+| **Send answer** | Continues the run with your answer, which binds the following steps. Saves the permanent rule if you wrote one. |
+| **Stop run** | Ends the run at the question. |
+
+A question does not use up one of the run's planning steps. A run asks at most three questions. After that, and when you do not answer within 10 minutes, the agent decides by itself and names its choice. Swarm runs and scheduled jobs never ask: there the agent decides by itself as well.
+
+When the same error comes back from more than one command, korTTY tells the agent so, and the agent changes its approach or asks you instead of trying the same thing again.
+
 ## Rule learning
 
 With **Learning** set to **Suggest rules**, korTTY looks for a lasting rule in your own messages after the answer or the run is complete. The check runs in steps, and most messages stop early.

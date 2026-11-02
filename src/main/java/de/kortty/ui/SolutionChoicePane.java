@@ -103,15 +103,23 @@ final class SolutionChoicePane extends VBox {
     }
 
     private void buildOptions() {
-        Label header = wrapped(I18n.get(proposal.complex() ? "ai.triage.header.complex" : "ai.triage.header.simple"));
-        header.setStyle("-fx-font-weight: bold;");
-        getChildren().add(header);
+        if (proposal.isQuestion()) {
+            // A question during a run: what the agent asks, in its own words, under a header that says who asks.
+            Label question = wrapped(proposal.question().strip());
+            question.setStyle("-fx-font-weight: bold;");
+            getChildren().addAll(sectionLabel(I18n.get("ai.agent.question.header")), question);
+        } else {
+            Label header = wrapped(I18n.get(proposal.complex() ? "ai.triage.header.complex" : "ai.triage.header.simple"));
+            header.setStyle("-fx-font-weight: bold;");
+            getChildren().add(header);
+        }
         if (!proposal.reasons().isEmpty()) {
             VBox reasons = new VBox(2);
             for (String reason : proposal.reasons()) {
-                reasons.getChildren().add(wrapped("• " + reason));
+                reasons.getChildren().add(wrapped(proposal.isQuestion() ? reason : "• " + reason));
             }
-            getChildren().addAll(sectionLabel(I18n.get("ai.triage.reasons")), reasons);
+            getChildren().addAll(
+                sectionLabel(I18n.get(proposal.isQuestion() ? "ai.agent.question.why" : "ai.triage.reasons")), reasons);
         }
         int recommended = Math.max(0, Math.min(proposal.options().size() - 1, proposal.recommended()));
         for (int index = 0; index < proposal.options().size(); index++) {
@@ -130,6 +138,15 @@ final class SolutionChoicePane extends VBox {
     }
 
     private VBox optionCard(TerminalAgentModels.PlanOption option, RadioButton radio, boolean recommended) {
+        if (proposal.isQuestion()) {
+            // A suggested answer is one line: no plan details to unfold.
+            VBox card = new VBox(4, radio);
+            if (!blank(option.summary())) {
+                card.getChildren().add(wrapped(option.summary()));
+            }
+            card.setStyle(recommended ? RECOMMENDED_STYLE : OPTION_STYLE);
+            return card;
+        }
         VBox details = new VBox(4);
         if (!blank(option.feasibility())) {
             details.getChildren().add(wrapped(I18n.get("ai.triage.feasibility", option.feasibility())));
@@ -152,8 +169,18 @@ final class SolutionChoicePane extends VBox {
         ownIdeaRadio.selectedProperty().addListener((observed, was, now) -> refreshButtons());
         ideaArea.setWrapText(true);
         ideaArea.setPrefRowCount(3);
-        ideaArea.setPromptText(I18n.get("ai.triage.ownIdea.prompt"));
+        ideaArea.setPromptText(I18n.get(proposal.isQuestion() ? "ai.agent.question.own.prompt" : "ai.triage.ownIdea.prompt"));
         ideaArea.textProperty().addListener((observed, was, now) -> refreshButtons());
+        if (proposal.isQuestion()) {
+            ownIdeaRadio.setText(I18n.get("ai.agent.question.own.option"));
+            ideaArea.setPrefRowCount(2);
+            getChildren().addAll(ownIdeaRadio, ideaArea);
+            if (proposal.options().isEmpty()) {
+                // Without suggested answers the own answer is the only one.
+                ownIdeaRadio.setSelected(true);
+            }
+            return;
+        }
         getChildren().addAll(ownIdeaRadio, sectionLabel(I18n.get("ai.triage.ownIdea.label")), ideaArea,
             wrapped(I18n.get("ai.triage.ownIdea.hint")));
     }
@@ -197,7 +224,8 @@ final class SolutionChoicePane extends VBox {
         message.setVisible(false);
         message.setManaged(false);
         ruleSection.getChildren().addAll(sectionLabel(I18n.get("ai.triage.rule.label")), ruleArea,
-            wrapped(I18n.get("ai.triage.rule.hintProceed")), targetRow, skillHint);
+            wrapped(I18n.get(proposal.isQuestion() ? "ai.agent.question.rule.hint" : "ai.triage.rule.hintProceed")),
+            targetRow, skillHint);
         getChildren().addAll(ruleSection, message);
     }
 
@@ -213,6 +241,12 @@ final class SolutionChoicePane extends VBox {
             }
         });
         HBox buttons = new HBox(8, proceedButton, asRequestedButton, cancelButton);
+        if (proposal.isQuestion()) {
+            // A question has no "as requested": the answer, or stopping the run.
+            proceedButton.setText(I18n.get("ai.agent.question.answer"));
+            cancelButton.setText(I18n.get("ai.agent.question.stop"));
+            buttons.getChildren().remove(asRequestedButton);
+        }
         getChildren().add(buttons);
     }
 
@@ -350,7 +384,7 @@ final class SolutionChoicePane extends VBox {
         boolean ideaMissing = ownIdeaRadio.isSelected() && ideaText().isBlank();
         proceedButton.setDisable(saving || decided || ideaMissing);
         // Proceed is disabled for an empty own idea; the tooltip says what is missing.
-        proceedButton.setTooltip(ideaMissing ? new Tooltip(I18n.get("ai.triage.ownIdea.prompt")) : null);
+        proceedButton.setTooltip(ideaMissing ? new Tooltip(ideaArea.getPromptText()) : null);
         asRequestedButton.setDisable(saving || decided);
         cancelButton.setDisable(saving || decided);
     }
