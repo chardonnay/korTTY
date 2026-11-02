@@ -12,18 +12,31 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  * Shows an external skill's pending update as a side-by-side diff — the library version left, the
- * provider version right — before anything is replaced. The result is {@code true} for "Apply update".
+ * provider version right — before anything is decided. An unchanged skill is offered the update; a skill the user
+ * or the skill optimizer changed is never overwritten, only offered a copy of the provider version or a skip.
+ * The result is the chosen {@link ExternalAiSkillUpdateDecision}; closing the dialog decides nothing.
  */
-final class ExternalAiSkillUpdateDialog extends ThemeAwareDialog<Boolean> {
+final class ExternalAiSkillUpdateDialog extends ThemeAwareDialog<ExternalAiSkillUpdateDecision> {
 
     ExternalAiSkillUpdateDialog(Window owner, AiSkill skill, String newRevision, String newContent) {
-        setTitle(I18n.get("settings.aiSkills.external.update.title"));
-        setHeaderText(I18n.get("settings.aiSkills.external.update.header",
-            Objects.requireNonNullElse(skill.getName(), ""), ExternalAiSkillSupport.shortRevision(newRevision)));
+        boolean locallyModified = ExternalAiSkillSupport.isLocallyModified(skill);
+        String name = Objects.requireNonNullElse(skill.getName(), "");
+        String revision = ExternalAiSkillSupport.shortRevision(newRevision);
+        // A changed skill is not offered the update, so its title and header must not ask whether to apply it.
+        setTitle(I18n.get(locallyModified
+            ? "settings.aiSkills.external.update.modifiedTitle"
+            : "settings.aiSkills.external.update.title"));
+        setHeaderText(I18n.get(locallyModified
+            ? "settings.aiSkills.external.update.modifiedHeader"
+            : "settings.aiSkills.external.update.header", name, revision));
         setResizable(true);
         if (owner != null) {
             initOwner(owner);
@@ -47,7 +60,7 @@ final class ExternalAiSkillUpdateDialog extends ThemeAwareDialog<Boolean> {
         VBox.setVgrow(diffPane, Priority.ALWAYS);
 
         VBox root = new VBox(10, header, diffPane);
-        if (ExternalAiSkillSupport.isLocallyModified(skill)) {
+        if (locallyModified) {
             Label warning = new Label(I18n.get("settings.aiSkills.external.update.modifiedWarning"));
             warning.setWrapText(true);
             warning.setStyle("-fx-text-fill: #d97706;");
@@ -56,12 +69,31 @@ final class ExternalAiSkillUpdateDialog extends ThemeAwareDialog<Boolean> {
         root.setPadding(new Insets(14));
         getDialogPane().setContent(root);
 
-        ButtonType apply = new ButtonType(I18n.get("settings.aiSkills.external.update.apply"), ButtonBar.ButtonData.OK_DONE);
-        getDialogPane().getButtonTypes().setAll(apply, ButtonType.CANCEL);
-        ((Button) getDialogPane().lookupButton(apply)).setDefaultButton(false);
+        Map<ButtonType, ExternalAiSkillUpdateDecision> decisions = new LinkedHashMap<>();
+        for (ExternalAiSkillUpdateDecision decision : ExternalAiSkillUpdateDecision.offeredFor(locallyModified)) {
+            decisions.put(new ButtonType(label(decision), buttonData(decision)), decision);
+        }
+        List<ButtonType> buttonTypes = new ArrayList<>(decisions.keySet());
+        buttonTypes.add(ButtonType.CANCEL);
+        getDialogPane().getButtonTypes().setAll(buttonTypes);
+        for (ButtonType decisionButton : decisions.keySet()) {
+            ((Button) getDialogPane().lookupButton(decisionButton)).setDefaultButton(false);
+        }
         getDialogPane().setPrefWidth(1120);
         getDialogPane().setPrefHeight(720);
         setOnHidden(event -> diffPane.dispose());
-        setResultConverter(buttonType -> buttonType == apply);
+        setResultConverter(decisions::get);
+    }
+
+    private static String label(ExternalAiSkillUpdateDecision decision) {
+        return switch (decision) {
+            case APPLY -> I18n.get("settings.aiSkills.external.update.apply");
+            case COPY -> I18n.get("settings.aiSkills.external.update.copy");
+            case SKIP -> I18n.get("settings.aiSkills.external.update.skip");
+        };
+    }
+
+    private static ButtonBar.ButtonData buttonData(ExternalAiSkillUpdateDecision decision) {
+        return decision == ExternalAiSkillUpdateDecision.APPLY ? ButtonBar.ButtonData.OK_DONE : ButtonBar.ButtonData.OTHER;
     }
 }

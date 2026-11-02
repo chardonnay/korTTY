@@ -268,6 +268,8 @@ public final class AiSkillRepository {
                 source.getSourceUrl(),
                 source.getRevision(),
                 source.getContentSha256(),
+                source.getDescriptionSha256(),
+                source.getSkippedRevision(),
                 source.getImportedAt());
     }
 
@@ -376,9 +378,7 @@ public final class AiSkillRepository {
                 accepted.add(skill);
                 continue;
             }
-            Optional<String> refusal = korttyChange && previous != null && !sameApartFromRules(previous, skill)
-                ? Optional.of("korTTY may only add learned rules to the skill \"" + skill.getName() + "\".")
-                : validator.apply(skill);
+            Optional<String> refusal = refusalOf(previous, skill, korttyChange);
             if (refusal.isEmpty()) {
                 accepted.add(skill);
                 continue;
@@ -396,6 +396,21 @@ public final class AiSkillRepository {
             }
         }
         return new Outcome(changed, copies(storedSkills()), List.copyOf(refusals));
+    }
+
+    /**
+     * Why {@code skill} may not replace {@code previous}, the stored version, or nothing when it may. A korTTY change
+     * may only add learned rules; an update may not move a locally changed imported skill to another revision.
+     */
+    private Optional<String> refusalOf(AiSkill previous, AiSkill skill, boolean korttyChange) {
+        if (korttyChange && previous != null && !sameApartFromRules(previous, skill)) {
+            return Optional.of("korTTY may only add learned rules to the skill \"" + skill.getName() + "\".");
+        }
+        if (ExternalAiSkillSupport.replacesLocalChange(previous, skill)) {
+            return Optional.of("The skill \"" + skill.getName() + "\" was changed after the provider update was made, "
+                + "so the update was not saved and the stored version was kept.");
+        }
+        return validator.apply(skill);
     }
 
     private static List<List<Object>> persistedForms(List<AiSkill> skills) {

@@ -118,7 +118,7 @@ class AiSkillListFormatTest {
         assertThat(text).startsWith("🔄 Mine\n");
         assertThat(text).contains(I18n.get("settings.aiSkills.status.disabled") + " - SkillsMP");
         assertThat(text).contains(" - " + I18n.get("settings.aiSkills.badge.updateAvailable"));
-        assertThat(text).endsWith(" - " + I18n.get("settings.aiSkills.badge.edited"));
+        assertThat(text).endsWith(" - " + I18n.get("settings.aiSkills.badge.changed"));
         assertThat(AiSkillListFormat.externalListText(skill, "GitHub", false, false)).endsWith(" - GitHub");
     }
 

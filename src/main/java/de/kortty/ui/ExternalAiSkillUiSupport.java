@@ -99,6 +99,9 @@ final class ExternalAiSkillUiSupport {
         if (cause instanceof AiSkillSecretCheck.RefusedException refused) {
             return refused.getMessage();
         }
+        if (cause instanceof ExternalAiSkillSupport.LocallyModifiedException modified) {
+            return I18n.get("settings.aiSkills.external.update.refused", modified.skillName());
+        }
         Throwable shown = cause != null ? cause : failure;
         String message = shown != null && shown.getMessage() != null ? shown.getMessage()
             : shown != null ? shown.getClass().getSimpleName() : "";

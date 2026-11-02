@@ -56,6 +56,7 @@ import javafx.stage.Window;
 import javafx.util.Duration;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -65,6 +66,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -416,7 +418,7 @@ final class AiSkillsPane extends VBox {
         externalStateLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(externalStateLabel, Priority.ALWAYS);
         externalOpenButton.setOnAction(event -> openExternalSource());
-        externalUpdateButton.setOnAction(event -> showExternalUpdate());
+        externalUpdateButton.setOnAction(event -> showExternalUpdate(selectedAiSkill));
         externalBanner = new HBox(8, externalStateLabel, externalUpdateButton, externalOpenButton);
         externalBanner.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         externalBanner.setVisible(false);
@@ -1121,7 +1123,7 @@ final class AiSkillsPane extends VBox {
             providerName(skill), source.getReference() != null ? source.getReference() : "",
             ExternalAiSkillSupport.shortRevision(source.getRevision())));
         if (ExternalAiSkillSupport.isLocallyModified(skill)) {
-            text.append('\n').append(I18n.get("settings.aiSkills.external.banner.modified"));
+            text.append('\n').append(I18n.get("settings.aiSkills.external.banner.changed"));
         }
         boolean updateAvailable = pendingUpdates.containsKey(skill.getId());
         if (updateAvailable) {
@@ -1236,28 +1238,79 @@ final class AiSkillsPane extends VBox {
             }));
     }
 
-    private void showExternalUpdate() {
+    /** Shows the pending update of {@code selected}. The decision is carried out on the live skill, see below. */
+    private void showExternalUpdate(AiSkill selected) {
         snapshotSelectedAiSkillEditorState();
-        AiSkill skill = selectedAiSkill;
-        ExternalAiSkillDocument latest = skill != null ? pendingUpdates.get(skill.getId()) : null;
+        ExternalAiSkillDocument latest = selected != null ? pendingUpdates.get(selected.getId()) : null;
         if (latest == null) {
             return;
         }
         try {
             String newContent = ExternalAiSkillSupport.updatedContent(latest);
-            boolean apply = new ExternalAiSkillUpdateDialog(dialogWindow(), skill, latest.revision(), newContent)
-                .showAndWait().orElse(false);
-            if (!apply) {
+            String shownContent = selected.getContent();
+            String shownDescription = selected.getDescription();
+            Optional<ExternalAiSkillUpdateDecision> decision = new ExternalAiSkillUpdateDialog(
+                dialogWindow(), selected, latest.revision(), newContent).showAndWait();
+            if (decision.isEmpty()) {
                 return;
             }
-            ExternalAiSkillSupport.applyUpdate(skill, latest, System.currentTimeMillis());
-            pendingUpdates.remove(skill.getId());
-            loadAiSkillIntoEditor(skill);
-            aiSkillListView.refresh();
-            statusLabel.setText(I18n.get("settings.aiSkills.external.update.done"));
+            // The dialog is modal, but its nested event loop still runs store changes (an optimizer result, a
+            // learned rule), which replace this pane's skill objects. The decision acts on the live skill, and only
+            // while it still holds the text the dialog diffed; otherwise the dialog is shown again with the current text.
+            AiSkill skill = ExternalAiSkillSupport.findById(aiSkills, selected.getId());
+            if (skill == null) {
+                statusLabel.setText(I18n.get("settings.aiSkills.external.update.gone"));
+                return;
+            }
+            if (!ExternalAiSkillSupport.holdsText(skill, shownContent, shownDescription)) {
+                statusLabel.setText(I18n.get("settings.aiSkills.external.update.changedWhileOpen"));
+                showExternalUpdate(skill);
+                return;
+            }
+            switch (decision.get()) {
+                case APPLY -> {
+                    ExternalAiSkillSupport.applyUpdate(skill, latest, System.currentTimeMillis());
+                    pendingUpdates.remove(skill.getId());
+                    loadAiSkillIntoEditor(skill);
+                    aiSkillListView.refresh();
+                    statusLabel.setText(I18n.get("settings.aiSkills.external.update.done"));
+                }
+                case COPY -> importUpdateAsCopy(skill, latest);
+                case SKIP -> {
+                    ExternalAiSkillSupport.skipRevision(skill, latest);
+                    pendingUpdates.remove(skill.getId());
+                    aiSkillListView.refresh();
+                    updateExternalBanner(skill);
+                    statusLabel.setText(I18n.get("settings.aiSkills.external.update.skipped",
+                        ExternalAiSkillSupport.shortRevision(latest.revision())));
+                }
+            }
         } catch (Exception e) {
             showAiSkillError(ExternalAiSkillUiSupport.describe(e));
         }
+    }
+
+    /**
+     * Adds the provider version of {@code skill} as a new, deactivated local skill and selects it. A copy of the same
+     * revision that is in the list already is selected instead, so repeated imports do not add identical skills.
+     * {@code skill} keeps its text and its pending update.
+     */
+    private void importUpdateAsCopy(AiSkill skill, ExternalAiSkillDocument latest) throws IOException {
+        AiSkill copy = ExternalAiSkillSupport.copyAsLocalSkill(skill, latest);
+        AiSkill existing = ExternalAiSkillSupport.findLocalByName(aiSkills, copy.getName());
+        if (existing == null) {
+            aiSkills.add(copy);
+        }
+        AiSkill target = existing != null ? existing : copy;
+        localViewButton.setSelected(true);
+        aiSkillSearchField.clear();
+        aiSkillListView.getItems().setAll(visibleAiSkills());
+        aiSkillListView.getSelectionModel().clearSelection();
+        aiSkillListView.getSelectionModel().select(target);
+        updateAiSkillCounts();
+        statusLabel.setText(existing != null
+            ? I18n.get("settings.aiSkills.external.update.alreadyCopied", existing.getName())
+            : I18n.get("settings.aiSkills.external.update.copied", copy.getName()));
     }
 
     private void importAiSkills() {

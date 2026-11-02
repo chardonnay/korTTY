@@ -4,6 +4,7 @@ import de.kortty.memory.MemoryConsentFixture;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillLearnedRule;
 import de.kortty.model.AiSkillOrigin;
+import de.kortty.model.AiSkillProvider;
 import de.kortty.model.AiSkillTarget;
 import org.testng.annotations.Test;
 
@@ -474,6 +475,102 @@ class AiSkillRepositoryTest {
             repository.snapshot().get(0).setContent("changed in a copy");
 
             assertThat(manager.getSettings().getAiSkills().get(0).getContent()).isEqualTo("stored");
+        } finally {
+            cleanUp(manager, dir);
+        }
+    }
+
+    private static final String IMPORTED_V1 = "---\nname: pdf\ndescription: d\n---\n# v1 long text";
+    private static final String IMPORTED_V2 = "---\nname: pdf\ndescription: d\n---\n# v2 new";
+
+    private static AiSkill imported(String revision, String markdown) throws Exception {
+        String reference = "https://github.com/anthropics/skills/tree/main/skills/pdf";
+        return ExternalAiSkillSupport.toSkill(new ExternalAiSkillDocument(reference, reference + "/SKILL.md", revision,
+            markdown, "pdf"), AiSkillProvider.defaults().get(0), 1L);
+    }
+
+    private static ExternalAiSkillDocument providerVersion(String revision, String markdown) {
+        String reference = "https://github.com/anthropics/skills/tree/main/skills/pdf";
+        return new ExternalAiSkillDocument(reference, reference + "/SKILL.md", revision, markdown, "pdf");
+    }
+
+    @Test
+    void anUnsavedUpdateCannotOverwriteATextTheOptimizerStoredAfterIt() throws Exception {
+        Path dir = tempDirectory();
+        GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+        try {
+            manager.getSettings().setAiSkills(List.of(imported("sha1", IMPORTED_V1)));
+            AiSkillRepository repository = repository(manager);
+            List<AiSkill> base = repository.snapshot();
+            // The pane applies the provider's update, not saved yet.
+            AiSkill pane = new AiSkill(base.get(0));
+            ExternalAiSkillSupport.applyUpdate(pane, providerVersion("sha2", IMPORTED_V2), 2L);
+            // The skill optimizer stores a shortened text of the stored version.
+            AiSkill optimized = new AiSkill(base.get(0));
+            optimized.setContent("# v1 short");
+            repository.commit(base, List.of(optimized));
+            // The pane adopts that store, and the user saves.
+            List<AiSkill> adopted = AiSkillRepository.threeWayMerge(base, List.of(pane), repository.snapshot());
+            AiSkillRepository.Outcome outcome = repository.commit(repository.snapshot(), adopted);
+
+            assertThat(outcome.refusals()).hasSize(1);
+            AiSkill stored = manager.getSettings().getAiSkills().get(0);
+            assertThat(stored.getContent()).isEqualTo("# v1 short");
+            assertThat(stored.getExternalSource().getRevision()).isEqualTo("sha1");
+        } finally {
+            cleanUp(manager, dir);
+        }
+    }
+
+    @Test
+    void anAppliedUpdateIsStoredWhenNothingChangedMeanwhile() throws Exception {
+        Path dir = tempDirectory();
+        GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+        try {
+            manager.getSettings().setAiSkills(List.of(imported("sha1", IMPORTED_V1)));
+            AiSkillRepository repository = repository(manager);
+            List<AiSkill> base = repository.snapshot();
+            AiSkill pane = new AiSkill(base.get(0));
+            ExternalAiSkillSupport.applyUpdate(pane, providerVersion("sha2", IMPORTED_V2), 2L);
+
+            AiSkillRepository.Outcome outcome = repository.commit(base, List.of(pane));
+
+            assertThat(outcome.refusals()).isEmpty();
+            AiSkill stored = manager.getSettings().getAiSkills().get(0);
+            assertThat(stored.getContent()).isEqualTo("# v2 new");
+            assertThat(stored.getExternalSource().getRevision()).isEqualTo("sha2");
+            assertThat(ExternalAiSkillSupport.isLocallyModified(stored)).isFalse();
+        } finally {
+            cleanUp(manager, dir);
+        }
+    }
+
+    @Test
+    void aStoreChangeWhileTheUpdateDialogIsOpenLeavesTheLiveSkillRefusingTheDecidedUpdate() throws Exception {
+        Path dir = tempDirectory();
+        GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+        try {
+            manager.getSettings().setAiSkills(List.of(imported("sha1", IMPORTED_V1)));
+            AiSkillRepository repository = repository(manager);
+            List<AiSkill> base = repository.snapshot();
+            // The skill the update dialog shows, with the text it diffs.
+            AiSkill shown = new AiSkill(base.get(0));
+            String shownContent = shown.getContent();
+            String shownDescription = shown.getDescription();
+            // While the dialog is open, the optimizer stores a shortened text and the pane adopts it.
+            AiSkill optimized = new AiSkill(base.get(0));
+            optimized.setContent("# v1 short");
+            repository.commit(base, List.of(optimized));
+            List<AiSkill> adopted = AiSkillRepository.threeWayMerge(base, List.of(shown), repository.snapshot());
+
+            AiSkill live = ExternalAiSkillSupport.findById(adopted, shown.getId());
+
+            assertThat(live).isNotSameInstanceAs(shown);
+            assertThat(ExternalAiSkillSupport.holdsText(live, shownContent, shownDescription)).isFalse();
+            expectThrows(ExternalAiSkillSupport.LocallyModifiedException.class,
+                () -> ExternalAiSkillSupport.applyUpdate(live, providerVersion("sha2", IMPORTED_V2), 2L));
+            assertThat(live.getContent()).isEqualTo("# v1 short");
+            assertThat(manager.getSettings().getAiSkills().get(0).getContent()).isEqualTo("# v1 short");
         } finally {
             cleanUp(manager, dir);
         }
