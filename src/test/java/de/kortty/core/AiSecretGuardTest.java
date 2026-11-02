@@ -45,6 +45,28 @@ class AiSecretGuardTest {
         }
     }
 
+    // The shapes CodeQL named for the code-expression pattern: with optional closing brackets, a run of brackets could be
+    // split into calls and subscripts in exponentially many ways. Each value now has one reading.
+    @Test(timeOut = 5_000)
+    void aLongRunOfBracketsIsJudgedWithoutBacktracking() {
+        for (String value : List.of("@_->A(" + "[]->A(".repeat(5_000), "A[(" + "[(".repeat(5_000),
+            "A[[" + "([".repeat(5_000))) {
+            for (String end : List.of("", "!", "))", ")]", "](", "}")) {
+                AiSecretGuard.check("password = " + value + end, List.of());
+            }
+        }
+    }
+
+    @Test
+    void codeExpressionsWithOpenOrChainedBracketsStayCode() {
+        assertAccepted("password = getenv(\"DB_PASS\"");
+        assertAccepted("password = config[\"db\"][\"password\"]");
+        assertAccepted("password = get_secret(name).value");
+        assertAccepted("password = $self->{db}->password(");
+        assertAccepted("token = os.environ.get(\"API_TOKEN\")");
+        assertRefused("password = Winter(2024)!");
+    }
+
     @Test
     void refusesLiteralSecretAssignments() {
         assertRefused("$password = hunter2;");

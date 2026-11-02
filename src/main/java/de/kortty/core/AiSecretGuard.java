@@ -137,6 +137,12 @@ public final class AiSecretGuard {
             + "|process\\.env\\.\\w+"
             + "|ENV\\[.*");
 
+    // A call or a subscript of a code expression. Its argument runs to the next bracket of its kind, and only there may
+    // it end: at its closing bracket, at the end of the value (a value cut at a space), or right before the next call or
+    // subscript. That leaves one way to read a value, so a long run of brackets cannot make the match backtrack.
+    private static final String CALL = "\\((?!\\d)[^()]*+(?:\\)|$|(?=\\())";
+    private static final String SUBSCRIPT = "\\[[^\\[\\]]*+(?:]|$|(?=\\[))";
+
     /**
      * Code expressions, judged on the value as written (trailing {@code ;}, {@code ,} or {@code .} aside): a Perl or shell
      * variable with a letters-only name and its subscripts ({@code $1}, {@code $ARGV[0]}, {@code $self->{token}}), or a
@@ -148,10 +154,10 @@ public final class AiSecretGuard {
      */
     private static final Pattern CODE_EXPRESSION = Pattern.compile(
         "(?:\\$(?:[A-Za-z_]+|\\d+|[@#!?*])|[@%][A-Za-z_]+|@_)"
-            + "(?:(?:->)?(?:\\{[^{}]*}|\\[[^\\[\\]]*])|->[A-Za-z_]\\w*(?:\\([^()]*\\)?)?)*"
+            + "(?:(?:->)?(?:\\{[^{}]*+}|\\[[^\\[\\]]*+])|->[A-Za-z_]\\w*+(?:\\([^()]*+(?:\\)|$))?)*+"
             + "|[A-Za-z_]+(?:(?:\\.|::|->)[A-Za-z_]+)*"
-            + "(?:\\((?!\\d)[^()]*\\)?|\\[[^\\[\\]]*]?)"
-            + "(?:(?:\\.|->)[A-Za-z_]\\w*|\\((?!\\d)[^()]*\\)?|\\[[^\\[\\]]*]?)*"
+            + "(?:" + CALL + "|" + SUBSCRIPT + ")"
+            + "(?:(?:\\.|->)[A-Za-z_]\\w*+|" + CALL + "|" + SUBSCRIPT + ")*+"
             + "|[a-z_]\\w*(?:(?:\\.|::)[A-Za-z_]\\w*)+");
 
     /** Shorter assigned values are operators or code fragments ({@code =>}, {@code $1}); the vault floor. */
