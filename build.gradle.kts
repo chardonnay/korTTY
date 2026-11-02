@@ -404,7 +404,7 @@ dependencies {
     implementation("org.tomlj:tomlj:2.2.0")
 
     // JSON parsing for translation API responses
-    implementation("com.google.code.gson:gson:2.14.0")
+    implementation("com.google.code.gson:gson:2.15.0")
     implementation("org.commonmark:commonmark:0.31.0")
     implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.31.0")
     implementation("com.knuddels:jtokkit:1.1.0")
