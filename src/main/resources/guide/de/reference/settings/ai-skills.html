@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -863,6 +871,13 @@
 <td><code>aiSkillAutoDetectionEnabled</code></td>
 </tr>
 <tr>
+<td>korTTY darf Skills anlegen und gelernte Regeln in Skills speichern</td>
+<td>Schalter</td>
+<td>—</td>
+<td>Ein</td>
+<td><code>aiSkillAutoCreate</code></td>
+</tr>
+<tr>
 <td>Lokal / Extern</td>
 <td>Umschalter</td>
 <td>Lokal: eigene und integrierte Skills; Extern: vom Internet importierte Skills</td>
@@ -889,6 +904,13 @@
 <td>Alphabetisch, Status (zuerst aktiviert)</td>
 <td>–</td>
 <td>–</td>
+</tr>
+<tr>
+<td>Statistik</td>
+<td>Schaltfläche</td>
+<td>Öffnet die Nutzungs- und Größenstatistik der Skills, siehe <a href="#skill-statistik">Skill-Statistik</a></td>
+<td>—</td>
+<td>—</td>
 </tr>
 <tr>
 <td>Schaltfläche „Speichern“</td>
@@ -1005,7 +1027,7 @@
 <p class="admonition-title">Importierte Skills starten deaktiviert</p>
 <p>korTTY übermittelt den Text einer Skill wortwörtlich an das KI-Modell, sodass ein aus dem Internet importierter Skill Anweisungen enthalten kann, die Sie nicht wünschen. Jeder importierte Skill kommt daher <strong>deaktiviert</strong>, unabhängig davon, was in seiner Front-Matter steht. Öffnen Sie ihn im Editor, aktivieren Sie dann <strong>Aktiv</strong> und klicken Sie auf <strong>Speichern</strong>. Nur die Datei <code>SKILL.md</code> wird importiert; Skripte, Referenzdateien und andere Dateien, die zu einem Skill gehören, werden nie heruntergeladen oder ausgeführt.</p>
 </div>
-<p>Wenn ein externes KI-Skill ausgewählt wird, zeigt das Banner über dem Editor den Anbieter, die Quelle und die importierte Revision an. <strong>Quelle öffnen</strong> öffnet die Seite des KI-Skills im Browser. Wenn Sie den Text bearbeiten, markieren das Banner und die Liste das KI-Skill als <strong>Lokal geändert</strong>. Nachdem <strong>Auf Updates prüfen</strong> eine neuere Version gefunden hat, öffnet <strong>Update anzeigen…</strong> einen nebeneinander gestellten Vergleich zwischen Ihrer Version und der des Anbieters. <strong>Update übernehmen</strong> ersetzt den Text und die Beschreibung und behält Ihren Namen, Ihre Tags, Ihr Ziel und Ihren aktiven Status bei; lokale Änderungen am Text werden ersetzt, was der Dialog hervorhebt. Ohne diese Bestätigung wird nichts aktualisiert.</p>
+<p>Wenn ein externer KI-Skill ausgewählt wird, zeigt das Banner über dem Editor dessen Anbieter, dessen Quelle und die importierte Revision an. <strong>Quelle öffnen</strong> öffnet die Seite des KI-Skills im Browser. Wenn Sie den Text oder die Beschreibung bearbeiten, markieren das Banner und die Liste den KI-Skill als <strong>Lokal geändert</strong>; <strong>Kürzen…</strong> ändert niemals den Text eines importierten KI-Skills, sondern nur dessen erlernte Regeln. Nach dem <strong>Auf Updates prüfen</strong> eine neuere Version gefunden hat, öffnet <strong>Update anzeigen…</strong> einen nebeneinander gestellten Vergleich Ihrer Version und der Version des Anbieters. <strong>Update übernehmen</strong> ersetzt den Text und die Beschreibung und behält Ihren Namen, Ihre Tags, Ihr Ziel, Ihren aktiven Zustand und Ihre erlernten Regeln bei; ein KI-Skill, der importiert wurde, bevor Beschreibungen erfasst wurden, behält seine Beschreibung. Ein KI-Skill, der <strong>Lokal geändert</strong> ist, wird niemals überschrieben, und der Dialog weist darauf hin: Er bietet <strong>Als Kopie importieren</strong> an, was die Anbieter-Version als neuen, deaktivierten KI-Skill mit dem Namen der Revision hinzufügt, sowie <strong>Diese Version überspringen</strong>, was diese Revision ausblendet, während eine neuere weiterhin angeboten wird. Ohne einen Klick wird nichts aktualisiert, und jede Änderung wird wirksam, wenn Sie auf <strong>Speichern</strong> klicken.</p>
 <h3 id="ki-skills-importieren">KI-Skills importieren<a class="headerlink" href="#ki-skills-importieren" title="Permanent link">&para;</a></h3>
 <p><img alt="Import AI skills from the internet" src="../../../en/assets/screenshots/ai/ai-skills-import.png" /></p>
 <p>Anbieter wählen, eine Suche eingeben und <strong>Suchen</strong> anklicken. Beim Auswählen eines Ergebnisses wird dessen <code>SKILL.md</code> in die Vorschau geladen. Die Ergebnisliste zeigt den Namen, die Quelle, GitHub-Sterne und die Beschreibung jeder Fähigkeit; ein ✓ vor dem Namen kennzeichnet eine Fähigkeit, die bereits in der Bibliothek vorhanden ist. Wählen Sie ein oder mehrere Ergebnisse aus und klicken Sie auf <strong>Auswahl importieren</strong>; Ergebnisse mit ✓ werden übersprungen. Was Sie eingeben, hängt vom Anbieter-Typ ab:</p>
@@ -1091,6 +1113,58 @@
 <p class="admonition-title">Netzwerksicherheit</p>
 <p>korTTY kommuniziert ausschließlich über HTTPS mit Anbietern; reines HTTP wird nur für diesen Computer akzeptiert (<code>localhost</code>). Weiterleitungen werden nicht verfolgt, sodass ein Token oder Passwort niemals an einen anderen Host weitergeleitet wird, und ein <code>SKILL.md</code> größer als 256 KiB wird abgelehnt.</p>
 </div>
+<h2 id="von-kortty-erstellte-ki-skills-und-erlernte-regeln">Von korTTY erstellte KI-Skills und erlernte Regeln<a class="headerlink" href="#von-kortty-erstellte-ki-skills-und-erlernte-regeln" title="Permanent link">&para;</a></h2>
+<p>korTTY kann Regeln, die Sie bestätigen, in Ihren KI-Skills speichern und einen KI-Skill für ein Thema erstellen, das noch keins hat. Ohne Ihre Bestätigung wird nichts gespeichert: Die Regelkarte zeigt den genauen Text und das Ziel, und <strong>Speichern</strong> schreibt ihn. Der Schalter <strong>korTTY darf Skills anlegen und gelernte Regeln in Skills speichern</strong> steuert beides, und die Unternehmensrichtlinie kann ihn sperren.</p>
+<p>Eine Regel, die eine Verbindung benennt, wird in das Gedächtnis dieser Verbindung eingetragen; eine Regel zu einem Thema, das bereits einen KI-Skill hat – eingebaut oder eigenen –, wird in die erlernten Regeln dieses KI-Skills eingetragen; eine Regel zu einer Sprache oder einem Tool ohne KI-Skill erstellt einen; jede andere Regel wird in das globale Gedächtnis eingetragen. Das Gedächtnis selbst wird in <a href="../../features/ai-memory.html">KI-Memory</a> beschrieben.</p>
+<ul>
+<li>Ein von korTTY erstellter Skill zeigt das Badge <strong>NEU · von korTTY erstellt</strong>, bis Sie ihn in der Liste auswählen; danach wird <strong>korTTY</strong> angezeigt. Der Skill, den die Liste beim Öffnen automatisch auswählt, zählt nicht.</li>
+<li>Ein <strong>+N Regel(n)</strong>-Chip zählt die erlernten Regeln, die Sie noch nicht gesehen haben; das Öffnen des KI-Skills markiert sie als gesehen und entfernt den Chip.</li>
+<li>Der Editor listet die gelernten Regeln eines Skills unter <strong>Gelernte Regeln</strong> auf, die nur angezeigt werden, wenn der Skill welche besitzt. <strong>Bearbeiten</strong> ändert den Text einer Regel in einem Dialog, <strong>Löschen</strong> entfernt sie nach einer Bestätigung, und beide werden mit dem Skill gespeichert, wenn Sie auf <strong>Speichern</strong> klicken.</li>
+<li>Gelernte Regeln werden zusammen mit ihrem Skill gesendet, jedes Mal, wenn der Skill für eine Anfrage ausgewählt wird, sofern das Gedächtnis aktiviert ist und die Richtlinie dies zulässt.</li>
+</ul>
+<p>Regeln werden aus Ihren Nachrichten nur im Lernmodus <strong>Regeln vorschlagen</strong> vorgeschlagen; <strong>Als Regel merken…</strong> speichert eine Regel, die Sie selbst verfassen.</p>
+<h2 id="geheimnisse-in-ki-skills">Geheimnisse in KI-Skills<a class="headerlink" href="#geheimnisse-in-ki-skills" title="Permanent link">&para;</a></h2>
+<p>korTTY speichert kein mögliches Passwort, keinen Schlüssel und kein Token in einem Skill, einer erlernten Regel, dem Gedächtnis oder einer genehmigten Gedächtnisdatei. Die Prüfung sucht nach Schlüsselwortphrasen auf Deutsch und Englisch, <code>key=value</code>-Zuweisungen (auch in <code>.env</code>-Dateien und Befehlszeilen-Flags), lange, zufällig aussehende Zeichenketten, Token-Formate, die es kennt, und Werte, die im Passwort-Tresor gespeichert sind, während der Tresor entsperrt ist.</p>
+<p>Wenn Sie einen Skill so ändern, dass er ein mögliches Secret enthält, verweigert <strong>Speichern</strong> das Speichern der Bibliothek und wählt diesen Skill aus. Ein markierter Skill, den Sie nicht ändern, blockiert <strong>Speichern</strong> nicht; sein Badge bleibt, bis das Geheimnis entfernt wird. Die Meldung benennt die Zeile, das Feld und die Art des Geheimnisses, niemals den Wert, zum Beispiel <em>Zeile 4 im Skill-Text sieht so aus, als würde sie ein Geheimnis enthalten (die Zuweisung eines Passworts oder Tokens). Entfernen Sie es und versuchen Sie es erneut.</em> Eine Markdown-Datei oder ein Skill aus dem Internet, der einen Befund enthält, wird beim Import auf dieselbe Weise abgelehnt.</p>
+<p>Beim Start prüft korTTY die vorhandenen Skills und markiert in der Liste einen Skill, der ein mögliches Secret enthält, mit einem <strong>⚠ mögliches Secret</strong>-Badge. Er verändert oder löscht diesen Skill nicht. Ein markierter Skill wird weiterhin mit Anfragen gesendet, bis die Secret-Zeile entfernt wird; nur das ausgehende Masking greift.</p>
+<p>Die Prüfung ist keine Garantie. Ein Passwort, das Sie selbst gewählt haben, ohne Schlüsselwort und nicht im Vault gespeichert, kann nicht zuverlässig erkannt werden, daher schreiben Sie keines in ein KI-Skill.</p>
+<h2 id="skill-statistik">Skill-Statistik<a class="headerlink" href="#skill-statistik" title="Permanent link">&para;</a></h2>
+<p><strong>Statistik</strong> in der Kopfzeile der Liste öffnet die Statistik Ihrer Skills: wie oft jedes mit einer Anfrage gesendet wurde, wie groß es ist und wie sich das ändert. Die Werte stammen aus der lokalen Datei <code>stats/skill-usage.json</code>, siehe <a href="../config-files.html#stats">Konfigurationsdateien</a>.</p>
+<p><img alt="Skill statistics dialog" src="../../../en/assets/screenshots/ai/ai-skill-statistics.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Steuerung</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tag</strong>, <strong>Monat</strong>, <strong>Jahr</strong></td>
+<td>Legt die Granularität des Diagramms und der Größenhistorie fest; die Bereichsliste folgt dieser</td>
+</tr>
+<tr>
+<td>Bereich</td>
+<td>Tag: letzte 30, 90 oder 400 Tage. Monat: letzte 12, 24 oder 60 Monate. Jahr: alle Jahre</td>
+</tr>
+<tr>
+<td><strong>Statistik aufzeichnen</strong></td>
+<td>Schaltet die Aufzeichnung ein oder aus; während sie deaktiviert ist, wird nichts gezählt oder gespeichert. Die Unternehmensrichtlinie kann sie sperren</td>
+</tr>
+<tr>
+<td><strong>Gepinnte einbeziehen</strong></td>
+<td>Zählt auch die Verwendungen von KI-Skills, die einer Verbindung zugewiesen oder explizit ausgewählt wurden. Deaktiviert werden nur automatische Verwendungen angezeigt</td>
+</tr>
+<tr>
+<td><strong>Zurücksetzen...</strong></td>
+<td>Löscht nach einer Bestätigung jeden aufgezeichneten Aufruf und jeden Größenverlauf; die Skills bleiben unverändert</td>
+</tr>
+</tbody>
+</table>
+<p>Die vier Werte oben sind <strong>Automatische Aufrufe</strong>, <strong>Ø Größe aktiver Skills</strong> in Tokens, <strong>Gesendete Skill-Tokens</strong> und <strong>Wachstum pro Monat</strong> in Tokens pro Monat. Das gestapelte Balkendiagramm zeigt die Aufrufe pro Skill im Zeitraum: die acht am häufigsten genutzten Skills und <strong>Andere</strong>. Die Tabelle listet jeden Skill auf, beginnend mit dem am häufigsten genutzten, mit seinem Badge unter dem Namen, automatischen und gepinnten Aufrufen, durchschnittlicher und aktueller Größe, Wachstum pro Monat und in Prozent, letztem Aufruf und erlernten Regeln. Wählen Sie eine Zeile aus, um deren Größenverlauf unter der Tabelle zu sehen.</p>
+<p><strong>Hinweise</strong> nennen die Skills zur Überprüfung: einen, der seit 90 Tagen nicht verwendet wurde, einen, der sich innerhalb von 30 Tagen mehr als verdoppelt hat, und einen mit mehr als 1.000 Tokens. Die letzten beiden bieten <strong>Kürzen...</strong> an.</p>
+<p><strong>Kürzen...</strong> fragt das Standard-KI-Profil um eine kürzere Version des Skills und seiner erlernten Regeln, zeigt die Änderung als Diff mit den Token-Größen vor und nach und speichert nichts, bis Sie auf <strong>Übernehmen</strong> klicken. Der Text eines selbst geschriebenen Skills kann gekürzt werden. Bei einem eingebauten oder importierten Skill werden nur die erlernten Regeln gekürzt, sodass der Text weiterhin Updates erhält. Setzen Sie zuerst ein Standard-KI-Profil; der Dialog weist darauf hin, wenn keines gesetzt ist.</p>
+<p>Tageswerte werden 400 Tage, Monatswerte fünf Jahre und Jahreswerte unbegrenzt aufbewahrt. Der Unternehmensrichtlinien-Schlüssel <code>statistics</code> in <code>[rule.ai-memory]</code> kann die Aufzeichnung für alle deaktivieren; siehe <a href="../enterprise-policy.html#ruleai-memory">Unternehmensrichtlinie</a>.</p>
 <h2 id="notizen">Notizen<a class="headerlink" href="#notizen" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Automatisches Erkennungsverhalten</p>

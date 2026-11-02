@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -848,7 +856,7 @@
 </tr>
 <tr>
 <td><strong>Terminal-Agent</strong></td>
-<td>Agenten-Ausführung, Bestätigung vor Änderungen, Setup-Dialog vor jedem Lauf, Befehlsname und Groß-/Kleinschreibung, Aufgabenziel, Eingabeverlaufgröße</td>
+<td>Agent-Ausführung, Bestätigung vor Änderungen, Setup-Dialog vor jeder Ausführung, Komplexität einschätzen, Befehlsname und Groß-/Kleinschreibung, Aufgabenziel, Größe des Eingabeverlaufs</td>
 </tr>
 <tr>
 <td><strong>Standards</strong></td>
@@ -946,6 +954,13 @@
 <td><code>terminalAgentShowRunDialog</code></td>
 </tr>
 <tr>
+<td>Komplexität einschätzen</td>
+<td>Dropdown</td>
+<td>Automatisch, Immer, Nie</td>
+<td>Automatisch</td>
+<td><code>aiAgentTriageMode</code></td>
+</tr>
+<tr>
 <td>Agent-Kommando</td>
 <td>Text</td>
 <td>—</td>
@@ -975,6 +990,44 @@
 </tr>
 </tbody>
 </table>
+<p><strong>Komplexität einschätzen</strong> bestimmt, wann der Agent vor der Ausführung Lösungsoptionen anbietet. <strong>Automatisch</strong> führt vor jeder Ausführung einen kleinen KI-Aufruf durch und bietet Optionen nur für Anfragen an, die komplex erscheinen, <strong>Immer</strong> bietet sie für jede Ausführung an, und <strong>Nie</strong> führt Anfragen so aus, wie sie sind. Swarm-Ausführungen und geplante Jobs bieten niemals Optionen an. Die Unternehmensrichtlinie kann die Einstellung mit <code>triage</code> unter <code>[rule.ai-memory]</code> sperren. Siehe <a href="../../features/ai-tools.html#losungsoptionen">Lösungsoptionen</a>.</p>
+<h2 id="memory-tab">Memory-Tab<a class="headerlink" href="#memory-tab" title="Permanent link">&para;</a></h2>
+<p>Der <strong>Memory</strong>-Tab des KI-Managers enthält das korTTY-Memory, die Regeln, die KI-Chat- und Agent-Anfragen mitführen. Seine Dateien, Bereiche, Bereinigung und der Schutz Ihres eigenen Textes werden in <a href="../../features/ai-memory.html">KI-Memory</a> beschrieben.</p>
+<table>
+<thead>
+<tr>
+<th>Einstellung</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Standard</th>
+<th>Speichert als</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Memory verwenden</td>
+<td>Schalter</td>
+<td>—</td>
+<td>Ein</td>
+<td><code>aiMemoryEnabled</code></td>
+</tr>
+<tr>
+<td>Lernen</td>
+<td>Dropdown</td>
+<td>Regeln vorschlagen, Aus</td>
+<td>Regeln vorschlagen</td>
+<td><code>aiMemoryLearningMode</code></td>
+</tr>
+<tr>
+<td>Token-Budget</td>
+<td>Zahl</td>
+<td>500–4000</td>
+<td>1500</td>
+<td><code>aiMemoryMaxTokens</code></td>
+</tr>
+</tbody>
+</table>
+<p>Das Token-Budget ist der größte Speicherplatz, den eine einzelne KI-Anfrage mit sich trägt; Einträge, die nicht passen, werden aus dieser Anfrage ausgeschlossen, und eine Unternehmensrichtlinie kann das Budget senken. Im Modus <strong>Regeln vorschlagen</strong> prüft korTTY Ihre Nachrichten auf Inhalte, die für später aufbewahrt werden sollten, und schlägt sie als Regel vor; nichts wird ohne Ihre Bestätigung gespeichert. <strong>Aus</strong> findet keine Regeln.</p>
 <h2 id="ki-profile">KI-Profile<a class="headerlink" href="#ki-profile" title="Permanent link">&para;</a></h2>
 <table>
 <thead>

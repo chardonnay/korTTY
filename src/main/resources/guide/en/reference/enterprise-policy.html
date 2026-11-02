@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -860,7 +868,7 @@
 </tbody>
 </table>
 <p>The enforcement model relies on the operating system's file permissions: the installation directory must be writable only by administrators, which is the default for the locations above. korTTY additionally logs a warning when the active policy file is writable by the current user. During development (never in a packaged installation) a policy can be tested with <code>-Dkortty.policy.file=/path/to/policy.toml</code>.</p>
-<p>If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, the output of terminal panes is not saved for it, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.</p>
+<p>If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, the output of terminal panes is not saved for it, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version. This holds for <code>[rule.ai-memory]</code> too: an unknown key there is logged and ignored, so check the log after you change that table.</p>
 <h2 id="users-groups-and-rule-precedence">Users, groups and rule precedence<a class="headerlink" href="#users-groups-and-rule-precedence" title="Permanent link">&para;</a></h2>
 <p>Rules target the current OS login name (matched lowercase). Group membership comes from two sources at once: groups defined in the policy's <code>[groups]</code> table, and the user's OS-level group memberships. On domain-joined Windows machines the OS groups include Active Directory groups, so rules can target AD groups directly — both fully qualified (<code>ACME\Operations</code>) and as the bare name (<code>operations</code>) — without any directory server configuration.</p>
 <p>Each <code>[[rule]]</code> block optionally names <code>users</code> and/or <code>groups</code>; a rule naming neither applies to every user. Per setting, the most specific tier that sets it wins: <strong>user beats group beats everyone</strong>. That is the familiar group-policy pattern — lock everything down in a baseline rule for everyone, then relax individual settings for a trusted group. When several rules of the same tier set the same key, the most restrictive value applies (<code>deny</code> over <code>read-only</code> over <code>confirm</code> over <code>allow</code>); for server rules, a connection must pass every applicable restriction of the winning tier. The order of rules in the file has no significance.</p>
@@ -1167,6 +1175,12 @@
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
 <td><code>confirm</code> forces interactive approval of every mutating command set and defeats the auto-approve option; <code>read-only</code> lets the agent plan and chat but never execute commands, and greys out <strong>Run</strong> on the <a href="../features/ai-assistant.html#code-blocks-in-the-terminal">code blocks of an AI chat</a> (<strong>Insert</strong> stays, since it runs nothing). Scheduled jobs: under <code>confirm</code> an <a href="../features/jobscheduler.html#security-and-secrets">AI Agent or AI Swarm job</a> blocks every server-changing command, whatever its <strong>AI agent may change the server without runtime confirmation</strong> says, because nobody is there to approve it; under <code>read-only</code> both AI job types end as blocked before they connect. A job is also blocked up front when <code>ai</code> or <code>ai-agent</code> is denied, and a swarm job when <code>ai-swarm</code> is denied</td>
 </tr>
+<tr>
+<td><code>ai-memory</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>The korTTY memory: the <code>MEMORY.md</code> files, the reference files of other tools and the learned rules. <code>deny</code> turns all of it off: no memory is sent with any request, no rule is learned, the user's files are neither read nor written, and organisation memory is not sent either. <code>allow</code> keeps the user's choice but locks the <strong>Use memory</strong> switch in the position the user has. The details are set under <a href="#ruleai-memory"><code>[rule.ai-memory]</code></a></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition note">
@@ -1322,6 +1336,71 @@ at an internal endpoint.</p>
 <li><strong>Tiers</strong> — Like every setting the most specific tier that sets the key wins (user, then group, then all); rules of the same tier take the smaller value, so <code>0</code> beats every positive cap. The key is not a <code>0</code>-means-unlimited value.</li>
 <li><strong>Invalid values</strong> — A negative number or a non-integer (for example <code>"5 MB"</code>) is a policy error like any other malformed value, so the whole file is rejected and the lockdown fallback applies; the fallback forbids storing script text too. Write bytes, optionally with TOML digit separators (<code>5_242_880</code>).</li>
 </ul>
+<h3 id="ruleai-memory"><code>[rule.ai-memory]</code><a class="headerlink" href="#ruleai-memory" title="Permanent link">&para;</a></h3>
+<p>The <code>[rule.ai-memory]</code> table sets how the korTTY memory may be used. Every key is optional; a key the policy does not set keeps the user's own choice. A value outside the listed ones rejects the whole file. An unknown key is a warning in the log and is ignored, like in every other table. As with the other keys, the most specific tier that sets a key wins (user, then group, then all); inside one tier the strictest value applies: <code>disabled</code> over <code>read-only</code> over <code>editable</code>, <code>propose</code> under <code>off</code>, <code>never</code> over <code>always</code> over <code>auto</code>, the smaller token cap, and <code>false</code> over <code>true</code> for the switches.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Values</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>user-memory</code></td>
+<td>string</td>
+<td><code>editable</code>, <code>read-only</code>, <code>disabled</code></td>
+<td><code>read-only</code> reads the user's <code>MEMORY.md</code> files into prompts but never writes them; <code>disabled</code> neither reads nor writes them, and organisation memory is still sent</td>
+</tr>
+<tr>
+<td><code>learning</code></td>
+<td>string</td>
+<td><code>propose</code>, <code>off</code></td>
+<td><code>off</code> finds no rules in conversations and proposes none; the <strong>Learning</strong> setting of the Memory tab is set to the value and locked</td>
+</tr>
+<tr>
+<td><code>skill-creation</code></td>
+<td>boolean</td>
+<td><code>true</code>, <code>false</code></td>
+<td>The switch <strong>korTTY may create skills and save learned rules in them</strong> is set to the value and locked. <code>false</code> means that no rule goes into a skill, new or existing; every rule goes into a memory instead</td>
+</tr>
+<tr>
+<td><code>external-files</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Whether reference files of other tools (CLAUDE.md, AGENTS.md and similar) may be read; <code>deny</code> reads none of them</td>
+</tr>
+<tr>
+<td><code>external-file-roots</code></td>
+<td>array of paths</td>
+<td>absolute or <code>~/</code> paths</td>
+<td>The folders external files must lie in; an empty list allows any folder</td>
+</tr>
+<tr>
+<td><code>max-tokens</code></td>
+<td>integer</td>
+<td><code>300</code> to <code>4000</code></td>
+<td>The memory budget per AI request; the smaller of this and the user's own setting applies</td>
+</tr>
+<tr>
+<td><code>triage</code></td>
+<td>string</td>
+<td><code>auto</code>, <code>always</code>, <code>never</code></td>
+<td>When the agent offers solution options: <code>auto</code> judges each request, <code>always</code> offers options for every run, <code>never</code> runs requests as asked. The user's <strong>Estimate complexity</strong> setting is set to the value and locked</td>
+</tr>
+<tr>
+<td><code>statistics</code></td>
+<td>boolean</td>
+<td><code>true</code>, <code>false</code></td>
+<td>Whether skill statistics are recorded: <code>false</code> records none. Both values set the <strong>Record statistics</strong> switch and lock it</td>
+</tr>
+</tbody>
+</table>
+<h3 id="organisation-memory">Organisation memory<a class="headerlink" href="#organisation-memory" title="Permanent link">&para;</a></h3>
+<p><code>[[organization-memory]]</code> blocks hold rules for the AI that users cannot change. Each block has a <code>title</code> and a <code>content</code> text. korTTY sends the blocks in full, ahead of the user's own memory, with every AI request of every user, and does not cut them to the token budget. A block whose title or content is longer than 8000 characters, or that the secret guard refuses, is dropped with a warning that names the field and the line, never the value. The file holds at most 20 blocks and 16000 characters in all; a block that would exceed either limit is dropped with a warning, and the blocks after it are still checked.</p>
+<p>Organisation memory is sent only while the policy allows the AI features and does not deny <code>ai-memory</code>. The user's own <strong>Use memory</strong> switch and the <code>user-memory</code> key do not stop it.</p>
 <h3 id="ruleai-runtime"><code>[rule.ai-runtime]</code><a class="headerlink" href="#ruleai-runtime" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

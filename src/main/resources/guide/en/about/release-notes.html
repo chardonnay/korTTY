@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -859,6 +867,20 @@
 <ul>
 <li><strong>Disable the AI agent per connection</strong> — for systems such as production servers, switch on <strong>Disable AI agent for this connection</strong> on the <strong>AI</strong> tab of the connection editor. Every agent run on that connection is then refused, from the menu, the <code>agent ...</code> shortcut, accepted plans, swarm members and scheduled AI Agent jobs; <strong>Ask Agent</strong>, <strong>AI Planning</strong> and the other AI features stay available. See <a href="../features/ai-tools.html#connections-without-the-agent">Connections without the agent</a>.</li>
 <li><strong>Search the connection skills</strong> — a search field above the AI Skills list in the connection editor filters them by name, description and tags.</li>
+</ul>
+<h3 id="ai-memory-and-skills">AI memory and skills<a class="headerlink" href="#ai-memory-and-skills" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI memory</strong> — korTTY keeps a memory that AI chat and the agent send with their requests: a global memory and one per connection, as plain Markdown files you can read and edit. It has a token budget per request, your own text is never changed without your confirmation, and the entries korTTY wrote can be merged, archived and restored from the archive (Show archive…); the history keeps earlier versions of a memory file that you can restore. See <a href="../features/ai-memory.html">AI memory</a>.</li>
+<li><strong>Reference files of other tools</strong> — the CLAUDE.md, AGENTS.md and similar files of other AI tools can be added as read-only memory once you have read and approved their text; a changed file waits for your approval again. See <a href="../features/ai-memory.html">AI memory</a>.</li>
+<li><strong>Solution options</strong> — before a complex request runs, the agent can offer a recommended option, your own idea and an optional permanent rule. <strong>Estimate complexity</strong> sets when this happens: Automatic, Always or Never. See <a href="../features/ai-tools.html#solution-options">Solution options</a>.</li>
+<li><strong>Rules learned from conversations</strong> — in <strong>Suggest rules</strong> mode korTTY proposes a rule when a message says something should be kept for later; nothing is saved without your confirmation, and a saved rule can be undone for 30 seconds. Rules go into the memory or into a skill, and korTTY can create a new skill for a topic that has none. See <a href="../features/ai-memory.html">AI memory</a>.</li>
+<li><strong>Remember as rule…</strong> — saves a rule you write yourself, on your own chat messages and in the agent's prompt dialog, without an AI call.</li>
+<li><strong>Sent along</strong> — under each chat answer and each agent run, a collapsed line lists the memory entries, skills and reference files that were sent, masked as they were sent, with their token counts.</li>
+<li><strong>Secret guard</strong> — korTTY refuses to save a password, key or token in a skill, a learned rule, the memory or an approved reference file, and it marks skills and memory notes that already hold one. The value is never shown. See <a href="../reference/settings/ai-skills.html#secrets-in-skills">Secrets in skills</a>.</li>
+<li><strong>Skill statistics</strong> — the <strong>Statistics</strong> dialog of AI Skills shows how often each skill is used, its size and its growth, with hints for skills to review. <strong>Shorten...</strong> proposes a shorter version that is saved only after you confirm it. See <a href="../reference/settings/ai-skills.html#skill-statistics">Skill statistics</a>.</li>
+<li><strong>Imported skill updates</strong> — an update from the internet never overwrites a skill you changed; the update dialog then offers to import the provider's version as a copy or to skip that version. See <a href="../reference/settings/ai-skills.html#external-skills">External skills</a>.</li>
+<li><strong>Enterprise policy</strong> — the <code>[rule.ai-memory]</code> table sets how the memory may be used, how rules are learned, whether korTTY may create skills, which reference files may be read, the token budget, the triage mode and the statistics. <code>[[organization-memory]]</code> adds rules that every user gets and cannot change. See <a href="../reference/enterprise-policy.html#ruleai-memory">Enterprise policy</a>.</li>
+<li><strong>Backups</strong> — the memory and the skill statistics are part of a backup. See <a href="../features/backup.html#backup-file-contents">Backup &amp; restore</a>.</li>
 </ul>
 <h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
 <ul>

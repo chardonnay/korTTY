@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+        <title>AI memory - korTTY Guide</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/en/features/ai-memory.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
+        <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Guide</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Home
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#getting-started-collapse" aria-expanded="false">
+                    Getting started
+                </a>
+                <div class="collapse" id="getting-started-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Building korTTY packages
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            First launch — master password
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Main window overview
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#reference-collapse" aria-expanded="false">
+                    Reference
+                </a>
+                <div class="collapse" id="reference-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menu reference
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard shortcuts
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architecture
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Configuration files
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Policy configuration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
+            Settings
+        </a>
+
+        <div class="collapse" id="settings-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Settings reference
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Appearance, themes & font
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Colors
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Window
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/keyboard.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Resources
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Logging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Export
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Updates
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Translation
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Skills
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hardening options
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Input hardening
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language unification
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#features-collapse" aria-expanded="true">
+                    Features
+                </a>
+                <div class="collapse show" id="features-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Connections
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal sessions
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal notifications
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="command-palette.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Command palette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH Tunnels (Port Forwarding)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="serial.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Serial Connections
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP file manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            File browser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projects (workspaces)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamwork (shared connections)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI assistant
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Local models (llama.cpp and MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG knowledge stores
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal AI agent & tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-agent-designs.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI agent designs
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Swarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-memory.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security — credentials, keys & encryption
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="session-isolation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Session isolation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup & restore
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal recording
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Session journal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal effect plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Languages & dynamic translation
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#about-collapse" aria-expanded="false">
+                    About
+                </a>
+                <div class="collapse" id="about-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Release notes
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback & support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonymous data for application optimization
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="ai-swarm.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="security.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Search"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Clear search" title="Clear search">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="No results found"
+	     data-preparing-text="Preparing search …"
+	     data-more-text="Show {n} more results"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../de/features/ai-memory.html"
+     title="Deutsch" hreflang="de">DE</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="ai-memory">AI memory<a class="headerlink" href="#ai-memory" title="Permanent link">&para;</a></h1>
+<p>AI memory is a short list of standing rules that korTTY adds to your AI requests, so a preference you state once, for example "always use tabs in Perl", applies to later chats and agent runs without being repeated. The rules are plain Markdown files on this computer. You write them yourself, and korTTY can suggest rules it notices in your messages. A suggestion is saved only after you press <strong>Save</strong>, and korTTY never changes or deletes text you wrote.</p>
+<p><img alt="AI memory: what a prompt gets and how a rule is learned" src="../assets/diagrams/ai-memory-flow.svg" /></p>
+<h2 id="what-memory-is">What memory is<a class="headerlink" href="#what-memory-is" title="Permanent link">&para;</a></h2>
+<p>Memory holds two kinds of text. <strong>Your text</strong> is any paragraph you wrote in a memory file. <strong>korTTY entries</strong> are rules that korTTY saved after you confirmed them. Each korTTY entry is fenced by comment lines that name korTTY as its origin, the day it was saved and its source, and it is limited to 300 characters:</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;!-- kortty:entry id=3fa9 origin=korTTY sha256=… created=2026-11-02 source=chat --&gt;
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">-</span><span class="w"> </span>Perl: declare static variables with <span class="sb">`state`</span>.
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>&lt;!-- /kortty:entry --&gt;
+</span></code></pre></div>
+<p>The fence stores a hash of the entry's text. If you edit an entry, its text no longer matches the hash, so korTTY stops treating it as its own and the entry becomes your text.</p>
+<p>Memory has two scopes:</p>
+<ul>
+<li><strong>Global memory</strong> (<code>memory/MEMORY.md</code>) applies to every connection.</li>
+<li><strong>Connection memory</strong> (<code>memory/connections/&lt;id&gt;.md</code>) applies to one saved connection, next to the global rules.</li>
+</ul>
+<p>Both files are in the korTTY configuration folder, <code>~/.kortty/memory/</code>. Approved reference files of other AI tools are a third source, described in <a href="#further-memory-files">Further memory files</a>.</p>
+<h2 id="where-memory-is-used">Where memory is used<a class="headerlink" href="#where-memory-is-used" title="Permanent link">&para;</a></h2>
+<p>The table lists the features that send memory and what each one receives.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Memory sent</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AI chat (questions, summaries, problem solving and the other chat actions)</td>
+<td>Yes</td>
+<td>Global, plus the connection the request belongs to</td>
+</tr>
+<tr>
+<td>AI Agent and AI Planning, including the complexity check</td>
+<td>Yes</td>
+<td>Global, plus the connection of the terminal tab, or the connection a swarm agent or a job drives</td>
+</tr>
+<tr>
+<td>Swarm summary, which combines the results of the agents</td>
+<td>Yes</td>
+<td>Global only</td>
+</tr>
+<tr>
+<td>Scheduled jobs</td>
+<td>Yes</td>
+<td>Global, plus the job's connection when it has one</td>
+</tr>
+<tr>
+<td>Workflow generator</td>
+<td>Yes</td>
+<td>Global only</td>
+</tr>
+<tr>
+<td>Actions with a strict JSON reply, such as the snippet analysis, review, completion and improvement actions</td>
+<td>No</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Correction of a snippet description or selection, selection translation, Mermaid diagrams and AI ASCII-art pictures</td>
+<td>No</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Describing a snippet (selection or whole snippet)</td>
+<td>Yes</td>
+<td>Global, plus the snippet's connection</td>
+</tr>
+</tbody>
+</table>
+<p>The rule detection call receives no memory, and the memory clean-up sends only the entries it works on (see <a href="#clean-up-and-archive">Clean-up and archive</a>).</p>
+<h2 id="the-memory-tab">The Memory tab<a class="headerlink" href="#the-memory-tab" title="Permanent link">&para;</a></h2>
+<p>Open <strong>AI &gt; AI Manager &gt; Memory</strong>. The tab shows the switches, one scope at a time, the budget with what is sent, the entries or the raw Markdown of the scope's file, and the clean-up and history actions.</p>
+<p><img alt="The Memory tab of the AI Manager" src="../assets/screenshots/ai/ai-memory-tab.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Label</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Switch</td>
+<td><strong>Use memory</strong></td>
+<td>Turns your own memory on or off. Off means your memory files and your reference files are not sent, and nothing is learned. Organization rules still follow the policy. Your organization can lock the switch.</td>
+</tr>
+<tr>
+<td>Learning</td>
+<td><strong>Learning</strong>, with <strong>Suggest rules</strong> or <strong>Off</strong></td>
+<td><strong>Suggest rules</strong> lets korTTY propose a rule after a message that asks for something to be kept. <strong>Off</strong> proposes no rules.</td>
+</tr>
+<tr>
+<td>Budget</td>
+<td><strong>Token budget</strong></td>
+<td>The number of tokens of memory one request may carry: 500 to 4000 in steps of 100, default 1500. A cap set by your organization is shown below the field.</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td><strong>Scope</strong>, with <strong>Global (all connections)</strong> or one connection</td>
+<td>Chooses the file that the tab shows and that its buttons change.</td>
+</tr>
+<tr>
+<td>Views</td>
+<td><strong>Entries</strong> and <strong>Markdown</strong></td>
+<td><strong>Entries</strong> lists one row per paragraph or korTTY entry, with <strong>Edit</strong> and <strong>Delete</strong>. <strong>Markdown</strong> shows the raw file in an editor, with <strong>Save file</strong>.</td>
+</tr>
+<tr>
+<td>Budget bar</td>
+<td><code>{0} of {1} tokens · {2} not sent</code></td>
+<td>How much of the budget this scope fills, and how many entries did not fit. The bar turns yellow at 80 percent and red at 100 percent.</td>
+</tr>
+<tr>
+<td>Clean-up</td>
+<td><strong>Clean up...</strong></td>
+<td>Merges korTTY entries or archives old ones. See <a href="#clean-up-and-archive">Clean-up and archive</a>.</td>
+</tr>
+<tr>
+<td>Archive</td>
+<td><strong>Show archive…</strong></td>
+<td>Lists the archived korTTY entries, and lets you restore or delete them.</td>
+</tr>
+<tr>
+<td>History</td>
+<td><strong>History...</strong></td>
+<td>Lists the earlier versions of the file, and restores one after a confirmation.</td>
+</tr>
+<tr>
+<td>Clear</td>
+<td><strong>Clear...</strong></td>
+<td>Empties the file after you confirm a diff. The previous version stays in the history.</td>
+</tr>
+<tr>
+<td>Reload</td>
+<td><strong>Reload</strong></td>
+<td>Reads the file from disk again.</td>
+</tr>
+<tr>
+<td>Save</td>
+<td><strong>Save</strong></td>
+<td>Saves the switches, the learning mode and the budget.</td>
+</tr>
+</tbody>
+</table>
+<p>Each row in the Entries view shows a badge and a status. The badge reads <strong>Your text</strong>, or <code>korTTY</code> with the date and the source of the entry. The status reads <strong>sent</strong> when the row is part of the block of the next request, and <strong>not sent</strong> when the budget leaves it out.</p>
+<p>Warnings appear above the rows. <strong>From your organization</strong> lists the organization rules, which you can read but not change. A policy banner explains when the policy turns the memory off or makes it read-only, and a banner names the environment variable when the <a href="#kill-switch">kill switch</a> is set. A secret banner names the line of a file that may hold a secret (see <a href="#secret-guard">Secret guard</a>).</p>
+<h3 id="global-and-connection-memory">Global and connection memory<a class="headerlink" href="#global-and-connection-memory" title="Permanent link">&para;</a></h3>
+<p>Global memory applies to all connections. Connection memory applies to one saved connection, for example to rules about one server. To edit it, open the connection editor, switch to the <strong>AI</strong> tab and choose <strong>Edit connection memory...</strong>. The button is available once the connection is saved, because its memory file is named after the connection's stable id. The memory opens in its own window with the scope set to that connection, and its settings are saved when the window closes.</p>
+<p>When a request carries memory, the organization rules come first, then the global memory, then the connection memory, and the reference files last. When the budget is tight, the connection memory is filled before the global memory.</p>
+<h2 id="your-text-is-protected">Your text is protected<a class="headerlink" href="#your-text-is-protected" title="Permanent link">&para;</a></h2>
+<p>korTTY changes a memory file only when you ask it to, or when you confirm a change it proposes. Every change that korTTY makes on its own needs its own confirmation, which covers that one change. A change is refused when it would alter a paragraph you wrote, when the file changed outside korTTY in the meantime, or when the new text holds a secret.</p>
+<p><strong>Clear</strong>, the clean-up and the shortening show a diff of the change first, and nothing is saved until you press the button of that diff dialog.</p>
+<p>Each change first saves the previous file in <code>memory/history</code>. korTTY keeps up to 100 versions per scope and drops versions older than 365 days. <strong>History...</strong> lists them and shows the difference to the current file. Restoring a version asks for a confirmation, and the text it replaces stays in the history, so you can go back to it.</p>
+<p>If the file changes outside korTTY while you edit the Markdown view, your unsaved edits are kept and the view says that the file changed. Reload the file to see the new text.</p>
+<h2 id="budget-and-what-is-sent-first">Budget and what is sent first<a class="headerlink" href="#budget-and-what-is-sent-first" title="Permanent link">&para;</a></h2>
+<p>Each request carries one memory block of at most the token budget, which is 1500 tokens by default. Inside that budget, korTTY adds the parts in this order:</p>
+<ol>
+<li>Organization rules, always in full. They are not cut for the budget, but they leave less room for everything else.</li>
+<li>Connection memory: your paragraphs in file order, then the korTTY entries, newest first.</li>
+<li>Global memory: the same order as the connection memory.</li>
+<li>Approved reference files, within their own cap of 1000 tokens in total (see <a href="#further-memory-files">Further memory files</a>).</li>
+</ol>
+<p>A paragraph or entry is sent whole or left out; korTTY never cuts text in the middle. An item that does not fit is skipped, and a smaller item after it can still be sent. The block tells the model how many entries were left out, and the budget bar and the <strong>Sent along</strong> row show the same count.</p>
+<p>A memory file has a soft limit of twice the budget, estimated in tokens. Above that limit korTTY refuses to add more text and asks you to tidy the file first. A file also has a hard limit of 64 KB. If your organization sets a cap on the budget, the field in the Memory tab stops at that cap.</p>
+<h2 id="clean-up-and-archive">Clean-up and archive<a class="headerlink" href="#clean-up-and-archive" title="Permanent link">&para;</a></h2>
+<p><strong>Clean up...</strong> offers three steps. Each one has its own confirmation.</p>
+<ul>
+<li><strong>Merge korTTY entries</strong> asks the default AI profile to combine the korTTY entries into one list without duplicates. Only the korTTY entries are sent to it, and you see the result as a diff before anything is saved. Your own text stays as it is. This step needs a default AI profile, and an unlocked master password vault when that profile's API key is stored there.</li>
+<li><strong>Archive old korTTY entries</strong> lists the korTTY entries that are older than 180 days. You choose which of them to move. Entries you leave unchecked stay in the file.</li>
+<li><strong>Also suggest shortening my own paragraphs</strong> asks the AI for shorter versions of your paragraphs. The suggestion is shown as a separate diff, it changes your own text, and it is saved only after you press <strong>Apply</strong>. It is never combined with the merge.</li>
+</ul>
+<p>If the AI reply cannot be used, or does not match the entries that were sent, nothing is changed and the tab says so.</p>
+<p><strong>Show archive…</strong> lists the archived entries, newest first. <strong>Restore</strong> puts the selected entries back at the end of the file after a confirmation, and checks them like any other korTTY change. <strong>Delete permanently…</strong> removes the selected entries from the archive for good, which cannot be undone. The archive is kept in <code>memory/archive.md</code>.</p>
+<h2 id="further-memory-files">Further memory files<a class="headerlink" href="#further-memory-files" title="Permanent link">&para;</a></h2>
+<p>Other AI tools keep their own rule files, for example <code>CLAUDE.md</code>, <code>AGENTS.md</code>, Gemini or Qwen instructions, Kiro steering files, Cline rules, GitHub Copilot instructions or Cursor rules. korTTY can read these files as reference material once you approve them. It reads the original file each time a prompt is built and sends it only while its content matches the approved digest. They are read-only: korTTY never writes to them and never deletes them.</p>
+<p>In the <strong>Other memory files</strong> section of the Memory tab, choose <strong>Search...</strong> to look in the places that the known tools use, or <strong>Choose file...</strong> to pick a file yourself. <strong>Search...</strong> looks in your home folder and, when you choose one, in a project folder that you name. Only Markdown files (<code>.md</code> and <code>.mdc</code>) can be added. Nothing is read until you pick a file.</p>
+<p>The approval dialog shows the full text of the file before you approve it. Invisible characters are removed, the path and the tool are shown, and a warning appears when the file lies in a Git repository, because a repository can hold files that other people wrote. Press <strong>Approve and send</strong> to approve the text exactly as it is shown.</p>
+<p>Each approved file has a <strong>Send</strong> switch and a status:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>active</strong></td>
+<td>The file is sent with the text you approved.</td>
+</tr>
+<tr>
+<td><strong>changed</strong></td>
+<td>The file changed after your approval, so it is not sent. Press <strong>Approve again...</strong> and check the new text to send it.</td>
+</tr>
+<tr>
+<td><strong>missing</strong></td>
+<td>The file no longer exists.</td>
+</tr>
+<tr>
+<td><strong>refused</strong></td>
+<td>korTTY refuses the file, because its text holds a possible secret or because its location is not allowed. The reason is shown.</td>
+</tr>
+<tr>
+<td><strong>off</strong></td>
+<td>The <strong>Send</strong> switch is off.</td>
+</tr>
+</tbody>
+</table>
+<p>The limits are these:</p>
+<ul>
+<li>korTTY reads a file of up to 1 MB; a larger file is refused.</li>
+<li>Each file adds at most 16 KB to a request, and a longer file is cut at a paragraph or line boundary.</li>
+<li>All approved files together add at most 1000 tokens to a request.</li>
+<li>The text is sent inside a block that is marked as reference data, so it cannot override the korTTY rules.</li>
+<li>A file must lie in your home folder or in the project folder you chose; when your organization sets a list of allowed folders, it must also lie in one of them, and it must not be on a network drive.</li>
+<li>korTTY reads only files on this computer, never files on a remote host that you reach over SSH.</li>
+</ul>
+<p>For a <strong>Local CLI</strong> AI profile, korTTY does not send the reference files that the CLI reads by itself, so they are not sent twice. The table covers the CLIs of Claude Code, Codex, Gemini CLI, OpenCode, Kilo, Qwen Code, Kiro, Cursor agent and Cline.</p>
+<h2 id="the-triage-card">The triage card<a class="headerlink" href="#the-triage-card" title="Permanent link">&para;</a></h2>
+<p>Before an interactive agent run starts, korTTY can judge the request and offer solution options. The setting is <strong>Estimate complexity</strong> in <strong>AI &gt; AI Manager &gt; General</strong>, in the Terminal agent section.</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Automatic</strong></td>
+<td>Before each eligible run, one small AI call judges the request. Only requests that look complex get the options card.</td>
+</tr>
+<tr>
+<td><strong>Always</strong></td>
+<td>Every eligible run shows the options card first.</td>
+</tr>
+<tr>
+<td><strong>Never</strong></td>
+<td>Requests run as they are, without the check and without a card.</td>
+</tr>
+</tbody>
+</table>
+<p>Your organization can set this mode and lock it.</p>
+<p>Eligible runs are interactive agent runs: in the classic AI Agent panel, in the run tab of the chat window and in the host of an agent design. An Ask request, which answers without running commands, a run that already has an accepted plan, and a run in a policy that does not allow planning get no check. Swarm runs and scheduled jobs never get the card.</p>
+<p>In <strong>Automatic</strong> and <strong>Always</strong>, each eligible run first makes one extra small AI call, which carries the run's memory. This costs one additional request per run. The call has a two-minute limit. If it fails or gives no usable answer, the run continues as requested, and the activity log says so.</p>
+<p><img alt="Solution options card for a complex request" src="../assets/screenshots/ai/ai-triage-card.png" /></p>
+<p>The card has these parts:</p>
+<ul>
+<li>a header that says whether the request looks complex, with the reasons for that judgement;</li>
+<li>one card per option, two or three of them, with the recommended option first and marked <strong>Recommended</strong>; each option shows its feasibility, and its <strong>Details</strong> section with the risks, prerequisites, steps and alternatives opens when you select that option;</li>
+<li><strong>My own idea</strong>, with a text field for your own approach or an instruction;</li>
+<li>an optional <strong>Permanent rule</strong>, with the text of the rule and a <strong>Save to</strong> choice.</li>
+</ul>
+<p>The <strong>Save to</strong> choice offers <strong>Global memory</strong>, <strong>This connection</strong>, an existing skill, or a new skill. A rule is saved only when you press <strong>Proceed with selection</strong>. A rule that holds a secret is refused, and the card stays open with the line that was refused.</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Proceed with selection</strong></td>
+<td>Runs the chosen option as the plan of this run. With <strong>My own idea</strong> selected, your text is the plan; otherwise your text is added to the chosen option as an instruction. Saves the permanent rule if you wrote one.</td>
+</tr>
+<tr>
+<td><strong>Run as requested</strong></td>
+<td>Runs the request as you wrote it. Text you typed in the idea field is added as an instruction.</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong></td>
+<td>Ends the run before anything runs.</td>
+</tr>
+</tbody>
+</table>
+<p>If you do not answer within 10 minutes after the card appears, the request runs as asked.</p>
+<h2 id="rule-learning">Rule learning<a class="headerlink" href="#rule-learning" title="Permanent link">&para;</a></h2>
+<p>With <strong>Learning</strong> set to <strong>Suggest rules</strong>, korTTY looks for a lasting rule in your own messages after the answer or the run is complete. The check runs in steps, and most messages stop early.</p>
+<ol>
+<li>A local filter looks for one of these multi-word cues, in German and in English: <code>ab jetzt</code>, <code>ab sofort</code>, <code>in zukunft</code>, <code>künftig</code>, <code>zukünftig</code>, <code>merk dir</code>, <code>merke dir</code>, <code>verwende immer</code>, <code>benutze immer</code>, <code>nutze immer</code>, <code>from now on</code>, <code>remember that</code>, <code>always use</code>, <code>never use</code>, <code>in the future</code>, <code>going forward</code> and <code>make sure to always</code>. A single word such as <code>immer</code> never counts.</li>
+<li>Messages longer than 2000 characters, messages that are mostly code and questions are skipped. A polite request that ends with a question mark is still a request.</li>
+<li>A message with a possible secret is never sent anywhere.</li>
+<li>Otherwise one small AI call decides whether the message asks for a lasting rule. The call uses the profile of the chat or run, the message is masked for that profile, and the call carries no memory, no skills and no internet tools.</li>
+</ol>
+<p>The limits are at most 10 of these calls and 3 proposal cards per day, at most one card per answer or run, and a detection that takes longer than 90 seconds is dropped. A rule that you postponed or rejected is not suggested again for the same message.</p>
+<p><img alt="Rule proposal card under a chat answer" src="../assets/screenshots/ai/ai-rule-proposal.png" /></p>
+<p>The proposal card appears under the chat answer, or in the activity list of the agent run; for other agent designs it appears in the design's popup. It shows these parts:</p>
+<ul>
+<li>the rule as editable text of at most 300 characters, with a counter;</li>
+<li>the target, and a preview of where the rule will be stored;</li>
+<li><strong>Save</strong>, <strong>Not now</strong>, which asks again after 7 days, and <strong>Never for this rule</strong>.</li>
+</ul>
+<p>Nothing is saved until you press <strong>Save</strong>. Then a notice appears for 30 seconds with an <strong>Undo</strong> button, which removes the rule again.</p>
+<p>You can also add a rule yourself. The menu of your own chat message and the agent prompt dialog offer <strong>Remember as rule…</strong>, which opens the same card for the text you choose. No AI call is made for it.</p>
+<h3 id="where-a-rule-goes">Where a rule goes<a class="headerlink" href="#where-a-rule-goes" title="Permanent link">&para;</a></h3>
+<p>korTTY suggests a target for each confirmed rule, and the first rule that fits wins:</p>
+<ol>
+<li>A rule that names the active connection or its host goes into that connection's memory.</li>
+<li>A rule about a topic with a built-in skill, such as Perl, goes into that skill's learned rules. A skill you have tagged with the same topic is preferred over the built-in skill.</li>
+<li>A rule about a known language or tool that has no skill, for example Docker or Terraform, creates a new korTTY skill that starts with this rule.</li>
+<li>Any other rule goes into the global memory.</li>
+</ol>
+<p>Rules go into a skill only when <strong>korTTY may create skills and save learned rules in them</strong> is on in <strong>AI &gt; AI Manager &gt; AI Skills</strong>. For example, if you write "From now on, declare static variables in Perl with <code>state</code>", the built-in Perl skill is suggested as the target, and once you press <strong>Save</strong>, the rule is saved as one of its learned rules. The built-in text of the skill stays unchanged.</p>
+<p>A new skill carries the badge <strong>NEW · created by korTTY</strong> until you select it in the skill list, and then the badge reads <strong>korTTY</strong>. A skill with learned rules shows a <strong>+N rule(s)</strong> chip. Its learned rules are listed in the <strong>Learned rules</strong> section, where you can edit or delete them. Learned rules survive a reset or an automatic update of a built-in skill. They are sent together with the skill whenever the skill is selected for a request, as long as the memory is on. For the size and the use of skills, see <a href="../reference/settings/ai-skills.html">AI Skills</a>.</p>
+<h2 id="sent-along">Sent along<a class="headerlink" href="#sent-along" title="Permanent link">&para;</a></h2>
+<p>Under each chat answer, and in each agent run, a collapsed row starts with <strong>Sent along:</strong>, followed by the counts and the tokens of what was sent: memory, skills and files.</p>
+<p><img alt="The Sent along row, expanded" src="../assets/screenshots/ai/ai-sent-context.png" /></p>
+<p>Expanded, the row lists the memory entries with their origin (organization, global or connection), the skills (automatic or pinned, and shortened when that applies) and the reference files, each with its tokens. The texts are the masked copies that the provider received, and the tooltip of an entry shows its text. If entries did not fit the budget, the row says how many. The design host of other agent designs links to the same information.</p>
+<h2 id="secret-guard">Secret guard<a class="headerlink" href="#secret-guard" title="Permanent link">&para;</a></h2>
+<p>korTTY refuses to store a secret in anything that the AI reads back: AI skills, learned rules, memory files and approved reference files. The guard checks four kinds of text, and the first match refuses the whole text:</p>
+<ul>
+<li>a token in a known format, such as a private key or a provider token;</li>
+<li>a password or token assignment with a literal value, such as <code>db_password=…</code>;</li>
+<li>a password or token named in prose, such as "the password is …";</li>
+<li>a long random-looking string, and, while the vault is unlocked, a password that you saved in korTTY.</li>
+</ul>
+<p>The refusal names the line and the kind of secret. It never shows the value. A file that already contains a secret is only flagged, not changed: its skill gets a badge named <strong>possible secret</strong> in the AI Skills list, and the Memory tab shows a banner with the line. A flagged file or skill is still sent with requests until the secret line is removed; only the outbound masking applies. While a memory file holds a flagged line, every save of that file, including the Markdown view and new rules, is refused until that line is removed. Before a request leaves korTTY, the outbound masking also replaces the values of password cues in prose, except for the integrated local models.</p>
+<div class="admonition warning">
+<p class="admonition-title">Residual risk</p>
+<p>The guard cannot recognise a password that has no keyword, no known format and is not saved in the vault. Do not write passwords, keys or tokens into memory, skills or reference files, and keep them in the vault or in your password manager.</p>
+</div>
+<h2 id="kill-switch">Kill switch<a class="headerlink" href="#kill-switch" title="Permanent link">&para;</a></h2>
+<p>Set the environment variable <code>KORTTY_AI_MEMORY</code> to <code>off</code> to switch your memory off for one session, for example for support sessions, demonstrations or automated tests. With this value, korTTY sends none of your memory files, global, connection or reference, learns no rules and proposes no rules to save. The Memory tab shows a banner that names the variable. You can still open and edit the files in the Memory tab yourself.</p>
+<p>Organization rules are not covered by the variable. They follow the enterprise policy, which can send them even when your own memory is off.</p>
+<h2 id="policy-and-files">Policy and files<a class="headerlink" href="#policy-and-files" title="Permanent link">&para;</a></h2>
+<p>Your organization controls memory with the <code>ai-memory</code> feature, the <code>[rule.ai-memory]</code> table and the <code>[[organization-memory]]</code> blocks. The table covers the user's memory mode, learning, skill creation, reference files, the budget cap, the triage mode and skill statistics. The organization rules are read-only and come first in every prompt. See <a href="../reference/enterprise-policy.html">Enterprise policy</a> for every key.</p>
+<p>The memory files are kept in <code>~/.kortty/memory/</code>: <code>MEMORY.md</code>, the <code>connections</code> folder, <code>history</code>, <code>archive.md</code>, <code>state.json</code>, <code>learning.json</code> and <code>external.json</code>. Skill statistics are in <code>~/.kortty/stats/</code>. korTTY writes these files owner-only, and they are part of a backup. A restore adds only the memory files that do not exist yet on the computer, so it never replaces your current memory, and it never restores the list of approved reference files; approve those again on the new computer. For the complete list of files, see <a href="../reference/config-files.html">Configuration files</a> and <a href="backup.html">Backup</a>.</p>
+<h2 id="related-pages">Related pages<a class="headerlink" href="#related-pages" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="ai-assistant.html">AI assistant</a> describes the chat and the AI profiles that send the memory.</li>
+<li><a href="ai-agent-designs.html">AI agent designs</a> and <a href="ai-swarm.html">AI swarm</a> describe the runs that show the solution options and the Sent along row.</li>
+<li><a href="../reference/settings/ai-skills.html">AI Skills</a> describes skill statistics and learned rules.</li>
+<li><a href="../reference/settings/ai.html">AI settings</a> describes the General tab, where the triage mode is set.</li>
+</ul></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.24.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '..';</script>
+        <script src="../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../assets/js/mkdocs.js"></script>
+			<script src="../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../search/main.js" defer></script>
+
+</body>
+
+</html>

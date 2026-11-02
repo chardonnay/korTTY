@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -859,6 +867,20 @@
 <ul>
 <li><strong>KI-Agent pro Verbindung deaktivieren</strong> — für Systeme wie Produktionsserver, schalten Sie <strong>KI-Agent für diese Verbindung deaktivieren</strong> auf dem <strong>KI</strong>-Tab des Verbindungseditors ein. Jeder Agent-Lauf auf dieser Verbindung wird dann abgelehnt, aus dem Menü, dem <code>agent ...</code>-Shortcut, akzeptierten Plänen, Swarm-Mitgliedern und geplanten KI-Agent-Jobs; <strong>Agent fragen</strong>, <strong>KI-Planung</strong> und die anderen KI-Funktionen bleiben verfügbar. Siehe <a href="../features/ai-tools.html#verbindungen-ohne-agent">Verbindungen ohne Agent</a>.</li>
 <li><strong>Verbindungs-Skills durchsuchen</strong> — Ein Suchfeld über der Liste der KI-Skills im Verbindungs-Editor filtert diese nach Name, Beschreibung und Tags.</li>
+</ul>
+<h3 id="ki-memory-und-ki-skills">KI-Memory und KI-Skills<a class="headerlink" href="#ki-memory-und-ki-skills" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>KI-Memory</strong> — korTTY verwaltet einen Speicher, den der KI-Chat und der Agent ihren Anfragen beifügen: einen globalen Speicher und einen pro Verbindung, als einfache Markdown-Dateien, die Sie lesen und bearbeiten können. Er verfügt über ein Token-Budget pro Anfrage, Ihr eigener Text wird niemals ohne Ihre Bestätigung geändert, und die von korTTY geschriebenen Einträge können zusammengeführt, archiviert und aus dem Archiv wiederhergestellt werden (Archiv anzeigen…); der Verlauf bewahrt frühere Versionen einer Speicherdatei, die Sie wiederherstellen können. Siehe <a href="../features/ai-memory.html">KI-Memory</a>.</li>
+<li><strong>Referenzdateien anderer Tools</strong> — die CLAUDE.md, AGENTS.md und ähnliche Dateien anderer KI-Tools können als schreibgeschütztes Gedächtnis hinzugefügt werden, sobald Sie deren Text gelesen und genehmigt haben; eine geänderte Datei wartet erneut auf Ihre Genehmigung. Siehe <a href="../features/ai-memory.html">KI-Memory</a>.</li>
+<li><strong>Lösungsoptionen</strong> — bevor eine komplexe Anfrage ausgeführt wird, kann der Agent eine empfohlene Option, Ihre eigene Idee und eine optionale dauerhafte Regel anbieten. <strong>Komplexität einschätzen</strong> legt fest, wann dies geschieht: Automatisch, Immer oder Nie. Siehe <a href="../features/ai-tools.html#losungsoptionen">Lösungsoptionen</a>.</li>
+<li><strong>Aus Gesprächen erlernte Regeln</strong> — im Modus <strong>Regeln vorschlagen</strong> schlägt korTTY eine Regel vor, wenn eine Nachricht darauf hindeutet, dass etwas für später aufbewahrt werden soll; nichts wird ohne Ihre Bestätigung gespeichert, und eine gespeicherte Regel kann 30 Sekunden lang rückgängig gemacht werden. Regeln werden in den Speicher oder in ein Skill abgelegt, und korTTY kann ein neues Skill für ein Thema erstellen, das noch keines hat. Siehe <a href="../features/ai-memory.html">KI-Memory</a>.</li>
+<li><strong>Als Regel merken…</strong> — speichert eine Regel, die Sie selbst schreiben, bei Ihren eigenen Chat-Nachrichten und im Prompt-Dialog des Agents, ohne KI-Aufruf.</li>
+<li><strong>Mitgesendet</strong> — unter jeder Chat-Antwort und jedem Agentenlauf listet eine zusammengeklappte Zeile die Speichereinträge, Skills und Referenzdateien, die übermittelt wurden, maskiert wie beim Versand, mit ihren Token-Anzahlen.</li>
+<li><strong>Geheimnis-Schutz</strong> — korTTY verweigert es, ein Passwort, einen Schlüssel oder ein Token in einem Skill, einer erlernten Regel, dem Speicher oder einer genehmigten Referenzdatei zu speichern, und markiert Skills und Speichernotizen, die bereits eines enthalten. Der Wert wird niemals angezeigt. Siehe <a href="../reference/settings/ai-skills.html#geheimnisse-in-ki-skills">Geheimnisse in Skills</a>.</li>
+<li><strong>Skill-Statistik</strong> — der <strong>Statistik</strong>-Dialog der KI-Skills zeigt, wie oft jedes Skill verwendet wird, seine Größe und sein Wachstum, mit Hinweisen für Skills, die überprüft werden sollten. <strong>Kürzen...</strong> schlägt eine kürzere Version vor, die erst nach Ihrer Bestätigung gespeichert wird. Siehe <a href="../reference/settings/ai-skills.html#skill-statistik">Skill-Statistik</a>.</li>
+<li><strong>Importierte Skill-Updates</strong> — ein Update aus dem Internet überschreibt niemals ein Skill, das Sie geändert haben; der Update-Dialog bietet dann an, die Version des Anbieters als Kopie zu importieren oder diese Version zu überspringen. Siehe <a href="../reference/settings/ai-skills.html#externe-skills">Externe Skills</a>.</li>
+<li><strong>Unternehmensrichtlinie</strong> — die <code>[rule.ai-memory]</code> legt fest, wie das Gedächtnis verwendet werden darf, wie Regeln erlernt werden, ob korTTY Skills erstellen darf, welche Referenzdateien gelesen werden dürfen, das Token-Budget, den Triage-Modus und die Statistiken. <code>[[organization-memory]]</code> fügt Regeln hinzu, die jeder Benutzer erhält und die nicht geändert werden können. Siehe <a href="../reference/enterprise-policy.html#ruleai-memory">Unternehmensrichtlinie</a>.</li>
+<li><strong>Backups</strong> — das Gedächtnis und die Skill-Statistiken sind Teil eines Backups. Siehe <a href="../features/backup.html#inhalt-der-sicherungsdatei">Backup &amp; Wiederherstellung</a>.</li>
 </ul>
 <h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
 <ul>

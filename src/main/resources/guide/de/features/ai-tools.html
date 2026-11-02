@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -1070,6 +1078,46 @@
 <li><strong>Zähler im Aktivitätspanel</strong> — Ein Eintrag <strong>Vor dem Senden maskiert</strong> gibt an, wie viele verschiedene Werte im Lauf maskiert wurden. Ein Wert, der in jeder Runde wiederkommt, weil der Agent seinen Befehlsverlauf erneut sendet, zählt einmal.</li>
 <li><strong>Keine Befehle mit dem Platzhalter</strong> — Das Modell erfährt, dass <code>***</code> für ein maskiertes Geheimnis steht. Plant es trotzdem einen Befehl, der <code>***</code> enthält, führt korTTY ihn nicht aus, vermerkt dies im Transkript und teilt es dem Modell in der nächsten Runde mit, weil der Befehl sonst mit den drei wörtlichen Zeichen statt des Geheimnisses liefe.</li>
 </ul>
+<h2 id="losungsoptionen">Lösungsoptionen<a class="headerlink" href="#losungsoptionen" title="Permanent link">&para;</a></h2>
+<p>Bevor der Agent eine Anfrage ausführt, kann er anzeigen, wie fortzufahren ist. <strong>Komplexität einschätzen</strong> in <strong>KI &gt; KI-Manager &gt; Allgemein</strong> legt fest, wann dies geschieht. <strong>Automatisch</strong> (Standard) führt vor jeder Ausführung einen kleinen KI-Aufruf mit dem Speicher der Ausführung durch und bietet Optionen nur an, wenn die Anfrage komplex erscheint; <strong>Immer</strong> bietet Optionen für jede Ausführung an; <strong>Nie</strong> führt die Anfrage so aus, wie sie ist. Falls die Prüfung fehlschlägt, keine verwertbare Antwort liefert oder länger als 120 Sekunden dauert, wird die Anfrage wie gewünscht ausgeführt. Swarm-Ausführungen und geplante Jobs bieten niemals Optionen an.</p>
+<p>Die Karte nennt die Gründe, warum die Anfrage komplex erscheint, sofern dies der Fall ist, sowie zwei oder drei Optionen, wobei die empfohlene zuerst steht. Jede Option zeigt in ihren Details Durchführbarkeit, Risiken, Voraussetzungen, Schritte und Alternativen.</p>
+<table>
+<thead>
+<tr>
+<th>Steuerung</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Eine Option</td>
+<td>Wählt den Ansatz aus, den <strong>Mit Auswahl fortfahren</strong> ausführt</td>
+</tr>
+<tr>
+<td><strong>Eigene Idee</strong></td>
+<td>Ersetzt die Optionen durch Ihren eigenen Ansatz oder Ihre eigene Anweisung. Ist sie ausgewählt, ist Ihr Text der Plan; andernfalls wird er zur gewählten Option hinzugefügt</td>
+</tr>
+<tr>
+<td><strong>Dauerhafte Regel</strong></td>
+<td>Eine optionale Regel, die korTTY für spätere Anfragen aufbewahrt. <strong>Speichern in</strong> wählt <strong>Globales Memory</strong>, <strong>Diese Verbindung</strong>, das Skill, um das es geht, oder ein neues Skill</td>
+</tr>
+<tr>
+<td><strong>Mit Auswahl fortfahren</strong></td>
+<td>Führt die Anfrage mit der gewählten Option oder Ihrer eigenen Idee aus. Nur diese Schaltfläche speichert eine dauerhafte Regel</td>
+</tr>
+<tr>
+<td><strong>Wie angefragt ausführen</strong></td>
+<td>Führt die Anfrage so aus, wie sie geschrieben ist, ohne Optionen</td>
+</tr>
+<tr>
+<td><strong>Abbrechen</strong></td>
+<td>Bricht die Ausführung ab</td>
+</tr>
+</tbody>
+</table>
+<p>Eine Regel, die korTTY nicht speichern kann, z. B. eine, die ein mögliches Secret enthält, lässt die Karte mit dem Grund geöffnet, und der Lauf startet nicht. Wenn innerhalb von 10 Minuten nichts ausgewählt wird, wird die Anfrage wie gewünscht ausgeführt. Die Karte erscheint im klassischen Agent-Panel, im Lauf-Tab des Chat-Fensters und in der Leiste eines Agent-Designs.</p>
+<h2 id="gedachtnis-in-agent-laufen">Gedächtnis in Agent-Läufen<a class="headerlink" href="#gedachtnis-in-agent-laufen" title="Permanent link">&para;</a></h2>
+<p>Jeder Agentlauf und jeder Planungsschritt sendet den korTTY-Speicher: den globalen Speicher und, für eine Verbindung, den Speicher dieser Verbindung – budgetiert und maskiert wie der restliche Prompt. Die Zeile <strong>Mitgesendet</strong> im Panel des Laufs listet die Speichereinträge, Skills und Referenzdateien, die gesendet wurden, mit ihren Token-Zahlen. Im Prompt-Dialog des Agents speichert <strong>Als Regel merken…</strong> eine Regel, die Sie schreiben, ohne KI-Aufruf. Siehe <a href="ai-memory.html">KI-Memory</a>.</p>
 <h2 id="workflow-skript-generieren">Workflow-Skript generieren<a class="headerlink" href="#workflow-skript-generieren" title="Permanent link">&para;</a></h2>
 <p>Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine <strong>Workflow</strong>-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, <strong>Windows-CMD</strong>-Batch oder <strong>AppleScript</strong>) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).</p>
 <p>Für umfassende Aufgaben im gesamten Fleet wird <a href="ai-swarm.html#generieren-sie-einen-multi-server-workflow">KI-Swarm</a> Der Tab verfügt über ein eigenes Dialogfeld <strong>Multi-Server-Workflow erzeugen</strong>, das zusätzliche Funktionen für Host-Listen und Optionen zur Multi-Server-Härtung bereitstellt, den generierten Skriptcode mit Syntaxhervorhebung und einem Live-Zähler für die verstrichene Zeit anzeigt, eine Historie zusätzlicher Anweisungen speichert und die Datei in Snippets mit vorab ausgefülltem Namen speichert.</p>
@@ -1221,6 +1269,10 @@
 <td>Zeigen Sie vor jedem Start einen Setup-Dialog an (bei deaktiviert wird das Standardprofil verwendet)</td>
 </tr>
 <tr>
+<td><strong>Komplexität einschätzen</strong></td>
+<td><strong>Automatisch</strong> (Standard), <strong>Immer</strong> oder <strong>Nie</strong>: wenn der Agent <a href="#losungsoptionen">Lösungsoptionen</a></td>
+</tr>
+<tr>
 <td><strong>Größe der Terminal-Agent-Eingabehistorie</strong></td>
 <td>Anzahl der zuletzt gespeicherten Prompts zu merken (5–100, Standard 20)</td>
 </tr>
@@ -1239,7 +1291,7 @@
 <li>Sprachspezifische Codierungsrichtlinien</li>
 <li>Systemverwaltungskonventionen</li>
 </ul>
-<p>Einzelheiten zur Einrichtung und Verwaltung finden Sie im Abschnitt <strong>KI-Skills</strong> in der Hauptdokumentation zu KI.</p>
+<p>Siehe den <strong>KI-Skills</strong>-Abschnitt in der Hauptdokumentation zur KI für Details zur Einrichtung und Verwaltung. Die für ein Skill bestätigten Regeln werden mit diesem Skill gesendet; siehe <a href="ai-memory.html">KI-Memory</a>.</p>
 <h2 id="internetzugang">Internetzugang<a class="headerlink" href="#internetzugang" title="Permanent link">&para;</a></h2>
 <p>Der Agent kann optional Web-Tools verwenden, wenn für die Aufgabe eindeutig aktuelle oder externe Informationen erforderlich sind:</p>
 <ul>

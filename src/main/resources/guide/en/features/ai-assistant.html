@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -960,6 +968,7 @@
 <li><strong>Import</strong> accepts <code>.md</code> and <code>.markdown</code> files.</li>
 <li><strong>Export</strong> writes Markdown files for the selected skill, or all skills if none is selected.</li>
 <li>The skill list can be sorted alphabetically or by enabled/disabled status.</li>
+<li><strong>Statistics</strong> opens how often each skill was used and how large it is, with hints for skills to review; see <a href="../reference/settings/ai-skills.html#skill-statistics">Skill statistics</a>.</li>
 </ul>
 <h3 id="importexport-format">Import/export format<a class="headerlink" href="#importexport-format" title="Permanent link">&para;</a></h3>
 <div class="language-markdown highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>---
@@ -974,6 +983,7 @@
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>Skill instructions as Markdown.
 </span></code></pre></div>
 <p>Plain Markdown without korTTY frontmatter is imported with the file name as the skill name, target <code>Both</code>, and disabled by default so you can review it before use. Claude/Codex-style <code>SKILL.md</code> frontmatter with <code>name</code>, <code>description</code>, and <code>tags</code> is also accepted and imported disabled by default unless it is korTTY's own export format.</p>
+<p>A file that holds a possible password, key or token is refused on import; see <a href="../reference/settings/ai-skills.html#secrets-in-skills">Secrets in skills</a>.</p>
 <p>When an AI Agent run uses one or more skills, the terminal-agent activity panel logs the selected skill names. Connection tests never send skills, so <code>Reply with exactly OK</code> tests remain stable.</p>
 <h2 id="terminal-selections">Terminal selections<a class="headerlink" href="#terminal-selections" title="Permanent link">&para;</a></h2>
 <h3 id="using-ai-for-selected-text">Using AI for selected text<a class="headerlink" href="#using-ai-for-selected-text" title="Permanent link">&para;</a></h3>
@@ -1038,6 +1048,9 @@
 <li>The chosen AI tab font size is stored globally and reused for future AI result tabs.</li>
 <li>Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate. AI Swarm agents, scheduled AI jobs and session journal calls count towards the same quota.</li>
 <li>If a saved chat references an AI profile that no longer exists, korTTY asks you to choose a replacement profile before you continue with follow-up prompts.</li>
+<li><strong>Sent along.</strong> A collapsed line under each answer lists the memory entries, skills and reference files that were sent with the request, masked as they were sent, with their token counts; see <a href="ai-memory.html">AI memory</a>.</li>
+<li><strong>Remember as rule…</strong> on one of your own messages opens the rule card without an AI call. The card shows the text and where it would be stored, and nothing is saved before you press <strong>Save</strong>.</li>
+<li><strong>Rule suggestions.</strong> In <strong>Suggest rules</strong> learning mode a message that says something should be kept for later can produce a suggestion card under the answer. Nothing is saved until you press <strong>Save</strong>, and <strong>Undo</strong> reverts a saved rule for 30 seconds.</li>
 </ul>
 <h3 id="code-blocks-in-the-terminal">Code blocks in the terminal<a class="headerlink" href="#code-blocks-in-the-terminal" title="Permanent link">&para;</a></h3>
 <p>Code blocks in a chat answer have two more buttons beside the copy button. <strong>Insert</strong> types the block at the prompt of a terminal pane without pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span>, so you can read and change it before you run it. <strong>Run</strong> appears only on blocks in a shell language (<code>```bash</code>, <code>```sh</code>, <code>```zsh</code>, <code>```shell</code>, PowerShell, or an unlabelled block that starts with such a shebang) and runs one command line: it always asks first, in a confirmation that names the pane and shows the exact line, and <strong>Cancel</strong> is the default button, so pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span> by habit runs nothing.</p>
@@ -1115,7 +1128,8 @@
 <li><strong>Profiles</strong> - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile. The editor keeps <strong>Profile name</strong> and <strong>Use as default profile</strong> at the top and groups the fields into four sections: <strong>Connection</strong>, <strong>Model &amp; capabilities</strong>, <strong>Limits &amp; timeouts</strong> and <strong>Budget &amp; usage</strong>. The Connection and Model sections show only the rows of the selected connection mode (the URL and key rows for <strong>HTTP API</strong>, the CLI rows for <strong>Local CLI</strong>, a note for the integrated runtimes). <strong>Test AI Connection</strong> shows its result in a coloured bar under the profile name (green on success, red with the error). <strong>Setup wizard</strong>, <strong>Add</strong> and <strong>Refresh</strong> act on the list and sit above it; <strong>Test AI Connection</strong>, <strong>Delete</strong> and <strong>Save</strong> act on the selected profile and sit under the editor.</li>
 <li><strong>Local Models</strong> - Search Hugging Face, import/download/configure GGUF files, run the post-install function test, and start or stop several llama.cpp sidecars.</li>
 <li><strong>Knowledge Stores</strong> - Create local HNSW stores, add reviewed files or recursive folders, synchronize sources, and run a test search.</li>
-<li><strong>AI Skills</strong> - Manage the skill library described under <a href="#ai-skills">AI Skills</a>.</li>
+<li><strong>AI Skills</strong> - Manage the skill library described under <a href="#ai-skills">AI Skills</a> and its <a href="../reference/settings/ai-skills.html#skill-statistics">statistics</a>.</li>
+<li><strong>Memory</strong> - The korTTY memory that chat and agent requests carry: the global and the per-connection memory, the token budget, learning, clean-up, history and the other memory files. See <a href="ai-memory.html">AI memory</a>.</li>
 <li><strong>Local AI</strong> - Three sections: <strong>Profile roles</strong> assigns the Text/translation, Coding and <a href="session-journal.html#ai-summaries">session journal</a> profiles; <strong>Local runtime</strong> selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; <strong>Hugging Face</strong> stores an encrypted Hugging Face token. <strong>Save</strong> under the sections writes all of them.</li>
 </ul>
 <p>Saved chats are not a tab of the AI Manager. <strong>AI &gt; Saved Chats...</strong> opens them in their own window, with a <strong>Chats</strong> tab for saved AI conversations and a <strong>Swarm Chats</strong> tab for saved <a href="ai-swarm.html">AI Swarm</a> conversations, including those produced by scheduled swarm jobs. There you can open, rename, refresh, or delete an entry.</p>

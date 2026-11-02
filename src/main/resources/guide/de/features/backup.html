@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -994,6 +1002,8 @@
 <li><code>snippet-analyses/</code> — Gespeicherte Vollcodeanalysen, eine Datei pro Snippet. Ein Import verschmilzt sie: Analysen, die nur lokal existieren, bleiben erhalten; fehlende werden hinzugefügt, und mit <strong>Überschreiben</strong> wird eine lokale Datei nur ersetzt, wenn die Kopie aus dem Backup neuer ist. Nicht gespeicherte Snippet-Entwürfe (<code>snippet-drafts/</code>) sind nicht enthalten</li>
 <li><code>ai-chats.xml</code> – Gespeicherte KI-Gespräche</li>
 <li><code>swarm-chats.xml</code> — Gespeicherte KI-Swarm-Chats</li>
+<li><code>memory/</code> — Das KI-Memory: <code>MEMORY.md</code>, die Notizen jeder Verbindung, der Verlauf, das Archiv und der Zustand (siehe <a href="ai-memory.html">KI-Memory</a>). Eine Wiederherstellung fügt nur Dateien hinzu, die lokal nicht existieren, und überschreibt niemals eine. Eine Notiz, die ein mögliches Secret enthält, wird nicht wiederhergestellt, und es wird nichts wiederhergestellt, wenn die Unternehmensrichtlinie das Gedächtnis schreibgeschützt oder deaktiviert. Die Genehmigungen der Referenzdateien anderer Tools (<code>external.json</code>) befinden sich im Archiv, werden aber niemals wiederhergestellt, sodass Sie sie auf dem neuen Computer erneut genehmigen</li>
+<li><code>stats/</code> — Die KI-Skill-Statistiken (<code>skill-usage.json</code>); werden nur wiederhergestellt, wo keine lokale Statistikdatei existiert</li>
 <li><code>master.key</code> — Salt und Prüfhash Ihres Master-Passworts, damit die wiederhergestellten Geheimnisse damit entsperrt werden können</li>
 <li><code>llm/models.xml</code> – Lokale GGUF-Registrierungen und Laufzeiteinstellungen (Modellgewichte sind nicht enthalten)</li>
 <li><code>llm/mlx-models.json</code> — MLX-Modellregistrierungen (Modellgewichte sind nicht enthalten)</li>

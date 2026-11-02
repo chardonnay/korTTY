@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -721,7 +729,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="security.html"
+                    <a href="ai-memory.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -952,9 +960,11 @@
 </tbody>
 </table>
 <p>Der Genehmigungsdialog bietet außerdem die Option <strong>Schwarm abbrechen</strong>, um den gesamten Lauf zu stoppen.</p>
+<p>Der Agent jedes Servers sendet das globale KI-Memory und den Speicher seiner eigenen Verbindung, auf dieselbe Weise maskiert. Swarm-Ausführungen bieten niemals <a href="ai-tools.html#losungsoptionen">Lösungsoptionen</a>. Siehe <a href="ai-memory.html">KI-Memory</a>.</p>
 <h2 id="kombinierte-antwort-und-zeilendetails">Kombinierte Antwort- und Zeilendetails<a class="headerlink" href="#kombinierte-antwort-und-zeilendetails" title="Permanent link">&para;</a></h2>
 <p>Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server in einer Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte trägt immer den Titel <strong>"Fehler"</strong> und listet Abweichungen, fehlende Daten und Fehler (oder <code>-</code>, wenn es nichts zu melden gibt) auf, unabhängig von der Antwortsprache.</p>
 <p>Die Anfrage, die die Antworten zusammenführt, enthält die Antwort und den Ausgabeauszug jedes Servers; daher wird sie wie die eigenen Prompts der Agenten maskiert, bevor sie an ein Profil geht, das kein integriertes Modell und kein vertrauenswürdiger lokaler Endpunkt ist: die Verbindungspasswörter aller Server, die Ersetzungsregeln Ihrer Organisation und bekannte Tokenformate werden zu <code>***</code> (siehe <a href="ai-assistant.html#geheimnisse-vor-dem-senden-maskieren">Geheimnisse vor dem Senden maskieren</a>). Die Zeilen und die Tabelle, die angezeigt wird, wenn die KI nicht erreichbar ist, behalten den Originaltext, weil sie Ihren Computer nie verlassen.</p>
+<p>Die Anfrage, die die Antworten kombiniert, sendet nur das globale KI-Memory, nicht den Speicher einer Verbindung.</p>
 <p>Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – <strong>klicken Sie auf eine beliebige Tabellenzeile</strong>, um sie in einem separaten Fenster <em>Zeilendetails</em> mit lesbarem Layout, <strong>A− / A+</strong>-Schriftgrößenschaltflächen und einer Schaltfläche zum Kopieren in die Zwischenablage zu öffnen.</p>
 <h2 id="konversation-kopieren-exportieren-und-speichern">Konversation kopieren, exportieren und speichern<a class="headerlink" href="#konversation-kopieren-exportieren-und-speichern" title="Permanent link">&para;</a></h2>
 <p>Der Konversationskopf hat einen <strong>Kopieren</strong>-Button (ganze Konversation in die Zwischenablage) und ein <strong>Exportieren</strong>-Menü mit <strong>Plain Text</strong>, <strong>Markdown</strong> und <strong>PDF</strong>. <strong>Speichern</strong> speichert die Konversation als benannten Swarm-Chat; gespeicherte Swarm-Chats erscheinen im <strong>Swarm-Chats</strong>-Tab von <strong>KI &gt; Gespeicherte Chats...</strong> (siehe <a href="ai-assistant.html#ki-manager">KI-Manager</a>) und können später wieder geöffnet werden.</p>

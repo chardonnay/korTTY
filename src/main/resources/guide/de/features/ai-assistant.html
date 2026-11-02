@@ -577,6 +577,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="ai-memory.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Memory
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="security.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -960,6 +968,7 @@
 <li><strong>Import</strong> akzeptiert <code>.md</code>- und <code>.markdown</code>-Dateien.</li>
 <li><strong>Export</strong> schreibt Markdown-Dateien für den ausgewählten Skill oder alle Skills, wenn keiner ausgewählt ist.</li>
 <li>Die Fertigkeitsliste kann alphabetisch oder nach aktiviertem/deaktiviertem Status sortiert werden.</li>
+<li><strong>Statistik</strong> zeigt, wie oft jedes Skill verwendet wurde und wie groß es ist, mit Hinweisen für Skills, die überprüft werden sollten; siehe <a href="../reference/settings/ai-skills.html#skill-statistik">Skill-Statistik</a>.</li>
 </ul>
 <h3 id="import-exportformat">Import-/Exportformat<a class="headerlink" href="#import-exportformat" title="Permanent link">&para;</a></h3>
 <div class="language-markdown highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>---
@@ -974,6 +983,7 @@
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>Skill instructions as Markdown.
 </span></code></pre></div>
 <p>Einfaches Markdown ohne korTTY-Frontmatter wird mit dem Dateinamen als Skill-Name, Ziel <code>Both</code>, importiert und standardmäßig deaktiviert, sodass Sie es vor der Verwendung überprüfen können. <code>SKILL.md</code>-Frontmatter im Claude/Codex-Stil mit <code>name</code>, <code>description</code> und <code>tags</code> wird ebenfalls akzeptiert und der Import ist standardmäßig deaktiviert, es sei denn, es handelt sich um das eigene Exportformat von korTTY.</p>
+<p>Eine Datei, die ein mögliches Passwort, einen Schlüssel oder ein Token enthält, wird beim Import abgelehnt; siehe <a href="../reference/settings/ai-skills.html#geheimnisse-in-ki-skills">Geheimnisse in Skills</a>.</p>
 <p>Wenn eine KI-Agent-Ausführung einen oder mehrere Skills verwendet, protokolliert das Terminal-Agent-Aktivitätsfenster die ausgewählten Skill-Namen. Verbindungstests senden niemals Fertigkeiten, daher bleiben <code>Reply with exactly OK</code>-Tests stabil.</p>
 <h2 id="terminalauswahl">Terminalauswahl<a class="headerlink" href="#terminalauswahl" title="Permanent link">&para;</a></h2>
 <h3 id="verwendung-von-ki-fur-ausgewahlten-text">Verwendung von KI für ausgewählten Text<a class="headerlink" href="#verwendung-von-ki-fur-ausgewahlten-text" title="Permanent link">&para;</a></h3>
@@ -1038,6 +1048,9 @@
 <li>Die ausgewählte Schriftgröße der KI-Registerkarte wird global gespeichert und für zukünftige KI-Ergebnisregisterkarten wiederverwendet.</li>
 <li>Die Token-Nutzung wird pro KI-Profil nach erfolgreichen Anfragen aufgezeichnet, sodass Warnungen und Resetzyklen genau bleiben. KI-Swarm-Agenten, geplante KI-Jobs und Sitzungsjournaleinträge zählen zum selben Kontingent.</li>
 <li>Wenn ein gespeicherter Chat auf ein KI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.</li>
+<li><strong>Mitgesendet.</strong> Eine eingeklappte Zeile unter jeder Antwort listet die Speichereinträge, Skills und Referenzdateien auf, die mit der Anfrage gesendet wurden, maskiert wie beim Versand, mit ihren Token-Zahlen; siehe <a href="ai-memory.html">KI-Memory</a>.</li>
+<li><strong>Als Regel merken…</strong> bei einer Ihrer eigenen Nachrichten öffnet die Regelkarte ohne KI-Aufruf. Die Karte zeigt den Text und den Speicherort, und es wird nichts gespeichert, bevor Sie auf <strong>Speichern</strong> klicken.</li>
+<li><strong>Regelvorschläge.</strong> Im Lernmodus <strong>Regeln vorschlagen</strong> kann eine Nachricht, die angibt, dass etwas für später aufbewahrt werden sollte, eine Vorschlagskarte unter der Antwort erzeugen. Es wird nichts gespeichert, bis Sie auf <strong>Speichern</strong> drücken, und <strong>Rückgängig</strong> macht eine gespeicherte Regel für 30 Sekunden rückgängig.</li>
 </ul>
 <h3 id="codeblocke-im-terminal">Codeblöcke im Terminal<a class="headerlink" href="#codeblocke-im-terminal" title="Permanent link">&para;</a></h3>
 <p>Codeblöcke in einer Chat-Antwort haben neben der Kopier-Schaltfläche zwei weitere Schaltflächen. <strong>Einfügen</strong> gibt den Block an der Eingabeaufforderung eines Terminalbereichs ein, ohne <span class="keys"><kbd class="key-enter">Enter</kbd></span> zu drücken, sodass Sie ihn lesen und ändern können, bevor Sie ihn ausführen. <strong>Ausführen</strong> erscheint nur bei Blöcken in einer Shell-Sprache (<code>```bash</code>, <code>```sh</code>, <code>```zsh</code>, <code>```shell</code>, PowerShell oder ein unbeschrifteter Block, der mit einem solchen Shebang beginnt) und führt eine Befehlszeile aus: Es fragt immer zuerst nach, in einer Bestätigung, die den Bereich nennt und die genaue Zeile zeigt, und <strong>Abbrechen</strong> ist die Standardschaltfläche, sodass ein gewohnheitsmäßiges Drücken von <span class="keys"><kbd class="key-enter">Enter</kbd></span> nichts ausführt.</p>
@@ -1115,7 +1128,8 @@
 <li><strong>Profiles</strong> - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile. The editor keeps <strong>Profile name</strong> and <strong>Use as default profile</strong> at the top and groups the fields into four sections: <strong>Connection</strong>, <strong>Model &amp; capabilities</strong>, <strong>Limits &amp; timeouts</strong> and <strong>Budget &amp; usage</strong>. The Connection and Model sections show only the rows of the selected connection mode (the URL and key rows for <strong>HTTP API</strong>, the CLI rows for <strong>Local CLI</strong>, a note for the integrated runtimes). <strong>Setup wizard</strong>, <strong>Add</strong> and <strong>Refresh</strong> act on the list and sit above it; <strong>Test AI Connection</strong>, <strong>Delete</strong> and <strong>Save</strong> act on the selected profile and sit under the editor.</li>
 <li><strong>Lokale Modelle</strong> – Hugging Face durchsuchen, GGUF-Dateien importieren/herunterladen/konfigurieren, den Funktionstest nach der Installation ausführen und mehrere llama.cpp-Sidecars starten oder stoppen.</li>
 <li><strong>Wissensspeicher</strong> – Erstellen Sie lokale HNSW-Speicher, fügen Sie überprüfte Dateien oder rekursive Ordner hinzu, synchronisieren Sie Quellen und führen Sie eine Testsuche durch.</li>
-<li><strong>KI-Skills</strong> - Verwalten Sie die Skill-Bibliothek, wie unter <a href="#ki-skills">KI-Skills</a> beschrieben.</li>
+<li><strong>KI-Skills</strong> – Verwalten Sie die Skill-Bibliothek, die unter <a href="#ki-skills">KI-Skills</a> beschrieben wird, sowie deren <a href="../reference/settings/ai-skills.html#skill-statistik">Statistiken</a>.</li>
+<li><strong>Memory</strong> – Das korTTY-Memory, das Chat- und Agent-Anfragen begleitet: das globale und das pro Verbindung gespeicherte Memory, das Token-Budget, das Lernen, die Bereinigung, der Verlauf und die anderen Memory-Dateien. Siehe <a href="ai-memory.html">KI-Memory</a>.</li>
 <li><strong>Local AI</strong> - Three sections: <strong>Profile roles</strong> assigns the Text/translation, Coding and <a href="session-journal.html#ki-zusammenfassungen">session journal</a> profiles; <strong>Local runtime</strong> selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; <strong>Hugging Face</strong> stores an encrypted Hugging Face token. <strong>Save</strong> under the sections writes all of them.</li>
 </ul>
 <p>Gespeicherte Chats sind kein Tab des KI-Managers. <strong>KI &gt; Gespeicherte Chats...</strong> öffnet sie in einem eigenen Fenster, mit einem <strong>Chats</strong>-Tab für gespeicherte KI-Unterhaltungen und einem <strong>Swarm-Chats</strong>-Tab für gespeicherte <a href="ai-swarm.html">KI-Swarm</a>-Unterhaltungen, einschließlich der von geplanten Swarm-Jobs erzeugten. Dort können Sie einen Eintrag öffnen, umbenennen, aktualisieren oder löschen.</p>
