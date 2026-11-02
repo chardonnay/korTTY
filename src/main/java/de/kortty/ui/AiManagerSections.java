@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -95,6 +96,55 @@ final class AiManagerSections {
                 keepButtonWidths(child);
             }
         }
+    }
+
+    /**
+     * Scrolls {@code scroller} so the control that takes the keyboard focus is shown. A ScrollPane does not follow the
+     * focus by itself, so Tab could otherwise move the focus to a control below or above the visible part of a tab.
+     */
+    static void revealFocusedControl(ScrollPane scroller) {
+        if (scroller.getScene() != null) {
+            watchFocus(scroller, scroller.getScene());
+        }
+        scroller.sceneProperty().addListener((obs, oldScene, scene) -> {
+            if (scene != null) {
+                watchFocus(scroller, scene);
+            }
+        });
+    }
+
+    private static void watchFocus(ScrollPane scroller, javafx.scene.Scene scene) {
+        scene.focusOwnerProperty().addListener((focusObs, oldOwner, owner) -> revealIfInside(scroller, owner));
+    }
+
+    private static void revealIfInside(ScrollPane scroller, Node focused) {
+        Node content = scroller.getContent();
+        if (content == null || focused == null || !isWithin(focused, content) || focused.getScene() == null) {
+            return;
+        }
+        double scrollable = content.getLayoutBounds().getHeight() - scroller.getViewportBounds().getHeight();
+        if (scrollable <= 0) {
+            return;
+        }
+        double viewport = scroller.getViewportBounds().getHeight();
+        Bounds inContent = content.sceneToLocal(focused.localToScene(focused.getLayoutBounds()));
+        double offset = scroller.getVvalue() * scrollable;
+        double target = offset;
+        if (inContent.getMaxY() > offset + viewport) {
+            target = inContent.getMaxY() - viewport;
+        } else if (inContent.getMinY() < offset) {
+            target = inContent.getMinY();
+        }
+        scroller.setVvalue(Math.max(0, Math.min(1, target / scrollable)));
+    }
+
+    private static boolean isWithin(Node node, Node ancestor) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == ancestor) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static HBox saveRow(Button save, Label status) {

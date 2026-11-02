@@ -493,6 +493,16 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
             }
 
             @Override
+            protected double computePrefHeight(double width) {
+                // The row asks for the height without a width, and a wrapping cell answers with one line. Measure the text
+                // at the column's width instead, so a wrapped name or date makes its row taller rather than cut.
+                double usable = width < 0 && getTableColumn() != null
+                    ? getTableColumn().getWidth() - getInsets().getLeft() - getInsets().getRight()
+                    : width;
+                return super.computePrefHeight(usable);
+            }
+
+            @Override
             protected void updateItem(T item, boolean empty) {
                 super.updateItem(item, empty);
                 Line line = getTableRow() != null ? getTableRow().getItem() : null;

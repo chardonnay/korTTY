@@ -39,7 +39,8 @@ The table lists the features that send memory and what each one receives.
 | Scheduled jobs | Yes | Global, plus the job's connection when it has one |
 | Workflow generator | Yes | Global only |
 | Actions with a strict JSON reply, such as the snippet analysis, review, completion and improvement actions | No | None |
-| Snippet description and selection correction, selection translation, Mermaid diagrams and AI ASCII-art pictures | No | None |
+| Correction of a snippet description or selection, selection translation, Mermaid diagrams and AI ASCII-art pictures | No | None |
+| Describing a snippet (selection or whole snippet) | Yes | Global, plus the snippet's connection |
 
 The rule detection call receives no memory, and the memory clean-up sends only the entries it works on (see [Clean-up and archive](#clean-up-and-archive)).
 
@@ -51,28 +52,28 @@ Open **AI > AI Manager > Memory**. The tab shows the switches, one scope at a ti
 
 | Control | Label | What it does |
 | --- | --- | --- |
-| Switch | `Use memory` | Turns your own memory on or off. Off means your memory files and your reference files are not sent, and nothing is learned. Organization rules still follow the policy. Your organization can lock the switch. |
-| Learning | `Learning`, with `Suggest rules` or `Off` | `Suggest rules` lets korTTY propose a rule after a message that asks for something to be kept. `Off` proposes no rules. |
-| Budget | `Token budget` | The number of tokens of memory one request may carry: 500 to 4000 in steps of 100, default 1500. A cap set by your organization is shown below the field. |
-| Scope | `Scope`, with `Global (all connections)` or one connection | Chooses the file that the tab shows and that its buttons change. |
-| Views | `Entries` and `Markdown` | `Entries` lists one row per paragraph or korTTY entry, with `Edit` and `Delete`. `Markdown` shows the raw file in an editor, with `Save file`. |
+| Switch | **Use memory** | Turns your own memory on or off. Off means your memory files and your reference files are not sent, and nothing is learned. Organization rules still follow the policy. Your organization can lock the switch. |
+| Learning | **Learning**, with **Suggest rules** or **Off** | **Suggest rules** lets korTTY propose a rule after a message that asks for something to be kept. **Off** proposes no rules. |
+| Budget | **Token budget** | The number of tokens of memory one request may carry: 500 to 4000 in steps of 100, default 1500. A cap set by your organization is shown below the field. |
+| Scope | **Scope**, with **Global (all connections)** or one connection | Chooses the file that the tab shows and that its buttons change. |
+| Views | **Entries** and **Markdown** | **Entries** lists one row per paragraph or korTTY entry, with **Edit** and **Delete**. **Markdown** shows the raw file in an editor, with **Save file**. |
 | Budget bar | `{0} of {1} tokens · {2} not sent` | How much of the budget this scope fills, and how many entries did not fit. The bar turns yellow at 80 percent and red at 100 percent. |
-| Clean-up | `Clean up...` | Merges korTTY entries or archives old ones. See [Clean-up and archive](#clean-up-and-archive). |
-| Archive | `Show archive…` | Lists the archived korTTY entries, and lets you restore or delete them. |
-| History | `History...` | Lists the earlier versions of the file, and restores one after a confirmation. |
-| Clear | `Clear...` | Empties the file after you confirm a diff. The previous version stays in the history. |
-| Reload | `Reload` | Reads the file from disk again. |
-| Save | `Save` | Saves the switches, the learning mode and the budget. |
+| Clean-up | **Clean up...** | Merges korTTY entries or archives old ones. See [Clean-up and archive](#clean-up-and-archive). |
+| Archive | **Show archive…** | Lists the archived korTTY entries, and lets you restore or delete them. |
+| History | **History...** | Lists the earlier versions of the file, and restores one after a confirmation. |
+| Clear | **Clear...** | Empties the file after you confirm a diff. The previous version stays in the history. |
+| Reload | **Reload** | Reads the file from disk again. |
+| Save | **Save** | Saves the switches, the learning mode and the budget. |
 
-Each row in the Entries view shows a badge and a status. The badge reads `Your text`, or `korTTY` with the date and the source of the entry. The status reads `sent` when the row is part of the block of the next request, and `not sent` when the budget leaves it out.
+Each row in the Entries view shows a badge and a status. The badge reads **Your text**, or `korTTY` with the date and the source of the entry. The status reads **sent** when the row is part of the block of the next request, and **not sent** when the budget leaves it out.
 
-Warnings appear above the rows. `From your organization` lists the organization rules, which you can read but not change. A policy banner explains when the policy turns the memory off or makes it read-only, and a banner names the environment variable when the [kill switch](#kill-switch) is set. A secret banner names the line of a file that may hold a secret (see [Secret guard](#secret-guard)).
+Warnings appear above the rows. **From your organization** lists the organization rules, which you can read but not change. A policy banner explains when the policy turns the memory off or makes it read-only, and a banner names the environment variable when the [kill switch](#kill-switch) is set. A secret banner names the line of a file that may hold a secret (see [Secret guard](#secret-guard)).
 
 ### Global and connection memory
 
 Global memory applies to all connections. Connection memory applies to one saved connection, for example to rules about one server. To edit it, open the connection editor, switch to the **AI** tab and choose **Edit connection memory...**. The button is available once the connection is saved, because its memory file is named after the connection's stable id. The memory opens in its own window with the scope set to that connection, and its settings are saved when the window closes.
 
-When a request carries memory, the organization rules come first, then the connection memory, then the global memory, and the reference files last.
+When a request carries memory, the organization rules come first, then the global memory, then the connection memory, and the reference files last. When the budget is tight, the connection memory is filled before the global memory.
 
 ## Your text is protected
 
@@ -111,7 +112,7 @@ If the AI reply cannot be used, or does not match the entries that were sent, no
 
 ## Further memory files
 
-Other AI tools keep their own rule files, for example `CLAUDE.md`, `AGENTS.md`, Gemini or Qwen instructions, Kiro steering files, Cline rules, GitHub Copilot instructions or Cursor rules. korTTY can read approved copies of these files as reference material. They are read-only: korTTY never writes to them and never deletes them.
+Other AI tools keep their own rule files, for example `CLAUDE.md`, `AGENTS.md`, Gemini or Qwen instructions, Kiro steering files, Cline rules, GitHub Copilot instructions or Cursor rules. korTTY can read these files as reference material once you approve them. It reads the original file each time a prompt is built and sends it only while its content matches the approved digest. They are read-only: korTTY never writes to them and never deletes them.
 
 In the **Other memory files** section of the Memory tab, choose **Search...** to look in the places that the known tools use, or **Choose file...** to pick a file yourself. **Search...** looks in your home folder and, when you choose one, in a project folder that you name. Only Markdown files (`.md` and `.mdc`) can be added. Nothing is read until you pick a file.
 
@@ -121,11 +122,11 @@ Each approved file has a **Send** switch and a status:
 
 | Status | Meaning |
 | --- | --- |
-| `active` | The file is sent with the text you approved. |
-| `changed` | The file changed after your approval, so it is not sent. Press **Approve again...** and check the new text to send it. |
-| `missing` | The file no longer exists. |
-| `refused` | korTTY refuses the file, because its text holds a possible secret or because its location is not allowed. The reason is shown. |
-| `off` | The **Send** switch is off. |
+| **active** | The file is sent with the text you approved. |
+| **changed** | The file changed after your approval, so it is not sent. Press **Approve again...** and check the new text to send it. |
+| **missing** | The file no longer exists. |
+| **refused** | korTTY refuses the file, because its text holds a possible secret or because its location is not allowed. The reason is shown. |
+| **off** | The **Send** switch is off. |
 
 The limits are these:
 
@@ -133,7 +134,7 @@ The limits are these:
 - Each file adds at most 16 KB to a request, and a longer file is cut at a paragraph or line boundary.
 - All approved files together add at most 1000 tokens to a request.
 - The text is sent inside a block that is marked as reference data, so it cannot override the korTTY rules.
-- A file must lie in your home folder, in the project folder you chose or in a folder that your organization allows, and it must not be on a network drive.
+- A file must lie in your home folder or in the project folder you chose; when your organization sets a list of allowed folders, it must also lie in one of them, and it must not be on a network drive.
 - korTTY reads only files on this computer, never files on a remote host that you reach over SSH.
 
 For a **Local CLI** AI profile, korTTY does not send the reference files that the CLI reads by itself, so they are not sent twice. The table covers the CLIs of Claude Code, Codex, Gemini CLI, OpenCode, Kilo, Qwen Code, Kiro, Cursor agent and Cline.
@@ -144,9 +145,9 @@ Before an interactive agent run starts, korTTY can judge the request and offer s
 
 | Mode | Behavior |
 | --- | --- |
-| `Automatic` | Before each eligible run, one small AI call judges the request. Only requests that look complex get the options card. |
-| `Always` | Every eligible run shows the options card first. |
-| `Never` | Requests run as they are, without the check and without a card. |
+| **Automatic** | Before each eligible run, one small AI call judges the request. Only requests that look complex get the options card. |
+| **Always** | Every eligible run shows the options card first. |
+| **Never** | Requests run as they are, without the check and without a card. |
 
 Your organization can set this mode and lock it.
 
@@ -167,9 +168,9 @@ The **Save to** choice offers **Global memory**, **This connection**, an existin
 
 | Button | Result |
 | --- | --- |
-| `Proceed with selection` | Runs the chosen option as the plan of this run. With **My own idea** selected, your text is the plan; otherwise your text is added to the chosen option as an instruction. Saves the permanent rule if you wrote one. |
-| `Run as requested` | Runs the request as you wrote it. Text you typed in the idea field is added as an instruction. |
-| `Cancel` | Ends the run before anything runs. |
+| **Proceed with selection** | Runs the chosen option as the plan of this run. With **My own idea** selected, your text is the plan; otherwise your text is added to the chosen option as an instruction. Saves the permanent rule if you wrote one. |
+| **Run as requested** | Runs the request as you wrote it. Text you typed in the idea field is added as an instruction. |
+| **Cancel** | Ends the run before anything runs. |
 
 If you do not answer within 10 minutes after the card appears, the request runs as asked.
 
@@ -226,7 +227,7 @@ korTTY refuses to store a secret in anything that the AI reads back: AI skills, 
 - a password or token named in prose, such as "the password is …";
 - a long random-looking string, and, while the vault is unlocked, a password that you saved in korTTY.
 
-The refusal names the line and the kind of secret. It never shows the value. A file that already contains a secret is only flagged, not changed: its skill gets a badge named **possible secret** in the AI Skills list, and the Memory tab shows a banner with the line. Before a request leaves korTTY, the outbound masking also replaces the values of password cues in prose, except for the integrated local models.
+The refusal names the line and the kind of secret. It never shows the value. A file that already contains a secret is only flagged, not changed: its skill gets a badge named **possible secret** in the AI Skills list, and the Memory tab shows a banner with the line. A flagged file or skill is still sent with requests until the secret line is removed; only the outbound masking applies. While a memory file holds a flagged line, every save of that file, including the Markdown view and new rules, is refused until that line is removed. Before a request leaves korTTY, the outbound masking also replaces the values of password cues in prose, except for the integrated local models.
 
 !!! warning "Residual risk"
     The guard cannot recognise a password that has no keyword, no known format and is not saved in the vault. Do not write passwords, keys or tokens into memory, skills or reference files, and keep them in the vault or in your password manager.

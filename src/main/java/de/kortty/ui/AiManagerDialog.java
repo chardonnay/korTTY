@@ -904,6 +904,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             scroller.setFitToHeight(false);
             scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            AiManagerSections.revealFocusedControl(scroller);
             return scroller;
         });
         return tab;
@@ -920,6 +921,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             scroller.setFitToHeight(false);
             scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
             scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            AiManagerSections.revealFocusedControl(scroller);
             return scroller;
         });
         return tab;

@@ -200,6 +200,16 @@ final class AiSkillsPane extends VBox {
         aiSkillListView.setPrefHeight(260);
         aiSkillListView.setMinWidth(260);
         aiSkillListView.setCellFactory(listView -> new ListCell<>() {
+            {
+                // A press on the row the user picks acknowledges it, even when it is already selected: a click on the
+                // selected row changes no selection, so the selection listener would not run.
+                addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, event -> {
+                    if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY && !isEmpty() && getItem() != null) {
+                        acknowledgeKorttyChanges(getItem());
+                    }
+                });
+            }
+
             @Override
             protected void updateItem(AiSkill item, boolean empty) {
                 super.updateItem(item, empty);

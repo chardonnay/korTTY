@@ -1,10 +1,10 @@
 ---
-title: KI-Gedächtnis
+title: KI-Memory
 ---
 
-# KI-Gedächtnis
+# KI-Memory
 
-KI-Speicher ist eine kurze Liste dauerhafter Regeln, die korTTY Ihren KI-Anfragen hinzufügt, sodass eine Präferenz, die Sie einmal äußern – beispielsweise „immer Tabs in Perl verwenden" – auch in späteren Chats und Agent-Läufen gilt, ohne dass Sie sie wiederholen müssen. Die Regeln sind einfache Markdown-Dateien auf diesem Computer. Sie schreiben sie selbst, und korTTY kann Regeln vorschlagen, die es in Ihren Nachrichten bemerkt. Ein Vorschlag wird erst gespeichert, nachdem Sie auf **Speichern** klicken, und korTTY ändert oder löscht niemals Text, den Sie geschrieben haben.
+KI-Memory ist eine kurze Liste dauerhafter Regeln, die korTTY Ihren KI-Anfragen hinzufügt, sodass eine Präferenz, die Sie einmal äußern – beispielsweise „immer Tabs in Perl verwenden" – auch in späteren Chats und Agent-Läufen gilt, ohne dass Sie sie wiederholen müssen. Die Regeln sind einfache Markdown-Dateien auf diesem Computer. Sie schreiben sie selbst, und korTTY kann Regeln vorschlagen, die es in Ihren Nachrichten bemerkt. Ein Vorschlag wird erst gespeichert, nachdem Sie auf **Speichern** klicken, und korTTY ändert oder löscht niemals Text, den Sie geschrieben haben.
 
 ![AI memory: what a prompt gets and how a rule is learned](../assets/diagrams/ai-memory-flow.svg)
 
@@ -39,7 +39,8 @@ Die Tabelle listet die Funktionen auf, die Speicher senden, und was jede davon e
 | Geplante Jobs | Ja | Global, plus die Verbindung des Jobs, wenn er eine hat |
 | Workflow-Generator | Ja | Nur global |
 | Aktionen mit einer strikten JSON-Antwort, wie die Snippet-Analyse-, -Überprüfungs-, -Vervollständigungs- und -Verbesserungsaktionen | Nein | Keine |
-| Snippet-Beschreibung und Auswahlkorrektur, Auswahlübersetzung, Mermaid-Diagramme und KI-ASCII-Artbilder | Nein | Keine |
+| Korrektur einer Snippet-Beschreibung oder -Auswahl, Übersetzung der Auswahl, Mermaid-Diagramme und KI-ASCII-Artbilder | Nein | Keine |
+| Beschreibung eines Snippets (Auswahl oder gesamtes Snippet) | Ja | Global, plus die Verbindung des Snippets |
 
 Der Aufruf zur Regelerkennung erhält kein Gedächtnis, und die Gedächtnisbereinigung sendet nur die Einträge, mit denen sie arbeitet (siehe [Bereinigung und Archiv](#aufraumen-und-archivieren)).
 
@@ -51,28 +52,28 @@ Der Aufruf zur Regelerkennung erhält kein Gedächtnis, und die Gedächtnisberei
 
 | Steuerung | Beschriftung | Wirkung |
 | --- | --- | --- |
-| Schalter | `Use memory` | Schaltet Ihr eigenes Gedächtnis ein oder aus. Aus bedeutet, dass Ihre Gedächtnisdateien und Ihre Referenzdateien nicht gesendet werden und nichts gelernt wird. Organisationsregeln folgen weiterhin der Richtlinie. Ihre Organisation kann den Schalter sperren. |
-| Lernen | `Learning`, mit `Suggest rules` oder `Off` | `Suggest rules` lässt korTTY nach einer Nachricht, die darum bittet, etwas aufzubewahren, eine Regel vorschlagen. `Off` schlägt keine Regeln vor. |
-| Budget | `Token budget` | Die Anzahl der Speicher-Token, die ein Request mitführen darf: 500 bis 4000 in Schritten von 100, Standardwert 1500. Eine von Ihrer Organisation festgelegte Obergrenze wird unter dem Feld angezeigt. |
-| Bereich | `Scope`, mit `Global (all connections)` oder einer Verbindung | Wählt die Datei aus, die der Tab anzeigt und die seine Schaltflächen ändern. |
-| Ansichten | `Entries` und `Markdown` | `Entries` listet eine Zeile pro Absatz oder korTTY-Eintrag, mit `Edit` und `Delete`. `Markdown` zeigt die Rohdatei in einem Editor, mit `Save file`. |
+| Schalter | **Memory verwenden** | Schaltet Ihr eigenes Memory ein oder aus. Aus bedeutet, dass Ihre Memory-Dateien und Ihre Referenzdateien nicht gesendet werden und nichts gelernt wird. Organisationsregeln folgen weiterhin der Richtlinie. Ihre Organisation kann den Schalter sperren. |
+| Lernen | **Lernen**, mit **Regeln vorschlagen** oder **Aus** | **Regeln vorschlagen** lässt korTTY nach einer Nachricht, in der darum gebeten wird, etwas aufzubewahren, eine Regel vorschlagen. **Aus** schlägt keine Regeln vor. |
+| Budget | **Token-Budget** | Die Anzahl der Speicher-Tokens, die eine Anfrage mitführen darf: 500 bis 4000 in Schritten von 100, Standardwert 1500. Eine von Ihrer Organisation festgelegte Obergrenze wird unter dem Feld angezeigt. |
+| Bereich | **Bereich**, mit **Global (alle Verbindungen)** oder einer Verbindung | Wählt die Datei aus, die der Tab anzeigt und die seine Schaltflächen ändern. |
+| Ansichten | **Einträge** und **Markdown** | **Einträge** listet eine Zeile pro Absatz oder korTTY-Eintrag auf, mit **Bearbeiten** und **Löschen**. **Markdown** zeigt die Rohdatei in einem Editor an, mit **Datei speichern**. |
 | Budgetleiste | `{0} of {1} tokens · {2} not sent` | Wie viel des Budgets dieser Bereich ausfüllt und wie viele Einträge nicht gepasst haben. Die Leiste wird bei 80 Prozent gelb und bei 100 Prozent rot. |
-| Aufräumen | `Clean up...` | Führt korTTY-Einträge zusammen oder archiviert ältere. Siehe [Aufräumen und Archivieren](#aufraumen-und-archivieren). |
-| Archiv | `Show archive…` | Listet die archivierten korTTY-Einträge und ermöglicht es Ihnen, sie wiederherzustellen oder zu löschen. |
-| Verlauf | `History...` | Listet die früheren Versionen der Datei und stellt eine davon nach einer Bestätigung wieder her. |
-| Leeren | `Clear...` | Leert die Datei, nachdem Sie einen Diff bestätigt haben. Die vorherige Version bleibt im Verlauf. |
-| Neu laden | `Reload` | Liest die Datei erneut von der Festplatte. |
-| Speichern | `Save` | Speichert die Schalter, den Lernmodus und das Budget. |
+| Aufräumen | **Aufräumen...** | Führt korTTY-Einträge zusammen oder archiviert ältere. Siehe [Aufräumen und Archivieren](#aufraumen-und-archivieren). |
+| Archiv | **Archiv anzeigen…** | Listet die archivierten korTTY-Einträge auf und ermöglicht es Ihnen, sie wiederherzustellen oder zu löschen. |
+| Verlauf | **Verlauf...** | Listet die früheren Versionen der Datei auf und stellt eine davon nach einer Bestätigung wieder her. |
+| Leeren | **Leeren...** | Leert die Datei, nachdem Sie einen Diff bestätigt haben. Die vorherige Version bleibt im Verlauf. |
+| Neu laden | **Neu laden** | Lädt die Datei erneut von der Festplatte. |
+| Speichern | **Speichern** | Speichert die Schalter, den Lernmodus und das Budget. |
 
-Jede Zeile in der Einträge-Ansicht zeigt ein Abzeichen und einen Status. Das Abzeichen lautet `Your text` oder `korTTY` mit dem Datum und der Quelle des Eintrags. Der Status lautet `sent`, wenn die Zeile Teil des Blocks der nächsten Anfrage ist, und `not sent`, wenn das Budget sie auslässt.
+Jede Zeile in der Einträge-Ansicht zeigt ein Badge und einen Status. Das Badge lautet **Eigener Text** oder `korTTY` mit dem Datum und der Quelle des Eintrags. Der Status lautet **gesendet**, wenn die Zeile Teil des Blocks der nächsten Anfrage ist, und **nicht gesendet**, wenn das Budget sie auslässt.
 
-Warnungen erscheinen über den Zeilen. `From your organization` listet die Organisationsregeln auf, die Sie lesen, aber nicht ändern können. Ein Richtlinien-Banner erklärt, wann die Richtlinie den Speicher abschaltet oder schreibgeschützt macht, und ein Banner nennt die Umgebungsvariable, wenn der [Kill-Schalter](#not-aus) gesetzt ist. Ein Geheimnis-Banner nennt die Zeile einer Datei, die ein Geheimnis enthalten kann (siehe [Geheimnisschutz](#geheimnis-schutz)).
+Warnungen werden oberhalb der Zeilen angezeigt. **Von Ihrer Organisation** listet die Organisationsregeln auf, die Sie lesen, aber nicht ändern können. Ein Richtlinien-Banner erklärt, wann die Richtlinie den Speicher deaktiviert oder schreibgeschützt macht, und ein Banner nennt die Umgebungsvariable, wenn der [Kill-Schalter](#not-aus) gesetzt ist. Ein Geheimnis-Banner nennt die Zeile einer Datei, die ein Geheimnis enthalten kann (siehe [Geheimnis-Schutz](#geheimnis-schutz)).
 
 ### Globaler und Verbindungsspeicher
 
 Das globale Memory gilt für alle Verbindungen. Das Verbindungs-Memory gilt für eine gespeicherte Verbindung, beispielsweise für Regeln zu einem Server. Um es zu bearbeiten, öffnen Sie den Verbindungs-Editor, wechseln Sie zum **KI**-Tab und wählen Sie **Verbindungs-Memory bearbeiten...**. Die Schaltfläche ist verfügbar, sobald die Verbindung gespeichert wurde, da ihre Memory-Datei nach der stabilen ID der Verbindung benannt ist. Das Memory öffnet sich in einem eigenen Fenster mit dem auf diese Verbindung gesetzten Geltungsbereich, und seine Einstellungen werden gespeichert, wenn das Fenster geschlossen wird.
 
-Wenn eine Anfrage Memory enthält, gelten zuerst die Organisationsregeln, dann das Verbindungs-Memory, dann das globale Memory und zuletzt die Referenzdateien.
+Wenn eine Anfrage Speicher enthält, stehen die Organisationsregeln an erster Stelle, dann der globale Speicher, dann der Verbindungsspeicher und zuletzt die Referenzdateien. Ist das Budget knapp, wird der Verbindungsspeicher vor dem globalen Speicher befüllt.
 
 ## Eigener Text ist geschützt
 
@@ -103,7 +104,7 @@ Eine Speicherdatei hat eine weiche Grenze von zweimal dem Budget, in Tokens gesc
 
 - **korTTY-Einträge zusammenfassen** bittet das Standard-KI-Profil, die korTTY-Einträge in eine Liste ohne Duplikate zusammenzufassen. Nur die korTTY-Einträge werden an das KI-Profil übermittelt, und Sie sehen das Ergebnis als Diff, bevor etwas gespeichert wird. Ihr eigener Text bleibt unverändert. Dieser Schritt benötigt ein Standard-KI-Profil sowie einen entsperrten Master-Passwort-Tresor, wenn der API-Schlüssel dieses Profils dort gespeichert ist.
 - **Alte korTTY-Einträge archivieren** listet die korTTY-Einträge auf, die älter als 180 Tage sind. Sie wählen aus, welche davon verschoben werden sollen. Einträge, die Sie nicht anhaken, bleiben in der Datei.
-- **Schlage auch Kürzungen meiner Absätze vor** bittet die KI um kürzere Versionen Ihrer Absätze. Der Vorschlag wird als separate Differenz angezeigt, er ändert Ihren eigenen Text und wird erst gespeichert, nachdem Sie auf **Übernehmen** klicken. Er wird niemals mit der Zusammenführung kombiniert.
+- **Auch meine eigenen Absätze zum Kürzen vorschlagen** bittet die KI um kürzere Versionen Ihrer Absätze. Der Vorschlag wird als separate Differenz angezeigt, er ändert Ihren eigenen Text und wird erst gespeichert, nachdem Sie auf **Übernehmen** klicken. Er wird niemals mit der Zusammenführung kombiniert.
 
 Wenn die KI-Antwort nicht verwendet werden kann oder nicht mit den gesendeten Einträgen übereinstimmt, wird nichts geändert und der Tab gibt dies an.
 
@@ -111,7 +112,7 @@ Wenn die KI-Antwort nicht verwendet werden kann oder nicht mit den gesendeten Ei
 
 ## Weitere Speicherdateien
 
-Andere KI-Tools verwenden eigene Regeldateien, zum Beispiel `CLAUDE.md`, `AGENTS.md`, Gemini- oder Qwen-Anweisungen, Kiro-Steuerungsdateien, Cline-Regeln, GitHub-Copilot-Anweisungen oder Cursor-Regeln. korTTY kann genehmigte Kopien dieser Dateien als Referenzmaterial lesen. Sie sind schreibgeschützt: korTTY schreibt niemals in sie und löscht sie niemals.
+Andere KI-Tools führen eigene Regeldateien, zum Beispiel `CLAUDE.md`, `AGENTS.md`, Gemini- oder Qwen-Anweisungen, Kiro-Steuerungsdateien, Cline-Regeln, GitHub-Copilot-Anweisungen oder Cursor-Regeln. korTTY kann diese Dateien als Referenzmaterial lesen, sobald Sie sie genehmigt haben. Es liest die Originaldatei jedes Mal, wenn ein Prompt erstellt wird, und sendet sie nur, solange deren Inhalt mit dem genehmigten Digest übereinstimmt. Sie sind schreibgeschützt: korTTY schreibt niemals in sie und löscht sie niemals.
 
 Im Bereich **Weitere Memory-Dateien** des Memory-Tabs wählen Sie **Suchen...**, um in den Orten zu suchen, die die bekannten Tools verwenden, oder **Datei wählen...**, um eine Datei selbst auszuwählen. **Suchen...** durchsucht Ihren Home-Ordner und, wenn Sie einen auswählen, einen Projektordner, den Sie benennen. Nur Markdown-Dateien (`.md` und `.mdc`) können hinzugefügt werden. Es wird nichts gelesen, bis Sie eine Datei auswählen.
 
@@ -121,11 +122,11 @@ Jede genehmigte Datei verfügt über einen **Senden**-Schalter und einen Status:
 
 | Status | Bedeutung |
 | --- | --- |
-| `active` | Die Datei wird mit dem von Ihnen freigegebenen Text gesendet. |
-| `changed` | Die Datei wurde nach Ihrer Freigabe geändert, daher wird sie nicht gesendet. Drücken Sie **Erneut freigeben...** und prüfen Sie den neuen Text, um ihn zu senden. |
-| `missing` | Die Datei existiert nicht mehr. |
-| `refused` | korTTY lehnt die Datei ab, weil ihr Text möglicherweise ein Geheimnis enthält oder weil ihr Speicherort nicht erlaubt ist. Der Grund wird angezeigt. |
-| `off` | Der **Senden**-Schalter ist aus. |
+| **aktiv** | Die Datei wird mit dem von Ihnen genehmigten Text gesendet. |
+| **geändert** | Die Datei wurde nach Ihrer Freigabe geändert, daher wird sie nicht gesendet. Drücken Sie **Erneut freigeben...** und prüfen Sie den neuen Text, um ihn zu senden. |
+| **fehlt** | Die Datei existiert nicht mehr. |
+| **abgelehnt** | korTTY lehnt die Datei ab, weil ihr Text ein mögliches Secret enthält oder weil ihr Speicherort nicht erlaubt ist. Der Grund wird angezeigt. |
+| **aus** | Der **Senden**-Schalter ist aus. |
 
 Die Grenzen sind wie folgt:
 
@@ -133,7 +134,7 @@ Die Grenzen sind wie folgt:
 - Jede Datei fügt einer Anfrage höchstens 16 KB hinzu, und eine längere Datei wird an einer Absatz- oder Zeilengrenze gekürzt.
 - Alle genehmigten Dateien fügen einer Anfrage zusammen höchstens 1000 Tokens hinzu.
 - Der Text wird in einem Block gesendet, der als Referenzdaten markiert ist, sodass er die korTTY-Regeln nicht überschreiben kann.
-- Eine Datei muss sich in Ihrem Home-Ordner, im Projektordner, den Sie ausgewählt haben, oder in einem Ordner befinden, den Ihre Organisation zulässt, und sie darf sich nicht auf einem Netzlaufwerk befinden.
+- Eine Datei muss sich in Ihrem Home-Ordner oder im von Ihnen gewählten Projektordner befinden; wenn Ihre Organisation eine Liste erlaubter Ordner festlegt, muss sie sich auch in einem dieser Ordner befinden, und sie darf sich nicht auf einem Netzwerklaufwerk befinden.
 - korTTY liest nur Dateien auf diesem Computer, niemals Dateien auf einem Remote-Host, den Sie über SSH erreichen.
 
 Für ein **Lokale CLI** KI-Profil sendet korTTY die Referenzdateien nicht, die die CLI selbst liest, so werden sie nicht doppelt gesendet. Die Tabelle umfasst die CLIs von Claude Code, Codex, Gemini CLI, OpenCode, Kilo, Qwen Code, Kiro, Cursor agent und Cline.
@@ -144,9 +145,9 @@ Bevor ein interaktiver Agent-Lauf startet, kann korTTY die Anfrage bewerten und 
 
 | Modus | Verhalten |
 | --- | --- |
-| `Automatic` | Vor jeder qualifizierten Ausführung bewertet ein kleiner KI-Aufruf die Anfrage. Nur Anfragen, die komplex erscheinen, erhalten die Optionskarte. |
-| `Always` | Jede qualifizierte Ausführung zeigt zuerst die Optionskarte. |
-| `Never` | Anfragen werden so ausgeführt, wie sie sind, ohne Prüfung und ohne Karte. |
+| **Automatisch** | Vor jedem qualifizierten Lauf wird die Anfrage durch einen kleinen KI-Aufruf bewertet. Nur Anfragen, die komplex erscheinen, erhalten die Optionskarte. |
+| **Immer** | Jeder zulässige Lauf zeigt zuerst die Optionskarte. |
+| **Nie** | Anfragen werden unverändert ausgeführt, ohne Prüfung und ohne Karte. |
 
 Ihre Organisation kann diesen Modus festlegen und ihn sperren.
 
@@ -167,9 +168,9 @@ Die **Speichern in**-Auswahl bietet **Globales Memory**, **Diese Verbindung**, e
 
 | Button | Ergebnis |
 | --- | --- |
-| `Proceed with selection` | Führt die gewählte Option als Plan für diesen Lauf aus. Wird **Eigene Idee** ausgewählt, ist Ihr Text der Plan; andernfalls wird Ihr Text der gewählten Option als Anweisung hinzugefügt. Speichert die dauerhafte Regel, wenn Sie eine geschrieben haben. |
-| `Run as requested` | Führt die Anfrage so aus, wie Sie sie geschrieben haben. Text, den Sie im Ideenfeld eingegeben haben, wird als Anweisung hinzugefügt. |
-| `Cancel` | Beendet den Lauf, bevor etwas ausgeführt wird. |
+| **Mit Auswahl fortfahren** | Führt die gewählte Option als Plan für diesen Lauf aus. Wenn **Eigene Idee** ausgewählt ist, ist Ihr Text der Plan; andernfalls wird Ihr Text zur gewählten Option als Anweisung hinzugefügt. Speichert die dauerhafte Regel, wenn Sie eine geschrieben haben. |
+| **Wie angefragt ausführen** | Führt die Anfrage so aus, wie Sie sie formuliert haben. Text, den Sie im Ideenfeld eingegeben haben, wird als Anweisung hinzugefügt. |
+| **Abbrechen** | Beendet die Ausführung, bevor irgendetwas ausgeführt wird. |
 
 Wenn Sie innerhalb von 10 Minuten nach dem Erscheinen der Karte nicht antworten, wird die Anfrage wie gewünscht ausgeführt.
 
@@ -205,7 +206,7 @@ korTTY schlägt für jede bestätigte Regel ein Ziel vor, und die erste passende
 3. Eine Regel zu einer bekannten Sprache oder einem Tool, das noch keinen Skill besitzt, erstellt einen neuen korTTY-Skill, der mit dieser Regel beginnt.
 4. Jede andere Regel wird in den globalen Speicher aufgenommen.
 
-Regeln werden nur dann in einen Skill aufgenommen, wenn **korTTY darf Skills erstellen und gelernte Regeln darin speichern** aktiviert ist in **KI > KI-Manager > KI-Skills**. Zum Beispiel, wenn Sie "Ab jetzt statische Variablen in Perl mit `state` deklarieren" schreiben, wird der integrierte Perl-Skill als Ziel vorgeschlagen, und wenn Sie auf **Speichern** klicken, wird die Regel als eine seiner gelernten Regeln gespeichert. Der integrierte Text des Skills bleibt unverändert.
+Regeln werden nur dann in einen Skill aufgenommen, wenn **korTTY darf Skills anlegen und gelernte Regeln in Skills speichern** aktiviert ist in **KI > KI-Manager > KI-Skills**. Zum Beispiel, wenn Sie "Ab jetzt statische Variablen in Perl mit `state` deklarieren" schreiben, wird der integrierte Perl-Skill als Ziel vorgeschlagen, und wenn Sie auf **Speichern** klicken, wird die Regel als eine seiner gelernten Regeln gespeichert. Der integrierte Text des Skills bleibt unverändert.
 
 Ein neuer Skill trägt das Badge **NEU · von korTTY erstellt**, bis Sie ihn in der Skill-Liste auswählen, und dann lautet das Badge **korTTY**. Ein Skill mit gelernten Regeln zeigt ein **+N Regel(n)**-Chip. Seine gelernten Regeln werden im Abschnitt **Gelernte Regeln** aufgelistet, wo Sie sie bearbeiten oder löschen können. Gelernte Regeln überstehen ein Zurücksetzen oder ein automatisches Update eines integrierten Skills. Sie werden zusammen mit dem Skill gesendet, wann immer der Skill für eine Anfrage ausgewählt wird, solange das Gedächtnis aktiviert ist. Zur Größe und Verwendung von Skills siehe [KI-Skills](../reference/settings/ai-skills.md).
 
@@ -226,7 +227,7 @@ korTTY verweigert es, ein Geheimnis in etwas zu speichern, das die KI zurücklie
 - ein im Fließtext genanntes Passwort oder Token, z. B. "Das Passwort lautet …";
 - eine lange, zufällig wirkende Zeichenfolge und, solange der Tresor entsperrt ist, ein Passwort, das Sie in korTTY gespeichert haben.
 
-Die Ablehnung benennt die Zeile und die Art des Geheimnisses. Sie zeigt niemals den Wert an. Eine Datei, die bereits ein Geheimnis enthält, wird nur markiert, nicht verändert: Ihr Skill erhält in der KI-Skills-Liste ein Abzeichen mit dem Namen **mögliches Geheimnis**, und der Memory-Tab zeigt ein Banner mit der Zeile. Bevor eine Anfrage korTTY verlässt, ersetzt die ausgehende Maskierung auch die Werte von Passwort-Hinweisen im Fließtext, ausgenommen die integrierten lokalen Modelle.
+Die Ablehnung benennt die Zeile und die Art des Geheimnisses. Sie zeigt niemals den Wert an. Eine Datei, die bereits ein Geheimnis enthält, wird nur markiert, nicht verändert: Ihr Skill erhält in der KI-Skills-Liste ein Abzeichen mit der Bezeichnung **mögliches Secret**, und der Memory-Tab zeigt ein Banner mit der Zeile an. Eine markierte Datei oder ein markierter Skill wird weiterhin mit Anfragen gesendet, bis die Zeile mit dem Geheimnis entfernt wird; es gilt nur die ausgehende Maskierung. Solange eine Memory-Datei eine markierte Zeile enthält, wird jedes Speichern dieser Datei, einschließlich der Markdown-Ansicht und neuer Regeln, abgelehnt, bis diese Zeile entfernt wird. Bevor eine Anfrage korTTY verlässt, ersetzt die ausgehende Maskierung auch die Werte von Passwort-Hinweisen im Fließtext, ausgenommen bei den integrierten lokalen Modellen.
 
 !!! warning "Restrisiko"
     Die Wächterfunktion kann ein Passwort nicht erkennen, das kein Schlüsselwort enthält, kein bekanntes Format aufweist und nicht im Safe gespeichert ist. Schreiben Sie keine Passwörter, Schlüssel oder Tokens in den Speicher, in KI-Skills oder in Referenzdateien, und bewahren Sie diese im Safe oder in Ihrem Passwort-Manager auf.
@@ -246,6 +247,6 @@ Die Speicherdateien befinden sich in `~/.kortty/memory/`: `MEMORY.md`, das `conn
 ## Verwandte Seiten
 
 - [KI-Assistenz](ai-assistant.md) beschreibt den Chat und die KI-Profile, die das Gedächtnis übermitteln.
-- [KI-Agent-Designs](ai-agent-designs.md) und [KI-Schwarm](ai-swarm.md) beschreiben die Läufe, die die Lösungsoptionen und die Zeile „Entlang gesendet" anzeigen.
+- [KI-Agent-Designs](ai-agent-designs.md) und [KI-Schwarm](ai-swarm.md) beschreiben die Läufe, die die Lösungsoptionen und die Zeile „Mitgesendet" anzeigen.
 - [KI-Skills](../reference/settings/ai-skills.md) beschreibt die Statistiken und erlernten Regeln.
 - [KI-Einstellungen](../reference/settings/ai.md) beschreibt den Tab Allgemein, in dem der Triage-Modus festgelegt wird.

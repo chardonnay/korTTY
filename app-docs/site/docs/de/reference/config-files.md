@@ -319,11 +319,11 @@ Gespeicherte KI-Gespräche und Chat-Verlauf.
 
 ### memory/
 
-Das KI-Gedächtnis von korTTY, siehe [KI-Gedächtnis](../features/ai-memory.md). `MEMORY.md` enthält das globale Gedächtnis und `connections/<id>.md` das Gedächtnis jeder Verbindung; beide sind reines Markdown, das Sie lesen und bearbeiten können. korTTY markiert die von ihm geschriebenen Einträge mit einem HTML-Kommentar, der einen Hash enthält, sodass ein von Ihnen bearbeiteter Eintrag Ihr eigener Text wird und korTTY Ihren Text niemals ohne Ihre Bestätigung ändert oder löscht.
+Das KI-Memory von korTTY, siehe [KI-Memory](../features/ai-memory.md). `MEMORY.md` enthält das globale Gedächtnis und `connections/<id>.md` das Gedächtnis jeder Verbindung; beide sind reines Markdown, das Sie lesen und bearbeiten können. korTTY markiert die von ihm geschriebenen Einträge mit einem HTML-Kommentar, der einen Hash enthält, sodass ein von Ihnen bearbeiteter Eintrag Ihr eigener Text wird und korTTY Ihren Text niemals ohne Ihre Bestätigung ändert oder löscht.
 
-Die anderen Dateien im Ordner sind `state.json` (Zusammenfassungen und der Zustand des Gedächtnisses), `history/` (die Snapshots, die korTTY vor einer Änderung erstellt, die der Gedächtnis-Tab wiederherstellen kann), `archive.md` (die korTTY-Einträge, die eine Bereinigung archiviert hat, die **Archiv anzeigen...** auflistet), `learning.json` (der Zustand des Regel-Lernens, wie die täglichen Zählungen und die verschobenen und abgelehnten Vorschläge) und `external.json` (die Referenzdateien anderer Tools, die Sie genehmigt haben, mit dem genehmigten Text).
+Die anderen Dateien im Ordner sind `state.json` (Digests und der Zustand des Speichers), `history/` (die Snapshots, die korTTY vor einer Änderung erstellt, die der Memory-Tab wiederherstellen kann), `archive.md` (die korTTY-Einträge, die eine Bereinigung archiviert hat, die **Archiv anzeigen...** auflistet), `learning.json` (der Zustand des Regellernens, wie die täglichen Zähler und die aufgeschobenen und abgelehnten Vorschläge) und `external.json` (die Referenzdateien anderer Tools, die Sie genehmigt haben, mit ihren Pfaden und dem SHA-256 des genehmigten Textes).
 
-Alle werden ausschließlich für den Besitzer geschrieben. Der Ordner ist in Backups enthalten. Ein Wiederherstellen fügt nur Dateien hinzu, die lokal nicht existieren, und überschreibt sie niemals; eine Notiz, die ein mögliches Geheimnis enthält, wird nicht wiederhergestellt; wird der Speicher durch die Unternehmensrichtlinie schreibgeschützt oder deaktiviert, wird nichts wiederhergestellt. `external.json` wird niemals wiederhergestellt, sodass Sie die Referenzdateien auf jedem Computer erneut bestätigen.
+Alle werden ausschließlich für den Besitzer geschrieben. Der Ordner ist in Backups enthalten. Eine Wiederherstellung fügt nur Dateien hinzu, die lokal nicht existieren, und überschreibt sie niemals; eine Notiz, die ein mögliches Secret enthält, wird nicht wiederhergestellt; wird der Speicher durch die Unternehmensrichtlinie schreibgeschützt oder deaktiviert, wird nichts wiederhergestellt. `external.json` wird niemals wiederhergestellt, sodass Sie die Referenzdateien auf jedem Computer erneut bestätigen.
 
 ### stats/
 
@@ -522,7 +522,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 | JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor Persistenz |
 | Sicherungsdateien | Passwortgeschützte ZIP- oder GPG-Verschlüsselung |
 | API-Schlüssel (KI-Profile) | AES-256-GCM-Verschlüsselung mit Master-Passwort |
-| KI-Speicherdateien und Skill-Statistiken | Plain Text, mit nur-Besitzer-Rechten geschrieben; ein möglicher Geheimniswert wird abgelehnt, bevor er in eine Speicher- oder Skill-Datei geschrieben wird |
+| KI-Memory-Dateien und Skill-Statistiken | Plain Text, mit nur-Besitzer-Rechten geschrieben; ein möglicher Geheimniswert wird abgelehnt, bevor er in eine Speicher- oder Skill-Datei geschrieben wird |
 | Terminaleffekt-Plugins | Nicht verschlüsselt; Vertrauenswürdiger lokaler Code, kein Sandbox-Code |
 
 ## Dateispeicherorte nach Plattform
@@ -544,7 +544,7 @@ Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, ist die fol
 - `ssh-host-keys.properties` interaktiver Hostschlüssel-Truststore (nicht seine transiente `.lock`-Datei)
 - `llm/models.xml` lokale Modellregistrierungen
 - `rag/stores.json` Wissensspeicher-/Quellenmetadaten
-- `memory/` die KI-Speicherdateien (siehe [`memory/`](#memory)); eine Wiederherstellung überschreibt niemals eine lokale Datei, und `external.json` wird niemals wiederhergestellt
+- `memory/` die KI-Memory-Dateien (siehe [`memory/`](#memory)); eine Wiederherstellung überschreibt niemals eine lokale Datei, und `external.json` wird niemals wiederhergestellt
 - `stats/` die KI-Skill-Statistiken (siehe [`stats/`](#stats)); nur wiederhergestellt, wenn keine lokale Datei vorhanden ist
 
 Verwaltete GGUF-Gewichte, native Laufzeitpakete, temporäre Sidecar-Daten, Originalquelldokumente und HNSW-Snapshots sind ausgeschlossen, da sie groß oder regenerierbar sind. Die Verzeichnisse `history/` und `i18n/` sind ebenfalls nicht Teil eines Backups, ebenso wenig wie die Auto-Login-Datei `master.autounlock`.

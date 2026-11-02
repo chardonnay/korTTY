@@ -50,7 +50,7 @@ Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, ze
 
 **Komplexität einschätzen** bestimmt, wann der Agent vor der Ausführung Lösungsoptionen anbietet. **Automatisch** führt vor jeder Ausführung einen kleinen KI-Aufruf durch und bietet Optionen nur für Anfragen an, die komplex erscheinen, **Immer** bietet sie für jede Ausführung an, und **Nie** führt Anfragen so aus, wie sie sind. Swarm-Ausführungen und geplante Jobs bieten niemals Optionen an. Die Unternehmensrichtlinie kann die Einstellung mit `triage` unter `[rule.ai-memory]` sperren. Siehe [Lösungsoptionen](../../features/ai-tools.md#losungsoptionen).
 
-## Speicher-Tab
+## Memory-Tab
 
 Der **Memory**-Tab des KI-Managers enthält das korTTY-Memory, die Regeln, die KI-Chat- und Agent-Anfragen mitführen. Seine Dateien, Bereiche, Bereinigung und der Schutz Ihres eigenen Textes werden in [KI-Memory](../../features/ai-memory.md) beschrieben.
 

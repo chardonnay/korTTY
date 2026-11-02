@@ -17,7 +17,7 @@ Konfigurieren Sie benutzerdefinierte KI-Skills, die KI-Interaktionen verbessern.
 | --- | --- | --- | --- | --- |
 | KI-Skills aktivieren | umschalten | – | Ein | `aiSkillsEnabled` |
 | Automatisch nur passende Fähigkeiten senden | umschalten | – | Ein | `aiSkillAutoDetectionEnabled` |
-| korTTY kann Skills erstellen und erlernte Regeln darin speichern | Schalter | — | Ein | `aiSkillAutoCreate` |
+| korTTY darf Skills anlegen und gelernte Regeln in Skills speichern | Schalter | — | Ein | `aiSkillAutoCreate` |
 | Lokal / Extern | Umschalter | Lokal: eigene und integrierte Skills; Extern: vom Internet importierte Skills | Lokal | — (Ansichtsfilter) |
 | Versteckte integrierte Fähigkeiten anzeigen | umschalten | – | Aus | – (Filter anzeigen) |
 | Suchfähigkeiten | Text | Filtert die Liste nach Name, Beschreibung oder Tags | – | – (Filter anzeigen) |
@@ -114,14 +114,14 @@ Der **SkillsMP**-Provider durchsucht den SkillsMP-Index über `https://skillsmp.
 
 ## Von korTTY erstellte KI-Skills und erlernte Regeln
 
-korTTY kann Regeln, die Sie bestätigen, in Ihren KI-Skills speichern und einen KI-Skill für ein Thema erstellen, das noch keins hat. Ohne Ihre Bestätigung wird nichts gespeichert: Die Regelkarte zeigt den genauen Text und das Ziel, und **Speichern** schreibt ihn. Der Schalter **korTTY darf KI-Skills erstellen und erlernte Regeln darin speichern** steuert beides, und die Unternehmensrichtlinie kann ihn sperren.
+korTTY kann Regeln, die Sie bestätigen, in Ihren KI-Skills speichern und einen KI-Skill für ein Thema erstellen, das noch keins hat. Ohne Ihre Bestätigung wird nichts gespeichert: Die Regelkarte zeigt den genauen Text und das Ziel, und **Speichern** schreibt ihn. Der Schalter **korTTY darf Skills anlegen und gelernte Regeln in Skills speichern** steuert beides, und die Unternehmensrichtlinie kann ihn sperren.
 
-Eine Regel, die eine Verbindung benennt, wird in das Gedächtnis dieser Verbindung eingetragen; eine Regel zu einem Thema, das bereits einen KI-Skill hat – eingebaut oder eigenen –, wird in die erlernten Regeln dieses KI-Skills eingetragen; eine Regel zu einer Sprache oder einem Tool ohne KI-Skill erstellt einen; jede andere Regel wird in das globale Gedächtnis eingetragen. Das Gedächtnis selbst wird in [KI-Gedächtnis](../../features/ai-memory.md) beschrieben.
+Eine Regel, die eine Verbindung benennt, wird in das Gedächtnis dieser Verbindung eingetragen; eine Regel zu einem Thema, das bereits einen KI-Skill hat – eingebaut oder eigenen –, wird in die erlernten Regeln dieses KI-Skills eingetragen; eine Regel zu einer Sprache oder einem Tool ohne KI-Skill erstellt einen; jede andere Regel wird in das globale Gedächtnis eingetragen. Das Gedächtnis selbst wird in [KI-Memory](../../features/ai-memory.md) beschrieben.
 
 * Ein von korTTY erstellter Skill zeigt das Badge **NEU · von korTTY erstellt**, bis Sie ihn in der Liste auswählen; danach wird **korTTY** angezeigt. Der Skill, den die Liste beim Öffnen automatisch auswählt, zählt nicht.
 * Ein **+N Regel(n)**-Chip zählt die erlernten Regeln, die Sie noch nicht gesehen haben; das Öffnen des KI-Skills markiert sie als gesehen und entfernt den Chip.
 * Der Editor listet die gelernten Regeln eines Skills unter **Gelernte Regeln** auf, die nur angezeigt werden, wenn der Skill welche besitzt. **Bearbeiten** ändert den Text einer Regel in einem Dialog, **Löschen** entfernt sie nach einer Bestätigung, und beide werden mit dem Skill gespeichert, wenn Sie auf **Speichern** klicken.
-* Gelernte Regeln werden zusammen mit ihrem Skill gesendet, immer dann, wenn der Skill für eine Anfrage ausgewählt wird.
+* Gelernte Regeln werden zusammen mit ihrem Skill gesendet, jedes Mal, wenn der Skill für eine Anfrage ausgewählt wird, sofern das Gedächtnis aktiviert ist und die Richtlinie dies zulässt.
 
 Regeln werden aus Ihren Nachrichten nur im Lernmodus **Regeln vorschlagen** vorgeschlagen; **Als Regel merken…** speichert eine Regel, die Sie selbst verfassen.
 
@@ -129,9 +129,9 @@ Regeln werden aus Ihren Nachrichten nur im Lernmodus **Regeln vorschlagen** vorg
 
 korTTY speichert kein mögliches Passwort, keinen Schlüssel und kein Token in einem Skill, einer erlernten Regel, dem Gedächtnis oder einer genehmigten Gedächtnisdatei. Die Prüfung sucht nach Schlüsselwortphrasen auf Deutsch und Englisch, `key=value`-Zuweisungen (auch in `.env`-Dateien und Befehlszeilen-Flags), lange, zufällig aussehende Zeichenketten, Token-Formate, die es kennt, und Werte, die im Passwort-Tresor gespeichert sind, während der Tresor entsperrt ist.
 
-Hält ein Skill einen Befund, verweigert **Speichern** das Speichern der Bibliothek und wählt den betreffenden Skill aus. Die Meldung benennt die Zeile, das Feld und die Art des Geheimnisses, niemals den Wert, zum Beispiel *Zeile 4 im Skill-Text scheint ein Geheimnis zu enthalten (die Zuweisung eines Passworts oder Tokens). Entfernen Sie es und versuchen Sie es erneut.* Eine Markdown-Datei oder ein Skill aus dem Internet, die einen Befund enthält, wird beim Import auf dieselbe Weise abgelehnt.
+Wenn Sie einen Skill so ändern, dass er ein mögliches Secret enthält, verweigert **Speichern** das Speichern der Bibliothek und wählt diesen Skill aus. Ein markierter Skill, den Sie nicht ändern, blockiert **Speichern** nicht; sein Badge bleibt, bis das Geheimnis entfernt wird. Die Meldung benennt die Zeile, das Feld und die Art des Geheimnisses, niemals den Wert, zum Beispiel *Zeile 4 im Skill-Text sieht so aus, als würde sie ein Geheimnis enthalten (die Zuweisung eines Passworts oder Tokens). Entfernen Sie es und versuchen Sie es erneut.* Eine Markdown-Datei oder ein Skill aus dem Internet, der einen Befund enthält, wird beim Import auf dieselbe Weise abgelehnt.
 
-Beim Start prüft korTTY die vorhandenen KI-Skills und markiert in der Liste einen, der ein mögliches Secret enthält, mit einem **⚠ mögliches Secret**-Badge. Es ändert oder löscht dieses Skill nicht.
+Beim Start prüft korTTY die vorhandenen Skills und markiert in der Liste einen Skill, der ein mögliches Secret enthält, mit einem **⚠ mögliches Secret**-Badge. Er verändert oder löscht diesen Skill nicht. Ein markierter Skill wird weiterhin mit Anfragen gesendet, bis die Secret-Zeile entfernt wird; nur das ausgehende Masking greift.
 
 Die Prüfung ist keine Garantie. Ein Passwort, das Sie selbst gewählt haben, ohne Schlüsselwort und nicht im Vault gespeichert, kann nicht zuverlässig erkannt werden, daher schreiben Sie keines in ein KI-Skill.
 

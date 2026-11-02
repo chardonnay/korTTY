@@ -949,6 +949,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         aiProfileCombo = new ComboBox<>();
         aiProfileCombo.setPrefWidth(340);
+        // Same width policy as the design combo below, so the two AI choices in this section line up.
+        aiProfileCombo.setMaxWidth(Double.MAX_VALUE);
         aiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
             @Override
             public String toString(AiProfileOption option) {

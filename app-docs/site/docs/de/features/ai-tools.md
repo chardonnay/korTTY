@@ -234,11 +234,11 @@ Die Karte nennt die Gründe, warum die Anfrage komplex erscheint, sofern dies de
 | **Wie angefragt ausführen** | Führt die Anfrage so aus, wie sie geschrieben ist, ohne Optionen |
 | **Abbrechen** | Bricht die Ausführung ab |
 
-Eine Regel, die korTTY nicht speichern kann, z. B. eine, die ein mögliches Geheimnis enthält, lässt die Karte mit dem Grund geöffnet, und der Lauf startet nicht. Wenn innerhalb von 10 Minuten nichts ausgewählt wird, wird die Anfrage wie gewünscht ausgeführt. Die Karte erscheint im klassischen Agent-Panel, im Lauf-Tab des Chat-Fensters und in der Leiste eines Agent-Designs.
+Eine Regel, die korTTY nicht speichern kann, z. B. eine, die ein mögliches Secret enthält, lässt die Karte mit dem Grund geöffnet, und der Lauf startet nicht. Wenn innerhalb von 10 Minuten nichts ausgewählt wird, wird die Anfrage wie gewünscht ausgeführt. Die Karte erscheint im klassischen Agent-Panel, im Lauf-Tab des Chat-Fensters und in der Leiste eines Agent-Designs.
 
 ## Gedächtnis in Agent-Läufen
 
-Jeder Agentlauf und jeder Planungsschritt sendet den korTTY-Speicher: den globalen Speicher und, für eine Verbindung, den Speicher dieser Verbindung – budgetiert und maskiert wie der restliche Prompt. Die Zeile **Mitsendet** im Panel des Laufs listet die Speichereinträge, Skills und Referenzdateien, die gesendet wurden, mit ihren Token-Zahlen. Im Prompt-Dialog des Agents speichert **Als Regel merken…** eine Regel, die Sie schreiben, ohne KI-Aufruf. Siehe [KI-Speicher](ai-memory.md).
+Jeder Agentlauf und jeder Planungsschritt sendet den korTTY-Speicher: den globalen Speicher und, für eine Verbindung, den Speicher dieser Verbindung – budgetiert und maskiert wie der restliche Prompt. Die Zeile **Mitgesendet** im Panel des Laufs listet die Speichereinträge, Skills und Referenzdateien, die gesendet wurden, mit ihren Token-Zahlen. Im Prompt-Dialog des Agents speichert **Als Regel merken…** eine Regel, die Sie schreiben, ohne KI-Aufruf. Siehe [KI-Memory](ai-memory.md).
 
 ## Workflow-Skript generieren
 
@@ -363,7 +363,7 @@ AI Skills sind wiederverwendbare lokale Anweisungsblöcke, die der Agent verwend
 - Sprachspezifische Codierungsrichtlinien
 - Systemverwaltungskonventionen
 
-Siehe den **KI-Skills**-Abschnitt in der Hauptdokumentation zur KI für Details zur Einrichtung und Verwaltung. Die für ein Skill bestätigten Regeln werden mit diesem Skill gesendet; siehe [KI-Speicher](ai-memory.md).
+Siehe den **KI-Skills**-Abschnitt in der Hauptdokumentation zur KI für Details zur Einrichtung und Verwaltung. Die für ein Skill bestätigten Regeln werden mit diesem Skill gesendet; siehe [KI-Memory](ai-memory.md).
 
 ## Internetzugang
 

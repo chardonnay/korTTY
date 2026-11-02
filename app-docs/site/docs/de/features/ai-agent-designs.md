@@ -109,7 +109,7 @@ Eine Genehmigung wird im Terminal mit den Tasten **1** (einmal erlauben), **2** 
 
 ## Lösungsoptionen und Speicher in Designs
 
-Bei einem Design, das nicht das klassische Panel ist, erscheinen die Lösungsoptionen des Agents (siehe [Lösungsoptionen](ai-tools.md#losungsoptionen)) in der Leiste des Designs mit denselben Auswahlmöglichkeiten. Die **Mitgesendet**-Zeile eines Laufs ist ein Link im Host des Designs, und ein Regelvorschlag öffnet sich als Popup über dem Design; siehe [KI-Speicher](ai-memory.md).
+Bei einem Design, das nicht das klassische Panel ist, erscheinen die Lösungsoptionen des Agents (siehe [Lösungsoptionen](ai-tools.md#losungsoptionen)) in der Leiste des Designs mit denselben Auswahlmöglichkeiten. Die **Mitgesendet**-Zeile eines Laufs ist ein Link im Host des Designs, und ein Regelvorschlag öffnet sich als Popup über dem Design; siehe [KI-Memory](ai-memory.md).
 
 ## Lauf-Menü und Schritt-Menü
 

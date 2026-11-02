@@ -121,7 +121,7 @@ A rule that names a connection goes into that connection's memory; a rule about 
 * A skill korTTY created shows the badge **NEW · created by korTTY** until you select it in the list; then it shows **korTTY**. The skill the list selects by itself when it opens does not count.
 * A **+N rule(s)** chip counts the learned rules you have not seen yet; opening the skill marks them as seen and removes the chip.
 * The editor lists the learned rules of a skill under **Learned rules**, shown only when the skill has any. **Edit** changes a rule's text in a dialog, **Delete** removes it after a confirmation, and both are saved with the skill when you click **Save**.
-* Learned rules are sent with their skill whenever the skill is selected for a request.
+* Learned rules are sent with their skill whenever the skill is selected for a request, as long as the memory is on and the policy allows it.
 
 Rules are proposed from your messages only in the **Suggest rules** learning mode; **Remember as rule…** saves a rule that you write yourself.
 
@@ -129,9 +129,9 @@ Rules are proposed from your messages only in the **Suggest rules** learning mod
 
 korTTY does not store a possible password, key or token in a skill, a learned rule, the memory or an approved memory file. The check looks for keyword phrases in German and English, `key=value` assignments (also in `.env` files and command-line flags), long random-looking strings, token formats it knows, and values saved in the password vault while the vault is unlocked.
 
-When a skill holds a finding, **Save** refuses to save the library and selects that skill. The message names the line, the field and the kind of secret, never the value, for example *Line 4 in the skill text looks like it holds a secret (a password or token assignment). Remove it and try again.* A Markdown file or a skill from the internet that holds a finding is refused on import in the same way.
+When you change a skill so that it holds a possible secret, **Save** refuses to save the library and selects that skill. A flagged skill that you do not change does not block **Save**; its badge stays until the secret is removed. The message names the line, the field and the kind of secret, never the value, for example *Line 4 in the skill text looks like it holds a secret (a password or token assignment). Remove it and try again.* A Markdown file or a skill from the internet that holds a finding is refused on import in the same way.
 
-At startup korTTY checks the existing skills and marks one that holds a possible secret with a **⚠ possible secret** badge in the list. It does not change or delete that skill.
+At startup korTTY checks the existing skills and marks one that holds a possible secret with a **⚠ possible secret** badge in the list. It does not change or delete that skill. A flagged skill is still sent with requests until the secret line is removed; only the outbound masking applies.
 
 The check is no guarantee. A password you chose yourself, without a keyword and not saved in the vault, cannot be recognized reliably, so do not write one into a skill.
 

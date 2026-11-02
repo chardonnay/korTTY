@@ -37,8 +37,8 @@
 
   <rect class="box" x="340" y="262" width="240" height="136" rx="12"/>
   <text class="bold" x="358" y="292">Guard and budget</text>
-  <text class="small" x="358" y="318">Secret guard: refuses the</text>
-  <text class="small" x="358" y="338">text or disables the file</text>
+  <text class="small" x="358" y="318">Secret guard: refuses new</text>
+  <text class="small" x="358" y="338">text, and marks flagged files</text>
   <text class="small" x="358" y="364">Budget: whole entries only,</text>
   <text class="small" x="358" y="384">default 1500 tokens</text>
 

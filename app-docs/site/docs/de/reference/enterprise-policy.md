@@ -213,7 +213,7 @@ Die `[rule.ai-memory]`-Tabelle legt fest, wie das korTTY-Memory verwendet werden
 | --- | --- | --- | --- |
 | `user-memory` | string | `editable`, `read-only`, `disabled` | `read-only` liest die `MEMORY.md`-Dateien des Benutzers in Prompts ein, schreibt sie aber nie; `disabled` liest sie weder ein noch schreibt sie, und das Organisationsgedächtnis wird weiterhin gesendet |
 | `learning` | string | `propose`, `off` | `off` findet keine Regeln in Gesprächen und schlägt keine vor; die Einstellung **Lernen** des Memory-Tabs wird auf den Wert gesetzt und gesperrt |
-| `skill-creation` | boolean | `true`, `false` | Der Schalter **korTTY darf KI-Skills erstellen und erlernte Regeln darin speichern** ist auf den Wert gesetzt und gesperrt. `false` bedeutet, dass keine Regel in ein KI-Skill, neu oder bestehend, geht; stattdessen geht jede Regel in ein Memory |
+| `skill-creation` | boolean | `true`, `false` | Der Schalter **korTTY darf Skills anlegen und gelernte Regeln in Skills speichern** ist auf den Wert gesetzt und gesperrt. `false` bedeutet, dass keine Regel in ein KI-Skill, neu oder bestehend, geht; stattdessen geht jede Regel in ein Memory |
 | `external-files` | string | `allow`, `deny` | Ob Referenzdateien anderer Tools (CLAUDE.md, AGENTS.md und ähnliche) gelesen werden dürfen; `deny` liest keine davon |
 | `external-file-roots` | Liste von Pfaden | absolute oder `~/` Pfade | Die Ordner, in denen externe Dateien liegen müssen; eine leere Liste erlaubt jeden Ordner |
 | `max-tokens` | Ganzzahl | `300` bis `4000` | Das Speicherbudget pro KI-Anfrage; der kleinere Wert zwischen diesem und der eigenen Benutzereinstellung gilt |

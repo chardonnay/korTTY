@@ -219,7 +219,7 @@ Wenn die Auswahl wie ein einzelnes Dateiname aussieht — beispielsweise einen N
 * Die ausgewählte Schriftgröße der KI-Registerkarte wird global gespeichert und für zukünftige KI-Ergebnisregisterkarten wiederverwendet.
 * Die Token-Nutzung wird pro KI-Profil nach erfolgreichen Anfragen aufgezeichnet, sodass Warnungen und Resetzyklen genau bleiben. KI-Swarm-Agenten, geplante KI-Jobs und Sitzungsjournaleinträge zählen zum selben Kontingent.
 * Wenn ein gespeicherter Chat auf ein KI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.
-* **Mitgesendet.** Eine eingeklappte Zeile unter jeder Antwort listet die Speichereinträge, Skills und Referenzdateien auf, die mit der Anfrage gesendet wurden, maskiert wie beim Versand, mit ihren Token-Zahlen; siehe [KI-Speicher](ai-memory.md).
+* **Mitgesendet.** Eine eingeklappte Zeile unter jeder Antwort listet die Speichereinträge, Skills und Referenzdateien auf, die mit der Anfrage gesendet wurden, maskiert wie beim Versand, mit ihren Token-Zahlen; siehe [KI-Memory](ai-memory.md).
 * **Als Regel merken…** bei einer Ihrer eigenen Nachrichten öffnet die Regelkarte ohne KI-Aufruf. Die Karte zeigt den Text und den Speicherort, und es wird nichts gespeichert, bevor Sie auf **Speichern** klicken.
 * **Regelvorschläge.** Im Lernmodus **Regeln vorschlagen** kann eine Nachricht, die angibt, dass etwas für später aufbewahrt werden sollte, eine Vorschlagskarte unter der Antwort erzeugen. Es wird nichts gespeichert, bis Sie auf **Speichern** drücken, und **Rückgängig** macht eine gespeicherte Regel für 30 Sekunden rückgängig.
 

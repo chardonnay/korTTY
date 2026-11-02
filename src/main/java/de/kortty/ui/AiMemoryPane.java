@@ -513,6 +513,13 @@ final class AiMemoryPane extends VBox {
     private ListCell<Row> rowCell() {
         return new ListCell<>() {
             @Override
+            protected double computePrefWidth(double height) {
+                // The row takes the list's width. Its bound graphic would otherwise report a preferred width a fraction of
+                // a pixel wider than the list, and the list would show a horizontal bar for it.
+                return getInsets().getLeft() + getInsets().getRight();
+            }
+
+            @Override
             protected void updateItem(Row row, boolean empty) {
                 super.updateItem(row, empty);
                 setText(null);
