@@ -26,7 +26,7 @@ class RuleLearningSurfacesSourceScanTest {
     void onlyTheInteractiveSurfacesStartADetection() throws IOException {
         try (Stream<Path> files = Files.walk(SOURCES)) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
-                String source = Files.readString(file);
+                String source = Files.readString(file).replace("\r\n", "\n");
                 boolean starts = STARTS.stream().anyMatch(source::contains);
                 assertWithMessage(file + " starts a rule detection")
                     .that(!starts || STARTING_FILES.contains(file.getFileName().toString())).isTrue();
@@ -39,7 +39,7 @@ class RuleLearningSurfacesSourceScanTest {
         for (Path file : List.of(
             Path.of("src/main/java/de/kortty/core/swarm/PerAgentRunUi.java"),
             Path.of("src/main/java/de/kortty/core/swarm/SwarmOrchestrator.java"))) {
-            String source = Files.readString(file);
+            String source = Files.readString(file).replace("\r\n", "\n");
             assertWithMessage(file + " mentions the rule learning").that(source.contains("RuleLearning")).isFalse();
             assertWithMessage(file + " mentions the rule detector").that(source.contains("RuleDetector")).isFalse();
         }
@@ -47,7 +47,7 @@ class RuleLearningSurfacesSourceScanTest {
 
     @Test
     void theChatOffersTheCardOnlyAfterTheAnswerIsShown() throws IOException {
-        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/AiResultTab.java"));
+        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/AiResultTab.java")).replace("\r\n", "\n");
         assertWithMessage("the call sites of offerRuleLearning").that(count(source, "offerRuleLearning(")).isEqualTo(3);
 
         int shownAt = indexAfter(source,
@@ -71,7 +71,7 @@ class RuleLearningSurfacesSourceScanTest {
     }
 
     private static void assertEndsBeforeLearning(String file) throws IOException {
-        String source = Files.readString(Path.of(file));
+        String source = Files.readString(Path.of(file)).replace("\r\n", "\n");
         int learning = source.indexOf("RuleLearning.afterAgentRun(");
         assertWithMessage(file + " starts the detection of an agent run").that(learning).isGreaterThan(0);
         String before = source.substring(Math.max(0, learning - 400), learning);

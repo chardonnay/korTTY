@@ -116,7 +116,7 @@ class VaultKnownSecretsTest {
         try (Stream<Path> files = Files.list(Path.of("src/main/java/de/kortty/model"))) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                 String className = file.getFileName().toString().replace(".java", "");
-                Matcher matcher = field.matcher(Files.readString(file));
+                Matcher matcher = field.matcher(Files.readString(file).replace("\r\n", "\n"));
                 while (matcher.find()) {
                     String name = matcher.group(1);
                     if (sealedByPolicy.contains(className + "." + name)) {

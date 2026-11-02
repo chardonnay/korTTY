@@ -13,7 +13,8 @@ class AiMemoryCloseWiringSourceScanTest {
 
     @Test
     void theCloseRequestConsultsTheMemoryPaneBeforeTheDialogCloses() throws IOException {
-        String dialog = Files.readString(Path.of("src/main/java/de/kortty/ui/AiManagerDialog.java"));
+        String dialog = Files.readString(Path.of("src/main/java/de/kortty/ui/AiManagerDialog.java"))
+            .replace("\r\n", "\n");
         int start = dialog.indexOf("setOnCloseRequest(");
         int end = dialog.indexOf("setOnHidden(", start);
 
@@ -23,7 +24,8 @@ class AiMemoryCloseWiringSourceScanTest {
 
     @Test
     void theCloseRequestKeepsTheDialogOpenForARefusedSkillEdit() throws IOException {
-        String dialog = Files.readString(Path.of("src/main/java/de/kortty/ui/AiManagerDialog.java"));
+        String dialog = Files.readString(Path.of("src/main/java/de/kortty/ui/AiManagerDialog.java"))
+            .replace("\r\n", "\n");
         int start = dialog.indexOf("setOnCloseRequest(");
         int end = dialog.indexOf("setOnHidden(", start);
 

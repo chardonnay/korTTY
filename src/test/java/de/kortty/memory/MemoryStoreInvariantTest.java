@@ -381,7 +381,7 @@ class MemoryStoreInvariantTest {
     @Test
     void onlyTheHistoryPruningDeletesFiles() throws IOException {
         Path source = Path.of("src/main/java/de/kortty/memory/MemoryStore.java");
-        String text = Files.readString(source);
+        String text = Files.readString(source).replace("\r\n", "\n");
         Matcher deletion = Pattern.compile("Files\\.(delete|deleteIfExists)\\(([^;]*)\\);").matcher(text);
         int found = 0;
         while (deletion.find()) {

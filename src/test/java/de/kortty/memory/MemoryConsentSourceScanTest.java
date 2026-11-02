@@ -23,7 +23,7 @@ class MemoryConsentSourceScanTest {
         Path consent = Path.of("src/main/java/de/kortty/memory/MemoryConsent.java").toAbsolutePath().normalize();
         assertThat(filesContaining(Path.of("src/main/java"), ISSUE, consent)).isEmpty();
         assertThat(filesContaining(Path.of("src/test/java"), ISSUE, consent)).isEmpty();
-        assertThat(Files.readString(consent)).contains(ISSUE);
+        assertThat(Files.readString(consent).replace("\r\n", "\n")).contains(ISSUE);
     }
 
     /** Assembled so that this file does not contain the needles itself. */
@@ -60,7 +60,7 @@ class MemoryConsentSourceScanTest {
                 if (exempt.contains(file.toAbsolutePath().normalize())) {
                     continue;
                 }
-                if (Files.readString(file).contains(needle)) {
+                if (Files.readString(file).replace("\r\n", "\n").contains(needle)) {
                     found.add(file);
                 }
             }

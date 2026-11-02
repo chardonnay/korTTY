@@ -23,7 +23,7 @@ class AiMemoryArchiveWiringSourceScanTest {
     private static final String GRANT = "MemoryConsent." + "grant(";
 
     private static String read(Path file) throws IOException {
-        return Files.readString(file);
+        return Files.readString(file).replace("\r\n", "\n");
     }
 
     @Test

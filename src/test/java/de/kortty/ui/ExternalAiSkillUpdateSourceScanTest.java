@@ -19,7 +19,7 @@ class ExternalAiSkillUpdateSourceScanTest {
     private static final Path UI = Path.of("src/main/java/de/kortty/ui");
 
     private static String source(String name) throws IOException {
-        return Files.readString(UI.resolve(name + ".java"), StandardCharsets.UTF_8);
+        return Files.readString(UI.resolve(name + ".java"), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 
     private static int occurrences(String text, String needle) {

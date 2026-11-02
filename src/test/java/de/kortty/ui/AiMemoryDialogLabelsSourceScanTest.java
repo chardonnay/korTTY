@@ -16,7 +16,7 @@ import org.testng.annotations.Test;
 class AiMemoryDialogLabelsSourceScanTest {
 
     private static String source(String name) throws IOException {
-        return Files.readString(Path.of("src/main/java/de/kortty/ui/" + name + ".java"));
+        return Files.readString(Path.of("src/main/java/de/kortty/ui/" + name + ".java")).replace("\r\n", "\n");
     }
 
     @Test

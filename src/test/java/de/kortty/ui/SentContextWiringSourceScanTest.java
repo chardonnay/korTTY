@@ -20,7 +20,7 @@ class SentContextWiringSourceScanTest {
     private static final Path MAIN = Path.of("src/main/java/de/kortty");
 
     private static String source(String relative) throws IOException {
-        return Files.readString(MAIN.resolve(relative), StandardCharsets.UTF_8);
+        return Files.readString(MAIN.resolve(relative), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 
     private static int occurrences(String text, String needle) {
@@ -62,7 +62,8 @@ class SentContextWiringSourceScanTest {
         Set<String> shownBy = new TreeSet<>();
         try (Stream<Path> files = Files.walk(MAIN.resolve("ui"))) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
-                if (Files.readString(file, StandardCharsets.UTF_8).contains("SentContextView.create(")) {
+                if (Files.readString(file, StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n").contains("SentContextView.create(")) {
                     shownBy.add(file.getFileName().toString());
                 }
             }

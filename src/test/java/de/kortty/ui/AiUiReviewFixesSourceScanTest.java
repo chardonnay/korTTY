@@ -17,7 +17,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 class AiUiReviewFixesSourceScanTest {
 
     private static String source(String name) throws IOException {
-        return Files.readString(Path.of("src/main/java/de/kortty/ui/" + name + ".java"));
+        return Files.readString(Path.of("src/main/java/de/kortty/ui/" + name + ".java")).replace("\r\n", "\n");
     }
 
     @Test

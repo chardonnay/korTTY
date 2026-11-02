@@ -300,7 +300,8 @@ class BackupCoverageTest {
         try (Stream<Path> sources = Files.walk(JAVA_ROOT)) {
             for (Path source : sources.filter(p -> p.toString().endsWith(".java")).toList()) {
                 String className = source.getFileName().toString().replaceFirst("\\.java$", "");
-                Matcher matcher = STORE_CONSTANT.matcher(Files.readString(source, StandardCharsets.UTF_8));
+                Matcher matcher = STORE_CONSTANT.matcher(Files.readString(source, StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n"));
                 while (matcher.find()) {
                     constants.put(className + "." + matcher.group(1), matcher.group(2));
                 }

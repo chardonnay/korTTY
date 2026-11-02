@@ -11,9 +11,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.LocalDate;
 import java.util.List;
+import org.testng.SkipException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -138,6 +140,9 @@ public class SkillStatsStoreTest {
         store.recordCommitted(List.of(usage(true, 100, "fp-1")));
         store.flush();
 
+        if (Files.getFileAttributeView(file, PosixFileAttributeView.class) == null) {
+            throw new SkipException("POSIX file attributes are not supported on this platform");
+        }
         assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file))).isEqualTo("rw-------");
     }
 

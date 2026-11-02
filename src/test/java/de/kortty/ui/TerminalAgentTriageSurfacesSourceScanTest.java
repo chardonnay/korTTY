@@ -36,7 +36,8 @@ class TerminalAgentTriageSurfacesSourceScanTest {
 
     @Test
     void swarmAndJobRunsKeepTheDefaultAndNeverAsk() throws IOException {
-        String swarm = Files.readString(Path.of("src/main/java/de/kortty/core/swarm/PerAgentRunUi.java"));
+        String swarm = Files.readString(Path.of("src/main/java/de/kortty/core/swarm/PerAgentRunUi.java"))
+            .replace("\r\n", "\n");
         assertWithMessage("PerAgentRunUi overrides supportsChoices").that(swarm.contains("supportsChoices")).isFalse();
     }
 
@@ -45,7 +46,7 @@ class TerminalAgentTriageSurfacesSourceScanTest {
         TreeSet<String> offering = new TreeSet<>();
         try (Stream<Path> files = Files.walk(Path.of("src/main/java"))) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
-                String source = Files.readString(file);
+                String source = Files.readString(file).replace("\r\n", "\n");
                 if (!OFFERS_CHOICES.matcher(source).find()) {
                     continue;
                 }
@@ -60,7 +61,8 @@ class TerminalAgentTriageSurfacesSourceScanTest {
 
     @Test
     void theDesignHostHandsTheShownCallbackToThePromptQueue() throws IOException {
-        String host = Files.readString(Path.of("src/main/java/de/kortty/ui/AgentDesignHost.java"));
+        String host = Files.readString(Path.of("src/main/java/de/kortty/ui/AgentDesignHost.java"))
+            .replace("\r\n", "\n");
 
         assertWithMessage("the card of a design waits in the queue with its shown callback")
             .that(host.contains("prompts.open(prompt, AgentPromptQueue.Kind.CHOICE, shown)")).isTrue();
@@ -69,7 +71,7 @@ class TerminalAgentTriageSurfacesSourceScanTest {
     }
 
     private static void assertOffersChoices(String file) throws IOException {
-        String source = Files.readString(Path.of(file));
+        String source = Files.readString(Path.of(file)).replace("\r\n", "\n");
         assertWithMessage(file + " overrides supportsChoices() to return true")
             .that(OFFERS_CHOICES.matcher(source).find()).isTrue();
     }

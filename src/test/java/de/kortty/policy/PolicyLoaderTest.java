@@ -3,6 +3,7 @@ package de.kortty.policy;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -774,6 +775,11 @@ class PolicyLoaderTest {
         assertThat(off.file().rules().get(0).sessionJournal().clickableLinks()).isFalse();
     }
 
+    /** {@code path} as an absolute folder on this platform; on Windows an absolute path needs a drive. */
+    private static String absolute(String path) {
+        return File.separatorChar == '\\' ? "C:" + path : path;
+    }
+
     private static final String AI_MEMORY_RULE = """
         [meta]
         schema-version = 1
@@ -784,7 +790,7 @@ class PolicyLoaderTest {
           learning = "off"
           skill-creation = false
           external-files = "allow"
-          external-file-roots = ["/srv/shared-notes", "~/Notes"]
+          external-file-roots = ["%s", "~/Notes"]
           max-tokens = 800
           triage = "never"
           statistics = false
@@ -792,7 +798,7 @@ class PolicyLoaderTest {
 
     @Test
     void aiMemoryRuleParsesEveryKeyAndKeepsTheSchemaVersion() throws IOException {
-        PolicyLoadResult result = PolicyLoader.load(write(AI_MEMORY_RULE));
+        PolicyLoadResult result = PolicyLoader.load(write(AI_MEMORY_RULE.formatted(absolute("/srv/shared-notes"))));
         assertThat(result.errors()).isEmpty();
         assertThat(result.warnings()).isEmpty();
         assertThat(result.file().schemaVersion()).isEqualTo(PolicyFile.SUPPORTED_SCHEMA_VERSION);
@@ -802,7 +808,7 @@ class PolicyLoaderTest {
         assertThat(memory.learning()).isEqualTo(de.kortty.model.AiMemoryLearningMode.OFF);
         assertThat(memory.skillCreation()).isFalse();
         assertThat(memory.externalFiles()).isTrue();
-        assertThat(memory.externalFileRoots()).containsExactly("/srv/shared-notes", "~/Notes").inOrder();
+        assertThat(memory.externalFileRoots()).containsExactly(absolute("/srv/shared-notes"), "~/Notes").inOrder();
         assertThat(memory.maxTokens()).isEqualTo(800);
         assertThat(memory.triage()).isEqualTo(de.kortty.model.AiAgentTriageMode.NEVER);
         assertThat(memory.statistics()).isFalse();
@@ -1014,7 +1020,7 @@ class PolicyLoaderTest {
               learning = "off"
               skill-creation = false
               external-files = "deny"
-              external-file-roots = ["/srv/shared-ai-notes"]
+              external-file-roots = ["%s"]
               max-tokens = 1500
               triage = "auto"
               statistics = true
@@ -1025,12 +1031,12 @@ class PolicyLoaderTest {
             - Production changes go through the change ticket system; never change a production host without one.
             - Never paste customer data into an AI prompt.
             \"\"\"
-            """));
+            """.formatted(absolute("/srv/shared-ai-notes"))));
         assertThat(result.errors()).isEmpty();
         assertThat(result.warnings()).isEmpty();
         PolicyRule.AiMemoryRule memory = result.file().rules().get(0).aiMemory();
         assertThat(memory.maxTokens()).isEqualTo(1500);
-        assertThat(memory.externalFileRoots()).containsExactly("/srv/shared-ai-notes");
+        assertThat(memory.externalFileRoots()).containsExactly(absolute("/srv/shared-ai-notes"));
         assertThat(result.file().organizationMemory()).hasSize(1);
     }
 

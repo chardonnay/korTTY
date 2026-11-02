@@ -15,7 +15,7 @@ import static com.google.common.truth.Truth.assertThat;
 class SolutionChoicePaneWiringSourceScanTest {
 
     private static String source() throws IOException {
-        return Files.readString(Path.of("src/main/java/de/kortty/ui/SolutionChoicePane.java"));
+        return Files.readString(Path.of("src/main/java/de/kortty/ui/SolutionChoicePane.java")).replace("\r\n", "\n");
     }
 
     private static String methodBody(String source, String signature) {

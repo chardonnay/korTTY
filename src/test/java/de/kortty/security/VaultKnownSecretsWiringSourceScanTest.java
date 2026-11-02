@@ -13,7 +13,7 @@ class VaultKnownSecretsWiringSourceScanTest {
 
     @Test
     void theStartupGuardUsesEveryVaultOwnerNotOnlyTheConnections() throws IOException {
-        String app = Files.readString(Path.of("src/main/java/de/kortty/KorTTYApplication.java"));
+        String app = Files.readString(Path.of("src/main/java/de/kortty/KorTTYApplication.java")).replace("\r\n", "\n");
 
         assertThat(app).contains("VaultKnownSecrets.ofOwners(");
         int start = app.indexOf("private List<Object> vaultSecretOwners()");

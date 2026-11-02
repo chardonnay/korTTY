@@ -16,7 +16,7 @@ class AiResultTabConnectionSourceScanTest {
 
     @Test
     void followUpsFlowchartAndTitleBuildTheirServiceWithTheChatsConnection() throws IOException {
-        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/AiResultTab.java"));
+        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/AiResultTab.java")).replace("\r\n", "\n");
 
         assertThat(count(source, "createAiServiceForProfile(selectedProfile, sourceConnection)")).isEqualTo(2);
         assertThat(count(source, "createAiServiceForProfile(profile, sourceConnection)")).isEqualTo(1);
@@ -24,7 +24,7 @@ class AiResultTabConnectionSourceScanTest {
 
     @Test
     void chatTabsAreBoundToTheConnectionOfTheirTerminalTab() throws IOException {
-        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/MainWindow.java"));
+        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/MainWindow.java")).replace("\r\n", "\n");
 
         assertThat(count(source, "resultTab.setSourceConnection(connection);")).isEqualTo(2);
     }

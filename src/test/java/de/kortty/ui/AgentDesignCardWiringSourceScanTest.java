@@ -14,7 +14,7 @@ import static com.google.common.truth.Truth.assertThat;
 class AgentDesignCardWiringSourceScanTest {
 
     private static String read(String name) throws IOException {
-        return Files.readString(Path.of("src/main/java/de/kortty/ui/" + name + ".java"));
+        return Files.readString(Path.of("src/main/java/de/kortty/ui/" + name + ".java")).replace("\r\n", "\n");
     }
 
     @Test

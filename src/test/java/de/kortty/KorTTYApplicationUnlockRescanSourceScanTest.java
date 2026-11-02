@@ -13,7 +13,8 @@ class KorTTYApplicationUnlockRescanSourceScanTest {
 
     @Test
     void theRescanAfterAnUnlockCopiesTheSkillsFirstAndScansInTheBackground() throws IOException {
-        String source = Files.readString(Path.of("src/main/java/de/kortty/KorTTYApplication.java"));
+        String source = Files.readString(Path.of("src/main/java/de/kortty/KorTTYApplication.java"))
+            .replace("\r\n", "\n");
         int start = source.indexOf("private void rescanForSecretsAfterUnlock()");
         assertThat(start).isAtLeast(0);
         int end = source.indexOf("\n    }\n", start);
