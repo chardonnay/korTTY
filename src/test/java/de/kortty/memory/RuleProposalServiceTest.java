@@ -366,13 +366,40 @@ class RuleProposalServiceTest {
     }
 
     @Test
-    void undoReportsNotFoundWhenTheUserEditedTheEntryAway() throws Exception {
+    void undoKeepsAnEntryTheUserEditedAndReportsItAsChanged() throws Exception {
         SavedRule saved = confirm("Antworte immer kurz", RuleTarget.global());
         String edited = readGlobalMemory().replace("Antworte immer kurz", "Antworte immer lang");
         Files.writeString(store.fileOf(MemoryScope.global()), edited);
 
-        assertThat(saved.undo().get()).isEqualTo(UndoOutcome.NOT_FOUND);
+        assertThat(saved.undo().get()).isEqualTo(UndoOutcome.RULE_CHANGED_KEPT);
         assertThat(readGlobalMemory()).contains("Antworte immer lang");
+        assertThat(readGlobalMemory()).isEqualTo(edited);
+    }
+
+    @Test
+    void undoReportsNotFoundWhenTheUserRemovedTheEntry() throws Exception {
+        SavedRule saved = confirm("Antworte immer kurz", RuleTarget.global());
+        Files.writeString(store.fileOf(MemoryScope.global()), USER_TEXT);
+
+        assertThat(saved.undo().get()).isEqualTo(UndoOutcome.NOT_FOUND);
+        assertThat(readGlobalMemory()).isEqualTo(USER_TEXT);
+    }
+
+    @Test
+    void aRuleSavedAfterTheUserEditedAnEntryStillSavesAndTheEditedEntryStaysKept() throws Exception {
+        writeGlobalMemory(USER_TEXT);
+        SavedRule first = confirm("Antworte immer kurz", RuleTarget.global());
+        String edited = readGlobalMemory().replace("Antworte immer kurz", "Antworte immer lang");
+        MemoryStore.Snapshot current = store.read(MemoryScope.global());
+        store.write(MemoryScope.global(), current.sha256(), edited, MemoryStore.WriteReason.USER_SAVE, null);
+
+        SavedRule second = confirm("Antworte mit Beispielen", RuleTarget.global());
+
+        assertThat(readGlobalMemory()).contains("Antworte mit Beispielen");
+        assertThat(second.undo().get()).isEqualTo(UndoOutcome.UNDONE);
+        assertThat(first.undo().get()).isEqualTo(UndoOutcome.RULE_CHANGED_KEPT);
+        assertThat(readGlobalMemory()).contains("Antworte immer lang");
+        assertThat(MemoryFormat.userSegments(readGlobalMemory())).isEqualTo(MemoryFormat.userSegments(edited));
     }
 
     private SavedRule confirm(String text, RuleTarget target) throws Exception {

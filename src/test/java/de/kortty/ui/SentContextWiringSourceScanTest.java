@@ -13,7 +13,7 @@ import org.testng.annotations.Test;
 
 /**
  * The wiring of the "Sent along" disclosure, checked in the sources: each chat request captures its own reply, the agent
- * records and publishes every turn, and only the chat and the classic agent surfaces show the disclosure.
+ * records and publishes every turn, and only the chat, the classic agent surfaces and the design link show the disclosure.
  */
 class SentContextWiringSourceScanTest {
 
@@ -58,7 +58,7 @@ class SentContextWiringSourceScanTest {
     }
 
     @Test
-    void theRunTabsAndTheClassicPanelAreTheOnlySurfacesThatShowTheDisclosure() throws IOException {
+    void theRunTabsTheClassicPanelAndTheDesignLinkAreTheOnlySurfacesThatShowTheDisclosure() throws IOException {
         Set<String> shownBy = new TreeSet<>();
         try (Stream<Path> files = Files.walk(MAIN.resolve("ui"))) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
@@ -69,16 +69,27 @@ class SentContextWiringSourceScanTest {
         }
 
         assertThat(shownBy).containsExactly(
+            "AgentDesignSentLink.java",
             "AiAgentActivityPanel.java",
             "AiAgentRunTab.java",
             "AiResultTab.java");
     }
 
     @Test
-    void theDesignHostShowsTheDisclosureOnlyInTheClassicDesign() throws IOException {
+    void theDesignHostShowsTheDisclosureInTheClassicPanelAndTheLinkOfTheOtherDesigns() throws IOException {
         String host = source("ui/AgentDesignHost.java");
 
         assertThat(host).contains("public void showSentContext(String runId, AiSentContext context)");
-        assertThat(host).contains("if (design.classic() && classicPanel != null) {\n                classicPanel.showSentContext(runId, context);");
+        assertThat(host).contains("if (design.classic() && classicPanel != null) {\n                classicPanel.showSentContext(runId, context);"
+            + "\n            } else if (!design.classic()) {\n                sentLink.publish(context);");
+    }
+
+    @Test
+    void theLinkIsPlacedAboveTheApprovalStripAndResetByEveryNewRun() throws IOException {
+        String host = source("ui/AgentDesignHost.java");
+
+        // The line sits above the bottom displays and the approval row, so the approval buttons keep their place.
+        assertThat(host).contains("getChildren().addAll(sentLink, approvalStrip);");
+        assertThat(host).contains("runOnFx(() -> {\n            applyDesignSettings();\n            sentLink.reset();");
     }
 }

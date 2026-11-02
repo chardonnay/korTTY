@@ -2,7 +2,9 @@ package de.kortty.ui;
 
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -131,6 +133,63 @@ class AgentPromptQueueTest {
         queue.close("password-p");
 
         assertThat(queue.shown()).isEqualTo("card-c");
+    }
+
+    @Test
+    void aCardQueuedBehindAnApprovalRunsItsCallbackOnlyWhenItIsBroughtOnScreen() {
+        AgentPromptQueue<String> queue = queue();
+        List<String> shownCards = new ArrayList<>();
+        register(queue, "approval-a", AgentPromptQueue.Kind.APPROVAL);
+        waiting.add("card-c");
+
+        assertThat(queue.open("card-c", AgentPromptQueue.Kind.CHOICE, () -> shownCards.add("card-c"))).isFalse();
+        assertThat(shownCards).isEmpty();
+
+        waiting.remove("approval-a");
+        assertThat(queue.close("approval-a")).isTrue();
+        assertThat(queue.shown()).isEqualTo("card-c");
+        assertThat(shownCards).containsExactly("card-c");
+    }
+
+    @Test
+    void aCardOpenedAtOnceRunsItsCallbackAtOnce() {
+        AgentPromptQueue<String> queue = queue();
+        List<String> shownCards = new ArrayList<>();
+
+        assertThat(queue.open("card-c", AgentPromptQueue.Kind.CHOICE, () -> shownCards.add("card-c"))).isTrue();
+        assertThat(shownCards).containsExactly("card-c");
+    }
+
+    @Test
+    void aCardCoveredByAnApprovalAndBroughtBackRunsItsCallbackOnlyOnce() {
+        AgentPromptQueue<String> queue = queue();
+        List<String> shownCards = new ArrayList<>();
+        waiting.add("card-c");
+        assertThat(queue.open("card-c", AgentPromptQueue.Kind.CHOICE, () -> shownCards.add("card-c"))).isTrue();
+
+        register(queue, "approval-a", AgentPromptQueue.Kind.APPROVAL);
+        waiting.remove("approval-a");
+        assertThat(queue.close("approval-a")).isTrue();
+
+        assertThat(queue.shown()).isEqualTo("card-c");
+        assertThat(shownCards).containsExactly("card-c");
+    }
+
+    @Test
+    void aCardClosedBeforeItIsShownNeverRunsItsCallback() {
+        AgentPromptQueue<String> queue = queue();
+        List<String> shownCards = new ArrayList<>();
+        register(queue, "approval-a", AgentPromptQueue.Kind.APPROVAL);
+        waiting.add("card-c");
+        queue.open("card-c", AgentPromptQueue.Kind.CHOICE, () -> shownCards.add("card-c"));
+
+        waiting.remove("card-c");
+        assertThat(queue.close("card-c")).isFalse();
+        waiting.remove("approval-a");
+        queue.close("approval-a");
+
+        assertThat(queue.shown()).isNull();
+        assertThat(shownCards).isEmpty();
     }
 
     @Test

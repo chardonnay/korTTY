@@ -860,20 +860,35 @@ class PolicyLoaderTest {
     }
 
     @Test
-    void unknownAiMemoryKeysRejectThePolicyFile() throws IOException {
+    void unknownAiMemoryKeysAreWarningsAndTheFileStaysValid() throws IOException {
         PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
             + "[rule.ai-memory]\nfuture-key = true\nstatistics = true\n"));
-        assertThat(result.isValid()).isFalse();
-        assertThat(result.errors()).hasSize(1);
-        assertThat(result.errors().get(0)).contains("future-key");
+        assertThat(result.isValid()).isTrue();
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).hasSize(1);
+        assertThat(result.warnings().get(0)).contains("future-key");
     }
 
     @Test
-    void aTypoInTheMemoryMandateRejectsThePolicyInsteadOfLeavingTheMemoryEditable() throws IOException {
+    void aNewerAiMemoryKeyDoesNotLockDownAnOlderClientWhileItsKnownKeysStillApply() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
+            + "[rule.ai-memory]\nuser-memory = \"read-only\"\nnext-year-key = \"x\"\n"));
+        assertThat(result.isValid()).isTrue();
+        assertThat(result.warnings()).hasSize(1);
+        assertThat(result.warnings().get(0)).contains("next-year-key");
+        PolicyRule.AiMemoryRule memory = result.file().rules().get(0).aiMemory();
+        assertThat(memory.userMemory()).isEqualTo(UserMemoryMode.READ_ONLY);
+    }
+
+    @Test
+    void aTypoInTheMemoryMandateIsAWarningThatNamesTheKeyAndSetsNoMandate() throws IOException {
         PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n"
             + "[rule.ai-memory]\nuser-memmory = \"disabled\"\n"));
-        assertThat(result.isValid()).isFalse();
-        assertThat(result.errors().get(0)).contains("user-memmory");
+        assertThat(result.isValid()).isTrue();
+        assertThat(result.warnings()).hasSize(1);
+        assertThat(result.warnings().get(0)).contains("user-memmory");
+        PolicyRule.AiMemoryRule memory = result.file().rules().get(0).aiMemory();
+        assertThat(memory == null || memory.userMemory() == null).isTrue();
     }
 
     @Test
@@ -1017,5 +1032,13 @@ class PolicyLoaderTest {
         assertThat(memory.maxTokens()).isEqualTo(1500);
         assertThat(memory.externalFileRoots()).containsExactly("/srv/shared-ai-notes");
         assertThat(result.file().organizationMemory()).hasSize(1);
+    }
+
+    @Test
+    void anOrganisationTextWithAZeroWidthSpaceInsideAKeywordIsCheckedWithoutIt() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("[meta]\nschema-version = 1\n"
+            + organizationBlock("Login", "Pass​wort ist Sommer2026!")));
+        assertThat(result.file().organizationMemory()).isEmpty();
+        assertThat(String.join("\n", result.warnings())).contains("looks like a secret");
     }
 }

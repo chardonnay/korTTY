@@ -53,7 +53,7 @@ final class AiMemoryCleanupDialog extends ThemeAwareDialog<AiMemoryCleanupDialog
         VBox root = new VBox(10,
             section("settings.ai.memory.cleanup.merge", "settings.ai.memory.cleanup.mergeHint", merge),
             new Separator(),
-            section("settings.ai.memory.cleanup.archive", "settings.ai.memory.cleanup.archiveHint", archive),
+            section("settings.ai.memory.cleanup.archive", "settings.ai.memory.cleanup.archiveHintRestore", archive),
             new Separator(),
             shortenCheck,
             hint("settings.ai.memory.cleanup.userShortenHint"),

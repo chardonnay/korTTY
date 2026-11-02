@@ -129,6 +129,8 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     private final Map<String, Runnable> runReloads = new ConcurrentHashMap<>();
     private final AgentRunRegistry registry = new AgentRunRegistry();
     private final AgentDesignApprovalStrip approvalStrip = new AgentDesignApprovalStrip();
+    // The "Mitgesendet" line of the designs without an activity list; it sits above the bottom displays and the strip.
+    private final AgentDesignSentLink sentLink = new AgentDesignSentLink();
     // Designs beside or over the terminal by module id, created on first use, and the run state they show.
     private final Map<String, AgentRunPresenter> presenters = new LinkedHashMap<>();
     private final Map<String, AgentInlineBlockLayout.BlockState> traces = new HashMap<>();
@@ -156,8 +158,9 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         this.surface = surface;
         getStyleClass().add(STYLE_CLASS);
         setFillWidth(true);
-        getChildren().addAll(approvalStrip);
+        getChildren().addAll(sentLink, approvalStrip);
         approvalStrip.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
+        sentLink.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
         topSlot.setFillWidth(true);
         topSlot.setVisible(false);
         topSlot.setManaged(false);
@@ -202,6 +205,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         }
         runOnFx(() -> {
             applyDesignSettings();
+            sentLink.reset();
             registry.begin(runId, prompt, System.currentTimeMillis());
             if (!runDesign.classic() || runDesign.hasStatus() || runDesign.pictureInPicture()) {
                 metroModels.put(runId, new MetroStationModel());
@@ -321,8 +325,8 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     }
 
     /**
-     * Shows what the run has sent so far in its activity list. Only the classic design has that list; the other designs
-     * show nothing for it, so they stay as they are.
+     * Shows what the run has sent so far. The classic design shows it in its activity list; the other designs show it in
+     * the "Mitgesendet" line above their rows, which every design has and which keeps the design's own layout.
      */
     public void showSentContext(String runId, AiSentContext context) {
         RunDesign design = runDesigns.get(runId);
@@ -332,6 +336,8 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         runOnFx(() -> {
             if (design.classic() && classicPanel != null) {
                 classicPanel.showSentContext(runId, context);
+            } else if (!design.classic()) {
+                sentLink.publish(context);
             }
         });
     }
@@ -406,12 +412,14 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
 
     /**
      * Shows the solution options of a run and blocks until the user answers. Classic designs use the classic panel;
-     * the others show the card in the row below the terminal, whatever their own design. A run that is not known
-     * here goes on as requested.
+     * the others show the card in the row below the terminal, whatever their own design. {@code shown} runs once the card
+     * is on screen: at once, or when the card comes forward after the prompt on screen closed. A run that is not known
+     * here goes on as requested, and its card is never shown, so {@code shown} does not run.
      */
     public TerminalAgentModels.SolutionChoice requestSolutionChoice(
         String runId,
-        TerminalAgentModels.TriageProposal proposal) {
+        TerminalAgentModels.TriageProposal proposal,
+        Runnable shown) {
         RunDesign design = runDesigns.get(runId);
         if (design == null) {
             return TerminalAgentModels.SolutionChoice.asRequested();
@@ -420,7 +428,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             runOnFx(() -> markAwaitingInput(runId, true));
             try {
                 return classicPanel != null
-                    ? classicPanel.requestSolutionChoice(runId, proposal)
+                    ? classicPanel.requestSolutionChoice(runId, proposal, shown)
                     : TerminalAgentModels.SolutionChoice.asRequested();
             } finally {
                 runOnFx(() -> {
@@ -432,7 +440,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         CompletableFuture<TerminalAgentModels.SolutionChoice> future = new CompletableFuture<>();
         PendingPrompt prompt = new PendingPrompt(runId, null, null, null, null, proposal, future);
         pendingPrompts.put(runId, prompt);
-        runOnFx(() -> openChoice(prompt));
+        runOnFx(() -> openChoice(prompt, shown));
         try {
             return future.get();
         } catch (InterruptedException e) {
@@ -1134,10 +1142,11 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         refreshStatus();
     }
 
-    private void openChoice(PendingPrompt prompt) {
+    private void openChoice(PendingPrompt prompt, Runnable shown) {
         String runId = prompt.runId();
         markAwaitingInput(runId, true);
-        if (!prompts.open(prompt, AgentPromptQueue.Kind.CHOICE)) {
+        // The queue runs shown when the card is on screen, now or after the prompt in front of it closes.
+        if (!prompts.open(prompt, AgentPromptQueue.Kind.CHOICE, shown)) {
             // The card follows the prompt on screen; closePrompt shows it once that one is closed.
             return;
         }

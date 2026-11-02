@@ -284,14 +284,25 @@ public final class RuleProposalService {
                 String before = store.read(scope).text();
                 MemoryStore.Snapshot after = store.archiveKorttyEntries(scope, Set.of(entryId),
                     MemoryConsent.grant(scope, clock.instant()));
-                // Archiving changes the file only when the entry is still an intact korTTY entry.
-                done.complete(after.text().equals(before) ? UndoOutcome.NOT_FOUND : UndoOutcome.UNDONE);
+                // Archiving changes the file only when the entry is still an intact korTTY entry. An entry the user edited
+                // keeps its fence with the id, so it is kept and reported as changed; without the fence it is gone.
+                done.complete(after.text().equals(before)
+                    ? memoryOutcomeWithoutChange(after.text(), entryId)
+                    : UndoOutcome.UNDONE);
             } catch (IOException | RuntimeException failure) {
                 logger.warn("The rule could not be removed from the memory of {}", scope.key(), failure);
                 done.complete(UndoOutcome.FAILED);
             }
         });
         return done;
+    }
+
+    /**
+     * The undo outcome of a memory entry whose removal changed nothing: the entry the user edited keeps its fence, so it is
+     * reported as changed and kept; an entry without its fence is not there any more.
+     */
+    private static UndoOutcome memoryOutcomeWithoutChange(String text, String entryId) {
+        return MemoryFormat.hasKorttyFence(text, entryId) ? UndoOutcome.RULE_CHANGED_KEPT : UndoOutcome.NOT_FOUND;
     }
 
     /**

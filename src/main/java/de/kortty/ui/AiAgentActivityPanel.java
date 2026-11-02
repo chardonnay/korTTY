@@ -668,12 +668,21 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     /**
-     * Shows the solution options in the panel and blocks until the user answers. Interrupted when the run is
-     * cancelled; the prompt is then removed.
+     * Shows the solution options in the panel and blocks until the user answers. {@code shown} runs once the options are
+     * on screen, which starts the time to answer. Interrupted when the run is cancelled; the prompt is then removed.
      */
-    public TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal) {
+    public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+        TerminalAgentModels.TriageProposal proposal,
+        Runnable shown) {
         CompletableFuture<TerminalAgentModels.SolutionChoice> future = new CompletableFuture<>();
-        runOnFx(() -> showSolutionChoicePrompt(proposal, future));
+        runOnFx(() -> {
+            try {
+                showSolutionChoicePrompt(proposal, future);
+            } finally {
+                // Also when the prompt failed: the time to answer then runs out as usual instead of never starting.
+                shown.run();
+            }
+        });
         try {
             return future.get();
         } catch (InterruptedException e) {

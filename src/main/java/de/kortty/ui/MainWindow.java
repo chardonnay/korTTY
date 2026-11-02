@@ -12502,10 +12502,12 @@ public class MainWindow {
                     }
 
                     @Override
-                    public TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal) {
+                    public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+                        TerminalAgentModels.TriageProposal proposal,
+                        Runnable shown) {
                         TerminalAttentionNotifier.postAiRun(terminalTab,
                             TerminalNotificationPolicy.AiRunEvent.NEEDS_APPROVAL);
-                        return activityPanel.requestSolutionChoice(runId, proposal);
+                        return activityPanel.requestSolutionChoice(runId, proposal, shown);
                     }
 
                     @Override
@@ -15444,7 +15446,8 @@ public class MainWindow {
             reloadStoresAfterBackupImport();
             // Restored connections, credentials and environments can bring other tab colors.
             refreshConnectionColorsInAllWindows();
-            
+            rescanSecretsAfterBackupImport();
+
             updateStatus(I18n.get("backup.import.successHeader") + ": " + filesImported + " " + I18n.get("backup.import.files"));
         });
         
@@ -15603,6 +15606,23 @@ public class MainWindow {
                 app.getSwarmChatManager().load();
             }
         });
+    }
+
+    /**
+     * Scans the restored skills and memory files for secrets, as the startup scan does. The skills are copied here, on the FX
+     * thread where they are edited, and the scan runs off the FX thread. A restore that asks for a restart does not come here:
+     * the startup scan of the next start covers the restored files.
+     */
+    private void rescanSecretsAfterBackupImport() {
+        List<de.kortty.model.AiSkill> skills = new ArrayList<>();
+        for (de.kortty.model.AiSkill skill : app.getGlobalSettingsManager().getSettings().getAiSkills()) {
+            skills.add(new de.kortty.model.AiSkill(skill));
+        }
+        List<String> connectionIds = app.getConfigManager().getConnections().stream()
+            .map(connection -> connection.getId())
+            .toList();
+        java.util.concurrent.CompletableFuture.runAsync(() -> de.kortty.core.AiSecretStartupScan.run(skills,
+            connectionIds, de.kortty.memory.MemoryService.get().store(), de.kortty.core.AiSecretScanRegistry.shared()));
     }
 
     @FunctionalInterface

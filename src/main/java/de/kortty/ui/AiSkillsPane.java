@@ -803,7 +803,29 @@ final class AiSkillsPane extends VBox {
     }
 
     private void openStatistics(KorTTYApplication application, Window ownerWindow) {
-        new AiSkillStatisticsDialog(ownerWindow, application, this::statusOf).show();
+        new AiSkillStatisticsDialog(ownerWindow, application, this::statusOf, this::revealAiSkill).show();
+    }
+
+    /**
+     * Brings the skill {@code skillId} into view and into the editor; the statistics dialog's "Open in editor" uses it. A
+     * hidden or imported skill switches the list to show it. An unknown id does nothing.
+     */
+    void revealAiSkill(String skillId) {
+        AiSkill target = null;
+        for (AiSkill skill : aiSkills) {
+            if (skill != null && skillId != null && skillId.equals(skill.getId())) {
+                target = skill;
+                break;
+            }
+        }
+        if (target == null) {
+            return;
+        }
+        if (target.isExternal() != externalView) {
+            (target.isExternal() ? externalViewButton : localViewButton).setSelected(true);
+        }
+        // The same view as a refused skill: the search is cleared, hidden skills are shown and the skill is selected.
+        showRefusedSkill(target);
     }
 
     private void refreshBuiltinIndicatorsSoon() {

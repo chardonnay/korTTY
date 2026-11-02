@@ -395,7 +395,8 @@ public final class PolicyLoader {
     /**
      * The {@code [rule.ai-memory]} table: how the user's memory files may be used, the learning of rules and
      * the limits of the memory. Every value is validated like the other keys: a value the policy does not know
-     * is an error and the whole file is rejected.
+     * is an error and the whole file is rejected. An unknown key is a warning, as in every other table, so a newer
+     * korTTY may add a key without locking down an older one.
      */
     private void parseRuleAiMemory(TomlTable rule, String context, PolicyRule.Builder builder) {
         TomlTable table = getTable(rule, "ai-memory", context);
@@ -403,7 +404,7 @@ public final class PolicyLoader {
             return;
         }
         String tableContext = context + " [rule.ai-memory]";
-        rejectUnknownKeys(table, AI_MEMORY_KEYS, tableContext);
+        warnUnknownKeys(table, AI_MEMORY_KEYS, tableContext);
         UserMemoryMode userMemory = null;
         String userMemoryValue = getString(table, "user-memory", tableContext);
         if (userMemoryValue != null) {
@@ -975,7 +976,10 @@ public final class PolicyLoader {
                 + PolicyFile.ORGANIZATION_MEMORY_MAX_CHARS + "; the block is ignored");
             return false;
         }
-        AiSecretGuard.Result check = AiSecretGuard.check(text, List.of());
+        // The text is checked as the other write paths check it: invisible characters are removed first, so a zero-width
+        // space inside a keyword cannot hide the secret.
+        AiSecretGuard.Result check = AiSecretGuard.check(
+            de.kortty.memory.external.ExternalMemoryReader.sanitize(text).text(), List.of());
         if (!check.ok()) {
             AiSecretGuard.Finding first = check.first().orElseThrow();
             warnings.add(context + ": " + field + " looks like a secret (" + first.category() + " on line "
@@ -1079,19 +1083,6 @@ public final class PolicyLoader {
         for (String key : table.keySet()) {
             if (!known.contains(key)) {
                 warnings.add(prefix(context) + "unknown key \"" + key + "\" (ignored)");
-            }
-        }
-    }
-
-    /**
-     * Unknown keys of a table that governs what user text reaches the model: an error, so the file is rejected. A typo such
-     * as {@code user-memmory} would otherwise leave the mandate unset without anyone noticing.
-     */
-    private void rejectUnknownKeys(TomlTable table, Set<String> known, String context) {
-        for (String key : table.keySet()) {
-            if (!known.contains(key)) {
-                errors.add(prefix(context) + "unknown key \"" + key + "\"; the policy file is rejected, because"
-                    + " the setting would otherwise be ignored");
             }
         }
     }

@@ -197,13 +197,76 @@ class MemoryFormatTest {
     }
 
     @Test
-    void aHashInAFenceHeaderStaysVisibleUnlessTheBodyMatchesIt() {
+    void aHashInAFenceHeaderIsLeftOutWhetherTheEntryIsIntactOrEdited() {
         String hash = "0123456789abcdef".repeat(4);
-        String forged = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash
-            + " created=2026-11-02 source=chat -->\n- A body that does not match the hash.\n<!-- /kortty:entry -->\n";
-        assertThat(MemoryFormat.textForSecretCheck(forged)).contains(hash);
-        assertThat(MemoryFormat.parse(forged).entries()).isEmpty();
+        // An edited entry keeps its header with the old hash: it is user text now, and the header must not block a write.
+        String edited = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash
+            + " created=2026-11-02 source=chat -->\n- A body the user changed.\n<!-- /kortty:entry -->\n";
+        assertThat(MemoryFormat.parse(edited).entries()).isEmpty();
+        assertThat(MemoryFormat.textForSecretCheck(edited)).doesNotContain(hash);
+        assertThat(MemoryFormat.textForSecretCheck(edited)).isEqualTo(
+            edited.replace(" sha256=" + hash, ""));
         String genuine = entry("3fa9", "- A body that matches the hash.");
         assertThat(MemoryFormat.textForSecretCheck(genuine)).doesNotContainMatch("[0-9a-f]{64}");
+    }
+
+    @Test
+    void aHashOutsideAFenceHeaderOrInAHeaderOfUnknownShapeStaysVisible() {
+        String hash = "0123456789abcdef".repeat(4);
+        assertThat(MemoryFormat.textForSecretCheck("data=" + hash + "\n")).contains(hash);
+        String unknownName = "<!-- kortty:entry id=3fa9 origin=korTTY sha265=" + hash + " -->\n";
+        assertThat(MemoryFormat.textForSecretCheck(unknownName)).contains(hash);
+        String longer = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash + "0 created=2026-11-02 source=chat -->\n";
+        assertThat(MemoryFormat.textForSecretCheck(longer)).contains(hash);
+        String upper = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash.toUpperCase()
+            + " created=2026-11-02 source=chat -->\n";
+        assertThat(MemoryFormat.textForSecretCheck(upper)).contains(hash.toUpperCase());
+    }
+
+    @Test
+    void aBlankedFenceHeaderKeepsItsLineEnding() {
+        String hash = "0123456789abcdef".repeat(4);
+        String header = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash
+            + " created=2026-11-02 source=chat -->\r\n";
+        assertThat(MemoryFormat.textForSecretCheck(header)).isEqualTo(
+            "<!-- kortty:entry id=3fa9 origin=korTTY created=2026-11-02 source=chat -->\r\n");
+    }
+
+    @Test
+    void hasKorttyFenceFindsAnEntryWhetherItsBodyIsIntactOrEdited() {
+        String edited = entry("3fa9", "- Use tabs.").replace("- Use tabs.", "- Use spaces.");
+        assertThat(MemoryFormat.hasKorttyFence(edited, "3fa9")).isTrue();
+        assertThat(MemoryFormat.hasKorttyFence(entry("3fa9", "- Use tabs."), "3fa9")).isTrue();
+        assertThat(MemoryFormat.hasKorttyFence(edited, "77aa")).isFalse();
+        assertThat(MemoryFormat.hasKorttyFence("- Use spaces.\n", "3fa9")).isFalse();
+        assertThat(MemoryFormat.hasKorttyFence(entry("3fa9", "- x").replace("origin=korTTY", "origin=other"), "3fa9"))
+            .isFalse();
+        assertThat(MemoryFormat.hasKorttyFence(edited, null)).isFalse();
+    }
+
+    @Test
+    void aNewHashInAFenceHeaderIsVisibleToTheWriteCheck() {
+        String hash = "0123456789abcdef".repeat(4);
+        String typed = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash
+            + " created=2026-11-02 source=chat -->\n- A body the user typed.\n<!-- /kortty:entry -->\n";
+        String checked = MemoryFormat.textForSecretCheck(typed, "Personal note\n");
+        assertThat(checked).contains(hash);
+        assertThat(de.kortty.core.AiSecretGuard.check(checked).ok()).isFalse();
+    }
+
+    @Test
+    void anEditedEntryKeepsItsHeaderWhenTheStoredFileHoldsTheSameHeader() {
+        String stored = entry("3fa9", "- The first body.");
+        String header = stored.split("\n")[0];
+        String hash = MemoryFormat.sha256("- The first body.");
+        String edited = header + "\n- A body the user changed.\n<!-- /kortty:entry -->\n";
+        assertThat(MemoryFormat.textForSecretCheck(edited, stored)).doesNotContain(hash);
+        assertThat(de.kortty.core.AiSecretGuard.check(MemoryFormat.textForSecretCheck(edited, stored)).ok()).isTrue();
+    }
+
+    @Test
+    void anIntactEntryKeepsItsHeaderThroughTheWriteCheck() {
+        String stored = entry("3fa9", "- The first body.");
+        assertThat(MemoryFormat.textForSecretCheck(stored, "")).doesNotContainMatch("[0-9a-f]{64}");
     }
 }

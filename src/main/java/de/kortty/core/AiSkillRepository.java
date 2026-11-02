@@ -130,9 +130,11 @@ public final class AiSkillRepository {
     /**
      * A change korTTY makes on its own initiative. {@code change} receives copies of the stored skills and
      * returns the new list; only skills it changed are validated, and a refused one keeps its stored
-     * version. korTTY may add learned rules to a stored skill and create new skills, but it never changes
-     * anything else of a stored skill: such a change is refused. A changed result is saved in the background
-     * and reported to the listeners.
+     * version. korTTY may add learned rules to a stored skill and create new skills, and it may remove or
+     * rewrite a stored rule only as the undo of that rule (see {@code RuleProposalService}, which matches the
+     * rule by id and hash). Any other change to a stored skill is refused. The rule part of a change is not
+     * checked here: a caller that removes or rewrites a rule is responsible for that undo match. A changed result
+     * is saved in the background and reported to the listeners.
      *
      * @param consent the user's consent to this change; it covers one {@code update} and is used up by it
      */

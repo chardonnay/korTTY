@@ -200,8 +200,9 @@
 #                                     # user's own setting applies
 #   triage = "auto"                   # "auto" | "always" | "never": when the agent offers solution options
 #   statistics = true                 # false: no skill statistics are recorded
-#   # A key that is not listed here is an error and the whole policy file is rejected, so a typo such as
-#   # user-memmory cannot leave the memory unrestricted without anyone noticing.
+#   # A key that is not listed here is only a warning in the log and is ignored, so a newer korTTY can add keys
+#   # without locking down an older one. A typo such as user-memmory therefore leaves that setting unset: check the
+#   # log after you change this table. A value outside the listed ones rejects the whole file.
 
 # Automatic search-and-replace in every journal. The rules run BEFORE a line is written,
 # so a matching text never reaches the log file at all, and they also cover AI summaries

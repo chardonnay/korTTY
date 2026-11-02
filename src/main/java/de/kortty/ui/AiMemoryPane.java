@@ -1,6 +1,8 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiSecretGuard;
+import de.kortty.core.AiSecretScanRegistry;
 import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.memory.MemoryBlock;
@@ -81,6 +83,8 @@ final class AiMemoryPane extends VBox {
         "-fx-background-color: rgba(56,189,248,0.22); -fx-background-radius: 4; -fx-padding: 1 6 1 6;";
     private static final String BANNER_STYLE =
         "-fx-background-color: rgba(234,179,8,0.14); -fx-background-radius: 6; -fx-padding: 8 10 8 10;";
+    private static final String WARNING_STYLE =
+        "-fx-text-fill: #d9534f; -fx-background-color: rgba(217,83,79,0.14); -fx-background-radius: 6; -fx-padding: 8 10 8 10;";
     private static final double CLEANUP_HINT_SHARE = 0.8;
     private static final int BUDGET_STEP = 100;
 
@@ -136,12 +140,15 @@ final class AiMemoryPane extends VBox {
     private final Label staleLabel = hint(I18n.get("settings.ai.memory.markdown.stale"));
     private final Button markdownSaveButton = new Button(I18n.get("settings.ai.memory.markdown.save"));
     private final Button cleanupButton = new Button(I18n.get("settings.ai.memory.cleanup"));
+    private final Button archiveButton = new Button(I18n.get("settings.ai.memory.archive.show"));
     private final Button historyButton = new Button(I18n.get("settings.ai.memory.history"));
     private final Button clearButton = new Button(I18n.get("settings.ai.memory.clear"));
     private final Button reloadButton = new Button(I18n.get("settings.ai.memory.reload"));
     private final Button saveSettingsButton = new Button(I18n.get("settings.save"));
     private final Label statusLabel = new Label();
     private final VBox bannerBox = new VBox(8);
+    /** The warning for the selected scope when its file holds a possible secret; see {@link #updateSecretNotice}. */
+    private final VBox secretBox = new VBox(8);
     private final VBox settingsBox = new VBox(10);
     private final VBox filesBox = new VBox(10);
     /**
@@ -174,7 +181,7 @@ final class AiMemoryPane extends VBox {
         externalSection = new ExternalMemorySection(owner, List.copyOf(scopeCombo.getItems()), this::currentScopeChoice);
         installExternalFilesSection(externalSection);
         rebuildBanners();
-        getChildren().addAll(bannerBox, settingsBox, filesBox);
+        getChildren().addAll(bannerBox, secretBox, settingsBox, filesBox);
         scopeCombo.valueProperty().addListener((obs, was, now) -> onScopeChanged(was, now));
         store.addChangeListener(storeListener);
         refresh();
@@ -307,9 +314,10 @@ final class AiMemoryPane extends VBox {
         showView(false);
 
         cleanupButton.setOnAction(event -> openCleanup());
+        archiveButton.setOnAction(event -> openArchive());
         historyButton.setOnAction(event -> openHistory());
         clearButton.setOnAction(event -> clearMemory());
-        HBox actions = new HBox(10, cleanupButton, historyButton, clearButton);
+        HBox actions = new HBox(10, cleanupButton, archiveButton, historyButton, clearButton);
 
         statusLabel.setWrapText(true);
         statusLabel.setStyle(MutedTextStyle.HINT);
@@ -394,6 +402,7 @@ final class AiMemoryPane extends VBox {
             entriesList.getItems().clear();
             snapshot = null;
             updateButtons();
+            updateSecretNotice();
             return;
         }
         ScopeChoice choice = scopeCombo.getValue();
@@ -428,6 +437,7 @@ final class AiMemoryPane extends VBox {
         updateMarkdown();
         updateBudget();
         updateButtons();
+        updateSecretNotice();
     }
 
     /** Fills the Markdown editor from the file unless the user has unsaved edits, which are kept and marked stale. */
@@ -480,6 +490,7 @@ final class AiMemoryPane extends VBox {
         markdownSaveButton.setDisable(!canEdit);
         clearButton.setDisable(!canEdit);
         cleanupButton.setDisable(!canEdit);
+        archiveButton.setDisable(!visible);
         historyButton.setDisable(!visible);
         reloadButton.setDisable(!visible);
         // A disabled action says why: the policy that turned it off, or the read-only policy for the editing actions.
@@ -487,6 +498,7 @@ final class AiMemoryPane extends VBox {
         setDisabledReason(markdownSaveButton, !canEdit, readOnlyReason);
         setDisabledReason(clearButton, !canEdit, readOnlyReason);
         setDisabledReason(cleanupButton, !canEdit, readOnlyReason);
+        setDisabledReason(archiveButton, !visible, I18n.get("settings.ai.memory.policy.disabled"));
         setDisabledReason(historyButton, !visible, I18n.get("settings.ai.memory.policy.disabled"));
         setDisabledReason(reloadButton, !visible, I18n.get("settings.ai.memory.policy.disabled"));
     }
@@ -627,6 +639,21 @@ final class AiMemoryPane extends VBox {
         new AiMemoryHistoryDialog(owner, store, scope, base.text(), editable(), restored ->
             writeAsync(base.sha256(), digest -> actions.restore(scope, digest, restored),
                 "settings.ai.memory.restored", written -> { })).show();
+    }
+
+    /**
+     * Opens the archive of the current scope in its own window. Viewing works in every mode the tab is shown in; restoring and
+     * deleting need a memory that may be changed, and the view says why they are off.
+     */
+    private void openArchive() {
+        ScopeChoice choice = currentScopeChoice();
+        boolean writable = editable();
+        String reason = filesVisible()
+            ? I18n.get("settings.ai.memory.policy.readOnly")
+            : I18n.get("settings.ai.memory.policy.disabled");
+        String target = choice.label() + " (" + choice.scope().relativePath() + ")";
+        new AiMemoryArchiveViewDialog(owner, store, choice.scope(), target, writable, reason, effectiveBudget(),
+            this::refresh).show();
     }
 
     private void writeAsync(String digest, Writer writer, String successKey, Consumer<MemoryStore.Snapshot> onWritten) {
@@ -842,6 +869,32 @@ final class AiMemoryPane extends VBox {
 
     private GlobalSettings settings() {
         return app != null && app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
+    }
+
+    /**
+     * The warning for the selected scope when its file holds a possible secret: the first line and the kind of secret, never
+     * the value. The warning goes once the file is saved clean, because every write checks the file again.
+     */
+    private void updateSecretNotice() {
+        secretBox.getChildren().clear();
+        List<AiSecretGuard.Finding> findings = filesVisible()
+            ? AiSecretScanRegistry.shared().memoryFindings(currentScope().key())
+            : List.of();
+        if (!findings.isEmpty()) {
+            AiSecretGuard.Finding first = findings.get(0);
+            String text = I18n.get("settings.ai.memory.secret.banner", first.line(),
+                AiMemoryMessages.categoryLabel(first.category()));
+            if (findings.size() > 1) {
+                text = text + " " + I18n.get("settings.ai.memory.secret.bannerMore", findings.size());
+            }
+            Label warning = new Label(text);
+            warning.setWrapText(true);
+            warning.setStyle(WARNING_STYLE);
+            secretBox.getChildren().add(warning);
+        }
+        boolean shown = !secretBox.getChildren().isEmpty();
+        secretBox.setVisible(shown);
+        secretBox.setManaged(shown);
     }
 
     private static boolean killSwitchOff() {

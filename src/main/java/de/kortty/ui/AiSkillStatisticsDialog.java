@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.core.AiSkillRepository;
 import de.kortty.core.BuiltinAiSkillSupport;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.KorTTYApplication;
@@ -51,14 +52,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
 /**
  * The skill statistics: the uses per period as a stacked chart, the headline figures, one sortable row per skill with
- * its sizes and growth, the size history of the selected row and hints about skills to review. The statistics are
- * recorded only while the setting is on and the policy allows them, and this dialog switches that setting itself.
- * Everything is read and aggregated off the FX thread.
+ * its sizes and growth, the size history of the selected row and hints about skills to review. A large or fast-growing
+ * skill offers a shortening suggestion, see {@link AiSkillShortenDialog}. The statistics are recorded only while the
+ * setting is on and the policy allows them, and this dialog switches that setting itself. Everything is read and
+ * aggregated off the FX thread.
  */
 final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
 
@@ -75,6 +78,8 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
 
     private final KorTTYApplication app;
     private final Function<AiSkill, BuiltinAiSkillSupport.AiSkillStatus> statusOf;
+    /** Selects a skill in the AI-skills editor by id; the shortening dialog's "Open in editor" uses it. */
+    private final Consumer<String> openInEditor;
     private final ToggleGroup granularityGroup = new ToggleGroup();
     private final ToggleButton dayToggle = granularityToggle("settings.aiSkills.stats.granularity.day",
         SkillStatsReport.Granularity.DAY);
@@ -109,9 +114,11 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
     private boolean disposed;
 
     AiSkillStatisticsDialog(Window owner, KorTTYApplication app,
-                            Function<AiSkill, BuiltinAiSkillSupport.AiSkillStatus> statusOf) {
+                            Function<AiSkill, BuiltinAiSkillSupport.AiSkillStatus> statusOf,
+                            Consumer<String> openInEditor) {
         this.app = app;
         this.statusOf = statusOf;
+        this.openInEditor = openInEditor;
         setTitle(I18n.get("settings.aiSkills.stats.title"));
         setResizable(true);
         initModality(Modality.NONE);
@@ -341,8 +348,51 @@ final class AiSkillStatisticsDialog extends ThemeAwareDialog<Void> {
                     AiSkillStatisticsFormat.number(hint.tokens()));
             Label label = new Label(text);
             label.setWrapText(true);
-            hintsBox.getChildren().add(label);
+            if (!offersShortening(hint.kind())) {
+                hintsBox.getChildren().add(label);
+                continue;
+            }
+            Button shorten = new Button(I18n.get("settings.aiSkills.stats.shorten"));
+            String skillId = hint.skillId();
+            shorten.setOnAction(event -> openShortening(skillId));
+            HBox.setHgrow(label, Priority.ALWAYS);
+            hintsBox.getChildren().add(new HBox(8, label, shorten));
         }
+    }
+
+    /** Large and fast-growing skills offer a shortening suggestion; the other hints only name the skill. */
+    static boolean offersShortening(SkillStatsReport.HintKind kind) {
+        return kind == SkillStatsReport.HintKind.OVER_1000_TOKENS || kind == SkillStatsReport.HintKind.GREW_TWICE_IN_30_DAYS;
+    }
+
+    /**
+     * Opens the shortening of the skill {@code skillId} over this dialog. The statistics are computed again once a
+     * shortening was saved.
+     */
+    private void openShortening(String skillId) {
+        AiSkillRepository repository = repository();
+        if (repository == null) {
+            return;
+        }
+        AiSkill skill = null;
+        for (AiSkill stored : repository.snapshot()) {
+            if (stored != null && Objects.equals(skillId, stored.getId())) {
+                skill = stored;
+                break;
+            }
+        }
+        if (skill == null) {
+            statusLabel.setText(I18n.get("settings.aiSkills.shorten.missing"));
+            return;
+        }
+        Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        new AiSkillShortenDialog(window, app, skill, openInEditor, this::refresh).show();
+    }
+
+    private AiSkillRepository repository() {
+        return app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().aiSkillRepository()
+            : null;
     }
 
     private void showHistory(Line line) {

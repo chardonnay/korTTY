@@ -11,10 +11,12 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +50,8 @@ public final class MemoryFormat {
     private static final Pattern SOURCE = Pattern.compile("[A-Za-z0-9_.-]{1,64}");
     private static final Pattern CREATED = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
+    /** The sha256 attribute of a fence header: a space, the name, and exactly 64 lowercase hex characters before a space. */
+    private static final Pattern FENCE_HASH = Pattern.compile(" sha256=[0-9a-f]{64}(?= )");
     private static final List<String> ATTRIBUTE_NAMES = List.of("id", "origin", "sha256", "created", "source");
 
     private MemoryFormat() {
@@ -129,22 +133,75 @@ public final class MemoryFormat {
     }
 
     /**
-     * The text the secret guard reads: the file as it is, except that the sha256 value of each intact korTTY fence
-     * is left out. That value is a hash, and the guard would take it for a random token. Only the value of an entry
-     * whose body matches it is left out, so a hash written by hand in a fence header stays visible. Invisible
-     * characters are removed, because a zero-width space inside a keyword would hide it from the guard. Every other
-     * part of a fence stays visible. Line numbers are those of {@code text}.
+     * The text the secret guard reads when it checks a file that is already stored, a backup or the startup scan: the file
+     * as it is, except that the sha256 value of every korTTY fence header is left out. That value is a hash, and the guard
+     * would take it for a random token. A header counts whether its entry is intact or was edited since (an edited entry
+     * keeps its header with the old hash), so a stored file with an edited entry is not flagged by it. Invisible
+     * characters are removed, because a zero-width space inside a keyword would hide it from the guard. Every other part
+     * of a fence stays visible. Line numbers are those of {@code text}.
+     *
+     * <p>A write is checked with {@link #textForSecretCheck(String, String)} instead, which does not take the hash of a
+     * header line the stored file did not hold.</p>
      */
     public static String textForSecretCheck(String text) {
-        StringBuilder checked = new StringBuilder();
+        return visibleForSecretCheck(text, null);
+    }
+
+    /**
+     * {@link #textForSecretCheck(String)} for a write that replaces {@code previous}. The sha256 value of a fence header is
+     * left out only when the entry is intact (its hash is the hash of its body) or when the same header line is already
+     * in {@code previous}, so an edited entry keeps passing and a header with a new hash is visible to the guard. A
+     * secret typed into a fence header is therefore refused.
+     */
+    public static String textForSecretCheck(String text, String previous) {
+        return visibleForSecretCheck(text, previousLines(previous == null ? "" : previous));
+    }
+
+    /** The check text; {@code previousLines} null means that every header of the text is taken as stored. */
+    private static String visibleForSecretCheck(String text, Set<String> previousLines) {
+        StringBuilder visible = new StringBuilder();
         for (Segment segment : parse(text == null ? "" : text).segments()) {
             if (segment instanceof KorttyEntry entry) {
-                checked.append(withoutHash(entry));
-            } else {
-                checked.append(((UserText) segment).text());
+                // An intact entry: its header hash is the hash of a body the guard reads.
+                for (String line : splitLines(entry.raw())) {
+                    visible.append(withoutFenceHash(line));
+                }
+                continue;
+            }
+            for (String line : splitLines(((UserText) segment).text())) {
+                boolean stored = previousLines == null || previousLines.contains(stripTerminator(line));
+                visible.append(stored ? withoutFenceHash(line) : line);
             }
         }
-        return ExternalMemoryReader.sanitize(checked.toString()).text();
+        return ExternalMemoryReader.sanitize(visible.toString()).text();
+    }
+
+    private static Set<String> previousLines(String previous) {
+        Set<String> lines = new HashSet<>();
+        for (String line : splitLines(previous)) {
+            lines.add(stripTerminator(line));
+        }
+        return lines;
+    }
+
+    /**
+     * Whether {@code text} still holds the fence of the korTTY entry {@code id}, intact or with an edited body. An entry
+     * the user edited keeps its fence, so the id stays in the file; a fence that is gone means the entry is gone.
+     */
+    public static boolean hasKorttyFence(String text, String id) {
+        if (id == null) {
+            return false;
+        }
+        for (String line : splitLines(text == null ? "" : text)) {
+            Matcher open = OPEN_LINE.matcher(stripTerminator(line));
+            if (open.matches()) {
+                Map<String, String> values = headerValues(open.group(1));
+                if (ORIGIN.equals(values.get("origin")) && id.equals(values.get("id"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** One fence for a new entry. Line breaks in the body become {@code \n}; fence markers inside it are escaped. */
@@ -234,12 +291,46 @@ public final class MemoryFormat {
         return String.join("", lines.subList(from, to));
     }
 
-    /** The raw fence of {@code entry} with its sha256 attribute removed; the body and the other attributes stay. */
-    private static String withoutHash(KorttyEntry entry) {
-        String raw = entry.raw();
-        String attribute = " sha256=" + entry.sha256();
-        int at = raw.indexOf(attribute);
-        return at < 0 ? raw : raw.substring(0, at) + raw.substring(at + attribute.length());
+    /**
+     * The line without the sha256 attribute when the line is a korTTY fence header, so the line keeps its other attributes
+     * and its line ending. Any other line is returned as it is.
+     */
+    private static String withoutFenceHash(String line) {
+        String content = stripTerminator(line);
+        if (!isFenceHeader(content)) {
+            return line;
+        }
+        return FENCE_HASH.matcher(content).replaceAll("") + line.substring(content.length());
+    }
+
+    /**
+     * Whether {@code line} has the shape of a korTTY fence header: the whole opening fence, with attributes that all have
+     * known names. The values are not checked, because an edited entry keeps its header with values that no longer match.
+     */
+    private static boolean isFenceHeader(String line) {
+        Matcher open = OPEN_LINE.matcher(line);
+        if (!open.matches()) {
+            return false;
+        }
+        for (String token : open.group(1).strip().split(" ")) {
+            int equals = token.indexOf('=');
+            if (equals <= 0 || !ATTRIBUTE_NAMES.contains(token.substring(0, equals))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** The attribute values of a fence header, first occurrence wins; the header's shape is checked by the caller. */
+    private static Map<String, String> headerValues(String raw) {
+        Map<String, String> values = new HashMap<>();
+        for (String token : raw.strip().split(" ")) {
+            int equals = token.indexOf('=');
+            if (equals > 0) {
+                values.putIfAbsent(token.substring(0, equals), token.substring(equals + 1));
+            }
+        }
+        return values;
     }
 
     /** Whether the attributes of an opening fence name korTTY as origin and carry well-formed values. */

@@ -38,6 +38,14 @@ final class SentContextView {
      * The collapsed disclosure for {@code context}. A font size of zero or less keeps the font of the scene.
      */
     static VBox create(AiSentContext context, Style style, double fontSize) {
+        return create(context, style, fontSize, false);
+    }
+
+    /**
+     * The disclosure for {@code context}, expanded when {@code expanded} is set. A font size of zero or less keeps the font
+     * of the scene.
+     */
+    static VBox create(AiSentContext context, Style style, double fontSize, boolean expanded) {
         String summary = summary(context);
         String rowStyle = style == Style.CHAT ? "ai-chat-text" : "ai-agent-detail";
         VBox body = new VBox(4);
@@ -45,10 +53,10 @@ final class SentContextView {
             body.getStyleClass().add("ai-chat-reasoning");
         }
         fillBody(body, context, style, rowStyle, fontSize);
-        body.setVisible(false);
-        body.setManaged(false);
+        body.setVisible(expanded);
+        body.setManaged(expanded);
 
-        Button toggle = new Button(COLLAPSED + summary);
+        Button toggle = new Button((expanded ? EXPANDED : COLLAPSED) + summary);
         toggle.getStyleClass().add(style == Style.CHAT ? "ai-chat-reasoning-toggle" : "ai-agent-toggle-button");
         toggle.setFocusTraversable(false);
         toggle.setTooltip(new Tooltip(I18n.get("ai.memory.sent.tooltip")));
@@ -65,7 +73,7 @@ final class SentContextView {
     }
 
     /** "Mitgesendet: Memory: 3 · Skills: 2 · 812 Tokens", with the parts that are not empty. */
-    private static String summary(AiSentContext context) {
+    static String summary(AiSentContext context) {
         List<String> parts = new ArrayList<>();
         if (!context.entries().isEmpty()) {
             parts.add(I18n.get("ai.memory.sent.count.memory", context.entries().size()));

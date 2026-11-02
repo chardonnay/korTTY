@@ -347,7 +347,12 @@ class MemoryStoreInvariantTest {
             MemoryStore roundStore = new MemoryStore(root.resolve("round-" + round), Clock.fixed(NOW, ZoneOffset.UTC));
             String initial = randomDocument(random);
             assertThat(MemoryFormat.parse(initial).toText()).isEqualTo(initial);
-            roundStore.write(scope, EMPTY_DIGEST, initial, WriteReason.USER_SAVE, null);
+            // An edited entry is saved only after its intact entry was stored: its header must already be in the file.
+            String intact = initial.replace("\n- edited ", "\n- ");
+            roundStore.write(scope, EMPTY_DIGEST, intact, WriteReason.USER_SAVE, null);
+            if (!intact.equals(initial)) {
+                roundStore.write(scope, roundStore.read(scope).sha256(), initial, WriteReason.USER_SAVE, null);
+            }
 
             for (int step = 0; step < 6; step++) {
                 Snapshot before = roundStore.read(scope);
@@ -446,17 +451,23 @@ class MemoryStoreInvariantTest {
         StringBuilder text = new StringBuilder();
         int parts = 1 + random.nextInt(7);
         for (int part = 0; part < parts; part++) {
-            switch (random.nextInt(5)) {
+            switch (random.nextInt(6)) {
                 case 0 -> text.append(randomUserLine(random)).append('\n');
                 case 1 -> text.append('\n');
                 case 2 -> text.append(entry(randomId(random), "- " + randomRule(random)));
-                // An edited entry: the body changed, its header is gone. The header of a changed entry would still
-                // carry the old hash, and korTTY refuses that hash as a possible secret until the header is removed.
+                // An edited entry whose header was removed: the body changed and the fence is gone.
                 case 3 -> text.append("- edited ").append(randomRule(random)).append('\n');
+                // An edited entry whose header stayed: the body changed, the header keeps the old hash.
+                case 4 -> text.append(editedFence(random));
                 default -> text.append(randomUserLine(random)).append("\r\n");
             }
         }
         return text.toString();
+    }
+
+    /** A fence whose body was edited after it was written: the header keeps the hash of the body it was written with. */
+    private static String editedFence(Random random) {
+        return entry(randomId(random), "- " + randomRule(random)).replace("\n- ", "\n- edited ");
     }
 
     private static String randomUserLine(Random random) {
@@ -533,5 +544,31 @@ class MemoryStoreInvariantTest {
 
         assertThat(Files.readString(dir.resolve(MemoryStore.ARCHIVE_FILE_NAME))).isEqualTo(archived);
         assertThat(archived).contains("- Old rule.");
+    }
+
+    @Test
+    void aSecretTypedIntoAFenceHeaderIsRefusedAndTheFileStaysAsItWas() throws IOException {
+        MemoryScope global = MemoryScope.global();
+        Snapshot current = store.write(global, EMPTY_DIGEST, "Keep this.\n", WriteReason.USER_SAVE, null);
+        String hash = "0123456789abcdef".repeat(4);
+        String typed = "<!-- kortty:entry id=3fa9 origin=korTTY sha256=" + hash
+            + " created=2026-11-02 source=chat -->\n- A body the user typed.\n<!-- /kortty:entry -->\n";
+
+        assertThrows(MemorySecretException.class, () -> store.write(global, current.sha256(),
+            "Keep this.\n" + typed, WriteReason.USER_SAVE, null));
+        assertThat(store.read(global).text()).isEqualTo("Keep this.\n");
+    }
+
+    @Test
+    void anEditedEntryIsSavedAgainWhileItsStoredHeaderStays() throws IOException {
+        MemoryScope global = MemoryScope.global();
+        Snapshot current = store.write(global, EMPTY_DIGEST, entry("3fa9", "- The first body."),
+            WriteReason.USER_SAVE, null);
+        String header = current.text().split("\n")[0];
+        String edited = header + "\n- A body the user changed.\n<!-- /kortty:entry -->\n";
+
+        Snapshot saved = store.write(global, current.sha256(), edited, WriteReason.USER_SAVE, null);
+
+        assertThat(saved.text()).isEqualTo(edited);
     }
 }

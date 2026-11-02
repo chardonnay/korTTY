@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -40,6 +41,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * The only writer of the memory files. Every write goes through {@link #write}, which enforces:
@@ -231,17 +233,102 @@ public final class MemoryStore {
             validateLocked(scope, current.sha256(), remaining, WriteReason.KORTTY_CONSENTED, consent);
             Path archive = memoryDir.resolve(ARCHIVE_FILE_NAME);
             String archived = readText(archive);
+            Set<String> archivedKeys = MemoryArchive.entries(archived).stream()
+                .map(MemoryArchive.Archived::key)
+                .collect(Collectors.toSet());
             List<String> fences = selected.stream()
+                .filter(entry -> !archivedKeys.contains(MemoryArchive.keyOf(entry)))
                 .map(KorttyEntry::raw)
-                .filter(raw -> !archived.contains(raw))
                 .toList();
             if (!fences.isEmpty()) {
-                writeLocked(archive, appendFences(archived, fences));
+                requireArchivable(fences);
+                writeLocked(archive, MemoryArchive.appended(archived, scope, fences));
             }
             written = commitLocked(scope, current.sha256(), remaining, WriteReason.KORTTY_CONSENTED, consent);
         }
         notifyListeners(scope);
         return written;
+    }
+
+    /** The archive file as it is now; the entries it holds are read with {@link MemoryArchive#entries}. */
+    public Snapshot readArchive() throws IOException {
+        synchronized (lock) {
+            return readFileLocked(memoryDir.resolve(ARCHIVE_FILE_NAME));
+        }
+    }
+
+    /**
+     * Puts the archived entries with the given keys back at the end of the scope's file. Only the entries the archive holds
+     * for {@code scope} are restored. An entry whose fence is already in the file, left by a retry after a failed archive
+     * removal, is not added twice; an entry whose id the file already uses gets a new id. The file is checked like any korTTY
+     * change (consent, the user's own text, the secret guard, the soft limit) before anything is written, and the archive
+     * loses the entries only after the file was written.
+     *
+     * @return the file after the restore; unchanged when no entry matched or the entries were there already
+     * @throws MemoryReadOnlyException the memory is read-only or disabled
+     * @throws MemoryLimitException    the file would exceed its soft limit for {@code budgetTokens}
+     * @throws MemorySecretException   the restored text holds a secret
+     */
+    public Snapshot restoreArchivedEntries(MemoryScope scope, Set<String> keys, MemoryConsent consent,
+                                           int budgetTokens) throws IOException {
+        Snapshot written;
+        boolean changed = false;
+        synchronized (lock) {
+            requireWritable();
+            requireConsent(scope, consent);
+            Path archive = memoryDir.resolve(ARCHIVE_FILE_NAME);
+            String archived = readText(archive);
+            List<MemoryArchive.Archived> chosen = MemoryArchive.entries(archived).stream()
+                .filter(item -> keys.contains(item.key()) && scope.equals(item.scope()))
+                .toList();
+            if (chosen.isEmpty()) {
+                return readLocked(scope);
+            }
+            Snapshot current = readLocked(scope);
+            String next = current.text();
+            for (MemoryArchive.Archived item : chosen) {
+                KorttyEntry entry = item.entry();
+                if (next.contains(entry.raw())) {
+                    continue;
+                }
+                String fence = next.contains("id=" + entry.id() + " ") ? freshFence(next, entry) : entry.raw();
+                next = appendFences(next, List.of(fence));
+                changed = true;
+            }
+            if (changed) {
+                requireWithinSoftCap(next, budgetTokens);
+                written = commitLocked(scope, current.sha256(), next, WriteReason.KORTTY_CONSENTED, consent);
+            } else {
+                written = current;
+            }
+            writeLocked(archive, MemoryArchive.without(archived, keysOf(chosen)));
+        }
+        if (changed) {
+            notifyListeners(scope);
+        }
+        return written;
+    }
+
+    /**
+     * Removes the archived entries with the given keys from the archive for good. No memory file changes.
+     *
+     * @return how many entries were removed
+     * @throws MemoryReadOnlyException the memory is read-only or disabled
+     */
+    public int deleteArchivedEntries(Set<String> keys) throws IOException {
+        synchronized (lock) {
+            requireWritable();
+            Path archive = memoryDir.resolve(ARCHIVE_FILE_NAME);
+            String archived = readText(archive);
+            List<MemoryArchive.Archived> found = MemoryArchive.entries(archived).stream()
+                .filter(item -> keys.contains(item.key()))
+                .toList();
+            if (found.isEmpty()) {
+                return 0;
+            }
+            writeLocked(archive, MemoryArchive.without(archived, keysOf(found)));
+            return found.size();
+        }
     }
 
     /** Snapshots of the scope's file, newest first. */
@@ -304,11 +391,7 @@ public final class MemoryStore {
         String id = newEntryId(current.text());
         String next = appendFences(current.text(),
             List.of(MemoryFormat.newEntry(id, body, LocalDate.now(clock), source)));
-        long softCap = 2L * Math.max(0, budgetTokens);
-        if (AiTokenCounter.countTextTokens(next, AiTokenizerType.ESTIMATE) > softCap) {
-            throw new MemoryLimitException("The memory file would exceed its soft limit of about "
-                + softCap + " tokens. Tidy it up first.");
-        }
+        requireWithinSoftCap(next, budgetTokens);
         runBeforeCommit();
         return commitLocked(scope, current.sha256(), next, WriteReason.KORTTY_CONSENTED, consent);
     }
@@ -361,7 +444,7 @@ public final class MemoryStore {
                 throw new MemoryInvariantException("A consent covers one korTTY change; ask the user again.");
             }
         }
-        AiSecretGuard.Result check = AiSecretGuard.check(MemoryFormat.textForSecretCheck(newText));
+        AiSecretGuard.Result check = AiSecretGuard.check(MemoryFormat.textForSecretCheck(newText, current.text()));
         if (!check.ok()) {
             throw new MemorySecretException(check.first().orElseThrow());
         }
@@ -387,8 +470,45 @@ public final class MemoryStore {
         }
     }
 
+    /** Refuses a file that would exceed its soft limit: twice the budget, in estimated tokens. */
+    private static void requireWithinSoftCap(String text, int budgetTokens) throws MemoryLimitException {
+        long softCap = 2L * Math.max(0, budgetTokens);
+        if (AiTokenCounter.countTextTokens(text, AiTokenizerType.ESTIMATE) > softCap) {
+            throw new MemoryLimitException("The memory file would exceed its soft limit of about "
+                + softCap + " tokens. Tidy it up first.");
+        }
+    }
+
+    /** The archive takes only text the secret guard accepts; a secret is refused with its line and kind, never its value. */
+    private static void requireArchivable(List<String> fences) throws MemorySecretException {
+        AiSecretGuard.Result check = AiSecretGuard.check(MemoryFormat.textForSecretCheck(String.join("", fences)));
+        if (!check.ok()) {
+            throw new MemorySecretException(check.first().orElseThrow());
+        }
+    }
+
+    /** A new fence for an archived entry whose id the file already uses: the same body, date and source, a new id. */
+    private String freshFence(String text, KorttyEntry entry) {
+        return MemoryFormat.newEntry(newEntryId(text), entry.body(), parseDate(entry.created()), entry.source());
+    }
+
+    private LocalDate parseDate(String created) {
+        try {
+            return LocalDate.parse(created);
+        } catch (DateTimeParseException malformed) {
+            return LocalDate.now(clock);
+        }
+    }
+
+    private static Set<String> keysOf(List<MemoryArchive.Archived> items) {
+        return items.stream().map(MemoryArchive.Archived::key).collect(Collectors.toSet());
+    }
+
     private Snapshot readLocked(MemoryScope scope) throws IOException {
-        Path file = fileOf(scope);
+        return readFileLocked(fileOf(scope));
+    }
+
+    private Snapshot readFileLocked(Path file) throws IOException {
         try {
             byte[] bytes = Files.readAllBytes(file);
             BasicFileAttributes attributes = Files.readAttributes(file, BasicFileAttributes.class);

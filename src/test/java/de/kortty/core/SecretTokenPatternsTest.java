@@ -225,6 +225,21 @@ class SecretTokenPatternsTest {
     }
 
     @Test
+    void aPwdValueThatStartsWithASlashOrATildeIsNotMaskedEvenWithoutASecondSlash() {
+        assertUntouched("export PWD=/tmp");
+        assertUntouched("PWD=\"/srv/app\"");
+        assertUntouched("PWD: ~");
+        assertUntouched("export OLDPWD=/tmp");
+        assertUntouched("cd - sets OLDPWD=/tmp when you return.");
+    }
+
+    @Test
+    void aNameThatOnlyEndsInPwdIsStillAPasswordName() {
+        assertMasked("MYSQL_PWD=/hunter2", "MYSQL_PWD=***", 1);
+        assertMasked("export MYSQL_PWD=Sommer2026!", "export MYSQL_PWD=***", 1);
+    }
+
+    @Test
     void masksASecretThatContainsTheMaskButIsNotAlreadyMasked() {
         assertMasked("login with password=Ab***789 on the lab host", "login with password=*** on the lab host", 1);
         assertMasked("DB_PASSWORD=Sum***mer2026", "DB_PASSWORD=***", 1);
@@ -244,5 +259,13 @@ class SecretTokenPatternsTest {
         assertThat(SecretTokenPatterns.redact(null).text()).isNull();
         assertThat(SecretTokenPatterns.redact(null).count()).isEqualTo(0);
         assertThat(SecretTokenPatterns.redact("").text()).isEmpty();
+    }
+
+    @Test
+    void aPwdValueThatIsNotAPathIsMaskedAndAPathIsNot() {
+        assertMasked("PWD=/Sommer2026!", "PWD=***", 1);
+        assertMasked("pwd: ~Winter2025x", "pwd: ***", 1);
+        assertUntouched("PWD=/srv/app");
+        assertUntouched("export PWD=~/bin");
     }
 }

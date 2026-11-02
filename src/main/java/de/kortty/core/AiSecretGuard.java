@@ -27,6 +27,11 @@ import java.util.regex.Pattern;
  *   <li>Known secret values, for example the saved passwords of an unlocked vault.</li>
  * </ol>
  *
+ * <p>Three kinds of value are not secrets: a number of up to six digits after a token, API key or secret name ({@code max
+ * tokens: 4096} is a count); a category word after a plural credential word followed by "sind", "are" or "were"
+ * ({@code Passwords are managed by IT} names a category, while "Passwords are Swordfish" names a value); and the value of
+ * PWD, the shell's working directory, when it is a path of path characters ({@code PWD=/tmp}, {@code PWD=~/bin}).</p>
+ *
  * <p>Findings carry a 1-based line number and an excerpt in which every secret is masked. The
  * guard cannot recognise a password that has no keyword, no format and no vault entry; the docs
  * name that residual risk.</p>
@@ -97,7 +102,7 @@ public final class AiSecretGuard {
      * (a digit or a symbol such as "@" inside the word), so "Passwort ändern" and "Pin NuGet" stay prose.
      */
     private static final Pattern BARE_CUE = Pattern.compile(
-        "(?iu)(?<![\\p{L}\\p{N}])(passw[oö]rt\\w{0,3}|kennw[oö]rt\\w{0,3}|password\\w{0,3}|passwd|pwd|passphrase"
+        "(?iu)(?<![\\p{L}\\p{N}])(?<cue>passw[oö]rt\\w{0,3}|kennw[oö]rt\\w{0,3}|password\\w{0,3}|passwd|pwd|passphrase"
             + "|passcode|pin|zugangsdaten|credentials|api[ -]?keys?|secrets?|tokens?)\\s+"
             + "(?!(?:ist|is|lautet|lauten|sind|are|were)\\b)"
             + "(?:[^\\s/&,<>{}\\[\\]]+\\s*[/&,]\\s*)?(?<value>[^\\s<>{}\\[\\]]+)");
@@ -132,24 +137,44 @@ public final class AiSecretGuard {
             + "|ENV\\[.*");
 
     /**
-     * Code expressions, judged on the value as written (trailing {@code ;} or {@code ,} aside): a Perl or shell
-     * variable with a letters-only name and its subscripts ({@code $1}, {@code $ARGV[0]}, {@code $self->{token}}),
-     * or a call or subscript on a letters-only, possibly dotted name ({@code get_token()},
-     * {@code getpass.getpass()}, {@code config["api_key"]}). A digit in the name ({@code $Hunter2Pass},
-     * {@code Summer2026(!)}) or text after the closing bracket ({@code Winter(2024)!}) makes it a secret again.
+     * Code expressions, judged on the value as written (trailing {@code ;}, {@code ,} or {@code .} aside): a Perl or shell
+     * variable with a letters-only name and its subscripts ({@code $1}, {@code $ARGV[0]}, {@code $self->{token}}), or a
+     * call or subscript on a letters-only, possibly dotted name ({@code get_token()}, {@code getpass.getpass()},
+     * {@code config["api_key"]}). A call whose argument starts with a digit ({@code Winter(2024)}), a digit in the name
+     * ({@code $Hunter2Pass}, {@code Summer2026(!)}) or text after the closing bracket ({@code Winter(2024)!}) makes it a
+     * secret. A dotted name without a call or subscript is code only when its first part is a lower-case name, as in
+     * {@code var.db_password} or {@code config.DB_PASSWORD}; a capitalised first part ({@code Qwerty.Admin}) is a value.
      */
     private static final Pattern CODE_EXPRESSION = Pattern.compile(
         "(?:\\$(?:[A-Za-z_]+|\\d+|[@#!?*])|[@%][A-Za-z_]+|@_)"
             + "(?:(?:->)?(?:\\{[^{}]*}|\\[[^\\[\\]]*])|->[A-Za-z_]\\w*(?:\\([^()]*\\)?)?)*"
             + "|[A-Za-z_]+(?:(?:\\.|::|->)[A-Za-z_]+)*"
-            + "(?:\\([^()]*\\)?|\\[[^\\[\\]]*]?)"
-            + "(?:(?:\\.|->)[A-Za-z_]\\w*|\\([^()]*\\)?|\\[[^\\[\\]]*]?)*"
-            + "|[A-Za-z_]+(?:(?:\\.|::)[A-Za-z_]+)+");
+            + "(?:\\((?!\\d)[^()]*\\)?|\\[[^\\[\\]]*]?)"
+            + "(?:(?:\\.|->)[A-Za-z_]\\w*|\\((?!\\d)[^()]*\\)?|\\[[^\\[\\]]*]?)*"
+            + "|[a-z_]\\w*(?:(?:\\.|::)[A-Za-z_]\\w*)+");
 
     /** Shorter assigned values are operators or code fragments ({@code =>}, {@code $1}); the vault floor. */
     private static final int MIN_ASSIGNED_VALUE_LENGTH = 4;
 
     private static final Pattern MASK_ONLY = Pattern.compile("[*xX.\\u2026_-]+");
+
+    /**
+     * A number with an optional short unit: a count or a size, such as {@code 4096}, {@code 8k}, {@code 1_000},
+     * {@code 2.5} or {@code 128MB}. After a token, API key or secret cue it is not a secret when it has at most
+     * {@link #MAX_COUNT_DIGITS} digits: {@code secret: 8472901635} is a value.
+     */
+    private static final Pattern NUMERIC_VALUE = Pattern.compile("(?i)\\d[\\d_.,']*(?:[kmgt]i?b?|b)?");
+    /** The most digits a count or a size may have; a longer number after a secret-like name is a value. */
+    private static final int MAX_COUNT_DIGITS = 6;
+    /** A shell working directory as a value: an absolute path or a path from the home directory, of path characters. */
+    private static final Pattern WORKING_DIRECTORY_VALUE = Pattern.compile("/[A-Za-z0-9._~/-]*|~(?:/[A-Za-z0-9._~/-]*)?");
+
+    /** The plural names of a password set or credentials, in the normalised form of {@link #pluralCredentialCue}. */
+    private static final Pattern PLURAL_CREDENTIAL_CUE = Pattern.compile(
+        "passw(?:ords|orter|ortern|orte)|kennw(?:orter|ortern|orte)|credentials|zugangsdaten");
+
+    /** The "/", "&amp;" or "," that joins a user name to its password, as in "root / Sommer2026!", and the word after it. */
+    private static final Pattern CREDENTIAL_PAIR_TAIL = Pattern.compile("[ \\t]*[/&,][ \\t]*([^\\s<>{}\\[\\]]+)");
 
     private static final Set<String> PLACEHOLDER_WORDS = Set.of(
         "dein", "deine", "deinem", "deinen", "deines", "your", "yours", "yourpassword", "your-password",
@@ -166,6 +191,15 @@ public final class AiSecretGuard {
         "auch", "noch", "dann", "wie", "so", "im", "vom", "zum", "zur", "bei",
         "wrong", "correct", "right", "valid", "invalid", "expired", "missing", "known", "unknown", "falsch", "richtig",
         "gültig", "ungültig", "abgelaufen", "bekannt", "unbekannt", "fehlt");
+
+    /**
+     * Words that name what happens to a set of passwords or credentials, as in "Passwords are managed by IT". Only after a
+     * plural credential word and "sind", "are" or "were" is one of them an ordinary word; any other value is checked.
+     */
+    private static final Set<String> CATEGORY_WORDS = Set.of(
+        "managed", "handled", "reset", "changed", "rotated", "protected", "encrypted", "hashed", "locked", "enforced",
+        "verwaltet", "geändert", "zurückgesetzt", "geschützt", "verschlüsselt", "gehasht", "gesperrt", "erneuert",
+        "rotiert");
 
     private static final Pattern ENTROPY_TOKEN = Pattern.compile(
         "(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/=_-]{20,}(?![A-Za-z0-9+/=_-])");
@@ -238,15 +272,14 @@ public final class AiSecretGuard {
         Category assignment = SECRET_ASSIGNMENT_NAME.matcher(line).find()
             ? Category.SECRET_ASSIGNMENT
             : Category.TOKEN_FORMAT;
-        List<String> formatHits = new ArrayList<>();
-        SecretTokenPatterns.findValues(line, formatHits::add);
-        for (String value : formatHits) {
-            String cleaned = clean(value);
+        SecretTokenPatterns.findNamedValues(line, named -> {
+            String cleaned = clean(named.value());
             if (cleaned.codePointCount(0, cleaned.length()) >= MIN_ASSIGNED_VALUE_LENGTH
-                && !isPlaceholderOrCode(value)) {
-                hits.add(new Hit(assignment, value));
+                && !isPlaceholderOrCode(named.value())
+                && !isCountOrSizeAssignment(named, cleaned)) {
+                hits.add(new Hit(assignment, named.value()));
             }
-        }
+        });
         for (String token : entropyTokens(line)) {
             if (highEntropy(token)) {
                 hits.add(new Hit(Category.HIGH_ENTROPY, token));
@@ -292,28 +325,105 @@ public final class AiSecretGuard {
         while (cue.find()) {
             String value = cue.group("value");
             String cleaned = clean(value);
+            String name = cue.group("cue");
             if (cleaned.codePointCount(0, cleaned.length()) < MIN_PROSE_VALUE_LENGTH
                 || isPlaceholderOrCode(value)
                 || PROSE_STOPWORDS.contains(cleaned.toLowerCase(Locale.ROOT))
-                || (isOrIst(cue.group("sentence")) && proseOnlyCue(cue.group("cue"))
-                    && cleaned.chars().allMatch(Character::isLetter))) {
+                || isCountOrSizeValue(name, cleaned)
+                || isWorkingDirectoryAssignment(text, cue.start("cue"), cue.end("cue"), value)
+                || (isOrIst(cue.group("sentence")) && proseOnlyCue(name)
+                    && cleaned.chars().allMatch(Character::isLetter))
+                || (isPluralVerb(cue.group("sentence")) && pluralCredentialCue(name)
+                    && CATEGORY_WORDS.contains(cleaned.toLowerCase(Locale.ROOT)))) {
                 continue;
             }
-            matches.add(new ProseMatch(cue.start(), cue.start("value"), cue.end("value"), value));
+            int valueEnd = pairEnd(text, cue.end("value"));
+            matches.add(new ProseMatch(cue.start(), cue.start("value"), valueEnd,
+                text.substring(cue.start("value"), valueEnd)));
         }
         Matcher bare = BARE_CUE.matcher(text);
         while (bare.find()) {
             String value = bare.group("value");
             String cleaned = clean(value);
+            String name = bare.group("cue");
             if (cleaned.codePointCount(0, cleaned.length()) < MIN_PROSE_VALUE_LENGTH
                 || isPlaceholderOrCode(value)
                 || PROSE_STOPWORDS.contains(cleaned.toLowerCase(Locale.ROOT))
+                || isCountOrSizeValue(name, cleaned)
+                || isWorkingDirectoryAssignment(text, bare.start("cue"), bare.end("cue"), value)
                 || !looksLikeBareSecret(cleaned)) {
                 continue;
             }
             matches.add(new ProseMatch(bare.start(), bare.start("value"), bare.end("value"), value));
         }
         return matches;
+    }
+
+    /**
+     * A number after a token, API key or secret name is a count or a size, not a secret: "max tokens: 4096" is prose.
+     * The password, PIN and passcode names still check a number, so "PIN: 1234" is refused.
+     */
+    private static boolean isCountOrSizeValue(String name, String cleaned) {
+        return isCountFamilyName(name) && isCountNumber(cleaned);
+    }
+
+    /** The same rule for a {@code NAME=value} assignment, judged by the name in front of the value. */
+    private static boolean isCountOrSizeAssignment(SecretTokenPatterns.NamedValue named, String cleaned) {
+        return SecretTokenPatterns.SECRET_ASSIGNMENT_RULE.equals(named.rule())
+            && isCountFamilyName(named.keep())
+            && isCountNumber(cleaned);
+    }
+
+    /** A short number with an optional unit: at most {@link #MAX_COUNT_DIGITS} digits. */
+    private static boolean isCountNumber(String cleaned) {
+        return NUMERIC_VALUE.matcher(cleaned).matches()
+            && cleaned.chars().filter(Character::isDigit).count() <= MAX_COUNT_DIGITS;
+    }
+
+    /** Token, API key and secret names without any password word: the names whose number is a count or a size. */
+    private static boolean isCountFamilyName(String name) {
+        String letters = name == null ? "" : name.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "");
+        return (letters.contains("token") || letters.contains("apikey") || letters.contains("secret"))
+            && !letters.contains("pass") && !letters.contains("pw");
+    }
+
+    /**
+     * PWD named on its own, as the shell's working directory: {@code PWD=/tmp}, {@code export PWD=~/bin} or
+     * {@code PWD: /srv}. The value must be a path of path characters, so {@code PWD=/Sommer2026!} and
+     * {@code pwd: ~Winter2025x} are values. A name that merely ends in PWD ({@code MYSQL_PWD}) is a password name. OLDPWD
+     * never reaches here, because its PWD has a letter in front of it. {@code raw} is the value as matched.
+     */
+    private static boolean isWorkingDirectoryAssignment(String text, int start, int end, String raw) {
+        if (end - start != 3 || !text.regionMatches(true, start, "pwd", 0, 3)) {
+            return false;
+        }
+        if (start > 0) {
+            char before = text.charAt(start - 1);
+            if (Character.isLetterOrDigit(before) || before == '_' || before == '-') {
+                return false;
+            }
+        }
+        String path = raw.replaceAll("^[\"'`*(\\[]+", "").replaceAll("[\"'`,;]+$", "").strip();
+        return WORKING_DIRECTORY_VALUE.matcher(path).matches();
+    }
+
+    /**
+     * The end of a prose value that goes on past its first word: in "root / Sommer2026!" the second word has a digit or a
+     * symbol and is part of the secret, so the mask covers both. A second word of plain letters is left out of the mask.
+     */
+    private static int pairEnd(String text, int valueEnd) {
+        Matcher pair = CREDENTIAL_PAIR_TAIL.matcher(text);
+        pair.region(valueEnd, text.length());
+        if (pair.lookingAt() && !clean(pair.group(1)).chars().allMatch(Character::isLetter)) {
+            return pair.end();
+        }
+        return valueEnd;
+    }
+
+    /** The plural password and credential names: "passwords", "Passwörter", "Kennwörter", "credentials", "Zugangsdaten". */
+    private static boolean pluralCredentialCue(String cue) {
+        String name = cue == null ? "" : cue.toLowerCase(Locale.ROOT).replace('ö', 'o').replaceAll("[^a-z]", "");
+        return PLURAL_CREDENTIAL_CUE.matcher(name).matches();
     }
 
     /**
@@ -454,14 +564,22 @@ public final class AiSecretGuard {
         return raw.replaceAll("^[\"'`*(\\[]+", "").replaceAll("[\"'`*)\\].,;:!?]+$", "").strip();
     }
 
-    /** Whether the connector is "ist", "is", "sind" or "are": the forms that can introduce an ordinary word. */
+    /** Whether the connector is "ist", "is", "sind", "are" or "were": the forms that can introduce an ordinary word. */
     private static boolean isOrIst(String sentence) {
-        if (sentence == null) {
-            return false;
-        }
-        String connector = sentence.replaceAll("[\\s:]", "").toLowerCase(Locale.ROOT);
+        String connector = connector(sentence);
         return connector.equals("ist") || connector.equals("is") || connector.equals("sind")
             || connector.equals("are") || connector.equals("were");
+    }
+
+    /** Whether the connector is a plural verb: "sind", "are" or "were", as in "Passwords are" or "Zugangsdaten sind". */
+    private static boolean isPluralVerb(String sentence) {
+        String connector = connector(sentence);
+        return connector.equals("sind") || connector.equals("are") || connector.equals("were");
+    }
+
+    /** The connector word of a prose match, lower-cased, without spaces and colons; empty when there is none. */
+    private static String connector(String sentence) {
+        return sentence == null ? "" : sentence.replaceAll("[\\s:]", "").toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -483,7 +601,7 @@ public final class AiSecretGuard {
         if (cleaned.isEmpty() || CODE_OR_PLACEHOLDER.matcher(cleaned).matches()) {
             return true;
         }
-        if (CODE_EXPRESSION.matcher(raw.strip().replaceAll("[;,]+$", "")).matches()) {
+        if (CODE_EXPRESSION.matcher(raw.strip().replaceAll("[;,.]+$", "")).matches()) {
             return true;
         }
         if (MASK_ONLY.matcher(cleaned).matches()

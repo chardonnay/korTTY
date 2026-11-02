@@ -26,6 +26,16 @@ public final class SecretTokenPatterns {
     private static final String SECRET = "secret";
     private static final String TAIL = "tail";
 
+    /** The name of the rule that finds {@code NAME=value} and {@code name: value} assignments of secret-named keys. */
+    static final String SECRET_ASSIGNMENT_RULE = "secret-assignment";
+
+    /**
+     * A secret part with the text in front of it on the same match ({@code keep}, such as {@code max_token = }) and the
+     * name of the rule that matched it, for a caller that judges a value by the name it is assigned to.
+     */
+    record NamedValue(String rule, String keep, String value) {
+    }
+
     /**
      * One pattern with the named groups {@code keep} (left as is), {@code secret} (masked) and,
      * optionally, {@code tail} (left as is, after the mask).
@@ -81,7 +91,7 @@ public final class SecretTokenPatterns {
         // DB_PASS: or as a YAML key at the start of a line; "make runs pass: keep" is prose.
         // A quoted value may contain spaces; a bare one ends at whitespace, a quote, ',' or ';'.
         // "api-key" also takes the hyphen, for the X-Api-Key header and --api-key= flags.
-        Rule.of("secret-assignment",
+        Rule.of(SECRET_ASSIGNMENT_RULE,
             "(?im)(?<![A-Za-z0-9_])(?<keep>"
                 + "(?:[A-Za-z0-9_]*(?:password|passwd|passphrase|secret|token|api[_-]?key|access_?key|secret_?key"
                 + "|private_?key|(?:encryption|signing|session)[_-]?key)[\"']?[ \\t]*[=:][ \\t]*[\"']?"
@@ -90,10 +100,14 @@ public final class SecretTokenPatterns {
                 + "|^[ \\t]*(?:-[ \\t]*)?(?:pass|pw)[\"']?[ \\t]*:[ \\t]*[\"']?)"
                 + ")"
                 + "(?<secret>(?<=[\"'])[^\"'\\r\\n]+|(?<![\"'])[^\\s\"'`,;]+)"),
-        // PWD is also the shell's working directory: a path value (PWD=/home/user) is not a secret.
+        // PWD is also the shell's working directory: a value that is a path of path characters (PWD=/tmp, export PWD=~/bin,
+        // PWD: /srv/app) is not a secret. The lookahead exempts the name PWD alone and only for a value that ends at a
+        // delimiter, so PWD=/Sommer2026! and pwd: ~Winter2025x stay secrets. OLDPWD is never matched, because "PWD" in it
+        // has a letter in front. MYSQL_PWD= is a password variable and stays a secret name.
         Rule.of("pwd-assignment",
-            "(?i)(?<![A-Za-z0-9_])(?<keep>(?:[A-Za-z0-9_-]*[_-])?pwd[\"']?[ \\t]*[=:][ \\t]*[\"']?)"
-                + "(?!(?:\\./|\\.\\./|[/~])[A-Za-z0-9._~-]*/[A-Za-z0-9._~/-]*(?![^\\s\"'`,;]))"
+            "(?i)(?<![A-Za-z0-9_])"
+                + "(?!pwd[\"']?[ \\t]*[=:][ \\t]*[\"']?(?:/[A-Za-z0-9._~/-]*|~(?:/[A-Za-z0-9._~/-]*)?)(?![^\\s\"'`,;]))"
+                + "(?<keep>(?:[A-Za-z0-9_-]*[_-])?pwd[\"']?[ \\t]*[=:][ \\t]*[\"']?)"
                 + "(?<secret>(?<=[\"'])[^\"'\\r\\n]+|(?<![\"'])[^\\s\"'`,;]+)"));
 
     /**
@@ -150,6 +164,14 @@ public final class SecretTokenPatterns {
      * value that is only partly masked is still a value to be judged, not one to skip.
      */
     public static void findValues(String text, java.util.function.Consumer<String> values) {
+        findNamedValues(text, named -> values.accept(named.value()));
+    }
+
+    /**
+     * Hands every secret part the patterns match to {@code values} with the text in front of it and the name of the
+     * rule, as {@link #findValues} does otherwise. The same values, in the same order.
+     */
+    static void findNamedValues(String text, java.util.function.Consumer<NamedValue> values) {
         if (text == null || text.isEmpty()) {
             return;
         }
@@ -158,7 +180,7 @@ public final class SecretTokenPatterns {
             while (matcher.find()) {
                 String secret = matcher.group(SECRET);
                 if (secret != null && !secret.isEmpty()) {
-                    values.accept(secret);
+                    values.accept(new NamedValue(rule.name(), matcher.group(KEEP), secret));
                 }
             }
         }

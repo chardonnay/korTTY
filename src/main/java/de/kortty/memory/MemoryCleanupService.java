@@ -202,7 +202,7 @@ public final class MemoryCleanupService {
         }
         String proposed = rebuildWithRules(current.text(), rules);
         requireUserTextUnchanged(current.text(), proposed);
-        requireNoSecret(proposed);
+        requireNoSecret(proposed, current.text());
         return new Proposal(Kind.MERGE_KORTTY_ENTRIES, scope, current.sha256(), current.text(), proposed, shortened);
     }
 
@@ -232,7 +232,8 @@ public final class MemoryCleanupService {
             String candidate = replies.get(index).strip();
             String original = originals.get(index);
             if (candidate.isEmpty() || candidate.equals(original) || candidate.length() >= original.length()
-                || candidate.matches("(?s).*\\R\\s*\\R.*") || hasFenceMarker(candidate)) {
+                || candidate.matches("(?s).*\\R\\s*\\R.*") || hasFenceMarker(candidate)
+                || introducesMask(candidate, original)) {
                 continue;
             }
             text = MemoryRowEdit.replaceUserParagraph(text, rows.get(index), candidate);
@@ -241,7 +242,7 @@ public final class MemoryCleanupService {
         if (changed == 0) {
             throw new CleanupException(Problem.NOTHING_TO_CHANGE);
         }
-        requireNoSecret(text);
+        requireNoSecret(text, current.text());
         return new Proposal(Kind.SHORTEN_USER_TEXT, scope, current.sha256(), current.text(), text, changed);
     }
 
@@ -281,6 +282,23 @@ public final class MemoryCleanupService {
         return store.archiveKorttyEntries(scope, Set.copyOf(entryIds), consent);
     }
 
+    /**
+     * Puts the chosen archived entries back at the end of the scope's file, as a korTTY change the user confirmed. The
+     * archive keeps the entries of the other scopes; see {@link MemoryStore#restoreArchivedEntries}.
+     *
+     * @param archiveKeys the keys of the archived entries, see {@link MemoryArchive.Archived#key()}
+     */
+    public MemoryStore.Snapshot restoreFromArchive(MemoryStore store, MemoryScope scope, Set<String> archiveKeys,
+                                                   int budgetTokens) throws IOException {
+        MemoryConsent consent = MemoryConsent.grant(scope, clock.instant());
+        return store.restoreArchivedEntries(scope, Set.copyOf(archiveKeys), consent, budgetTokens);
+    }
+
+    /** Removes the chosen archived entries from the archive for good, as the user confirmed. Returns how many went. */
+    public int deleteFromArchive(MemoryStore store, Set<String> archiveKeys) throws IOException {
+        return store.deleteArchivedEntries(Set.copyOf(archiveKeys));
+    }
+
     private static boolean createdBefore(KorttyEntry entry, LocalDate cutoff) {
         try {
             return LocalDate.parse(entry.created()).isBefore(cutoff);
@@ -316,6 +334,15 @@ public final class MemoryCleanupService {
         return out.toString();
     }
 
+    /**
+     * Whether a reply shows the mask of a hidden value where the paragraph had none. The prompt masks a word after a cue
+     * such as "Secret:" for the provider, and a reply that keeps the mask would be saved as the user's own text.
+     */
+    private static boolean introducesMask(String candidate, String original) {
+        String mask = de.kortty.core.SessionJournalRedactor.REPLACEMENT;
+        return candidate.contains(mask) && !original.contains(mask);
+    }
+
     /** Whether the text holds a fence marker. Only korTTY writes those; a paragraph with one would become an entry. */
     private static boolean hasFenceMarker(String text) {
         return !MemoryFormat.withoutFenceMarkers(text).equals(text);
@@ -327,8 +354,9 @@ public final class MemoryCleanupService {
         }
     }
 
-    private static void requireNoSecret(String text) throws MemorySecretException {
-        AiSecretGuard.Result check = AiSecretGuard.check(MemoryFormat.textForSecretCheck(text));
+    /** Refuses {@code text} when it holds a secret; {@code previous} is the stored file it replaces. */
+    private static void requireNoSecret(String text, String previous) throws MemorySecretException {
+        AiSecretGuard.Result check = AiSecretGuard.check(MemoryFormat.textForSecretCheck(text, previous));
         if (!check.ok()) {
             throw new MemorySecretException(check.first().orElseThrow());
         }

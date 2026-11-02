@@ -21,7 +21,7 @@ korTTY loads the policy exclusively from the `policy/` folder of its installatio
 
 The enforcement model relies on the operating system's file permissions: the installation directory must be writable only by administrators, which is the default for the locations above. korTTY additionally logs a warning when the active policy file is writable by the current user. During development (never in a packaged installation) a policy can be tested with `-Dkortty.policy.file=/path/to/policy.toml`.
 
-If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, the output of terminal panes is not saved for it, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version. The one exception is an unknown key under `[rule.ai-memory]`, which rejects the file, so a misspelled memory limit can never be dropped silently.
+If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, the output of terminal panes is not saved for it, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version. This holds for `[rule.ai-memory]` too: an unknown key there is logged and ignored, so check the log after you change that table.
 
 ## Users, groups and rule precedence
 
@@ -207,7 +207,7 @@ groups = ["compliance"]
 
 ### `[rule.ai-memory]` and organisation memory
 
-The `[rule.ai-memory]` table sets how the korTTY memory may be used. Every key is optional; a key the policy does not set keeps the user's own choice. An unknown key or a value outside the listed ones rejects the whole file.
+The `[rule.ai-memory]` table sets how the korTTY memory may be used. Every key is optional; a key the policy does not set keeps the user's own choice. A value outside the listed ones rejects the whole file. An unknown key is a warning in the log and is ignored, like in every other table.
 
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |

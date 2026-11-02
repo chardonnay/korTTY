@@ -293,13 +293,19 @@ public class AiAgentActivityTabsPanel extends VBox {
         }
     }
 
-    /** The run's solution options in its panel; the run goes on as requested when the run has no panel here. */
-    public TerminalAgentModels.SolutionChoice requestSolutionChoice(String runId, TerminalAgentModels.TriageProposal proposal) {
+    /**
+     * The run's solution options in its panel; the run goes on as requested when the run has no panel here. {@code shown}
+     * runs once the options are on screen, and never when there is no panel.
+     */
+    public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+        String runId,
+        TerminalAgentModels.TriageProposal proposal,
+        Runnable shown) {
         AiAgentActivityPanel panel = runPanels.get(runId);
         if (panel == null) {
             return TerminalAgentModels.SolutionChoice.asRequested();
         }
-        return panel.requestSolutionChoice(proposal);
+        return panel.requestSolutionChoice(proposal, shown);
     }
 
     /**

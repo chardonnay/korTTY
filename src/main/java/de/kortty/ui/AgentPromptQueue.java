@@ -13,6 +13,10 @@ import java.util.function.Predicate;
  * prompt is registered and follows once the prompt on screen is closed. When the screen frees up, approvals and
  * passwords come before cards. FX thread only.
  *
+ * <p>A prompt can carry a callback that runs when the prompt is on screen for the first time. A solution card uses it
+ * to start its time to answer: the card waits behind another prompt without a clock running, and the clock starts when
+ * the card is shown. A prompt that is closed before it is shown never runs its callback.</p>
+ *
  * @param <T> the prompt, compared by identity
  */
 final class AgentPromptQueue<T> {
@@ -22,7 +26,34 @@ final class AgentPromptQueue<T> {
         APPROVAL, PASSWORD, CHOICE
     }
 
-    private record Slot<T>(T prompt, Kind kind) {
+    /** A registered prompt and the callback that runs when it is first on screen; the callback is taken once. */
+    private static final class Slot<T> {
+        private final T prompt;
+        private final Kind kind;
+        private @Nullable Runnable onShown;
+
+        private Slot(T prompt, Kind kind, @Nullable Runnable onShown) {
+            this.prompt = prompt;
+            this.kind = kind;
+            this.onShown = onShown;
+        }
+
+        private T prompt() {
+            return prompt;
+        }
+
+        private Kind kind() {
+            return kind;
+        }
+
+        /** Runs the callback unless it ran already; a prompt that is shown again does not run it again. */
+        private void runOnShownOnce() {
+            Runnable callback = onShown;
+            onShown = null;
+            if (callback != null) {
+                callback.run();
+            }
+        }
     }
 
     private final Predicate<T> waiting;
@@ -39,13 +70,23 @@ final class AgentPromptQueue<T> {
      * only when nothing else is registered. Returns whether {@code prompt} is shown now.
      */
     boolean open(T prompt, Kind kind) {
+        return open(prompt, kind, null);
+    }
+
+    /**
+     * Registers {@code prompt} like {@link #open(Object, Kind)}. {@code onShown} runs on the FX thread the first time the
+     * prompt is on screen: at once when this returns {@code true}, otherwise when a later {@link #close(Object)} brings
+     * the prompt forward. The callback runs before the caller draws the prompt, in the same FX pulse.
+     */
+    boolean open(T prompt, Kind kind, @Nullable Runnable onShown) {
         boolean free = slots.isEmpty();
-        Slot<T> slot = new Slot<>(prompt, kind);
+        Slot<T> slot = new Slot<>(prompt, kind, onShown);
         slots.add(slot);
         if (kind == Kind.CHOICE && !free) {
             return false;
         }
         shown = slot;
+        slot.runOnShownOnce();
         return true;
     }
 
@@ -70,6 +111,9 @@ final class AgentPromptQueue<T> {
         Slot<T> next = nextWaiting();
         boolean changed = next != shown;
         shown = next;
+        if (changed && next != null) {
+            next.runOnShownOnce();
+        }
         return changed;
     }
 

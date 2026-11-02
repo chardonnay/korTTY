@@ -358,13 +358,23 @@ public class AiAgentRunTab extends Tab {
         }
 
         /**
-         * Shows the solution options in a dialog and blocks until the user answers. Closing the dialog cancels the
-         * run; a wait that the service ends (cancel, time limit) closes the dialog.
+         * Shows the solution options in a dialog and blocks until the user answers. {@code shown} runs once the dialog is
+         * on screen, which starts the time to answer. Closing the dialog cancels the run; a wait that the service ends
+         * (cancel, time limit) closes the dialog.
          */
         @Override
-        public TerminalAgentModels.SolutionChoice requestSolutionChoice(TerminalAgentModels.TriageProposal proposal) {
+        public TerminalAgentModels.SolutionChoice requestSolutionChoice(
+            TerminalAgentModels.TriageProposal proposal,
+            Runnable shown) {
             CompletableFuture<TerminalAgentModels.SolutionChoice> future = new CompletableFuture<>();
-            Platform.runLater(() -> showSolutionChoiceDialog(proposal, future));
+            Platform.runLater(() -> {
+                try {
+                    showSolutionChoiceDialog(proposal, future);
+                } finally {
+                    // Also when the dialog failed: the time to answer then runs out as usual instead of never starting.
+                    shown.run();
+                }
+            });
             try {
                 return future.get();
             } catch (InterruptedException e) {
@@ -380,6 +390,10 @@ public class AiAgentRunTab extends Tab {
         private void showSolutionChoiceDialog(
             TerminalAgentModels.TriageProposal proposal,
             CompletableFuture<TerminalAgentModels.SolutionChoice> future) {
+            if (future.isDone()) {
+                // The run was cancelled before the dialog came up; nothing is left to answer.
+                return;
+            }
             Dialog<Void> dialog = new Dialog<>();
             DialogThemeHelper.applyTheme(dialog);
             dialog.initOwner(ownerWindow.getStage());

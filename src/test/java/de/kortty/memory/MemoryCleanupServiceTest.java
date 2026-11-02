@@ -305,4 +305,13 @@ class MemoryCleanupServiceTest {
 
         assertThat(store.read(GLOBAL).text()).isEqualTo("Tabs.\n");
     }
+
+    @Test
+    void aShorteningThatShowsTheMaskOfAHiddenValueIsNotTakenAsTheUsersText() {
+        String current = "Secret: rotate the keys weekly. Keep the logs short and plain.\n";
+        CleanupException failure = expectThrows(CleanupException.class,
+            () -> service.proposeUserShortening(GLOBAL, snapshotOf(current),
+                new FakeAssistant("{\"paragraphs\": [\"Secret: *** weekly. Keep the logs short.\"]}")));
+        assertThat(failure.problem()).isEqualTo(Problem.NOTHING_TO_CHANGE);
+    }
 }

@@ -1070,7 +1070,8 @@ public class KorTTYApplication extends Application {
     /**
      * The startup scan saw no vault values while the vault was locked, so a skill or memory that holds a stored
      * password was not flagged. Scanning again now flags it; the registry is replaced, so a skill that is clean now
-     * loses its badge.
+     * loses its badge. The skills and the connection ids are copied here, on the JavaFX thread; the memory files are
+     * read and the vault values decrypted in the background, so the unlock does not wait for them.
      */
     private void rescanForSecretsAfterUnlock() {
         try {
@@ -1078,8 +1079,20 @@ public class KorTTYApplication extends Application {
             List<String> connectionIds = configManager.getConnections().stream()
                 .map(connection -> connection.getId())
                 .toList();
-            de.kortty.core.AiSecretStartupScan.run(globalSettingsManager.getSettings().getAiSkills(),
-                connectionIds, memory.store(), de.kortty.core.AiSecretScanRegistry.shared());
+            List<de.kortty.model.AiSkill> skills = new ArrayList<>();
+            for (de.kortty.model.AiSkill skill : globalSettingsManager.getSettings().getAiSkills()) {
+                if (skill != null) {
+                    skills.add(new de.kortty.model.AiSkill(skill));
+                }
+            }
+            de.kortty.memory.MemoryStore store = memory.store();
+            java.util.concurrent.CompletableFuture.runAsync(() -> de.kortty.core.AiSecretStartupScan.run(skills,
+                    connectionIds, store, de.kortty.core.AiSecretScanRegistry.shared()))
+                .whenComplete((ignored, error) -> {
+                    if (error != null) {
+                        logger.warn("Failed to scan AI skills and memory for secrets after the vault was unlocked", error);
+                    }
+                });
         } catch (RuntimeException e) {
             logger.warn("Failed to scan AI skills and memory for secrets after the vault was unlocked", e);
         }

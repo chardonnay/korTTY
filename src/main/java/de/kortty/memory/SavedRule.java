@@ -17,7 +17,10 @@ public final class SavedRule {
         UNDONE,
         /** The new skill was changed since it was created, so only its rule was removed. */
         RULE_REMOVED_SKILL_KEPT,
-        /** The learned rule was edited since it was saved, so the edit stays and nothing is removed. */
+        /**
+         * The rule was edited since it was saved, so the edit stays and nothing is removed. This is a learned rule in a
+         * skill, or a korTTY entry in the memory whose body the user changed while its fence stayed.
+         */
         RULE_CHANGED_KEPT,
         /** The undo window has passed. The rule stays saved. */
         EXPIRED,

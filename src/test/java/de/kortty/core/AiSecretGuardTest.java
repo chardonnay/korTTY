@@ -132,6 +132,17 @@ class AiSecretGuardTest {
     }
 
     @Test
+    void aNumberIsACountUnderTokenKeyAndSecretNamesButAPasswordOrPinNumberStillCounts() {
+        assertAccepted("max_token=4096");
+        assertAccepted("api_key=4096");
+        assertAccepted("Token: 128MB");
+        assertAccepted("Setze max tokens: 4096 in der Konfiguration.");
+        assertRefused("PIN: 1234");
+        assertRefused("password: 4096");
+        assertRefused("DB_PASSWORD=4096");
+    }
+
+    @Test
     void sentencesWithTokenSecretOrPasswordAndAnEverydayWordAreAccepted() {
         assertAccepted("The token is valid for one hour.");
         assertAccepted("The API token is valid for 24 hours.");
@@ -341,5 +352,57 @@ class AiSecretGuardTest {
             AiSecretGuard.Result result = AiSecretGuard.check(resource("builtin-ai-skills/" + name));
             assertWithMessage(name + " is refused: " + result.findings()).that(result.ok()).isTrue();
         }
+    }
+
+    @Test
+    void aNumberOfMoreThanSixDigitsAfterASecretNameIsAValueNotACount() {
+        assertRefused("api_key: 84736291027");
+        assertRefused("client_secret=12345678");
+        assertRefused("secret: 1234567890");
+        assertRefused("secret: 8472901635");
+        assertRefused("api_key = 4711081500123456");
+        assertAccepted("max_token=4096");
+        assertAccepted("Setze max tokens: 4096 in der Konfiguration.");
+        assertAccepted("Setze max tokens: 128000 pro Anfrage.");
+    }
+
+    @Test
+    void aDottedNameWithoutACallIsAValueAndACallWithADigitArgumentIsAValue() {
+        assertRefused("password=Qwerty.Admin");
+        assertRefused("db_password=Qwerty.Admin");
+        assertRefused("password=Winter(2024)");
+        assertRefused("The password is Summer(2024).");
+        assertAccepted("password = os.environ['DB_PASSWORD']");
+        assertAccepted("password = getpass.getpass()");
+    }
+
+    @Test
+    void aPwdValueThatIsNotAPathIsRefused() {
+        assertRefused("PWD=/Sommer2026!");
+        assertRefused("export PWD=~Winter2025x");
+        assertRefused("pwd: ~Winter2025x");
+        assertRefused("pwd: /Hunter2!");
+        assertAccepted("PWD=/tmp");
+        assertAccepted("PWD: /srv/app");
+        assertAccepted("export PWD=~/bin");
+    }
+
+    @Test
+    void aPluralCredentialWordFollowedByAPlainWordIsRefusedUnlessTheWordNamesACategory() {
+        assertRefused("Passwords are Swordfish");
+        assertRefused("Passwörter sind Sonnenblume");
+        assertRefused("Zugangsdaten sind Sonnenblume");
+        assertAccepted("Passwords are managed by IT.");
+        assertAccepted("Passwörter sind im Tresor gespeichert.");
+    }
+
+    @Test
+    void thePluralPasswordSentencesAreMaskedOutbound() {
+        assertThat(AiSecretGuard.maskProseSecrets("Passwörter sind Sonnenblume", null).text())
+            .isEqualTo("Passwörter sind ***");
+        assertThat(AiSecretGuard.maskProseSecrets("Passwords are Swordfish", null).text())
+            .isEqualTo("Passwords are ***");
+        assertThat(AiSecretGuard.maskProseSecrets("Passwords are managed by IT.", null).text())
+            .isEqualTo("Passwords are managed by IT.");
     }
 }
