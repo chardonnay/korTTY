@@ -114,7 +114,8 @@ public final class AiSecretGuard {
 
     /**
      * A path as a value: {@code /usr/local/bin}, {@code ~/bin/x}, {@code ./run/x}. It needs a second slash and only
-     * path characters, so {@code /Sommer2026!} and {@code ~Sommer2026} are values, not paths.
+     * path characters, so a value that starts with "/" or "~" but holds a "!" or another character no path has is a
+     * value, not a path.
      */
     private static final Pattern PATH_SHAPED = Pattern.compile(
         "(?:\\./|\\.\\./|[/~])[A-Za-z0-9._~-]*/[A-Za-z0-9._~/-]*");
@@ -173,7 +174,10 @@ public final class AiSecretGuard {
     private static final Pattern PLURAL_CREDENTIAL_CUE = Pattern.compile(
         "passw(?:ords|orter|ortern|orte)|kennw(?:orter|ortern|orte)|credentials|zugangsdaten");
 
-    /** The "/", "&amp;" or "," that joins a user name to its password, as in "root / Sommer2026!", and the word after it. */
+    /**
+     * The "/", "&amp;" or "," that joins a user name to its password, as in "root / &lt;password&gt;", and the word after
+     * it.
+     */
     private static final Pattern CREDENTIAL_PAIR_TAIL = Pattern.compile("[ \\t]*[/&,][ \\t]*([^\\s<>{}\\[\\]]+)");
 
     private static final Set<String> PLACEHOLDER_WORDS = Set.of(
@@ -300,7 +304,7 @@ public final class AiSecretGuard {
     /**
      * Prose cues, matched over the whole text so that a value on the line after its cue is seen too. A cue
      * followed by "ist", "is", "sind" or "are" needs a value that is not only letters, unless the cue is a token or
-     * API-key cue: "the token is valid" is prose, "Passwort ist Sommer2026" and "The password is swordfish" are not.
+     * API-key cue: "the token is valid" is prose, "Passwort ist &lt;word&gt;" and "The password is &lt;word&gt;" are not.
      */
     private static List<Finding> proseFindings(String text, List<KnownSecret> known) {
         List<Finding> findings = new ArrayList<>();
@@ -389,8 +393,8 @@ public final class AiSecretGuard {
 
     /**
      * PWD named on its own, as the shell's working directory: {@code PWD=/tmp}, {@code export PWD=~/bin} or
-     * {@code PWD: /srv}. The value must be a path of path characters, so {@code PWD=/Sommer2026!} and
-     * {@code pwd: ~Winter2025x} are values. A name that merely ends in PWD ({@code MYSQL_PWD}) is a password name. OLDPWD
+     * {@code PWD: /srv}. The value must be a path of path characters, so a PWD value with a "!" or another
+     * character no path has is a password. A name that merely ends in PWD ({@code MYSQL_PWD}) is a password name. OLDPWD
      * never reaches here, because its PWD has a letter in front of it. {@code raw} is the value as matched.
      */
     private static boolean isWorkingDirectoryAssignment(String text, int start, int end, String raw) {
@@ -408,7 +412,7 @@ public final class AiSecretGuard {
     }
 
     /**
-     * The end of a prose value that goes on past its first word: in "root / Sommer2026!" the second word has a digit or a
+     * The end of a prose value that goes on past its first word: in "root / &lt;password&gt;" the second word has a digit or a
      * symbol and is part of the secret, so the mask covers both. A second word of plain letters is left out of the mask.
      */
     private static int pairEnd(String text, int valueEnd) {

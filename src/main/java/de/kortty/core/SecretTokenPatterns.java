@@ -102,8 +102,8 @@ public final class SecretTokenPatterns {
                 + "(?<secret>(?<=[\"'])[^\"'\\r\\n]+|(?<![\"'])[^\\s\"'`,;]+)"),
         // PWD is also the shell's working directory: a value that is a path of path characters (PWD=/tmp, export PWD=~/bin,
         // PWD: /srv/app) is not a secret. The lookahead exempts the name PWD alone and only for a value that ends at a
-        // delimiter, so PWD=/Sommer2026! and pwd: ~Winter2025x stay secrets. OLDPWD is never matched, because "PWD" in it
-        // has a letter in front. MYSQL_PWD= is a password variable and stays a secret name.
+        // delimiter, so a PWD value with a "!" or another character no path has stays a secret. OLDPWD is never matched,
+        // because "PWD" in it has a letter in front. MYSQL_PWD= is a password variable and stays a secret name.
         Rule.of("pwd-assignment",
             "(?i)(?<![A-Za-z0-9_])"
                 + "(?!pwd[\"']?[ \\t]*[=:][ \\t]*[\"']?(?:/[A-Za-z0-9._~/-]*|~(?:/[A-Za-z0-9._~/-]*)?)(?![^\\s\"'`,;]))"
