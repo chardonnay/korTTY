@@ -1114,6 +1114,35 @@
 </tbody>
 </table>
 <p>Wenn Sie innerhalb von 10 Minuten nach dem Erscheinen der Karte nicht antworten, wird die Anfrage wie gewünscht ausgeführt.</p>
+<h3 id="fragen-wahrend-einer-ausfuhrung">Fragen während einer Ausführung<a class="headerlink" href="#fragen-wahrend-einer-ausfuhrung" title="Permanent link">&para;</a></h3>
+<p>Wenn eine Entscheidung, die nur Sie treffen können, die Aufgabe blockiert, fragt der Agent Sie, anstatt zu raten oder erneut zu versuchen. Ein typischer Fall ist ein Port, den ein anderer Dienst bereits belegt: Der Agent prüft, welche Ports frei sind, und fragt, welchen Sie verwenden möchten. Die Frage erscheint auf derselben Karte, in einer kürzeren Form:</p>
+<p><img alt="Der Agent fragt, auf welchem Port nginx lauschen soll" src="../../en/assets/screenshots/ai/ai-agent-question.png" /></p>
+<ul>
+<li><strong>Der Agent braucht Ihre Entscheidung</strong>, mit der Frage und, unter <strong>Warum er fragt</strong>, der Grund des Agents;</li>
+<li>die vorgeschlagenen Antworten, die empfohlene zuerst und mit <strong>Empfohlen</strong> markiert;</li>
+<li><strong>Andere Antwort</strong>, mit einem Textfeld für Ihre eigene Antwort; Text, den Sie dort eingeben, während eine vorgeschlagene Antwort ausgewählt ist, wird zu dieser Antwort hinzugefügt;</li>
+<li>die optionale <strong>Dauerhafte Regel</strong>, wie auf der Optionskarte, zum Beispiel, um einen Port für diese Verbindung beizubehalten.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Ergebnis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Antwort senden</strong></td>
+<td>Setzt den Lauf mit Ihrer Antwort fort, die die folgenden Schritte bindet. Speichert die dauerhafte Regel, falls Sie eine formuliert haben.</td>
+</tr>
+<tr>
+<td><strong>Lauf beenden</strong></td>
+<td>Beendet den Lauf an der Frage.</td>
+</tr>
+</tbody>
+</table>
+<p>Eine Frage verbraucht keinen der Planungsschritte eines Laufs. Ein Lauf stellt höchstens drei Fragen. Danach, und wenn Sie nicht innerhalb von 10 Minuten antworten, entscheidet der Agent selbst und benennt seine Wahl. Swarm-Läufe und geplante Jobs fragen nie: Dort entscheidet der Agent ebenfalls selbst.</p>
+<p>Wenn derselbe Fehler von mehr als einem Befehl zurückkommt, teilt korTTY dies dem Agenten mit, und der Agent ändert seinen Ansatz oder fragt Sie, anstatt dasselbe erneut zu versuchen.</p>
 <h2 id="regellernen">Regellernen<a class="headerlink" href="#regellernen" title="Permanent link">&para;</a></h2>
 <p>Bei <strong>Lernen</strong> auf <strong>Regeln vorschlagen</strong> eingestellt sucht korTTY in Ihren eigenen Nachrichten nach einer dauerhaften Regel, nachdem die Antwort oder der Lauf abgeschlossen ist. Die Prüfung erfolgt in Schritten, und bei den meisten Nachrichten wird früh gestoppt.</p>
 <ol>

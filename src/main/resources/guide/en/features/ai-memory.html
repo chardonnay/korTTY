@@ -1114,6 +1114,35 @@
 </tbody>
 </table>
 <p>If you do not answer within 10 minutes after the card appears, the request runs as asked.</p>
+<h3 id="questions-during-a-run">Questions during a run<a class="headerlink" href="#questions-during-a-run" title="Permanent link">&para;</a></h3>
+<p>When a decision only you can make blocks the task, the agent asks you instead of guessing or retrying. A typical case is a port that another service already uses: the agent checks which ports are free and asks which one to use. The question appears on the same card, in a shorter form:</p>
+<p><img alt="The agent asks which port nginx should listen on" src="../assets/screenshots/ai/ai-agent-question.png" /></p>
+<ul>
+<li><strong>The agent needs your decision</strong>, with the question and, under <strong>Why it asks</strong>, the agent's reason;</li>
+<li>the suggested answers, the recommended one first and marked <strong>Recommended</strong>;</li>
+<li><strong>Another answer</strong>, with a text field for your own answer; text you type there while a suggested answer is selected is added to that answer;</li>
+<li>the optional <strong>Permanent rule</strong>, as on the options card, for example to keep a port for this connection.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Send answer</strong></td>
+<td>Continues the run with your answer, which binds the following steps. Saves the permanent rule if you wrote one.</td>
+</tr>
+<tr>
+<td><strong>Stop run</strong></td>
+<td>Ends the run at the question.</td>
+</tr>
+</tbody>
+</table>
+<p>A question does not use up one of the run's planning steps. A run asks at most three questions. After that, and when you do not answer within 10 minutes, the agent decides by itself and names its choice. Swarm runs and scheduled jobs never ask: there the agent decides by itself as well.</p>
+<p>When the same error comes back from more than one command, korTTY tells the agent so, and the agent changes its approach or asks you instead of trying the same thing again.</p>
 <h2 id="rule-learning">Rule learning<a class="headerlink" href="#rule-learning" title="Permanent link">&para;</a></h2>
 <p>With <strong>Learning</strong> set to <strong>Suggest rules</strong>, korTTY looks for a lasting rule in your own messages after the answer or the run is complete. The check runs in steps, and most messages stop early.</p>
 <ol>
