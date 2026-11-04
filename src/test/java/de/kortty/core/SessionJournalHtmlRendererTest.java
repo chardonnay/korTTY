@@ -1,5 +1,8 @@
 package de.kortty.core;
 
+import de.kortty.model.SavedAgentStep;
+import de.kortty.model.SessionJournalChatMessage;
+import de.kortty.model.SessionJournalChatSnapshot;
 import de.kortty.model.SessionJournalCommandInfo;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
@@ -7,6 +10,7 @@ import de.kortty.model.SessionJournalEntryKind;
 import de.kortty.model.SessionJournalMarker;
 import de.kortty.model.SessionJournalMarkerDefinition;
 import de.kortty.model.SessionJournalMeta;
+import de.kortty.ui.I18n;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -15,6 +19,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 class SessionJournalHtmlRendererTest {
 
@@ -147,6 +152,76 @@ class SessionJournalHtmlRendererTest {
         assertThat(html).contains("&lt;script&gt;");
         // The context menu offers the analysis entry (visibility is decided at runtime).
         assertThat(html).contains("ctxAnalyzeAi");
+    }
+
+    @Test
+    void everyScrollBoxHasAStyledScrollbar() {
+        // JavaFX WebKit paints native scrollbars over everything, the docked log panel included:
+        // two excerpt scrollbars once showed as bars inside the panel. Styled scrollbars stay under it.
+        document.getEntries().add(summaryEntry());
+        String html = renderer.render(document, sampleLog());
+        String css = html.substring(html.indexOf("<style"), html.indexOf("</style>"));
+        java.util.regex.Matcher rule = java.util.regex.Pattern
+            .compile("([^{}]+)\\{([^{}]*overflow(?:-[xy])?:(?:auto|scroll)[^{}]*)\\}").matcher(css);
+        List<String> boxes = new java.util.ArrayList<>();
+        while (rule.find()) {
+            for (String selector : rule.group(1).replaceAll("(?s)/\\*.*?\\*/", "").split(",")) {
+                boxes.add(selector.trim());
+            }
+        }
+
+        assertThat(boxes).containsAtLeast(".excerpt", ".chat-text pre", ".chat-step-output", ".log-body");
+        // A native page scrollbar lies over the right edge of the content and hid the log panel's.
+        boxes.add("html");
+        for (String box : boxes) {
+            assertWithMessage("scroll box " + box + " has no styled scrollbar")
+                .that(css.replaceAll("\\s+", " ")).contains(box + "::-webkit-scrollbar-thumb");
+        }
+    }
+
+    @Test
+    void scrollbarThumbsStandOutInBothThemes() {
+        // The log panel's thumb was once painted in the border colour, about 1.2:1 on the panel, so the
+        // log looked as if it had no scrollbar. Controls need 3:1 against what is around them.
+        String html = renderer.render(document, sampleLog());
+        String css = html.substring(html.indexOf("<style"), html.indexOf("</style>")).replaceAll("\\s+", " ");
+        java.util.regex.Matcher thumb = java.util.regex.Pattern.compile("\\.log-body::-webkit-scrollbar-thumb\\{ "
+            + "background:color-mix\\(in srgb,var\\((--[\\w-]+)\\) (\\d+)%,var\\((--[\\w-]+)\\)\\)").matcher(css);
+        assertWithMessage("log scrollbar thumb colour").that(thumb.find()).isTrue();
+
+        for (String theme : List.of(":root{", "[data-theme=\"light\"]{")) {
+            int start = css.indexOf(theme);
+            java.util.Map<String, int[]> colours = new java.util.HashMap<>();
+            java.util.regex.Matcher variable = java.util.regex.Pattern.compile("(--[\\w-]+):#(\\p{XDigit}{6})")
+                .matcher(css.substring(start, css.indexOf('}', start)));
+            while (variable.find()) {
+                int rgb = Integer.parseInt(variable.group(2), 16);
+                colours.put(variable.group(1), new int[] {rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff});
+            }
+            int[] mixed = new int[3];
+            double share = Integer.parseInt(thumb.group(2)) / 100.0;
+            for (int i = 0; i < 3; i++) {
+                mixed[i] = (int) Math.round(colours.get(thumb.group(1))[i] * share
+                    + colours.get(thumb.group(3))[i] * (1 - share));
+            }
+            for (String background : List.of("--bg", "--surface", "--surface2")) {
+                double a = luminance(mixed);
+                double b = luminance(colours.get(background));
+                assertWithMessage(theme + " thumb on " + background)
+                    .that((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).isAtLeast(3.0);
+            }
+        }
+    }
+
+    /** WCAG relative luminance of an sRGB colour. */
+    private static double luminance(int[] rgb) {
+        double[] weights = {0.2126, 0.7152, 0.0722};
+        double luminance = 0;
+        for (int i = 0; i < 3; i++) {
+            double c = rgb[i] / 255.0;
+            luminance += weights[i] * (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+        }
+        return luminance;
     }
 
     @Test
@@ -597,5 +672,156 @@ class SessionJournalHtmlRendererTest {
         assertThat(html).doesNotContain("href=\"https://www.heise.de\"");
         assertThat(html).contains("ticket https://tracker.test/42");
         assertThat(html).contains("<strong class=\"cmd\">links</strong> www.heise.de");
+    }
+
+    /** An AGENT entry continued in a KI-Chat, with a hostile user message and an assistant step. */
+    private SessionJournalEntry chatLinkedAgentEntry(String chatMarker) {
+        SessionJournalEntry entry = new SessionJournalEntry();
+        entry.setKind(SessionJournalEntryKind.AGENT);
+        entry.setTitle("Restart nginx");
+        entry.setText("The service was restarted.");
+        entry.setCreatedAt(OffsetDateTime.of(2026, 8, 3, 14, 50, 0, 0, ZoneOffset.ofHours(2)));
+        entry.setChatId("chat-7731");
+        entry.setChatLinkedAt(OffsetDateTime.of(2026, 8, 3, 14, 51, 0, 0, ZoneOffset.ofHours(2)));
+        SessionJournalChatSnapshot snapshot = new SessionJournalChatSnapshot();
+        snapshot.setTitle("Restart nginx");
+        snapshot.setCapturedAt(OffsetDateTime.of(2026, 8, 3, 14, 52, 0, 0, ZoneOffset.ofHours(2)));
+        SessionJournalChatMessage user = new SessionJournalChatMessage();
+        user.setRole("USER");
+        user.setContent(chatMarker + " <script>alert(1)</script> [click](javascript:alert(1))");
+        user.setCreatedAt(OffsetDateTime.of(2026, 8, 3, 14, 50, 0, 0, ZoneOffset.ofHours(2)));
+        SessionJournalChatMessage assistant = new SessionJournalChatMessage();
+        assistant.setRole("ASSISTANT");
+        assistant.setAiProfileName("Claude");
+        assistant.setContent("Done. Use **bold** and `code`.");
+        assistant.setCreatedAt(OffsetDateTime.of(2026, 8, 3, 14, 51, 0, 0, ZoneOffset.ofHours(2)));
+        SavedAgentStep step = new SavedAgentStep();
+        step.setType("ACTION");
+        step.setStatus("DONE");
+        step.setTitle("Run restart");
+        step.setCommand("systemctl restart nginx && echo <tag>");
+        step.setExitCode(0);
+        step.setOutput("<b>restarted</b>");
+        assistant.setSteps(List.of(step));
+        snapshot.setMessages(List.of(user, assistant));
+        entry.setChatSnapshot(snapshot);
+        return entry;
+    }
+
+    @Test
+    void chatTranscriptIsEscapedAndNeutralisesScriptAndJavascriptLinks() {
+        document.getEntries().add(chatLinkedAgentEntry("CHATMARK-1"));
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<details class=\"chat-transcript\">");
+        // Chat text is data: the script and the javascript link must not survive as markup.
+        assertThat(html).contains("CHATMARK-1");
+        assertThat(html).contains("&lt;script&gt;alert(1)&lt;/script&gt;");
+        assertThat(html).doesNotContain("<script>alert(1)</script>");
+        assertThat(html).doesNotContain("javascript:alert(1)");
+        // Steps: the command and the output are escaped inside a pre block.
+        assertThat(html).contains("<details class=\"chat-steps\">");
+        assertThat(html).contains("<pre class=\"chat-step-output\">$ systemctl restart nginx &amp;&amp; echo &lt;tag&gt;");
+        assertThat(html).contains("&lt;b&gt;restarted&lt;/b&gt;");
+        // Markdown inside an assistant message still renders.
+        assertThat(html).contains("<strong>bold</strong>");
+        assertThat(html).contains("<code>code</code>");
+    }
+
+    /** Each disclosure shows one triangle: the glyph, with the browser's own marker hidden on both summaries. */
+    @Test
+    void nestedStepsSummaryShowsOneDisclosureTriangleLikeTheChatSummary() {
+        document.getEntries().add(chatLinkedAgentEntry("CHATMARK-4"));
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains(".chat-transcript>summary::-webkit-details-marker,.chat-steps>summary::-webkit-details-marker{display:none}");
+        assertThat(html).contains(".chat-steps>summary{cursor:pointer;color:var(--muted);list-style:none}");
+        assertThat(html).contains(".chat-transcript>summary::before,.chat-steps>summary::before{");
+    }
+
+    @Test
+    void transcriptNeverUsesTheSummaryClassTheCardScriptTargets() {
+        document.getEntries().add(chatLinkedAgentEntry("CHATMARK-2"));
+
+        String html = renderer.render(document, sampleLog());
+
+        // The card collapse script selects .agent-entry .summary; the transcript must stay out of it.
+        assertThat(html).doesNotContain("<details class=\"summary");
+        assertThat(html).doesNotContain("<details class=\"chat-transcript summary");
+        assertThat(html).doesNotContain("<summary class=\"summary");
+    }
+
+    @Test
+    void chatLinkedAgentCardShowsTheTagAndTheOpenButtonHiddenUntilTheAppAnswers() {
+        SessionJournalEntry entry = chatLinkedAgentEntry("CHATMARK-3");
+        document.getEntries().add(entry);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("class=\"state-tag chat-tag\"");
+        // The button ships hidden: a copy in a browser has no KI-Chat to open.
+        assertThat(html).contains("class=\"chat-open-btn\" data-entry=\"" + entry.getId() + "\" hidden");
+        assertThat(html).contains("requestOpenChat");
+        assertThat(html).contains("b.hidden=false");
+        assertThat(html).contains("if(!d.open){d.open=true;chatOpened.push(d);}");
+    }
+
+    @Test
+    void anAgentEntryWithoutAChatHasNoTagNoButtonAndNoTranscript() {
+        SessionJournalEntry plain = chatLinkedAgentEntry("CHATMARK-4");
+        plain.setChatId(null);
+        plain.setChatSnapshot(null);
+        document.getEntries().add(plain);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).doesNotContain("class=\"state-tag chat-tag\"");
+        assertThat(html).doesNotContain("chat-open-btn\" data-entry");
+        assertThat(html).doesNotContain("CHATMARK-4");
+        assertThat(html).doesNotContain("<details class=\"chat-transcript\">");
+    }
+
+    @Test
+    void aFrozenTranscriptSaysSoInItsSummary() {
+        SessionJournalEntry entry = chatLinkedAgentEntry("CHATMARK-5");
+        entry.getChatSnapshot().setFrozen(true);
+        document.getEntries().add(entry);
+
+        String html = renderer.render(document, sampleLog());
+
+        String finalText = I18n.get("journal.html.chat.final");
+        String expected = finalText.equals("journal.html.chat.final") ? "(final)" : finalText;
+        assertThat(html).contains(expected + "</summary>");
+    }
+
+    @Test
+    void aLongChatIsCappedWithAVisibleTruncationNote() {
+        SessionJournalEntry entry = chatLinkedAgentEntry("CHATMARK-6");
+        SessionJournalChatMessage huge = new SessionJournalChatMessage();
+        huge.setRole("ASSISTANT");
+        huge.setContent("x".repeat(SessionJournalChatTranscript.MAX_EMBEDDED_CHARS + 5_000));
+        entry.getChatSnapshot().getMessages().add(huge);
+        document.getEntries().add(entry);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<p class=\"chat-truncated\">");
+        // The cap is on the chat text: a run one character past it never reaches the page.
+        assertThat(html).contains("x".repeat(1_000));
+        assertThat(html).doesNotContain("x".repeat(SessionJournalChatTranscript.MAX_EMBEDDED_CHARS + 1));
+    }
+
+    @Test
+    void searchOpensTheTranscriptAroundEveryHit() {
+        document.getEntries().add(chatLinkedAgentEntry("CHATMARK-7"));
+
+        String html = renderer.render(document, sampleLog());
+
+        // The search collects the marks and opens every <details> around them, closed again on clear.
+        assertThat(html).contains("chatOpened.forEach(function(d){d.open=false;});");
+        assertThat(html).contains("timeline.querySelectorAll(\"mark.gs\")");
+        assertThat(html).contains("mark.parentElement.closest(\"details\")");
     }
 }

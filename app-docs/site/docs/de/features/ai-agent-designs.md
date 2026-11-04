@@ -111,6 +111,21 @@ Eine Genehmigung wird im Terminal mit den Tasten **1** (einmal erlauben), **2** 
 
 Bei einem Design, das nicht das klassische Panel ist, erscheinen die Lösungsoptionen des Agents (siehe [Lösungsoptionen](ai-tools.md#losungsoptionen)) in der Leiste des Designs mit denselben Auswahlmöglichkeiten. Die **Mitgesendet**-Zeile eines Laufs ist ein Link im Host des Designs, und ein Regelvorschlag öffnet sich als Popup über dem Design; siehe [KI-Memory](ai-memory.md).
 
+## Im KI-Chat fortsetzen
+
+Wenn ein Terminal-Lauf beendet ist, erscheint unter dem Terminal eine Leiste. Sie zeigt den Status des Laufs (✓ *Lauf beendet* oder ✕ *Lauf abgebrochen oder fehlgeschlagen*) und seine Aufgabe, danach die Schaltfläche **Im KI-Chat fortsetzen**, das Feld **Nachfrage zum Lauf…** und **✕**, um die Leiste auszublenden. Die Leiste erscheint in jedem Design, auch im klassischen Panel. Sie bleibt sichtbar, bis der nächste Lauf startet, bis Sie sie ausblenden oder bis der Chat geöffnet wird.
+
+**Im KI-Chat fortsetzen** öffnet den Lauf in einem KI-Chat, siehe [Chats aus KI-Agent-Läufen](ai-assistant.md#chats-aus-ki-agentenlaufen): Die Aufgabe ist die erste Nachricht, die finale Antwort die Erwiderung, und die Schritte des Laufs werden unter der Erwiderung in einer eingeklappten **Schritte**-Liste aufgeführt. Ein zweiter Klick auf die Schaltfläche fokussiert denselben Chat, anstatt einen neuen zu erstellen.
+
+![The bar under a finished run: the status and the task, the button Continue in AI chat, the follow-up field and the hide button](../assets/screenshots/plugins/ai-agent-continue-in-chat.png)
+
+Geben Sie eine Folgefrage in das Feld ein und drücken Sie ++enter++: Der Chat öffnet sich und die Frage wird dort gesendet. Ein Drücken von ++enter++ in einem leeren Feld öffnet nur den Chat. Eine Frage, die der Chat im Moment nicht annehmen kann, weil er noch antwortet, wird stattdessen in das Eingabefeld des Chats übernommen.
+
+Die gleiche Aktion finden Sie als Eintrag **Im KI-Chat fortsetzen** im Lauf-Menü, siehe unten. Er ist grau dargestellt, solange KI-Funktionen deaktiviert sind oder die Richtlinie Ihrer Organisation keine KI-Chats zulässt; die Leiste behält dann ihre Bedienelemente sichtbar bei, ebenfalls grau dargestellt.
+
+!!! note
+    Nur Ausführungen, die aus dem Terminal gestartet wurden, werden übergeben. Eine Frage, die mit **Agent fragen…** gestellt wird und keine Befehle ausführt, sowie eine Ausführung im Chat-Fenster erhalten weder die Leiste noch den Menüeintrag.
+
 ## Lauf-Menü und Schritt-Menü
 
 Jedes Design bietet das, was die Buttons des klassischen Panels tun. Die Leisten, die Verlaufs-Panels, das Milchglas-HUD und das Bild-im-Bild-Fenster haben einen ⋯-Button; die Statuspille, die Orbit-Anzeige, die Minimap-Schiene und das Abzeichen der Meldungen am Rand öffnen dasselbe Menü per Rechtsklick. Es funktioniert bei dem Lauf, den das Design zeigt:
@@ -122,9 +137,10 @@ Jedes Design bietet das, was die Buttons des klassischen Panels tun. Die Leisten
 | Alle Läufe exportieren | Speichert jeden abgeschlossenen Lauf, den das Terminal aufbewahrt, in einer Datei |
 | Erneut ausführen | Führt denselben Agent-Befehl erneut aus |
 | Antwort kopieren | Kopiert die Antwort der Ausführung |
+| Im KI-Chat fortsetzen | Öffnet die Ausführung in einem KI-Chat, wie in [Eine Ausführung in einem KI-Chat fortsetzen](#im-ki-chat-fortsetzen) beschrieben. |
 | Läufe dieses Terminals | Zeigt einen anderen Lauf des Terminals: die noch laufenden und die letzten fünf beendeten |
 
-Die in das Terminal gezeichneten Designs (Blöcke, Fokus-Modus, der Vorschlag an der Cursorzeile) bieten dieselben Einträge im Kontextmenü des Terminals unter *KI → Letzter Agent-Lauf*.
+Jedes Design außer dem klassischen Panel bietet im Kontextmenü des Terminals auch den neuesten Lauf, unter *KI → Letzter Agent-Lauf*, mit denselben Einträgen. Das klassische Panel hat eigene Schaltflächen, daher ist die Leiste der Weg, einen Lauf in einem Chat fortzusetzen.
 
 Ein Rechtsklick auf einen Schritt öffnet ein eigenes Menü mit **Befehl kopieren**, **Ausgabe kopieren**, **Eintrag kopieren** und **Im Snippet-Editor öffnen**. Das funktioniert auf einem Knoten der Zeitachse an der Seite, einer Zeile des Plans oder der Protokoll-Tabelle, einer Karte des Kartenstapels, einem Block des Gesprächsverlaufs, einer Zeile des tmux-Bereichs, einem Segment der Minimap-Schiene, einer Meldung am Rand und einem Schritt im Bild-im-Bild-Fenster.
 

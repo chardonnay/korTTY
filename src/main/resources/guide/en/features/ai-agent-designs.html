@@ -958,6 +958,16 @@
 <p>An approval is answered with the keys <strong>1</strong> (allow once), <strong>2</strong> (allow always) and <strong>3</strong> (cancel) in the terminal, or with buttons. Designs with buttons of their own show them: the history panels, the toasts and the picture-in-picture window. With blocks in the terminal, focus mode or the classic panel's history, an approval opens a row below the terminal with the commands and the buttons <strong>1 Allow Once</strong>, <strong>2 Allow Always</strong> and <strong>3 Cancel</strong>. A password request always opens that row, with a masked field, <strong>Use for this SSH session</strong> and <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> submits and <span class="keys"><kbd class="key-escape">Esc</kbd></span> cancels. The classic panel keeps its own prompts.</p>
 <h2 id="solution-options-and-memory-in-designs">Solution options and memory in designs<a class="headerlink" href="#solution-options-and-memory-in-designs" title="Permanent link">&para;</a></h2>
 <p>With a design other than the classic panel, the solution options of the agent (see <a href="ai-tools.html#solution-options">Solution options</a>) appear in the design's strip with the same choices. The <strong>Sent along</strong> line of a run is a link in the design's host, and a rule suggestion opens as a popup over the design; see <a href="ai-memory.html">AI memory</a>.</p>
+<h2 id="continue-a-run-in-an-ai-chat">Continue a run in an AI chat<a class="headerlink" href="#continue-a-run-in-an-ai-chat" title="Permanent link">&para;</a></h2>
+<p>When a terminal run has finished, a bar appears under the terminal. It shows the run's status (✓ <em>Run finished</em> or ✕ <em>Run stopped or failed</em>) and its task, then the button <strong>Continue in AI chat</strong>, the field <strong>Follow-up question about the run…</strong> and <strong>✕</strong> to hide the bar. The bar appears in every design, the classic panel included. It stays until the next run starts, until you hide it or until the chat opens.</p>
+<p><strong>Continue in AI chat</strong> opens the run in an AI chat, see <a href="ai-assistant.html#chats-from-ai-agent-runs">Chats from AI agent runs</a>: the task is the first message, the final answer the reply, and the steps of the run are listed under the reply in a collapsed <strong>Steps</strong> list. A second click on the button focuses the same chat instead of making another one.</p>
+<p><img alt="The bar under a finished run: the status and the task, the button Continue in AI chat, the follow-up field and the hide button" src="../assets/screenshots/plugins/ai-agent-continue-in-chat.png" /></p>
+<p>Type a follow-up question into the field and press <span class="keys"><kbd class="key-enter">Enter</kbd></span>: the chat opens and the question is sent there. Pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span> in an empty field only opens the chat. A question the chat cannot take at the moment, because it is still answering, goes into the chat's input field instead.</p>
+<p>The same action is the run menu's entry <strong>Continue in AI chat</strong>, see below. It is greyed out while AI features are off or your organisation's policy does not allow AI chats; the bar then keeps its controls visible, greyed out too.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Only runs started from the terminal are handed over. A question asked with <strong>Ask Agent…</strong>, which runs no commands, and a run in the chat window do not get the bar or the menu entry.</p>
+</div>
 <h2 id="run-menu-and-step-menu">Run menu and step menu<a class="headerlink" href="#run-menu-and-step-menu" title="Permanent link">&para;</a></h2>
 <p>Every design offers what the classic panel's buttons do. The bars, the history panels, the frosted glass HUD and the picture-in-picture window have a ⋯ button; the status pill, the orbit, the minimap rail and the badge of the toasts open the same menu with a right-click. It works on the run the design shows:</p>
 <table>
@@ -989,12 +999,16 @@
 <td>Copies the run's answer</td>
 </tr>
 <tr>
+<td>Continue in AI chat</td>
+<td>Opens the run in an AI chat, as described in <a href="#continue-a-run-in-an-ai-chat">Continue a run in an AI chat</a></td>
+</tr>
+<tr>
 <td>Runs of this terminal</td>
 <td>Shows another run of the terminal: the ones still working and the last five that finished</td>
 </tr>
 </tbody>
 </table>
-<p>The designs drawn into the terminal (blocks, focus mode, the suggestion at the cursor line) offer the same entries in the terminal's context menu under <em>AI → Last agent run</em>.</p>
+<p>Every design except the classic panel also offers the newest run of the terminal in the terminal's context menu, under <em>AI → Last agent run</em>, with the same entries. The classic panel has its own buttons, so the bar is its way to continue a run in a chat.</p>
 <p>A right-click on a step opens its own menu with <strong>Copy command</strong>, <strong>Copy output</strong>, <strong>Copy entry</strong> and <strong>Open in Snippet Editor</strong>. That works on a node of the side timeline, a row of the plan or the log table, a card of the stack, a block of the conversation, a line of the tmux pane, a segment of the minimap rail, a toast and a step in the picture-in-picture window.</p>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
 <table>

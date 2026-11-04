@@ -166,6 +166,15 @@ public final class AgentOutboundContext {
         knownSecrets.addSecret(new String(secret));
     }
 
+    /**
+     * The run's known secrets: those of its sources plus every one learned during the run (a typed sudo
+     * password). The same redactor the prompts are masked with, so what the run leaves behind can be masked
+     * like them.
+     */
+    public SessionJournalRedactor knownSecrets() {
+        return knownSecrets;
+    }
+
     /** Masks one prompt for the run's profile, or returns it unchanged when the profile is exempt. */
     public String mask(String text) {
         if (text == null || text.isEmpty()) {

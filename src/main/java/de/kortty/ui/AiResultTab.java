@@ -10,6 +10,8 @@ import de.kortty.core.AiRasterImageSupport;
 import de.kortty.core.MermaidRenderService;
 import de.kortty.core.AiChatExportContext;
 import de.kortty.core.AiChatExportService;
+import de.kortty.core.AgentChatTranscriptFormatter;
+import de.kortty.core.AgentRunChatSeeder;
 import de.kortty.core.AiChatShareService;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiFileAttachment;
@@ -45,6 +47,7 @@ import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedAiChatMessage;
+import de.kortty.model.SavedAgentStep;
 import de.kortty.model.SavedAiWebToolCall;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
@@ -100,8 +103,11 @@ import javafx.util.Duration;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import de.kortty.paste.PasteSource;
@@ -182,6 +188,13 @@ public class AiResultTab extends Tab {
     private int currentFontSize;
     private boolean busy;
     private boolean readOnlyMode;
+    /** Where a chat seeded from a KI-Agent run came from; {@code null} for every other chat. */
+    private @Nullable AgentRunOrigin agentRunOrigin;
+    /**
+     * True for a read-only copy of a journal's chat whose saved chat is gone: it is not saved again, so a
+     * deleted chat cannot come back through autosave.
+     */
+    private boolean journalSnapshotOnly;
     private long waitingSinceMillis;
     private String waitingBaseText;
     private Task<?> activeTask;
@@ -221,6 +234,17 @@ public class AiResultTab extends Tab {
 
     /** Where a chat query is sent: only the active connection, or every open terminal (deduped per server). */
     public enum BroadcastTarget { ACTIVE_CONNECTION, ALL_OPEN_TERMINALS }
+
+    /** The run a seeded chat came from: its start, the connection it ran on, and the ids that link it to the run and its journal. */
+    private record AgentRunOrigin(
+        long startedAtMillis,
+        String connectionName,
+        String runId,
+        String terminalSessionId,
+        String connectionId,
+        String journalId,
+        String journalEntryId) {
+    }
 
     private record AiLanguageOption(String code, String label) {
         @Override
@@ -580,6 +604,37 @@ public class AiResultTab extends Tab {
         return AiOutboundRedaction.chatContextFor(profile, selectedText, fileAttachment, conversation, outboundSecrets);
     }
 
+    /** The line that says a chat seeded from a KI-Agent run came from that run and its connection. */
+    private void renderAgentRunNotice() {
+        if (agentRunOrigin == null) {
+            return;
+        }
+        String startedAt = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).format(
+            LocalDateTime.ofInstant(Instant.ofEpochMilli(agentRunOrigin.startedAtMillis()), ZoneId.systemDefault()));
+        Label notice = new Label(I18n.get("ai.result.agentRun.origin", startedAt,
+            agentRunOrigin.connectionName() != null ? agentRunOrigin.connectionName() : ""));
+        notice.getStyleClass().add("ai-chat-attachment");
+        notice.setWrapText(true);
+        notice.setMaxWidth(Double.MAX_VALUE);
+        notice.setFont(Font.font(Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
+        notice.setStyle("-fx-opacity: 0.8; -fx-font-style: italic;");
+        messagesBox.getChildren().add(notice);
+    }
+
+    /** The line of a read-only journal copy: the saved chat is no longer in the KI-chat history. */
+    private void renderJournalSnapshotNotice() {
+        if (!journalSnapshotOnly) {
+            return;
+        }
+        Label notice = new Label(I18n.get("ai.result.agentRun.snapshotOnly"));
+        notice.getStyleClass().add("ai-chat-attachment");
+        notice.setWrapText(true);
+        notice.setMaxWidth(Double.MAX_VALUE);
+        notice.setFont(Font.font(Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
+        notice.setStyle("-fx-opacity: 0.8; -fx-font-style: italic;");
+        messagesBox.getChildren().add(notice);
+    }
+
     private void renderFileAttachmentNotice() {
         if (fileAttachment == null) {
             return;
@@ -790,6 +845,16 @@ public class AiResultTab extends Tab {
                 savedChat.getAttachmentFileName(),
                 savedChat.getAttachmentSourcePath(),
                 savedChat.getAttachmentContent());
+        }
+        if (savedChat.isAgentRunChat()) {
+            agentRunOrigin = new AgentRunOrigin(
+                savedChat.getCreatedAt(),
+                savedChat.getConnectionDisplayName(),
+                savedChat.getSourceRunId(),
+                savedChat.getSourceTerminalSessionId(),
+                savedChat.getSourceConnectionId(),
+                savedChat.getSourceJournalId(),
+                savedChat.getSourceJournalEntryId());
         }
         refreshPlainTranscript();
         rebuildMessages();
@@ -1083,6 +1148,11 @@ public class AiResultTab extends Tab {
         }
         plainTranscript.append(resolveRoleLabel(message)).append("\n");
         plainTranscript.append(message.getContent() != null ? message.getContent().trim() : "");
+        // The steps an answer came from stay in the model's view, so a follow-up can build on them.
+        String steps = AgentRunChatSeeder.modelSteps(message.getAgentSteps());
+        if (!steps.isEmpty()) {
+            plainTranscript.append("\n\n[Run steps]\n").append(steps);
+        }
     }
 
     private void refreshPlainTranscript() {
@@ -1094,27 +1164,56 @@ public class AiResultTab extends Tab {
 
     private void sendFollowUp() {
         String prompt = promptInputArea.getText() != null ? promptInputArea.getText().trim() : "";
+        sendFollowUp(prompt, true);
+    }
+
+    /**
+     * Sends {@code question} as a follow-up without touching the composer, for a question that comes from
+     * elsewhere (the run's handoff). Returns whether it was sent: nothing is sent while the chat is busy,
+     * read-only, has no profile, or the question is blank, and the caller keeps the question then (see
+     * {@link #keepInComposer}).
+     */
+    boolean sendFollowUp(String question) {
+        return sendFollowUp(question != null ? question.trim() : "", false);
+    }
+
+    /**
+     * Puts a question that could not be sent into the composer, so it is not lost: an existing draft stays
+     * and the question follows it on a new line. FX thread.
+     */
+    void keepInComposer(String question) {
+        if (question == null || question.isBlank()) {
+            return;
+        }
+        String draft = promptInputArea.getText();
+        promptInputArea.setText(draft == null || draft.isBlank() ? question.strip() : draft.strip() + "\n" + question.strip());
+        promptInputArea.positionCaret(promptInputArea.getText().length());
+    }
+
+    private boolean sendFollowUp(String prompt, boolean fromComposer) {
         AiProfile selectedProfile = profileComboBox.getSelectionModel().getSelectedItem();
         if (prompt.isEmpty() || busy || readOnlyMode || selectedProfile == null) {
-            return;
+            return false;
         }
 
         if (targetComboBox.getValue() == BroadcastTarget.ALL_OPEN_TERMINALS) {
             sendBroadcast(prompt, selectedProfile);
-            return;
+            return true;
         }
 
         AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile, sourceConnection);
         if (aiService == null) {
             showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.error.notConfigured"));
-            return;
+            return false;
         }
 
         // The profile may have been switched since the chat was opened (say from an integrated
         // model to a cloud one), so mask what goes out for the profile it goes to now.
         AiOutboundRedaction.ChatContext outbound = outboundContextFor(selectedProfile, plainTranscript.toString());
         appendUserMessage(prompt);
-        promptInputArea.clear();
+        if (fromComposer) {
+            promptInputArea.clear();
+        }
 
         Map<String, Object> followUpProps = new LinkedHashMap<>(TelemetryProps.aiProfileProps(selectedProfile));
         followUpProps.put("first", false);
@@ -1189,6 +1288,7 @@ public class AiResultTab extends Tab {
         thread.setDaemon(true);
         attachRunningTask(task, thread, I18n.get("ai.result.followup.sending"));
         thread.start();
+        return true;
     }
 
     /**
@@ -1305,7 +1405,8 @@ public class AiResultTab extends Tab {
         retryButton.setDisable(busy || readOnlyMode || !hasProfile || findLastUserPrompt() == null);
         profileComboBox.setDisable(busy || readOnlyMode || profileComboBox.getItems().isEmpty());
         languageComboBox.setDisable(busy || readOnlyMode || languageComboBox.getItems().isEmpty());
-        saveButton.setDisable(messageEntries.isEmpty());
+        // A journal copy of a deleted chat is a view only: nothing is saved from it.
+        saveButton.setDisable(messageEntries.isEmpty() || journalSnapshotOnly);
         for (Button button : attachmentActionButtons) {
             button.setDisable(busy || readOnlyMode);
         }
@@ -1430,6 +1531,8 @@ public class AiResultTab extends Tab {
         messageNodes.clear();
         highlightNodes.clear();
         attachmentActionButtons.clear();
+        renderJournalSnapshotNotice();
+        renderAgentRunNotice();
         renderFileAttachmentNotice();
         for (SavedAiChatMessage entry : messageEntries) {
             renderMessage(entry);
@@ -1505,6 +1608,7 @@ public class AiResultTab extends Tab {
 
             appendWebActivityDisclosure(block, entry);
             appendAssistantContent(block, entry);
+            appendAgentStepsDisclosure(block, entry);
             appendReasoningDisclosure(block, entry);
             appendSentContextDisclosure(block, entry);
             topNode = block;
@@ -1608,6 +1712,73 @@ public class AiResultTab extends Tab {
             toggle.setText((show ? "▾ " : "▸ ") + summary);
         });
         target.getChildren().addAll(toggle, bodyBox);
+    }
+
+    /**
+     * Adds the collapsed "Steps (N)" disclosure under an answer that a KI-Agent run gave: each step with its
+     * status, title and summary; a command step also shows its command, exit code and output.
+     */
+    private void appendAgentStepsDisclosure(VBox target, SavedAiChatMessage entry) {
+        List<SavedAgentStep> steps = entry.getAgentSteps();
+        if (steps.isEmpty()) {
+            return;
+        }
+        VBox bodyBox = new VBox(8);
+        bodyBox.getStyleClass().addAll("ai-chat-reasoning", "ai-chat-agent-steps");
+        for (SavedAgentStep step : steps) {
+            bodyBox.getChildren().add(createAgentStepRow(step));
+        }
+        bodyBox.setVisible(false);
+        bodyBox.setManaged(false);
+
+        Button toggle = new Button(agentStepsToggleText(false, steps.size()));
+        toggle.getStyleClass().addAll("ai-chat-reasoning-toggle", "ai-chat-agent-steps-toggle");
+        toggle.setFont(Font.font(Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
+        toggle.setFocusTraversable(false);
+        toggle.setOnAction(event -> {
+            boolean show = !bodyBox.isVisible();
+            bodyBox.setVisible(show);
+            bodyBox.setManaged(show);
+            toggle.setText(agentStepsToggleText(show, steps.size()));
+        });
+        target.getChildren().addAll(toggle, bodyBox);
+    }
+
+    private Node createAgentStepRow(SavedAgentStep step) {
+        String summary = step.getSummary() != null && !step.getSummary().isBlank() ? " · " + step.getSummary().strip() : "";
+        Label headline = new Label(agentStepGlyph(step) + " " + (step.getTitle() != null ? step.getTitle() : "") + summary);
+        headline.setWrapText(true);
+        headline.setMaxWidth(Double.MAX_VALUE);
+        headline.setFont(Font.font(Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
+        VBox row = new VBox(2, headline);
+        // The command and output as every export writes them; the exit code goes right under the command.
+        List<String> detail = new ArrayList<>(AgentChatTranscriptFormatter.stepBody(step));
+        if (detail.isEmpty() && step.getExitCode() == null) {
+            return row;
+        }
+        if (step.getExitCode() != null) {
+            boolean hasCommand = step.getCommand() != null && !step.getCommand().isBlank();
+            detail.add(hasCommand ? 1 : 0, I18n.get("ai.result.agentRun.exit", step.getExitCode()));
+        }
+        if (step.isTruncated()) {
+            detail.add(I18n.get("ai.result.agentRun.truncated"));
+        }
+        row.getChildren().add(createSelectableTextBlock(String.join("\n", detail)));
+        return row;
+    }
+
+    /** ✓ for a step that completed with exit 0 (or has no exit code), ● while it runs, ✕ otherwise. */
+    private static String agentStepGlyph(SavedAgentStep step) {
+        if ("RUNNING".equals(step.getStatus())) {
+            return "●";
+        }
+        boolean completed = "COMPLETED".equals(step.getStatus());
+        boolean success = completed && (step.getExitCode() == null || step.getExitCode() == 0);
+        return success ? "✓" : "✕";
+    }
+
+    private static String agentStepsToggleText(boolean expanded, int count) {
+        return (expanded ? "▾ " : "▸ ") + I18n.get("ai.result.agentRun.steps", count);
     }
 
     private static String reasoningToggleText(boolean expanded) {
@@ -2757,7 +2928,8 @@ public class AiResultTab extends Tab {
         }
 
         try {
-            exportService.exportChat(targetFile.toPath(), format, messageEntries, currentFontSize, exportContext, pdfOptions);
+            exportService.exportChat(targetFile.toPath(), format, messageEntries, currentFontSize, exportContext, pdfOptions,
+                exportOrigin());
             statusLabel.setText(I18n.get("ai.result.export.success", targetFile.getName()));
         } catch (Exception ex) {
             showExportError(ex);
@@ -2775,7 +2947,8 @@ public class AiResultTab extends Tab {
                 messageEntries,
                 currentFontSize,
                 exportContext,
-                AiPdfExportOptions.defaults(exportContext.title()));
+                AiPdfExportOptions.defaults(exportContext.title()),
+                exportOrigin());
             AiChatShareService.ShareResult result = shareService.share(tempFile);
             if (result.openedParentDirectory()) {
                 statusLabel.setText(I18n.get("ai.result.share.directoryFallback", tempFile.getFileName().toString()));
@@ -2863,6 +3036,26 @@ public class AiResultTab extends Tab {
         }
     }
 
+    /**
+     * Makes this read-only tab a view of a journal's copy of a chat that is no longer in the KI-chat history:
+     * it forgets the saved chat id, so nothing is saved from it, and says so above the messages.
+     */
+    void showJournalSnapshotOnly() {
+        savedChatId = null;
+        journalSnapshotOnly = true;
+        readOnlyMode = true;
+        // The read-only reason is the journal copy, not a missing AI profile.
+        statusLabel.setText(I18n.get("ai.result.agentRun.snapshotOnly"));
+        promptInputArea.setPromptText(I18n.get("ai.result.agentRun.snapshotOnly"));
+        updateSendAvailability();
+        rebuildMessages();
+    }
+
+    /** The chat as the exporter sees it when it came from a KI-Agent run (for its origin line); null for any other chat. */
+    private @Nullable SavedAiChat exportOrigin() {
+        return agentRunOrigin != null ? buildSavedChatSnapshot(null) : null;
+    }
+
     private SavedAiChat buildSavedChatSnapshot(String title) {
         SavedAiChat chat = new SavedAiChat();
         if (savedChatId != null && !savedChatId.isBlank()) {
@@ -2870,6 +3063,14 @@ public class AiResultTab extends Tab {
         }
         if (savedChatCreatedAt > 0L) {
             chat.setCreatedAt(savedChatCreatedAt);
+        }
+        if (agentRunOrigin != null) {
+            chat.setOrigin(SavedAiChat.ORIGIN_AGENT_RUN);
+            chat.setSourceRunId(agentRunOrigin.runId());
+            chat.setSourceTerminalSessionId(agentRunOrigin.terminalSessionId());
+            chat.setSourceConnectionId(agentRunOrigin.connectionId());
+            chat.setSourceJournalId(agentRunOrigin.journalId());
+            chat.setSourceJournalEntryId(agentRunOrigin.journalEntryId());
         }
         chat.setTitle(title);
         chat.setSelectedText(selectedText);

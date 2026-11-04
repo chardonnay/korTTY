@@ -298,9 +298,11 @@ The manager combines profile, local-inference, retrieval, and skill management:
 * **Knowledge Stores** - Create local HNSW stores, add reviewed files or recursive folders, synchronize sources, and run a test search.
 * **AI Skills** - Manage the skill library described under [AI Skills](#ai-skills) and its [statistics](../reference/settings/ai-skills.md#skill-statistics).
 * **Memory** - The korTTY memory that chat and agent requests carry: the global and the per-connection memory, the token budget, learning, clean-up, history and the other memory files. See [AI memory](ai-memory.md).
-* **Local AI** - Three sections: **Profile roles** assigns the Text/translation, Coding and [session journal](session-journal.md#ai-summaries) profiles; **Local runtime** selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; **Hugging Face** stores an encrypted Hugging Face token. **Save** under the sections writes all of them.
+* **Local AI** - Three sections: **Profile roles** assigns the Text/translation, Coding, **AI agent profile** and [session journal](session-journal.md#ai-summaries) profiles; **Local runtime** selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; **Hugging Face** stores an encrypted Hugging Face token. **Save** under the sections writes all of them.
 
-Saved chats are not a tab of the AI Manager. **AI > Saved Chats...** opens them in their own window, with a **Chats** tab for saved AI conversations and a **Swarm Chats** tab for saved [AI Swarm](ai-swarm.md) conversations, including those produced by scheduled swarm jobs. There you can open, rename, refresh, or delete an entry.
+Saved chats are not a tab of the AI Manager. **AI > Saved Chats...** opens them in their own window, with a **Chats** tab for saved AI conversations and a **Swarm Chats** tab for saved [AI Swarm](ai-swarm.md) conversations, including those produced by scheduled swarm jobs. There you can open, rename, refresh, or delete an entry. Chats continued from an agent run are listed in the **Chats** tab as well, see [Chats from AI agent runs](#chats-from-ai-agent-runs).
+
+The AI Manager has a search line at the top, like the settings dialog; see [Searching the AI Manager](../reference/settings/ai.md#searching-the-ai-manager).
 
 Use **AI > AI Manager > General** for global behavior switches and the other AI Manager tabs for day-to-day profile, model, knowledge-store, and chat management.
 
@@ -460,6 +462,25 @@ korTTY adds guardrails around agent execution:
 * While a terminal-targeted run is active, normal typing is still allowed; only run-control keys (++Esc++/++Ctrl+C++ to cancel the selected run, ++Ctrl+R++ to toggle its thinking details) are intercepted.
 * Web-search failures, HTTP errors, authentication errors, empty results, and timeouts are surfaced as explicit tool errors.
 * If the AI response does not match the required JSON schema, korTTY asks for a repair. If repair also fails, the run is blocked with an explanation.
+
+## Chats from AI agent runs
+
+A finished terminal run can be continued in an AI chat: under the terminal, in the run menu or (with every design except the classic panel) in the terminal's context menu under *AI → Last agent run*, choose **Continue in AI chat**, see [Continue a run in an AI chat](ai-agent-designs.md#continue-a-run-in-an-ai-chat). The chat is saved like any other chat, so it is listed under **AI > Saved Chats...**, and it uses the AI profile the run used.
+
+![A chat continued from an agent run: the origin line, the task, the answer and the steps unfolded under the answer](../assets/screenshots/ai/chat-from-agent-run.png)
+
+The chat has the run's task as the first user message and the run's final answer as the assistant reply. Under the reply, a collapsed **Steps (N)** disclosure lists every step of the run in order, except its thinking: each line has a mark (● for a step still running, ✓ for a completed step with exit code 0 or without an exit code, ✕ for any other step), the step's title and its summary. A command step also shows the command, its **Exit N** line and its output; a long output keeps its beginning and its end, and an **Output truncated** line says so.
+
+The chat opens with a line above the messages: **From an AI agent run on** the start time **·** the connection the run used. A chat that was opened from a run's bar also keeps a link to that run, so a second click on **Continue in AI chat** focuses the same chat instead of creating another one.
+
+Everything stored or sent is masked first. The secrets known to the terminal tab and those the run learned while it ran, such as a sudo password you typed during the run, are replaced by `***`, as are the masking rules of your organisation and token formats that korTTY recognises. The model does not get the steps in full: it gets a trimmed view of about 24,000 characters. Every step keeps its status, title, summary, command (cut at 500 characters) and exit code; the output of each step is cut to its beginning and end, and when the budget is still exceeded the output of the oldest steps is dropped first. A follow-up question in the chat therefore builds on what the run did.
+
+!!! note "What is not handed over"
+    Only runs started from a terminal pane are handed over. A question asked with **Ask Agent…**, which runs no commands, and a run in the chat window do not get the bar or the menu entry. The entry is unavailable while AI features are off or your organisation's policy does not allow AI chats.
+
+Chat exports include these chats with their steps: **Export** as Markdown, plain text or PDF writes the origin line and each message's steps. Long command output keeps its beginning and end, marked as truncated; it is fenced in Markdown, in a panel in PDF and indented in plain text. A chat that is linked to a session journal's AGENT card keeps a copy in the journal that follows the chat while the journal records, see [AI agent cards and their AI chats](session-journal.md#ai-agent-cards-and-their-ai-chats).
+
+If a journal copy is opened as a chat after the chat was deleted, the chat is read-only and says so above the messages; nothing from it is saved again.
 
 ## AI Swarm (multi-server)
 

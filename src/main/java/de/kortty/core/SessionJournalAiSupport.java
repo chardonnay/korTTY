@@ -120,6 +120,14 @@ public final class SessionJournalAiSupport {
                 throw new IllegalStateException("No AI profile is available for the session journal.");
             }
         }
+
+        /**
+         * True once the run this invoker serves was cancelled: the summarizer then makes no further
+         * call and keeps the rest of the journal as raw activity. Default: never.
+         */
+        default boolean isCancelled() {
+            return false;
+        }
     }
 
     private SessionJournalAiSupport() {

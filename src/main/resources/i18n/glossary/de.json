@@ -4,6 +4,36 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "Suche im KI-Manager{ #searching-the-ai-manager }",
+      "to": "Suche im KI-Manager { #searching-the-ai-manager }",
+      "scope": "markdown",
+      "note": "The translator glued the explicit heading id to the text, so MkDocs emitted no id."
+    },
+    {
+      "from": "**Von einem KI-Agent-Lauf am**",
+      "to": "**Aus einem KI-Agent-Lauf vom**",
+      "scope": "markdown",
+      "note": "The UI label of ai.result.agentRun.origin; the translator paraphrased it."
+    },
+    {
+      "from": "Stichtagszeitpunkt",
+      "to": "Stand",
+      "scope": "markdown",
+      "note": "The as-of time of a journal chat copy is labelled Stand in the UI (journal.md.chat.asOf)."
+    },
+    {
+      "from": "**Codierung**",
+      "to": "**Coding**",
+      "scope": "markdown",
+      "note": "The Coding role keeps its UI name (Coding-Profil)."
+    },
+    {
+      "from": "KI-Zusammenfassungen des Sitzungsprotokolls",
+      "to": "KI-Zusammenfassungen des Sitzungsjournals",
+      "scope": "markdown",
+      "note": "The session journal is the Sitzungsjournal in the UI."
+    },
+    {
       "from": "korTTY darf KI-Skills erstellen und erlernte Regeln darin speichern",
       "to": "korTTY darf Skills anlegen und gelernte Regeln in Skills speichern",
       "scope": "markdown",

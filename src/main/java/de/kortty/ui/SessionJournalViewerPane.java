@@ -114,6 +114,12 @@ public class SessionJournalViewerPane extends BorderPane {
     private boolean pageReady;
     /** Timeline scroll offset to restore after the next load (0 = leave at the top/anchor). */
     private double pendingScrollY;
+    /**
+     * Chat transcripts and their steps the user had open before the last reload, as entry-keyed tokens
+     * ({@code entry-<id>|chat}, {@code entry-<id>|steps|<n>}); re-opened after the next load so a live update
+     * does not collapse what the user expanded.
+     */
+    private List<String> pendingOpenChatKeys = List.of();
     /** Capture-log seq to jump to once the page is ready (queued by {@link #jumpToLogSeq}). */
     private Long pendingJumpSeq;
     /** Live batches that arrived while the page was loading; bounded, oldest dropped. */
@@ -188,6 +194,7 @@ public class SessionJournalViewerPane extends BorderPane {
         documentReloadDelay.stop();
         pendingLive.clear();
         pendingScrollY = 0;
+        pendingOpenChatKeys = List.of();
         pageReady = false;
         liveTailWanted = false; // a new journal starts with the tail hidden (the default)
         if (onLiveTailStateChanged != null) {
@@ -363,6 +370,49 @@ public class SessionJournalViewerPane extends BorderPane {
         } catch (Exception e) {
             logger.debug("Journal page script failed: {}", e.getMessage());
         }
+    }
+
+    /** The chat transcripts and steps that are open on the current page, as entry-keyed tokens; empty on failure. */
+    private List<String> readOpenChatKeys() {
+        if (disposed) {
+            return List.of();
+        }
+        try {
+            Object value = webView.getEngine().executeScript(OPEN_CHAT_KEYS_SCRIPT);
+            if (value instanceof String text && !text.isEmpty()) {
+                return List.of(text.split("\n"));
+            }
+        } catch (Exception e) {
+            logger.debug("Could not read the open chat transcripts: {}", e.getMessage());
+        }
+        return List.of();
+    }
+
+    /** Page script: lists the open chat transcripts and steps by the id of their entry, one token per line. */
+    static final String OPEN_CHAT_KEYS_SCRIPT = "(function(){var keys=[];"
+        + "document.querySelectorAll('details.chat-transcript').forEach(function(t){"
+        + "var card=t.closest('[id^=\"entry-\"]');if(!card){return;}"
+        + "if(t.open){keys.push(card.id+'|chat');}"
+        + "t.querySelectorAll('details.chat-steps').forEach(function(s,i){"
+        + "if(s.open){keys.push(card.id+'|steps|'+i);}});});"
+        + "return keys.join('\\n');})();";
+
+    /** Page script that re-opens the transcripts and steps whose tokens were captured before the reload. */
+    static String restoreOpenChatsScript(List<String> keys) {
+        StringBuilder array = new StringBuilder("[");
+        for (String key : keys) {
+            if (array.length() > 1) {
+                array.append(',');
+            }
+            array.append('"').append(key.replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+        }
+        array.append(']');
+        return "(function(keys){var want={};keys.forEach(function(k){want[k]=true;});"
+            + "document.querySelectorAll('details.chat-transcript').forEach(function(t){"
+            + "var card=t.closest('[id^=\"entry-\"]');if(!card){return;}"
+            + "if(want[card.id+'|chat']){t.open=true;}"
+            + "t.querySelectorAll('details.chat-steps').forEach(function(s,i){"
+            + "if(want[card.id+'|steps|'+i]){s.open=true;}});});})(" + array + ");";
     }
 
     /** Captures the timeline scroll offset, then reloads with a fresh render. */
@@ -609,6 +659,9 @@ public class SessionJournalViewerPane extends BorderPane {
         if (anchorEntryId != null) {
             pendingScrollY = 0; // the anchor is the better position
         }
+        if (pageReady) {
+            pendingOpenChatKeys = readOpenChatKeys();
+        }
         Path dir = journalDir;
         if (dir == null) {
             return;
@@ -687,6 +740,11 @@ public class SessionJournalViewerPane extends BorderPane {
                     applyLiveTailHeight();
                     if (liveFeedActive && liveTailWanted) {
                         runScript("if(window.korttyOpenLiveTail){window.korttyOpenLiveTail();}");
+                    }
+                    if (!pendingOpenChatKeys.isEmpty()) {
+                        // Before the scroll restore: the re-opened transcripts change the page height.
+                        runScript(restoreOpenChatsScript(pendingOpenChatKeys));
+                        pendingOpenChatKeys = List.of();
                     }
                     if (pendingScrollY > 0) {
                         runScript("window.scrollTo(0," + pendingScrollY + ");");
@@ -991,6 +1049,17 @@ public class SessionJournalViewerPane extends BorderPane {
             }
         }
 
+        /**
+         * Opens the KI-Chat an AGENT card continues in, or the journal's frozen copy of it when the chat
+         * is gone. Works the same in the full dialog and in the compact live panel.
+         */
+        public void requestOpenChat(String entryId) {
+            SessionJournalViewerPane pane = paneRef.get();
+            if (pane != null) {
+                Platform.runLater(() -> pane.openChatForEntry(entryId));
+            }
+        }
+
         /** Saves the picture the user right-clicked to a file of their choosing. */
         public void requestSaveImage(String relativePath) {
             SessionJournalViewerPane pane = paneRef.get();
@@ -1271,6 +1340,40 @@ public class SessionJournalViewerPane extends BorderPane {
                 }
             });
         });
+    }
+
+    /**
+     * Reads the AGENT entry off the FX thread and hands its chat link and snapshot to the main window,
+     * which opens or focuses the live chat, or shows the snapshot read-only once the chat is gone.
+     */
+    private void openChatForEntry(String entryId) {
+        if (disposed || entryId == null || entryId.isBlank() || mainWindow == null) {
+            return;
+        }
+        Path dir = journalDir;
+        Thread loader = new Thread(() -> {
+            try {
+                SessionJournalDocument document = service().loadDocument(dir);
+                SessionJournalEntry target = document.getEntries().stream()
+                    .filter(entry -> entryId.equals(entry.getId()))
+                    .findFirst()
+                    .orElse(null);
+                if (target == null || (target.getChatId() == null && target.getChatSnapshot() == null)) {
+                    return;
+                }
+                String chatId = target.getChatId();
+                de.kortty.model.SessionJournalChatSnapshot snapshot = target.getChatSnapshot();
+                Platform.runLater(() -> {
+                    if (!disposed && dir.equals(journalDir)) {
+                        mainWindow.openJournalChat(chatId, snapshot);
+                    }
+                });
+            } catch (Exception e) {
+                logger.warn("Could not open the KI-Chat of a journal entry: {}", e.getMessage());
+            }
+        }, "SessionJournal-OpenChat");
+        loader.setDaemon(true);
+        loader.start();
     }
 
     private static String jsQuote(String value) {
@@ -1851,7 +1954,8 @@ public class SessionJournalViewerPane extends BorderPane {
             try {
                 SessionJournalExportService exportService = new SessionJournalExportService(service(), renderer());
                 SessionJournalExportService.Options options =
-                    new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter());
+                    new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter(),
+                        choice.includeChats());
                 SessionJournalExportService.ExportResult result = de.kortty.core.SessionJournalExportProtection.export(
                     target.toPath(), archive,
                     de.kortty.core.SessionJournalExportProtection.plainName(

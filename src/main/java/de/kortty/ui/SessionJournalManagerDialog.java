@@ -97,10 +97,20 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     /** AI-search hit counts per journal directory; null = no hit column/highlight shown. */
     private volatile java.util.Map<Path, Long> aiHitCounts;
     private TreeTableColumn<SessionJournalTreeSupport.Node, Long> hitsColumn;
+    /** The background "Re-evaluate with AI…" runs; null without an application (tests). */
+    private final de.kortty.core.SessionJournalReevaluationJob reevaluationJob;
+    /** Bumped whenever the re-evaluation moves on, so the button states that depend on it are recomputed. */
+    private final javafx.beans.property.IntegerProperty reevaluationRevision =
+        new javafx.beans.property.SimpleIntegerProperty();
+    private final SessionJournalReevaluationBar reevaluationBar;
 
     public SessionJournalManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
         this.app = KorTTYApplication.getInstance();
+        this.reevaluationJob = app != null ? app.getSessionJournalReevaluationJob() : null;
+        this.reevaluationBar = new SessionJournalReevaluationBar(reevaluationJob,
+            () -> ownerWindow != null ? ownerWindow.getStage() : getDialogPane().getScene().getWindow(),
+            this::onReevaluationMoved);
         initModality(Modality.NONE);
         setTitle(I18n.get("journal.manager.title"));
         setResizable(true);
@@ -116,6 +126,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         setOnCloseRequest(event -> saveGeometry());
         setOnHidden(event -> {
             saveGeometry();
+            reevaluationBar.dispose();
             if (searchPanel != null) {
                 searchPanel.dispose();
             }
@@ -183,6 +194,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             () -> selectedJournals().isEmpty(), selectedItems);
         var anyLiveSelected = javafx.beans.binding.Bindings.createBooleanBinding(
             () -> selectedJournals().stream().anyMatch(SessionJournalMeta::isLive), selectedItems);
+        // A journal the background re-evaluation works on or waits for is not deleted under its feet.
+        var anyReevaluatingSelected = javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedJournals().stream().anyMatch(this::isBeingReevaluated), selectedItems, reevaluationRevision);
         openButton.disableProperty().bind(exactlyOne.not());
         exportButton.disableProperty().bind(noneSelected);
         de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
@@ -196,7 +210,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             deleteButton.setDisable(true);
             deleteButton.setTooltip(new Tooltip(I18n.get("journal.options.managed")));
         } else {
-            deleteButton.disableProperty().bind(noneSelected.or(anyLiveSelected));
+            deleteButton.disableProperty().bind(noneSelected.or(anyLiveSelected).or(anyReevaluatingSelected));
         }
 
         if (!policy.sessionJournalAiSummariesAllowed()) {
@@ -204,7 +218,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             reevaluateButton.setTooltip(new Tooltip(I18n.get("journal.options.managed")));
         } else {
             reevaluateButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
-                () -> SessionJournalReevaluateDialog.eligible(selectedJournals()).isEmpty(), selectedItems));
+                () -> SessionJournalReevaluateDialog.eligible(selectedJournals(), reevaluationJob).isEmpty(),
+                selectedItems, reevaluationRevision));
         }
 
         HBox buttonBar = new HBox(8, openButton, renameButton, exportButton, deleteButton, reevaluateButton,
@@ -237,7 +252,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
 
         centerBox.getChildren().setAll(table);
         VBox.setVgrow(table, Priority.ALWAYS);
-        VBox root = new VBox(10, searchBar, keywordChips, centerBox, buttonBar, descriptionBox);
+        VBox root = new VBox(10, searchBar, keywordChips, centerBox, reevaluationBar.getNode(), buttonBar, descriptionBox);
         root.setPadding(new Insets(6));
         VBox.setVgrow(centerBox, Priority.ALWAYS);
         return root;
@@ -489,8 +504,13 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                     text.setStyle("-fx-font-weight: bold;");
                 }
                 text.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
-                HBox badges = SessionJournalBadges.render(SessionJournalBadges.badges(
+                List<SessionJournalBadges.Badge> badgeList = new ArrayList<>(SessionJournalBadges.badges(
                     node, OffsetDateTime.now(), de.kortty.core.AutomationJournalPolicy.current().hasCaps()));
+                SessionJournalBadges.Badge reevaluation = SessionJournalBadges.reevaluation(reevaluationState(node));
+                if (reevaluation != null) {
+                    badgeList.add(reevaluation);
+                }
+                HBox badges = SessionJournalBadges.render(badgeList);
                 badges.getChildren().forEach(pill -> ((Label) pill).textFillProperty().bind(textFillProperty()));
                 HBox box = new HBox(8, text, badges);
                 box.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
@@ -605,7 +625,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         }
         javafx.scene.control.ContextMenu menu = new javafx.scene.control.ContextMenu();
         if (de.kortty.policy.PolicyManager.effective().sessionJournalAiSummariesAllowed()
-                && !SessionJournalReevaluateDialog.eligible(node.journals()).isEmpty()) {
+                && !SessionJournalReevaluateDialog.eligible(node.journals(), reevaluationJob).isEmpty()) {
             MenuItem reevaluate = new MenuItem(I18n.get("journal.reevaluate.button"));
             reevaluate.setOnAction(event -> reevaluate(node.journals()));
             menu.getItems().add(reevaluate);
@@ -906,11 +926,45 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     private void reevaluate(List<SessionJournalMeta> journals) {
         new SessionJournalReevaluateDialog(
             getDialogPane().getScene().getWindow(),
-            service(),
-            app != null ? app.getSessionJournalSummarizer() : null,
-            app != null ? app.getSessionJournalScreenshotAnalyzer() : null,
             settings(),
-            this::refresh).show(journals);
+            reevaluationJob,
+            () -> ownerWindow != null ? ownerWindow.getStage() : getDialogPane().getScene().getWindow())
+            .show(journals);
+        reevaluationRevision.set(reevaluationRevision.get() + 1);
+        table.refresh();
+    }
+
+    /** The background re-evaluation started on another journal, finished or was queued: reload the rows. */
+    private void onReevaluationMoved() {
+        reevaluationRevision.set(reevaluationRevision.get() + 1);
+        refresh();
+    }
+
+    private boolean isBeingReevaluated(SessionJournalMeta meta) {
+        return reevaluationJob != null && meta.getDirectory() != null
+            && reevaluationJob.stateOf(meta.getDirectory()) != de.kortty.core.SessionJournalReevaluationJob.JournalState.NONE;
+    }
+
+    /** RUNNING when the run works on one of the row's journals, WAITING when one waits for it, else NONE. */
+    private de.kortty.core.SessionJournalReevaluationJob.JournalState reevaluationState(SessionJournalTreeSupport.Node node) {
+        de.kortty.core.SessionJournalReevaluationJob.JournalState state =
+            de.kortty.core.SessionJournalReevaluationJob.JournalState.NONE;
+        if (reevaluationJob == null) {
+            return state;
+        }
+        for (SessionJournalMeta meta : node.journals()) {
+            if (meta.getDirectory() == null) {
+                continue;
+            }
+            de.kortty.core.SessionJournalReevaluationJob.JournalState journal = reevaluationJob.stateOf(meta.getDirectory());
+            if (journal == de.kortty.core.SessionJournalReevaluationJob.JournalState.RUNNING) {
+                return journal;
+            }
+            if (journal == de.kortty.core.SessionJournalReevaluationJob.JournalState.WAITING) {
+                state = journal;
+            }
+        }
+        return state;
     }
 
     private void openSelected() {
@@ -1044,7 +1098,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                 SessionJournalExportService exportService = new SessionJournalExportService(
                     service(), app != null ? app.getSessionJournalHtmlRenderer() : null);
                 SessionJournalExportService.Options options =
-                    new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter());
+                    new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter(),
+                        choice.includeChats());
                 SessionJournalExportService.ExportResult result = de.kortty.core.SessionJournalExportProtection.export(
                     target.toPath(), archive,
                     de.kortty.core.SessionJournalExportProtection.plainName(target.toPath(), extension, plainExtension),

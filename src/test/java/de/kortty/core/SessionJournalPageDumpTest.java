@@ -90,6 +90,34 @@ class SessionJournalPageDumpTest {
             agentRun.setAgentTokens(12_040L);
             service.appendEntry(dir, agentRun);
 
+            // A terminal-agent run continued in a KI-Chat: tag, open button, transcript with a step.
+            SessionJournalEntry chatRun = new SessionJournalEntry();
+            chatRun.setKind(SessionJournalEntryKind.AGENT);
+            chatRun.setTitle("restart nginx after the config change");
+            chatRun.setText("nginx restarted and answers on port 443.");
+            chatRun.setAgentModel("Claude (claude-sonnet-5)");
+            service.appendEntry(dir, chatRun);
+            de.kortty.model.SessionJournalChatSnapshot chatSnapshot = new de.kortty.model.SessionJournalChatSnapshot();
+            chatSnapshot.setTitle("restart nginx after the config change");
+            chatSnapshot.setCapturedAt(java.time.OffsetDateTime.now());
+            de.kortty.model.SessionJournalChatMessage question = new de.kortty.model.SessionJournalChatMessage();
+            question.setRole("USER");
+            question.setContent("Restart **nginx** and check port 443.");
+            de.kortty.model.SessionJournalChatMessage answer = new de.kortty.model.SessionJournalChatMessage();
+            answer.setRole("ASSISTANT");
+            answer.setAiProfileName("Claude");
+            answer.setContent("Restarted; the port answers.");
+            de.kortty.model.SavedAgentStep restart = new de.kortty.model.SavedAgentStep();
+            restart.setType("ACTION");
+            restart.setStatus("DONE");
+            restart.setTitle("Restart nginx");
+            restart.setCommand("systemctl restart nginx");
+            restart.setExitCode(0);
+            restart.setOutput("");
+            answer.setSteps(List.of(restart));
+            chatSnapshot.setMessages(List.of(question, answer));
+            service.linkChat(dir, chatRun.getId(), "chat-dump-1", chatSnapshot);
+
             SessionJournalDocument document = service.loadDocument(dir);
             SessionJournalMarkers.snapshot(document, new de.kortty.model.SessionJournalMarkerDefinition(
                 "deploy", "Deployment", "#7c3aed", false,
@@ -130,6 +158,13 @@ class SessionJournalPageDumpTest {
             assertThat(html).contains("id=\"timeToggle\"");
             // Model, duration and token count render as one muted meta line.
             assertThat(html).contains("class=\"agent-meta\"");
+            // The chat-linked run: tag, open button (hidden in a browser copy), transcript and step.
+            assertThat(html).contains("class=\"state-tag chat-tag\"");
+            assertThat(html).contains("class=\"chat-open-btn\"");
+            assertThat(html).contains("<details class=\"chat-transcript\">");
+            assertThat(html).contains("<details class=\"chat-steps\">");
+            assertThat(html).contains("<pre class=\"chat-step-output\">$ systemctl restart nginx");
+            assertThat(html).contains("<strong>nginx</strong>");
             assertThat(html).contains("Claude (claude-sonnet-5) · 6 min 23 s · 12.0k tokens");
             assertThat(html).contains("l-line");
             assertThat(html).contains("id=\"journalReplace\" hidden");

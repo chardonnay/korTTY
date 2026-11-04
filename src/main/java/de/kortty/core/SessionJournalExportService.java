@@ -1,5 +1,9 @@
 package de.kortty.core;
 
+import de.kortty.model.SavedAgentStep;
+import de.kortty.model.SavedAiChatMessage;
+import de.kortty.model.SessionJournalChatMessage;
+import de.kortty.model.SessionJournalChatSnapshot;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
@@ -19,6 +23,9 @@ import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageXYZDestination;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocumentOutline;
+import org.apache.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,20 +90,17 @@ public final class SessionJournalExportService {
     /**
      * Export options; screenshots apply to PDF (embedding) and Markdown (sibling copies). The
      * filter selects which entries are exported and, for the HTML bundle, how far the capture log
-     * is trimmed. The single-argument constructor keeps every existing call site compiling.
+     * is trimmed. {@code includeChats} is the user's explicit choice and has no defaulting
+     * constructor: a call site must state it, so a dialog choice cannot be dropped silently.
      */
-    public record Options(boolean includeScreenshots, SessionJournalExportFilter filter) {
+    public record Options(boolean includeScreenshots, SessionJournalExportFilter filter, boolean includeChats) {
 
         public Options {
             filter = filter != null ? filter : SessionJournalExportFilter.none();
         }
 
-        public Options(boolean includeScreenshots) {
-            this(includeScreenshots, null);
-        }
-
         public static Options defaults() {
-            return new Options(true);
+            return new Options(true, null, true);
         }
 
         public boolean hasFilters() {
@@ -133,10 +137,10 @@ public final class SessionJournalExportService {
 
         /** The banner text, e.g. "Excerpt: 08:00–12:00 · 12 of 120 entries". */
         public String describe() {
-            String counts = i18n("journal.export.excerpt.counts", "{0} of {1} entries")
+            String counts = I18n.get("journal.export.excerpt.counts")
                 .replace("{0}", String.valueOf(exportedEntries))
                 .replace("{1}", String.valueOf(totalEntries));
-            String label = i18n("journal.export.excerpt", "Excerpt");
+            String label = I18n.get("journal.export.excerpt");
             return rangeText == null || rangeText.isBlank()
                 ? label + ": " + counts
                 : label + ": " + rangeText + " · " + counts;
@@ -209,8 +213,7 @@ public final class SessionJournalExportService {
         Options effective = options != null ? options : Options.defaults();
         Selection selection = select(document, effective);
         if (effective.hasFilters() && selection.entries().isEmpty()) {
-            throw new EmptyExportSelectionException(i18n("journal.export.empty",
-                "No journal entries match the selected filters."));
+            throw new EmptyExportSelectionException(I18n.get("journal.export.empty"));
         }
         ExportExcerpt excerpt = excerptFor(effective, selection, document);
         switch (format) {
@@ -312,8 +315,7 @@ public final class SessionJournalExportService {
                 }
             }
             if (effective.hasFilters() && skipped.size() == journalDirs.size()) {
-                throw new EmptyExportSelectionException(i18n("journal.export.empty",
-                    "No journal entries match the selected filters."));
+                throw new EmptyExportSelectionException(I18n.get("journal.export.empty"));
             }
             Files.deleteIfExists(targetZip);
             zipDirectoryContents(stagingDir, targetZip, password);
@@ -347,21 +349,21 @@ public final class SessionJournalExportService {
         md.append("# ").append(nullSafe(meta.getTitle())).append("\n\n");
         String connection = SessionJournalHeaderSupport.connectionSubtitle(meta);
         if (!connection.isEmpty()) {
-            md.append("- **").append(i18n("journal.md.connection", "Connection")).append(":** ")
+            md.append("- **").append(I18n.get("journal.md.connection")).append(":** ")
                 .append(connection).append('\n');
         }
-        md.append("- **").append(i18n("journal.md.started", "Started")).append(":** ")
+        md.append("- **").append(I18n.get("journal.md.started")).append(":** ")
             .append(meta.getStartedAt() != null ? meta.getStartedAt().format(DATE_TIME) : "?")
-            .append(" · **").append(i18n("journal.md.duration", "Duration")).append(":** ")
+            .append(" · **").append(I18n.get("journal.md.duration")).append(":** ")
             .append(durationText(meta)).append('\n');
-        md.append("- **").append(i18n("journal.md.commands", "Commands")).append(":** ")
+        md.append("- **").append(I18n.get("journal.md.commands")).append(":** ")
             .append(meta.getCommandCount())
-            .append(" · **").append(i18n("journal.md.errors", "Errors")).append(":** ")
+            .append(" · **").append(I18n.get("journal.md.errors")).append(":** ")
             .append(meta.getErrorCount())
-            .append(" · **").append(i18n("journal.md.screenshots", "Screenshots")).append(":** ")
+            .append(" · **").append(I18n.get("journal.md.screenshots")).append(":** ")
             .append(meta.getScreenshotCount()).append('\n');
         if (meta.getDescription() != null && !meta.getDescription().isBlank()) {
-            md.append("- **").append(i18n("journal.md.description", "Description")).append(":** ")
+            md.append("- **").append(I18n.get("journal.md.description")).append(":** ")
                 .append(meta.getDescription().replace('\n', ' ')).append('\n');
         }
         if (excerpt != null) {
@@ -388,6 +390,10 @@ public final class SessionJournalExportService {
                 md.append("  `[").append(SessionJournalMarkers.displayName(marker)).append("]`");
             }
             md.append("\n\n");
+            String agentMeta = agentMetaLine(entry);
+            if (!agentMeta.isEmpty()) {
+                md.append(agentMeta).append("\n\n");
+            }
             if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.getScreenshotFile() != null) {
                 appendMarkdownScreenshot(md, entry, journalDir, assetDir, assetDirName, options);
                 appendMarkdownAiAnalysis(md, entry);
@@ -396,16 +402,19 @@ public final class SessionJournalExportService {
                 md.append(entry.getText()).append("\n\n");
             }
             if (!entry.getInputExcerpt().isEmpty()) {
-                md.append("**").append(i18n("journal.md.input", "Input")).append(":**\n");
+                md.append("**").append(I18n.get("journal.md.input")).append(":**\n");
                 appendFencedBlock(md, "console", prefixLines(entry.getInputExcerpt(), "$ "));
             }
             if (!entry.getOutputExcerpt().isEmpty()) {
-                md.append("**").append(i18n("journal.md.output", "Output")).append(":**\n");
+                md.append("**").append(I18n.get("journal.md.output")).append(":**\n");
                 appendFencedBlock(md, "text", String.join("\n", entry.getOutputExcerpt()));
             }
             if (entry.getUserNote() != null && !entry.getUserNote().isBlank()) {
-                md.append("> ").append(i18n("journal.md.note", "Note")).append(": ")
+                md.append("> ").append(I18n.get("journal.md.note")).append(": ")
                     .append(entry.getUserNote().replace('\n', ' ')).append("\n\n");
+            }
+            if (options.includeChats() && hasChatTranscript(entry)) {
+                appendMarkdownChat(md, entry, assetDir, assetDirName);
             }
         }
         if (branding.footerEnabled()) {
@@ -432,20 +441,48 @@ public final class SessionJournalExportService {
             Files.createDirectories(assetDir);
             Path copy = assetDir.resolve(source.getFileName().toString());
             Files.copy(source, copy, StandardCopyOption.REPLACE_EXISTING);
-            md.append("![").append(i18n("journal.md.screenshot", "Screenshot")).append("](")
+            md.append("![").append(I18n.get("journal.md.screenshot")).append("](")
                 .append(assetDirName).append('/').append(source.getFileName()).append(")\n\n");
         } catch (IOException e) {
             logger.warn("Could not copy screenshot for Markdown export: {}", e.getMessage());
         }
     }
 
+    /**
+     * The chat as a sibling file next to the Markdown, linked from the AGENT entry. The file has its
+     * own title and as-of line and the shared transcript formatting, so it reads on its own too.
+     */
+    private void appendMarkdownChat(StringBuilder md, SessionJournalEntry entry, Path assetDir, String assetDirName) {
+        SessionJournalChatSnapshot snapshot = entry.getChatSnapshot();
+        String fileName = "chat-" + entry.getId() + ".md";
+        String linkText = chatTitle(snapshot, entry).replace('[', '(').replace(']', ')');
+        try {
+            Files.createDirectories(assetDir);
+            StringBuilder chat = new StringBuilder(4 * 1024);
+            chat.append("# ").append(linkText).append("\n\n");
+            chat.append("- **").append(I18n.get("journal.md.chat.asOf")).append(":** ")
+                .append(snapshot.getCapturedAt() != null
+                    ? snapshot.getCapturedAt().atZoneSameInstant(ZoneId.systemDefault()).format(DATE_TIME)
+                    : "?");
+            if (snapshot.isFrozen()) {
+                chat.append(" (").append(I18n.get("journal.md.chat.final")).append(')');
+            }
+            chat.append("\n\n").append(AgentChatTranscriptFormatter.toMarkdown(snapshot.toSavedMessages())).append('\n');
+            Files.writeString(assetDir.resolve(fileName), chat.toString(), StandardCharsets.UTF_8);
+            md.append("**").append(I18n.get("journal.md.chat")).append(":** [").append(linkText)
+                .append("](").append(assetDirName).append('/').append(fileName).append(")\n\n");
+        } catch (IOException e) {
+            logger.warn("Could not write the KI-Chat for Markdown export: {}", e.getMessage());
+        }
+    }
+
     private void appendMarkdownAiAnalysis(StringBuilder md, SessionJournalEntry entry) {
         if (entry.getAiDescription() != null && !entry.getAiDescription().isBlank()) {
-            md.append("**").append(i18n("journal.md.aiDescription", "AI description")).append(":** ")
+            md.append("**").append(I18n.get("journal.md.aiDescription")).append(":** ")
                 .append(entry.getAiDescription().replace('\n', ' ')).append("\n\n");
         }
         if (!entry.getAiTags().isEmpty()) {
-            md.append("**").append(i18n("journal.md.tags", "Tags")).append(":** ")
+            md.append("**").append(I18n.get("journal.md.tags")).append(":** ")
                 .append(String.join(", ", entry.getAiTags())).append("\n\n");
         }
     }
@@ -468,6 +505,51 @@ public final class SessionJournalExportService {
             sb.append(prefix).append(lines.get(i));
         }
         return sb.toString();
+    }
+
+    /** An AGENT entry that carries a chat copy with at least one message. */
+    static boolean hasChatTranscript(SessionJournalEntry entry) {
+        return entry.getKind() == SessionJournalEntryKind.AGENT
+            && entry.getChatSnapshot() != null
+            && !entry.getChatSnapshot().getMessages().isEmpty();
+    }
+
+    /** Model, duration and tokens of an AGENT run joined with the same separator the page uses; empty if none. */
+    static String agentMetaLine(SessionJournalEntry entry) {
+        if (entry.getKind() != SessionJournalEntryKind.AGENT) {
+            return "";
+        }
+        List<String> parts = new ArrayList<>();
+        if (entry.getAgentModel() != null && !entry.getAgentModel().isBlank()) {
+            parts.add(entry.getAgentModel().strip());
+        }
+        if (entry.getAgentDurationMillis() != null && entry.getAgentDurationMillis() > 0) {
+            parts.add(SessionJournalHtmlRenderer.formatAgentDuration(entry.getAgentDurationMillis()));
+        }
+        if (entry.getAgentTokens() != null && entry.getAgentTokens() > 0) {
+            parts.add(SessionJournalHtmlRenderer.formatAgentTokens(entry.getAgentTokens()) + " "
+                + I18n.get("journal.html.tokens"));
+        }
+        return String.join(" · ", parts);
+    }
+
+    /** The chat's own title, else the entry's title, else the generic chat label. */
+    private static String chatTitle(SessionJournalChatSnapshot snapshot, SessionJournalEntry entry) {
+        if (snapshot != null && snapshot.getTitle() != null && !snapshot.getTitle().isBlank()) {
+            return snapshot.getTitle().strip();
+        }
+        if (entry.getTitle() != null && !entry.getTitle().isBlank()) {
+            return entry.getTitle().strip();
+        }
+        return I18n.get("journal.html.chat.tag");
+    }
+
+    private static String chatRoleLabel(SessionJournalChatMessage message) {
+        if (SavedAiChatMessage.ROLE_USER.equals(message.getRole())) {
+            return I18n.get("ai.result.user").replaceAll(":\\s*$", "");
+        }
+        String profile = message.getAiProfileName();
+        return profile != null && !profile.isBlank() ? profile.strip() : I18n.get("ai.result.assistant");
     }
 
     // ==== HTML bundle ===========================================================================
@@ -499,27 +581,63 @@ public final class SessionJournalExportService {
                                  Options options, Selection selection, ExportExcerpt excerpt)
             throws IOException {
         if (!options.hasFilters()) {
-            copyBundleInto(journalDir, targetDir);
+            copyBundleInto(journalDir, targetDir, options.includeChats() ? null : withoutChats(document));
             return;
         }
         new SessionJournalBundleWriter(service, renderer).write(
-            targetDir, journalDir, document, selection.entries(), options.filter(), excerpt);
+            targetDir, journalDir, document, selection.entries(), options.filter(), excerpt,
+            options.includeChats());
     }
 
-    /** Lays the journal out in {@code targetDir} exactly as the bundle should appear when unzipped. */
-    private void copyBundleInto(Path journalDir, Path targetDir) throws IOException {
-        Files.createDirectories(targetDir);
-        Path htmlFile = renderer != null
-            ? renderer.renderToFile(journalDir)
-            : journalDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME);
-        if (Files.isRegularFile(htmlFile)) {
-            Files.copy(htmlFile, targetDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME),
-                StandardCopyOption.REPLACE_EXISTING);
+    /**
+     * The document with every chat link and chat copy removed, or null when nothing in it refers to a
+     * chat. An export without chats must not carry them in any file, the journal.xml included.
+     */
+    static SessionJournalDocument withoutChats(SessionJournalDocument source) {
+        boolean anyChat = source.getEntries().stream().anyMatch(entry ->
+            entry.getChatId() != null || entry.getChatLinkedAt() != null || entry.getChatSnapshot() != null);
+        if (!anyChat) {
+            return null;
         }
-        Path documentFile = journalDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME);
-        if (Files.isRegularFile(documentFile)) {
-            Files.copy(documentFile, targetDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME),
-                StandardCopyOption.REPLACE_EXISTING);
+        SessionJournalDocument stripped = new SessionJournalDocument(source);
+        stripped.setEntries(source.getEntries().stream().map(entry -> {
+            SessionJournalEntry copy = new SessionJournalEntry(entry);
+            copy.setChatId(null);
+            copy.setChatLinkedAt(null);
+            copy.setChatSnapshot(null);
+            return copy;
+        }).toList());
+        return stripped;
+    }
+
+    /**
+     * Lays the journal out in {@code targetDir} exactly as the bundle should appear when unzipped.
+     * With {@code withoutChats} set, the journal.xml and journal.html are written from that stripped
+     * document instead of copied, so the chat text never reaches the folder.
+     */
+    private void copyBundleInto(Path journalDir, Path targetDir, SessionJournalDocument withoutChats)
+            throws IOException {
+        Files.createDirectories(targetDir);
+        if (withoutChats != null) {
+            service.writeDocument(withoutChats, targetDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME));
+            if (renderer != null) {
+                String html = renderer.render(withoutChats, SessionJournalLogReader.readAfter(journalDir, 0));
+                Files.writeString(targetDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME), html,
+                    StandardCharsets.UTF_8);
+            }
+        } else {
+            Path htmlFile = renderer != null
+                ? renderer.renderToFile(journalDir)
+                : journalDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME);
+            if (Files.isRegularFile(htmlFile)) {
+                Files.copy(htmlFile, targetDir.resolve(SessionJournalHtmlRenderer.HTML_FILE_NAME),
+                    StandardCopyOption.REPLACE_EXISTING);
+            }
+            Path documentFile = journalDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME);
+            if (Files.isRegularFile(documentFile)) {
+                Files.copy(documentFile, targetDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME),
+                    StandardCopyOption.REPLACE_EXISTING);
+            }
         }
         int parts = SessionJournalLogReader.countParts(journalDir);
         for (int part = 1; part <= parts; part++) {
@@ -626,10 +744,138 @@ public final class SessionJournalExportService {
                 cursor = drawEntry(pdf, cursor, fonts, entry, journalDir, options, zone,
                     SessionJournalMarkers.resolve(entry, document));
             }
+            // The chats come after the entries, on their own pages, each with an outline entry.
+            List<SessionJournalEntry> chats = options.includeChats()
+                ? entries.stream().filter(SessionJournalExportService::hasChatTranscript).toList()
+                : List.of();
+            List<PdfBookmark> bookmarks = new ArrayList<>();
+            if (!chats.isEmpty()) {
+                cursor = newPage(pdf, cursor);
+                cursor = drawChatAppendix(pdf, cursor, fonts, chats, bookmarks);
+            }
             cursor.stream().close();
             drawFooters(pdf, fonts);
+            if (!bookmarks.isEmpty()) {
+                applyChatOutline(pdf, bookmarks);
+            }
             pdf.save(target.toFile());
         }
+    }
+
+    /** One chat appendix entry for the PDF outline: a label and where its heading sits. */
+    private record PdfBookmark(String label, int pageIndex, float topY) {
+    }
+
+    /**
+     * The KI-Chats appendix: a heading per chat (bookmarked), the as-of line, then each message with its
+     * role label, its text and its steps. Command output is drawn in the excerpt panel, in pieces that
+     * fit the page, so a long output never runs off the bottom edge.
+     */
+    private Cursor drawChatAppendix(PDDocument pdf, Cursor cursor, PdfFonts fonts, List<SessionJournalEntry> chats,
+                                    List<PdfBookmark> bookmarks) throws IOException {
+        float width = contentWidth();
+        Color muted = new Color(0x5e, 0x6e, 0x82);
+        Color roleColor = new Color(0x1f, 0x29, 0x37);
+        cursor = drawDayDivider(pdf, cursor, fonts, I18n.get("journal.pdf.chatAppendix"));
+        for (SessionJournalEntry entry : chats) {
+            SessionJournalChatSnapshot snapshot = entry.getChatSnapshot();
+            String title = chatTitle(snapshot, entry);
+            cursor = ensureSpace(pdf, cursor, 60f);
+            bookmarks.add(new PdfBookmark(title, pdf.getNumberOfPages() - 1, cursor.y()));
+            cursor = drawParagraph(pdf, cursor, fonts.sansBold(), 12.5f, roleColor, title, 2f, PAGE_MARGIN, width);
+            String asOf = I18n.get("journal.md.chat.asOf") + ": "
+                + (snapshot.getCapturedAt() != null
+                    ? snapshot.getCapturedAt().atZoneSameInstant(ZoneId.systemDefault()).format(DATE_TIME)
+                    : "?")
+                + (snapshot.isFrozen() ? " (" + I18n.get("journal.md.chat.final") + ")" : "");
+            cursor = drawParagraph(pdf, cursor, fonts.sans(), 9f, muted, asOf, 8f, PAGE_MARGIN, width);
+            for (SessionJournalChatMessage message : snapshot.getMessages()) {
+                cursor = ensureSpace(pdf, cursor, 30f);
+                boolean user = SavedAiChatMessage.ROLE_USER.equals(message.getRole());
+                cursor = drawParagraph(pdf, cursor, fonts.sansBold(), 10f,
+                    user ? new Color(0x0f, 0x62, 0xcc) : roleColor, chatRoleLabel(message), 2f, PAGE_MARGIN, width);
+                String content = message.getContent() != null ? message.getContent().strip() : "";
+                if (!content.isEmpty()) {
+                    cursor = drawParagraph(pdf, cursor, fonts.sans(), 9.8f, new Color(0x37, 0x41, 0x51),
+                        content, 4f, PAGE_MARGIN, width);
+                }
+                for (SavedAgentStep step : message.getSteps()) {
+                    cursor = drawParagraph(pdf, cursor, fonts.sans(), 8.8f, muted,
+                        AgentChatTranscriptFormatter.stepHeadline(step), 2f, PAGE_MARGIN, width);
+                    List<String> lines = AgentChatTranscriptFormatter.stepBody(step);
+                    if (!lines.isEmpty()) {
+                        cursor = drawWrappedPanel(pdf, cursor, fonts, lines, PAGE_MARGIN, width,
+                            new Color(0x0a, 0x30, 0x69), new Color(0xee, 0xf3, 0xfb));
+                    }
+                    if (step.isTruncated()) {
+                        cursor = drawParagraph(pdf, cursor, fonts.sans(), 8.4f, new Color(0x9a, 0x67, 0x00),
+                            I18n.get("ai.result.agentRun.truncated"), 4f, PAGE_MARGIN, width);
+                    }
+                }
+                cursor = cursor.withY(cursor.y() - 6f);
+            }
+            cursor = cursor.withY(cursor.y() - 14f);
+        }
+        return cursor;
+    }
+
+    /**
+     * Excerpt panel that breaks across pages: the wrapped lines are drawn in pieces that fit the space
+     * left on the page, and the rest starts on a new page.
+     */
+    private Cursor drawWrappedPanel(PDDocument pdf, Cursor cursor, PdfFonts fonts, List<String> lines, float x,
+                                    float width, Color accent, Color background) throws IOException {
+        float fontSize = 8.6f;
+        float leading = fontSize + 3f;
+        float padding = 6f;
+        List<String> wrapped = new ArrayList<>();
+        for (String line : lines) {
+            wrapped.addAll(wrap(line, fonts.mono(), fontSize, width - padding * 2 - 4f));
+        }
+        int index = 0;
+        while (index < wrapped.size()) {
+            int fit = (int) Math.floor((cursor.y() - CONTENT_BOTTOM_Y - padding * 2) / leading);
+            if (fit < 2) {
+                cursor = newPage(pdf, cursor);
+                continue;
+            }
+            List<String> chunk = wrapped.subList(index, Math.min(wrapped.size(), index + fit));
+            float height = chunk.size() * leading + padding * 2;
+            drawFilledRect(cursor.stream(), x, cursor.y() - height, width, height, background);
+            drawFilledRect(cursor.stream(), x, cursor.y() - height, 3f, height, accent);
+            float textY = cursor.y() - padding - fontSize;
+            for (String line : chunk) {
+                drawText(cursor.stream(), fonts.mono(), fontSize, accent.darker(), x + padding + 4f, textY, line);
+                textY -= leading;
+            }
+            cursor = cursor.withY(cursor.y() - height - 4f);
+            index += chunk.size();
+        }
+        return cursor;
+    }
+
+    /** Outline: the appendix root, with one entry per chat, each jumping to its heading. */
+    private void applyChatOutline(PDDocument pdf, List<PdfBookmark> bookmarks) {
+        PDDocumentOutline outline = new PDDocumentOutline();
+        pdf.getDocumentCatalog().setDocumentOutline(outline);
+        PDOutlineItem root = new PDOutlineItem();
+        root.setTitle(I18n.get("journal.pdf.chatAppendix"));
+        PDPageXYZDestination rootDestination = new PDPageXYZDestination();
+        rootDestination.setPage(pdf.getPage(bookmarks.get(0).pageIndex()));
+        rootDestination.setTop((int) bookmarks.get(0).topY());
+        root.setDestination(rootDestination);
+        outline.addLast(root);
+        for (PdfBookmark bookmark : bookmarks) {
+            PDOutlineItem item = new PDOutlineItem();
+            item.setTitle(bookmark.label());
+            PDPageXYZDestination destination = new PDPageXYZDestination();
+            destination.setPage(pdf.getPage(bookmark.pageIndex()));
+            destination.setTop((int) bookmark.topY());
+            item.setDestination(destination);
+            root.addLast(item);
+        }
+        root.openNode();
+        outline.openNode();
     }
 
     private Cursor drawHeader(PDDocument pdf, Cursor cursor, PdfFonts fonts, SessionJournalMeta meta)
@@ -644,12 +890,12 @@ public final class SessionJournalExportService {
             drawText(cursor.stream(), fonts.sans(), 9.5f, new Color(0xd9, 0xea, 0xff), PAGE_MARGIN + 16f,
                 cursor.y() - 46f, fit(connLine, fonts.sans(), 9.5f, width - 32f));
         }
-        String metaLine = i18n("journal.pdf.started", "Started") + ": "
+        String metaLine = I18n.get("journal.pdf.started") + ": "
             + (meta.getStartedAt() != null ? meta.getStartedAt().format(DATE_TIME) : "?")
-            + "  ·  " + i18n("journal.pdf.duration", "Duration") + ": " + durationText(meta)
-            + "  ·  " + i18n("journal.pdf.commands", "Commands") + ": " + meta.getCommandCount()
-            + "  ·  " + i18n("journal.pdf.errors", "Errors") + ": " + meta.getErrorCount()
-            + "  ·  " + i18n("journal.pdf.screenshots", "Screenshots") + ": " + meta.getScreenshotCount();
+            + "  ·  " + I18n.get("journal.pdf.duration") + ": " + durationText(meta)
+            + "  ·  " + I18n.get("journal.pdf.commands") + ": " + meta.getCommandCount()
+            + "  ·  " + I18n.get("journal.pdf.errors") + ": " + meta.getErrorCount()
+            + "  ·  " + I18n.get("journal.pdf.screenshots") + ": " + meta.getScreenshotCount();
         drawText(cursor.stream(), fonts.sans(), 9f, new Color(0xd9, 0xea, 0xff), PAGE_MARGIN + 16f,
             cursor.y() - (connLine.isEmpty() ? 50f : 62f), fit(metaLine, fonts.sans(), 9f, width - 32f));
         cursor = cursor.withY(cursor.y() - 92f);
@@ -688,11 +934,11 @@ public final class SessionJournalExportService {
         }
         String title = entry.getTitle();
         if (entry.getKind() == SessionJournalEntryKind.SESSION_SUMMARY) {
-            title = i18n("journal.pdf.sessionSummary", "Session summary")
+            title = I18n.get("journal.pdf.sessionSummary")
                 + (title != null && !title.isBlank() ? ": " + title : "");
         }
         if (entry.isRunAsRoot() && title != null && !title.isBlank()) {
-            title = title + " · " + i18n("journal.html.root", "ROOT");
+            title = title + " · " + I18n.get("journal.html.root");
         }
         if (title != null && !title.isBlank()) {
             drawText(cursor.stream(), fonts.sansBold(), 11.5f, new Color(0x1f, 0x29, 0x37), bodyX + badgeOffset,
@@ -700,6 +946,11 @@ public final class SessionJournalExportService {
         }
         cursor = cursor.withY(cursor.y() - 18f);
 
+        String agentMeta = agentMetaLine(entry);
+        if (!agentMeta.isEmpty()) {
+            cursor = drawParagraph(pdf, cursor, fonts.sans(), 8.8f, new Color(0x5e, 0x6e, 0x82), agentMeta,
+                2f, bodyX, bodyWidth);
+        }
         if (entry.getText() != null && !entry.getText().isBlank()) {
             // The backticks marking commands are page markup; the PDF has no tooltip to offer.
             String text = entry.getKind() == SessionJournalEntryKind.USER_NOTE
@@ -720,7 +971,11 @@ public final class SessionJournalExportService {
         }
         if (entry.getUserNote() != null && !entry.getUserNote().isBlank()) {
             cursor = drawParagraph(pdf, cursor, fonts.sans(), 9.8f, new Color(0x9a, 0x67, 0x00),
-                i18n("journal.pdf.note", "Note") + ": " + entry.getUserNote(), 3f, bodyX, bodyWidth);
+                I18n.get("journal.pdf.note") + ": " + entry.getUserNote(), 3f, bodyX, bodyWidth);
+        }
+        if (options.includeChats() && hasChatTranscript(entry)) {
+            cursor = drawParagraph(pdf, cursor, fonts.sansBold(), 9.6f, new Color(0x0f, 0x62, 0xcc),
+                I18n.get("journal.pdf.chatPointer"), 3f, bodyX, bodyWidth);
         }
         if (options.includeScreenshots()
             && entry.getKind() == SessionJournalEntryKind.SCREENSHOT
@@ -730,12 +985,12 @@ public final class SessionJournalExportService {
         if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.hasAiAnalysis()) {
             if (entry.getAiDescription() != null && !entry.getAiDescription().isBlank()) {
                 cursor = drawParagraph(pdf, cursor, fonts.sans(), 9.8f, new Color(0x37, 0x41, 0x51),
-                    i18n("journal.pdf.aiDescription", "AI description") + ": " + entry.getAiDescription(),
+                    I18n.get("journal.pdf.aiDescription") + ": " + entry.getAiDescription(),
                     3f, bodyX, bodyWidth);
             }
             if (!entry.getAiTags().isEmpty()) {
                 cursor = drawParagraph(pdf, cursor, fonts.sans(), 9.2f, new Color(0x6b, 0x72, 0x80),
-                    i18n("journal.pdf.tags", "Tags") + ": " + String.join(", ", entry.getAiTags()),
+                    I18n.get("journal.pdf.tags") + ": " + String.join(", ", entry.getAiTags()),
                     3f, bodyX, bodyWidth);
             }
         }
@@ -1066,15 +1321,6 @@ public final class SessionJournalExportService {
     private static String stripExtension(String fileName) {
         int dot = fileName.lastIndexOf('.');
         return dot > 0 ? fileName.substring(0, dot) : fileName;
-    }
-
-    private static String i18n(String key, String fallback) {
-        try {
-            String value = I18n.get(key);
-            return value != null && !value.equals(key) ? value : fallback;
-        } catch (Exception e) {
-            return fallback;
-        }
     }
 
     private static String nullSafe(String value) {

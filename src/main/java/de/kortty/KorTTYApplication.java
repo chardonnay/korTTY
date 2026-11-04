@@ -125,7 +125,9 @@ public class KorTTYApplication extends Application {
     private AiChatManager aiChatManager;
     private SwarmChatManager swarmChatManager;
     private de.kortty.core.SessionJournalService sessionJournalService;
+    private de.kortty.core.SessionJournalChatSync sessionJournalChatSync;
     private de.kortty.core.SessionJournalSummarizer sessionJournalSummarizer;
+    private de.kortty.core.SessionJournalReevaluationJob sessionJournalReevaluationJob;
     private de.kortty.core.AutomationJournalRetention automationJournalRetention;
     private de.kortty.core.SessionJournalScreenshotAnalyzer sessionJournalScreenshotAnalyzer;
     private de.kortty.core.SessionJournalHtmlRenderer sessionJournalHtmlRenderer;
@@ -300,6 +302,22 @@ public class KorTTYApplication extends Application {
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
         sessionJournalService = new de.kortty.core.SessionJournalService();
+        // A KI-chat linked to a journal entry keeps its copy in that journal up to date (see SessionJournalChatSync).
+        sessionJournalChatSync = de.kortty.core.SessionJournalChatSync.create(
+            aiChatManager::findById,
+            new de.kortty.core.SessionJournalChatSync.SnapshotWriter() {
+                @Override
+                public boolean write(java.nio.file.Path journalDir, String entryId,
+                                     de.kortty.model.SessionJournalChatSnapshot snapshot) throws java.io.IOException {
+                    return sessionJournalService.updateChatSnapshot(journalDir, entryId, snapshot);
+                }
+
+                @Override
+                public boolean freeze(java.nio.file.Path journalDir, String entryId) throws java.io.IOException {
+                    return sessionJournalService.freezeChatSnapshot(journalDir, entryId);
+                }
+            });
+        aiChatManager.addChangeListener(sessionJournalChatSync::onChatChanged);
         sessionJournalSummarizer = new de.kortty.core.SessionJournalSummarizer(sessionJournalService);
         automationJournalRetention = new de.kortty.core.AutomationJournalRetention(
             sessionJournalService,
@@ -310,6 +328,9 @@ public class KorTTYApplication extends Application {
             java.time.Clock.systemDefaultZone());
         sessionJournalScreenshotAnalyzer =
             new de.kortty.core.SessionJournalScreenshotAnalyzer(sessionJournalService);
+        // "Re-evaluate with AI…" runs here, not in a dialog: it outlives the windows that start and show it.
+        sessionJournalReevaluationJob = new de.kortty.core.SessionJournalReevaluationJob(
+            sessionJournalService, sessionJournalSummarizer, sessionJournalScreenshotAnalyzer, null);
         sessionJournalHtmlRenderer = new de.kortty.core.SessionJournalHtmlRenderer(sessionJournalService);
         sessionJournalHtmlRenderer.attachToServiceChanges();
         // A regenerated page keeps the look the user chose: the font size from the page's A-/A+
@@ -876,6 +897,9 @@ public class KorTTYApplication extends Application {
         if (terminalHighlightService != null) {
             shutdownStep("stop keyword highlighting", terminalHighlightService::stop);
         }
+        if (sessionJournalReevaluationJob != null) {
+            shutdownStep("stop session journal re-evaluation", sessionJournalReevaluationJob::stop);
+        }
         if (sessionJournalSummarizer != null) {
             shutdownStep("stop session journal summarizer", sessionJournalSummarizer::stop);
         }
@@ -887,6 +911,9 @@ public class KorTTYApplication extends Application {
         }
         if (sessionJournalHtmlRenderer != null) {
             shutdownStep("stop session journal HTML renderer", sessionJournalHtmlRenderer::stop);
+        }
+        if (sessionJournalChatSync != null) {
+            shutdownStep("flush session journal chat copies", sessionJournalChatSync::close);
         }
         if (gpgKeyManager != null && saveStores) {
             shutdownStep("save GPG keys", gpgKeyManager::save);
@@ -1976,12 +2003,22 @@ public class KorTTYApplication extends Application {
         return null;
     }
 
+    /** Keeps the KI-chat copies of live session journals current; see {@link de.kortty.core.SessionJournalChatSync}. */
+    public de.kortty.core.SessionJournalChatSync getSessionJournalChatSync() {
+        return sessionJournalChatSync;
+    }
+
     public de.kortty.core.SessionJournalService getSessionJournalService() {
         return sessionJournalService;
     }
 
     public de.kortty.core.SessionJournalSummarizer getSessionJournalSummarizer() {
         return sessionJournalSummarizer;
+    }
+
+    /** The background "Re-evaluate with AI…" runs; see {@link de.kortty.core.SessionJournalReevaluationJob}. */
+    public de.kortty.core.SessionJournalReevaluationJob getSessionJournalReevaluationJob() {
+        return sessionJournalReevaluationJob;
     }
 
     public de.kortty.core.SessionJournalScreenshotAnalyzer getSessionJournalScreenshotAnalyzer() {

@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import de.kortty.model.SessionJournalChatMessage;
+import de.kortty.model.SessionJournalChatSnapshot;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
@@ -13,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.util.Comparator;
+import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -115,5 +118,35 @@ class SessionJournalSearchCardIndexTest {
         index.invalidate(journalDir);
         SessionJournalSearchCard second = index.card(meta);
         assertThat(second.searchText()).isEqualTo(first.searchText());
+    }
+
+    @Test
+    void chatMessagesOfAnAgentEntryBecomeSearchableSectionsOfThatEntry() {
+        SessionJournalEntry agent = new SessionJournalEntry();
+        agent.setKind(SessionJournalEntryKind.AGENT);
+        agent.setTitle("Disk check");
+        SessionJournalChatSnapshot snapshot = new SessionJournalChatSnapshot();
+        SessionJournalChatMessage question = new SessionJournalChatMessage();
+        question.setRole("USER");
+        question.setContent("Restart nginx after the change");
+        SessionJournalChatMessage answer = new SessionJournalChatMessage();
+        answer.setRole("ASSISTANT");
+        answer.setContent("a".repeat(2_000) + " nginx restarted");
+        snapshot.setMessages(List.of(question, answer));
+        agent.setChatSnapshot(snapshot);
+
+        SessionJournalSearchCard card = SessionJournalSearchCard.build(
+            new SessionJournalMeta(), List.of(agent), "journal-1", 0L);
+
+        assertThat(card.sections()).hasSize(3);
+        SessionJournalSearchCard.Section firstChat = card.sections().get(1);
+        SessionJournalSearchCard.Section longChat = card.sections().get(2);
+        assertThat(firstChat.entryId()).isEqualTo(agent.getId());
+        assertThat(firstChat.kind()).isEqualTo(SessionJournalEntryKind.AGENT);
+        assertThat(firstChat.text()).isEqualTo("Restart nginx after the change");
+        assertThat(longChat.entryId()).isEqualTo(agent.getId());
+        assertThat(longChat.text().length()).isAtMost(SessionJournalSearchCard.MAX_SECTION_CHARS + 1);
+        assertThat(longChat.text()).endsWith("…");
+        assertThat(card.searchText()).contains("Restart nginx");
     }
 }

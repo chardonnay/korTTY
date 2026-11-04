@@ -33,6 +33,7 @@ final class AiLocalPreferencesPane extends VBox {
     private final KorTTYApplication app;
     private final ComboBox<ProfileChoice> textProfile = new ComboBox<>();
     private final ComboBox<ProfileChoice> codingProfile = new ComboBox<>();
+    private final ComboBox<ProfileChoice> agentProfile = new ComboBox<>();
     private final ComboBox<ProfileChoice> journalProfile = new ComboBox<>();
     private final TextField embeddingModelId = new TextField();
     private final ComboBox<LlamaRuntimeUpdatePolicy> updatePolicy = new ComboBox<>();
@@ -40,6 +41,14 @@ final class AiLocalPreferencesPane extends VBox {
     private final PasswordField huggingFaceToken = new PasswordField();
     private final CheckBox clearHuggingFaceToken = new CheckBox();
     private final Label status = new Label();
+    /** The form as last loaded from or saved to the settings; null until the first load. */
+    private FormState savedState;
+
+    /** Every value the form edits; compared against {@link #savedState} to tell unsaved edits apart. */
+    private record FormState(String textId, String codingId, String agentId, String journalId, String embedding,
+                             LlamaRuntimeUpdatePolicy policy, LlamaBackend backend, String token,
+                             boolean clearToken) {
+    }
 
     AiLocalPreferencesPane(KorTTYApplication app) {
         this.app = app;
@@ -53,6 +62,7 @@ final class AiLocalPreferencesPane extends VBox {
 
         configureProfileCombo(textProfile);
         configureProfileCombo(codingProfile);
+        configureProfileCombo(agentProfile);
         configureProfileCombo(journalProfile);
         updatePolicy.getItems().setAll(LlamaRuntimeUpdatePolicy.values());
         updatePolicy.setConverter(new StringConverter<>() {
@@ -88,6 +98,13 @@ final class AiLocalPreferencesPane extends VBox {
         GridPane roles = AiManagerSections.formGrid();
         AiManagerSections.addRow(roles, "ai.local.preferences.textProfile", textProfile);
         AiManagerSections.addRow(roles, "ai.local.preferences.codingProfile", codingProfile);
+        AiManagerSections.addRow(roles, "ai.local.preferences.agentProfile", agentProfile);
+        Label agentHint = new Label(I18n.get("ai.local.preferences.agentProfile.hint"));
+        agentHint.setWrapText(true);
+        agentHint.setMinHeight(Region.USE_PREF_SIZE);
+        agentHint.setStyle(MutedTextStyle.HINT);
+        agentHint.setMaxWidth(420);
+        AiManagerSections.addFieldRow(roles, agentHint);
         AiManagerSections.addRow(roles, "ai.local.preferences.journalProfile", journalProfile);
         Label journalHint = new Label(I18n.get("ai.local.preferences.journalProfile.hint"));
         journalHint.setWrapText(true);
@@ -128,7 +145,13 @@ final class AiLocalPreferencesPane extends VBox {
         refresh(List.of());
     }
 
+    /**
+     * Re-reads the profile list. Unsaved edits in this form survive: the roles keep their selection while
+     * its profile is still offered, and the persisted values are only loaded into a clean form.
+     */
     void refresh(List<AiProfile> profiles) {
+        FormState before = formState();
+        boolean unsaved = savedState != null && !savedState.equals(before);
         GlobalSettings settings = settings();
         List<ProfileChoice> choices = new ArrayList<>();
         choices.add(new ProfileChoice(null, I18n.get("ai.local.preferences.useDefault")));
@@ -145,9 +168,19 @@ final class AiLocalPreferencesPane extends VBox {
         }
         textProfile.getItems().setAll(choices);
         codingProfile.getItems().setAll(choices);
+        agentProfile.getItems().setAll(choices);
         journalProfile.getItems().setAll(choices);
+        if (unsaved) {
+            // Keep what the user picked; a profile that is gone falls back to the default choice.
+            select(textProfile, before.textId());
+            select(codingProfile, before.codingId());
+            select(agentProfile, before.agentId());
+            select(journalProfile, before.journalId());
+            return;
+        }
         select(textProfile, settings != null ? settings.getTextAiProfileId() : null);
         select(codingProfile, settings != null ? settings.getCodingAiProfileId() : null);
+        select(agentProfile, settings != null ? settings.getTerminalAgentAiProfileId() : null);
         select(journalProfile, settings != null ? settings.getSessionJournalAiProfileId() : null);
         embeddingModelId.setText(settings != null && settings.getRagEmbeddingModelId() != null
             ? settings.getRagEmbeddingModelId() : "");
@@ -161,6 +194,13 @@ final class AiLocalPreferencesPane extends VBox {
         huggingFaceToken.clear();
         clearHuggingFaceToken.setSelected(false);
         status.setText("");
+        savedState = formState();
+    }
+
+    private FormState formState() {
+        return new FormState(selectedId(textProfile), selectedId(codingProfile), selectedId(agentProfile),
+            selectedId(journalProfile), embeddingModelId.getText(), updatePolicy.getValue(),
+            runtimeBackend.getValue(), huggingFaceToken.getText(), clearHuggingFaceToken.isSelected());
     }
 
     private void save() {
@@ -171,6 +211,7 @@ final class AiLocalPreferencesPane extends VBox {
         }
         settings.setTextAiProfileId(selectedId(textProfile));
         settings.setCodingAiProfileId(selectedId(codingProfile));
+        settings.setTerminalAgentAiProfileId(selectedId(agentProfile));
         settings.setSessionJournalAiProfileId(selectedId(journalProfile));
         settings.setRagEmbeddingModelId(trimToNull(embeddingModelId.getText()));
         settings.setLlamaRuntimeUpdatePolicy(updatePolicy.getValue());
@@ -195,6 +236,7 @@ final class AiLocalPreferencesPane extends VBox {
             }
             huggingFaceToken.clear();
             clearHuggingFaceToken.setSelected(false);
+            savedState = formState();
             status.setText(I18n.get("ai.local.preferences.save.success"));
         } catch (Exception e) {
             status.setText(I18n.get("ai.local.preferences.save.failed") + ": " + errorMessage(e));

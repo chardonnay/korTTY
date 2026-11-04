@@ -42,6 +42,8 @@ import de.kortty.core.AiSentContextCollector;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
+import de.kortty.core.AgentRunChatSeeder;
+import de.kortty.core.AgentRunChatSource;
 import de.kortty.core.highlight.HighlightTelemetry;
 import de.kortty.core.KeymapOverrides;
 import de.kortty.core.highlight.HighlightToggle;
@@ -183,6 +185,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.time.ZonedDateTime;
@@ -564,6 +567,10 @@ public class MainWindow {
     private enum MenuBarTarget { WINDOW, SYSTEM }
 
     private final Map<String, AiResultTab> openSavedAiChatTabs = new HashMap<>();
+    // Runs whose KI-chat is being saved, so a repeated "continue in chat" does not create a second chat.
+    private final Set<String> agentRunChatsInProgress = new HashSet<>();
+    /** How long a run's handoff waits for the run's AGENT card before it saves the chat unlinked. */
+    private static final long JOURNAL_CARD_WAIT_SECONDS = 10;
     private final Map<String, SwarmAgentTab> openSavedSwarmChatTabs = new HashMap<>();
     private AiManagerDialog aiManagerDialog;
     private SavedChatsDialog savedChatsDialog;
@@ -5925,6 +5932,9 @@ public class MainWindow {
         if (closesApplication && !confirmQuitWhileTranslatingGuide()) {
             return false;
         }
+        if (closesApplication && !confirmQuitWhileReevaluatingJournals()) {
+            return false;
+        }
         if (!confirmActiveConnectionsClose()) {
             return false;
         }
@@ -5989,6 +5999,36 @@ public class MainWindow {
         boolean quit = choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
         if (quit) {
             // Stop at the next batch boundary so the checkpoint on disk is consistent.
+            job.cancel();
+        }
+        return quit;
+    }
+
+    /**
+     * Asks before quitting while "Re-evaluate with AI…" runs in the background: the run is invisible
+     * once the journal manager is closed, and quitting stops it halfway through a journal.
+     *
+     * @return true to proceed with quitting
+     */
+    private boolean confirmQuitWhileReevaluatingJournals() {
+        de.kortty.core.SessionJournalReevaluationJob job = app.getSessionJournalReevaluationJob();
+        if (job == null || !job.isRunning()) {
+            return true;
+        }
+        de.kortty.core.SessionJournalReevaluationJob.Snapshot snapshot = job.snapshot();
+        int percent = snapshot.estimate() != null ? snapshot.estimate().percent() : 0;
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(stage);
+        alert.setTitle(I18n.get("journal.reevaluate.quit.title"));
+        alert.setHeaderText(I18n.get("journal.reevaluate.quit.header", percent));
+        alert.setContentText(I18n.get("journal.reevaluate.quit.message"));
+        alert.getButtonTypes().setAll(
+            new ButtonType(I18n.get("journal.reevaluate.quit.stopAndQuit"), ButtonBar.ButtonData.OK_DONE),
+            new ButtonType(I18n.get("journal.reevaluate.quit.keepRunning"), ButtonBar.ButtonData.CANCEL_CLOSE));
+        ButtonType choice = alert.showAndWait().orElse(null);
+        boolean quit = choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
+        if (quit) {
             job.cancel();
         }
         return quit;
@@ -7010,25 +7050,39 @@ public class MainWindow {
     }
 
     /**
-     * Writes a terminal-agent run (prompt as title, final answer as text) into the tab's active
-     * session journal as an AGENT timeline card. No-op without a running journal.
+     * The AGENT journal card a terminal-agent run was written as: the journal, its directory, the card's
+     * pre-assigned id and the background write (completes once the card is in the journal).
      */
-    private void appendAgentJournalEntry(TerminalTab terminalTab, String prompt, String answer,
-                                         String modelText, long durationMillis, long totalTokens) {
+    private record AgentJournalCard(String journalId, Path directory, String entryId, CompletableFuture<?> write) {
+    }
+
+    /**
+     * Writes a terminal-agent run (prompt as title, final answer as text) into the tab's active
+     * session journal as an AGENT timeline card. Returns the card, or {@code null} without a running journal.
+     */
+    private @Nullable AgentJournalCard appendAgentJournalEntry(TerminalTab terminalTab, String prompt, String answer,
+                                         String modelText, long durationMillis, long totalTokens,
+                                         @Nullable SessionJournalRedactor runSecrets) {
         if (terminalTab == null || terminalTab.getTerminalView() == null
             || answer == null || answer.isBlank()) {
-            return;
+            return null;
         }
         de.kortty.core.SessionJournalSession session =
             terminalTab.getTerminalView().getSessionJournalSession();
         if (session == null || !session.isActive()) {
-            return;
+            return null;
         }
+        // The card is written to the journal, so the task and the answer are masked with the tab's known secrets
+        // and those the run learned (a sudo password typed during the run).
+        SessionJournalRedactor redactor = de.kortty.core.agent.AgentOutboundContext.combine(
+            aiSecretRedactor(terminalTab), runSecrets);
         de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
         entry.setKind(de.kortty.model.SessionJournalEntryKind.AGENT);
-        String title = prompt != null && !prompt.isBlank() ? prompt.strip() : I18n.get("ai.agent.title");
+        String maskedPrompt = prompt != null && !prompt.isBlank()
+            ? AiOutboundRedaction.redact(prompt.strip(), redactor).text() : null;
+        String title = maskedPrompt != null ? maskedPrompt : I18n.get("ai.agent.title");
         entry.setTitle(title.length() > 140 ? title.substring(0, 140) + "…" : title);
-        entry.setText(answer.strip());
+        entry.setText(AiOutboundRedaction.redact(answer.strip(), redactor).text());
         if (modelText != null && !modelText.isBlank()) {
             entry.setAgentModel(modelText.strip());
         }
@@ -7043,15 +7097,19 @@ public class MainWindow {
             entry.setLogStartSeq(seq);
             entry.setLogEndSeq(seq);
         }
+        CompletableFuture<de.kortty.model.SessionJournalEntry> write = new CompletableFuture<>();
         Thread saver = new Thread(() -> {
             try {
                 app.getSessionJournalService().appendEntry(session.getDirectory(), entry);
+                write.complete(entry);
             } catch (Exception e) {
                 logger.warn("Could not journal the agent result: {}", e.getMessage());
+                write.completeExceptionally(e);
             }
         }, "SessionJournal-AgentEntry");
         saver.setDaemon(true);
         saver.start();
+        return new AgentJournalCard(session.getJournalId(), session.getDirectory(), entry.getId(), write);
     }
 
     /** Opens the full journal viewer for a session shown in the live panel. */
@@ -11980,12 +12038,13 @@ public class MainWindow {
             return;
         }
         if (!shouldShowTerminalAgentRunDialog() && initialPrompt != null && !initialPrompt.isBlank()) {
-            AiProfile resolvedProfile = requestedProfileName != null && !requestedProfileName.isBlank()
+            AiProfile requestedProfile = requestedProfileName != null && !requestedProfileName.isBlank()
                 ? findAiProfileByLookup(requestedProfileName)
                 : null;
-            if (resolvedProfile == null) {
-                resolvedProfile = resolveAiProfileForConnection(terminalTab.getConnection(), AiWorkload.CODING);
-            }
+            AiProfile resolvedProfile = resolveTerminalAgentProfile(
+                profiles,
+                terminalTab.getConnection(),
+                requestedProfile != null ? requestedProfile.getId() : null);
             if (resolvedProfile == null) {
                 showAiManager();
                 showError(I18n.get(queryOnly ? "ai.agent.ask.title" : "ai.agent.title"), I18n.get("settings.ai.error.noProfilesConfigured"));
@@ -12078,14 +12137,11 @@ public class MainWindow {
         List<AiProfile> profiles,
         String requestedProfileName,
         ServerConnection connection) {
-        String preferredProfileId = connection != null
-            && AiProfileSelectionSupport.findById(profiles, connection.getAiProfileId()) != null
-            ? connection.getAiProfileId()
-            : getConfiguredWorkloadProfileId(AiWorkload.CODING);
+        AiProfile preferredProfile = resolveTerminalAgentProfile(profiles, connection, null);
         return AiProfileSelectionSupport.reorderByRequestedOrDefault(
             profiles,
             requestedProfileName,
-            preferredProfileId);
+            preferredProfile != null ? preferredProfile.getId() : null);
     }
 
     private AiProfile findAiProfileByLookup(String lookup) {
@@ -12306,6 +12362,216 @@ public class MainWindow {
         thread.start();
     }
 
+    /** Whether KI-chats can be opened and continued now: AI features are on and the organisation allows AI chats. */
+    private boolean aiChatAvailable() {
+        return isAiFeaturesEnabled() && de.kortty.policy.PolicyManager.effective().aiChatAllowed();
+    }
+
+    /**
+     * Opens the KI-chat of a finished terminal run (FX thread). A run that already has a chat opens or focuses
+     * that chat; otherwise the run is saved as a new chat in the background and opened. A non-blank
+     * {@code followUp} is sent in the chat once it is open; a question the chat cannot take now is put into its
+     * composer. Returns whether the chat opened (a new chat: its save started), so the caller keeps the typed
+     * question otherwise.
+     */
+    boolean openAgentRunInChat(@Nullable TerminalTab terminalTab, AgentRunChatSource source,
+                               @Nullable AgentDesignHost.RunChatTarget target, @Nullable String followUp) {
+        if (source == null || !aiChatAvailable()) {
+            return false;
+        }
+        AgentDesignHost.RunChatTarget bound = target != null
+            ? target
+            : new AgentDesignHost.RunChatTarget(aiSourcePane(terminalTab, null),
+                terminalTab != null ? terminalTab.getConnection() : null);
+        String question = followUp != null ? followUp.strip() : "";
+        // The tab's secrets and those the run learned (a sudo password typed during the run).
+        SessionJournalRedactor redactor = de.kortty.core.agent.AgentOutboundContext.combine(
+            aiSecretRedactor(terminalTab), bound.runSecrets());
+        Optional<SavedAiChat> existing = app.getAiChatManager().findBySourceRunId(source.runId());
+        if (existing.isPresent()) {
+            AiResultTab tab = openSavedAiChat(existing.get());
+            if (tab == null) {
+                return false;
+            }
+            bindAgentRunChat(tab, redactor, bound);
+            sendHandoffQuestion(tab, question);
+            return true;
+        }
+        // A second click while the first chat is still being saved must not create a second one.
+        if (!agentRunChatsInProgress.add(source.runId())) {
+            return false;
+        }
+        de.kortty.core.SessionJournalSession liveJournal = activeJournalSession(terminalTab);
+        Task<SavedAiChat> task = new Task<>() {
+            @Override
+            protected SavedAiChat call() throws Exception {
+                return saveAgentRunChat(source, redactor, liveJournal);
+            }
+        };
+        task.setOnSucceeded(event -> {
+            agentRunChatsInProgress.remove(source.runId());
+            AiResultTab tab = openSavedAiChat(task.getValue());
+            if (tab == null) {
+                keepHandoffQuestionInStatus(question);
+                return;
+            }
+            bindAgentRunChat(tab, redactor, bound);
+            sendHandoffQuestion(tab, question);
+        });
+        task.setOnFailed(event -> {
+            agentRunChatsInProgress.remove(source.runId());
+            Throwable error = task.getException();
+            logger.warn("Could not save the KI-chat of agent run {}: {}", source.runId(),
+                error != null ? error.getMessage() : "unknown error");
+            keepHandoffQuestionInStatus(question);
+            showError(I18n.get("ai.agent.title"),
+                error != null && error.getMessage() != null ? error.getMessage() : I18n.get("ai.result.error"));
+        });
+        Thread thread = new Thread(task, "ai-agent-chat-handoff");
+        thread.setDaemon(true);
+        thread.start();
+        return true;
+    }
+
+    /** Binds a chat opened from a run to the run's pane and connection, and to the known secrets its text is masked with. */
+    private static void bindAgentRunChat(AiResultTab tab, @Nullable SessionJournalRedactor redactor,
+                                         AgentDesignHost.RunChatTarget target) {
+        tab.setOutboundSecrets(redactor);
+        tab.setSourcePane(target.pane());
+        tab.setSourceConnection(target.connection());
+    }
+
+    /** Sends a question from a run's handoff; one the chat cannot take now goes into its composer, with a status line. */
+    private void sendHandoffQuestion(AiResultTab tab, String question) {
+        if (question.isEmpty() || tab.sendFollowUp(question)) {
+            return;
+        }
+        tab.keepInComposer(question);
+        updateStatus(I18n.get("aiAgentDesign.chatHandoff.kept"));
+    }
+
+    /** Names a handoff question that could not go anywhere, so it is not lost without a word. */
+    private void keepHandoffQuestionInStatus(String question) {
+        if (!question.isEmpty()) {
+            updateStatus(I18n.get("aiAgentDesign.chatHandoff.notSent", question));
+        }
+    }
+
+    /** The session journal of the tab's pane when it is recording now, otherwise {@code null}. */
+    private static @Nullable de.kortty.core.SessionJournalSession activeJournalSession(@Nullable TerminalTab terminalTab) {
+        if (terminalTab == null || terminalTab.getTerminalView() == null) {
+            return null;
+        }
+        de.kortty.core.SessionJournalSession session = terminalTab.getTerminalView().getSessionJournalSession();
+        return session != null && session.isActive() ? session : null;
+    }
+
+    /**
+     * Builds the run's chat, journals it and saves it; off the FX thread. The chat is linked to the run's AGENT
+     * card once the card is in the journal. A run without a card (blank answer, or no journal while it ran) gets
+     * a new card when a journal records now. The chat then follows its journal copy through
+     * {@link de.kortty.core.SessionJournalChatSync}.
+     */
+    private SavedAiChat saveAgentRunChat(AgentRunChatSource source, @Nullable SessionJournalRedactor redactor,
+                                         @Nullable de.kortty.core.SessionJournalSession liveJournal) throws Exception {
+        SavedAiChat chat = AgentRunChatSeeder.buildChat(source, redactor, null);
+        Path journalDir = null;
+        String entryId = null;
+        if (source.journalDirectory() != null && source.journalEntryId() != null
+            && awaitRunJournalCard(source)) {
+            journalDir = source.journalDirectory();
+            entryId = source.journalEntryId();
+        }
+        // No card of the run to link to (none was written, or the write failed) but a journal records now:
+        // the run gets a card of its own in that journal.
+        if (journalDir == null && liveJournal != null) {
+            de.kortty.model.SessionJournalEntry card = new de.kortty.model.SessionJournalEntry();
+            card.setKind(de.kortty.model.SessionJournalEntryKind.AGENT);
+            // The chat's title is already masked (see AgentRunChatSeeder.buildChat).
+            String title = chat.getTitle() != null && !chat.getTitle().isBlank()
+                ? chat.getTitle() : I18n.get("ai.agent.title");
+            card.setTitle(title.length() > 140 ? title.substring(0, 140) + "…" : title);
+            card.setText(chat.getMessages().stream()
+                .filter(message -> SavedAiChatMessage.ROLE_ASSISTANT.equals(message.getRole()))
+                .map(SavedAiChatMessage::getContent)
+                .findFirst()
+                .orElse(""));
+            if (source.modelText() != null && !source.modelText().isBlank()) {
+                card.setAgentModel(source.modelText().strip());
+            }
+            app.getSessionJournalService().appendEntry(liveJournal.getDirectory(), card);
+            journalDir = liveJournal.getDirectory();
+            entryId = card.getId();
+            chat.setSourceJournalId(liveJournal.getJournalId());
+        }
+        if (journalDir == null) {
+            chat.setSourceJournalId(null);
+            chat.setSourceJournalEntryId(null);
+        } else {
+            chat.setSourceJournalEntryId(entryId);
+        }
+        SavedAiChat saved = app.getAiChatManager().saveChat(chat);
+        if (journalDir != null) {
+            linkJournalChat(saved, journalDir, entryId, redactor);
+        }
+        return saved;
+    }
+
+    /**
+     * Waits, off the FX thread, for the run's AGENT card to be written. {@code false} when the write failed or
+     * did not finish in time, so the chat is not linked to a card that may never exist.
+     */
+    private boolean awaitRunJournalCard(AgentRunChatSource source) {
+        CompletableFuture<?> write = source.journalWrite();
+        if (write == null) {
+            return true;
+        }
+        try {
+            write.get(JOURNAL_CARD_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Waiting for the run's journal entry was interrupted, the chat is not linked");
+            return false;
+        } catch (ExecutionException | java.util.concurrent.TimeoutException | RuntimeException e) {
+            logger.warn("The run's journal entry was not written, the chat is not linked: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Links a saved chat to its AGENT card and writes the card's copy of the chat. The link is written first and
+     * the chat is followed only after it: a failed link leaves nothing to follow. A journal that was recording
+     * keeps the copy current from now on; a journal that stopped meanwhile gets its final copy, frozen, from the
+     * sync, which registers a chat of a stopped journal at once. A journal that already stopped gets the frozen
+     * copy here.
+     */
+    private void linkJournalChat(SavedAiChat chat, Path journalDir, String entryId,
+                                 @Nullable SessionJournalRedactor redactor) {
+        de.kortty.core.SessionJournalService journals = app.getSessionJournalService();
+        boolean live = journals.isLive(journalDir);
+        de.kortty.model.SessionJournalChatSnapshot snapshot = AgentRunChatSeeder.journalSnapshot(
+            chat, redactor, java.time.OffsetDateTime.now());
+        snapshot.setFrozen(!live);
+        try {
+            journals.linkChat(journalDir, entryId, chat.getId(), snapshot);
+        } catch (Exception e) {
+            logger.warn("Could not link the KI-chat to its journal entry: {}", e.getMessage());
+            return;
+        }
+        if (live) {
+            app.getSessionJournalChatSync().register(chat.getId(), journalDir, entryId, redactor);
+        }
+    }
+
+    /** A copy of the run's activities in the order they were first published. */
+    private static List<TerminalAgentModels.AgentActivity> copyOfActivities(
+        Map<String, TerminalAgentModels.AgentActivity> activities) {
+        synchronized (activities) {
+            return new ArrayList<>(activities.values());
+        }
+    }
+
     private void runTerminalAgentInTerminalWindow(
         TerminalTab terminalTab,
         AiProfile profile,
@@ -12328,6 +12594,19 @@ public class MainWindow {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
             return;
         }
+        // The finished run's offer to continue in a KI-chat opens the chat for this terminal tab.
+        activityPanel.setChatHandoffHandler(new AgentDesignHost.ChatHandoffHandler() {
+            @Override
+            public boolean available() {
+                return aiChatAvailable();
+            }
+
+            @Override
+            public boolean open(String handoffRunId, AgentRunChatSource source,
+                                AgentDesignHost.RunChatTarget target, @Nullable String followUp) {
+                return openAgentRunInChat(terminalTab, source, target, followUp);
+            }
+        });
         int activeRuns = terminalTab.getTerminalView().terminalAgentRunCount(resolvedRunContext.widget());
         if (!TerminalView.canStartTerminalAgentRun(activeRuns, MAX_CONCURRENT_TERMINAL_AGENT_RUNS)) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.tooManyRuns"));
@@ -12389,6 +12668,8 @@ public class MainWindow {
         long agentRunStartedNanos = System.nanoTime();
         java.util.concurrent.atomic.AtomicLong agentTokensTotal =
             new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicReference<SessionJournalRedactor> agentRunSecrets =
+            new java.util.concurrent.atomic.AtomicReference<>();
         java.util.Set<String> agentTokenActivityIds =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
         String agentModelText = aiModelDisplayText(profile);
@@ -12401,6 +12682,17 @@ public class MainWindow {
         ServerConnection agentConnection = runConnection;
         // The memory is the connection the run drives: the focused pane's, which may differ from the tab's.
         String agentConnectionId = agentConnection != null ? agentConnection.getId() : null;
+        // What the run's KI-chat is built from when the run ends: its activities as they ended (latest version
+        // of each), the final answer and phase, and the journal card the answer was written as.
+        Map<String, TerminalAgentModels.AgentActivity> agentActivities =
+            Collections.synchronizedMap(new java.util.LinkedHashMap<>());
+        java.util.concurrent.atomic.AtomicReference<String> agentFinalAnswer =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<TerminalAgentModels.Phase> agentFinalPhase =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<AgentJournalCard> agentJournalCard =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        java.time.Instant agentStartedAt = java.time.Instant.now();
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), agentConnectionId,
@@ -12409,6 +12701,7 @@ public class MainWindow {
                     public void updateState(TerminalAgentModels.RunState state) {
                         activityPanel.updateState(runId, state);
                         if (state != null && isTerminalAgentFinalPhase(state.phase())) {
+                            agentFinalPhase.set(state.phase());
                             TerminalNotificationPolicy.AiRunEvent endEvent =
                                 TerminalAttentionNotifier.agentEndEvent(state.phase());
                             if (endEvent != null && agentEndNotified.compareAndSet(false, true)) {
@@ -12421,14 +12714,16 @@ public class MainWindow {
                             }
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
+                                agentFinalAnswer.set(message);
                                 // The journal card is written regardless of terminal mirroring:
                                 // the run happened either way, and the summarizer deliberately
                                 // ignores agent text it finds inline in the capture log.
                                 if (agentResultJournaled.compareAndSet(false, true)) {
-                                    appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(), message,
+                                    agentJournalCard.set(appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
+                                        message,
                                         agentModelText,
                                         (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
-                                        agentTokensTotal.get());
+                                        agentTokensTotal.get(), agentRunSecrets.get()));
                                 }
                                 // A design that draws into the terminal shows the answer in its own block.
                                 boolean shownByDesign = activityPanel.showFinalMessage(runId, message, state.phase());
@@ -12459,6 +12754,9 @@ public class MainWindow {
                     @Override
                     public void publishActivity(TerminalAgentModels.AgentActivity activity) {
                         activityPanel.publishActivity(runId, activity);
+                        if (activity != null && activity.id() != null) {
+                            agentActivities.put(activity.id(), activity);
+                        }
                         // Same accounting as the activity panel's token counter, for the
                         // journal's AGENT card meta line.
                         TerminalAgentModels.AgentActivityTokenUsage usage =
@@ -12472,6 +12770,11 @@ public class MainWindow {
                     @Override
                     public void publishSentContext(String eventRunId, AiSentContext context) {
                         activityPanel.showSentContext(eventRunId, context);
+                    }
+
+                    @Override
+                    public void publishRunSecrets(String eventRunId, SessionJournalRedactor secrets) {
+                        agentRunSecrets.set(secrets);
                     }
 
                     @Override
@@ -12541,14 +12844,17 @@ public class MainWindow {
                         TerminalAgentModels.Phase.CANCELLED)) {
                         terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
                     }
+                    agentFinalPhase.set(TerminalAgentModels.Phase.CANCELLED);
+                    agentFinalAnswer.compareAndSet(null, I18n.get("ai.agent.activity.cancelled"));
                     if (agentResultJournaled.compareAndSet(false, true)) {
-                        appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
+                        agentJournalCard.set(appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
                             I18n.get("ai.agent.activity.cancelled"),
                             agentModelText,
                             (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
-                            agentTokensTotal.get());
+                            agentTokensTotal.get(), agentRunSecrets.get()));
                     }
                 } else {
+                    agentFinalPhase.set(TerminalAgentModels.Phase.FAILED);
                     if (agentEndNotified.compareAndSet(false, true)) {
                         TerminalAttentionNotifier.postAiRun(terminalTab, TerminalNotificationPolicy.AiRunEvent.FAILED);
                     }
@@ -12567,7 +12873,36 @@ public class MainWindow {
                         e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
                 }
             } finally {
+                // Every activity is published by now; a run without a task (a bare Ask) has no chat to hand over.
+                String runPrompt = scopedRequest.userPrompt();
+                AgentJournalCard card = agentJournalCard.get();
+                AgentRunChatSource chatSource = runPrompt == null || runPrompt.isBlank() ? null : new AgentRunChatSource(
+                    runId,
+                    terminalTab.getAiSessionId(),
+                    agentConnectionId,
+                    connectionName,
+                    runPrompt,
+                    agentFinalAnswer.get(),
+                    agentFinalPhase.get(),
+                    profile.getId(),
+                    profile.getName(),
+                    agentModelText,
+                    agentStartedAt,
+                    java.time.Instant.now(),
+                    Math.max(0L, (System.nanoTime() - agentRunStartedNanos) / 1_000_000_000L),
+                    agentTokensTotal.get() > 0 ? agentTokensTotal.get() : null,
+                    copyOfActivities(agentActivities),
+                    card != null ? card.journalId() : null,
+                    card != null ? card.directory() : null,
+                    card != null ? card.entryId() : null,
+                    card != null ? card.write() : null);
+                // Where the run ran: its pane (the focused pane when that is gone) and its connection.
+                AgentDesignHost.RunChatTarget chatTarget = new AgentDesignHost.RunChatTarget(
+                    aiSourcePane(terminalTab, resolvedRunContext), agentConnection, agentRunSecrets.get());
                 Platform.runLater(() -> {
+                    if (chatSource != null) {
+                        activityPanel.offerChatHandoff(runId, chatSource, chatTarget);
+                    }
                     activityPanel.finishRun(runId);
                     terminalTab.getTerminalView().setTerminalAgentInputLocked(resolvedRunContext, runId, false, null, null);
                 });
@@ -12736,9 +13071,10 @@ public class MainWindow {
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext,
         @Nullable ObservableTtyConnector foreignSessionAcknowledgedFor) {
-        AiProfile currentProfile = resolveAiProfileForConnection(
+        AiProfile currentProfile = resolveTerminalAgentProfile(
+            getAvailableAiProfiles(),
             terminalTab != null ? terminalTab.getConnection() : null,
-            AiWorkload.CODING);
+            null);
         TerminalAgentModels.Request refreshedRequest = currentProfile != null
             ? withTerminalAgentProfileId(request, currentProfile.getId())
             : request;
@@ -12983,17 +13319,22 @@ public class MainWindow {
             settings != null ? settings.getDefaultAiProfileId() : null);
     }
 
-    private String getConfiguredWorkloadProfileId(AiWorkload workload) {
+    /**
+     * Resolves the AI profile of a terminal agent run: the explicit choice, the connection's own
+     * profile, the KI-Agent role, the Coding role, then the default profile.
+     */
+    private AiProfile resolveTerminalAgentProfile(
+        List<AiProfile> profiles,
+        ServerConnection connection,
+        String explicitProfileId) {
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-        if (settings == null) {
-            return null;
-        }
-        String roleId = workload == AiWorkload.CODING
-            ? settings.getCodingAiProfileId()
-            : settings.getTextAiProfileId();
-        return AiProfileSelectionSupport.findById(getAvailableAiProfiles(), roleId) != null
-            ? roleId
-            : settings.getDefaultAiProfileId();
+        return AiProfileSelectionSupport.terminalAgentProfile(
+            profiles,
+            explicitProfileId,
+            connection != null ? connection.getAiProfileId() : null,
+            settings != null ? settings.getTerminalAgentAiProfileId() : null,
+            settings != null ? settings.getCodingAiProfileId() : null,
+            settings != null ? settings.getDefaultAiProfileId() : null);
     }
 
     String getSecurityCheckAiProfileId() {
@@ -13299,6 +13640,33 @@ public class MainWindow {
             return null;
         }
         return tab;
+    }
+
+    /**
+     * Opens the KI-Chat a journal AGENT card links to: the saved chat when it still exists (focusing an open tab),
+     * otherwise a read-only tab of the journal's copy. Called from the journal page on the FX thread.
+     */
+    void openJournalChat(String chatId, de.kortty.model.SessionJournalChatSnapshot snapshot) {
+        Optional<SavedAiChat> chat = app.getAiChatManager().findById(chatId);
+        // The live chat opens only where AI chats are allowed; otherwise its journal copy opens read-only.
+        if (chat.isPresent() && aiChatAvailable()) {
+            openSavedAiChat(chat.get());
+            return;
+        }
+        if (snapshot == null) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.result.agentRun.chatMissing"));
+            return;
+        }
+        // The chat was deleted: its journal copy opens read-only, and nothing is saved from it.
+        SavedAiChat copy = new SavedAiChat();
+        copy.setTitle(snapshot.getTitle());
+        copy.setMessages(snapshot.toSavedMessages());
+        String title = copy.getTitle() != null && !copy.getTitle().isBlank()
+            ? copy.getTitle().trim()
+            : I18n.get("ai.saved.defaultTitle");
+        AiResultTab resultTab = new AiResultTab(this, title, null, "", null, null, copy, true);
+        resultTab.showJournalSnapshotOnly();
+        insertTemporaryTab(resultTab);
     }
 
     AiResultTab openSavedAiChat(SavedAiChat chat) {

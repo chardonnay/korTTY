@@ -87,4 +87,35 @@ class AiManagerUiWiringSourceScanTest {
             }
         }
     }
+
+    @Test
+    void theSearchLineOverlaysTheTabsAndEveryPageCarriesKeywords() throws IOException {
+        String dialog = source("AiManagerDialog");
+        assertThat(dialog).contains("aiManagerSearch = new SettingsSearchBar(tabPane, body, \"ai.manager.search.prompt\", "
+            + "\"ai.manager.search.tooltip\");");
+        assertThat(dialog).contains("BorderPane content = new BorderPane(aiManagerSearch.host());");
+        assertThat(dialog).contains("getDialogPane().setContent(content);");
+        for (String page : List.of("skills", "memory", "localModels", "knowledge", "profiles", "general", "localAi")) {
+            assertThat(dialog).contains("ai.manager.search.keywords." + page);
+        }
+        assertThat(source("SettingsSearchBar")).contains("isInWebView(focusOwner)");
+    }
+
+    @Test
+    void theGeneralAndLocalAiPagesAreBuiltUpFrontWhileTheHeavyPagesStayLazy() throws IOException {
+        String dialog = source("AiManagerDialog");
+        assertThat(methodBody(dialog, "private Tab buildGeneralTab()")).contains("LazyTabContent.defer(tab, generalPane);");
+        assertThat(methodBody(dialog, "private Tab buildLocalPreferencesTab()")).contains("LazyTabContent.defer(tab, localPreferencesPane);");
+        assertThat(methodBody(dialog, "private Tab buildAiSkillsTab()")).contains("LazyTabContent.defer(tab, () -> {");
+        assertThat(methodBody(dialog, "private Tab buildAiMemoryTab()")).contains("LazyTabContent.defer(tab, () -> {");
+        assertThat(methodBody(dialog, "private Tab buildLocalModelsTab()")).contains("LazyTabContent.defer(tab, () -> {");
+        assertThat(methodBody(dialog, "private void refreshProfiles()")).contains("generalPane.refreshProfiles(profiles);");
+    }
+
+    @Test
+    void theQuietCloseSaveOfTheGeneralPageWritesOnlyChanges() throws IOException {
+        String general = source("AiGeneralSettingsPane");
+        assertThat(methodBody(general, "boolean save(boolean quiet)")).contains("if (quiet && !hasUnsavedChanges()) {");
+        assertThat(source("AiManagerDialog")).contains("generalPane.save(true);");
+    }
 }

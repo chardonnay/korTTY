@@ -111,6 +111,21 @@ An approval is answered with the keys **1** (allow once), **2** (allow always) a
 
 With a design other than the classic panel, the solution options of the agent (see [Solution options](ai-tools.md#solution-options)) appear in the design's strip with the same choices. The **Sent along** line of a run is a link in the design's host, and a rule suggestion opens as a popup over the design; see [AI memory](ai-memory.md).
 
+## Continue a run in an AI chat
+
+When a terminal run has finished, a bar appears under the terminal. It shows the run's status (✓ *Run finished* or ✕ *Run stopped or failed*) and its task, then the button **Continue in AI chat**, the field **Follow-up question about the run…** and **✕** to hide the bar. The bar appears in every design, the classic panel included. It stays until the next run starts, until you hide it or until the chat opens.
+
+**Continue in AI chat** opens the run in an AI chat, see [Chats from AI agent runs](ai-assistant.md#chats-from-ai-agent-runs): the task is the first message, the final answer the reply, and the steps of the run are listed under the reply in a collapsed **Steps** list. A second click on the button focuses the same chat instead of making another one.
+
+![The bar under a finished run: the status and the task, the button Continue in AI chat, the follow-up field and the hide button](../assets/screenshots/plugins/ai-agent-continue-in-chat.png)
+
+Type a follow-up question into the field and press ++enter++: the chat opens and the question is sent there. Pressing ++enter++ in an empty field only opens the chat. A question the chat cannot take at the moment, because it is still answering, goes into the chat's input field instead.
+
+The same action is the run menu's entry **Continue in AI chat**, see below. It is greyed out while AI features are off or your organisation's policy does not allow AI chats; the bar then keeps its controls visible, greyed out too.
+
+!!! note
+    Only runs started from the terminal are handed over. A question asked with **Ask Agent…**, which runs no commands, and a run in the chat window do not get the bar or the menu entry.
+
 ## Run menu and step menu
 
 Every design offers what the classic panel's buttons do. The bars, the history panels, the frosted glass HUD and the picture-in-picture window have a ⋯ button; the status pill, the orbit, the minimap rail and the badge of the toasts open the same menu with a right-click. It works on the run the design shows:
@@ -122,9 +137,10 @@ Every design offers what the classic panel's buttons do. The bars, the history p
 | Export all runs | Saves every finished run the terminal keeps in one file |
 | Run again | Starts the same agent command again |
 | Copy answer | Copies the run's answer |
+| Continue in AI chat | Opens the run in an AI chat, as described in [Continue a run in an AI chat](#continue-a-run-in-an-ai-chat) |
 | Runs of this terminal | Shows another run of the terminal: the ones still working and the last five that finished |
 
-The designs drawn into the terminal (blocks, focus mode, the suggestion at the cursor line) offer the same entries in the terminal's context menu under *AI → Last agent run*.
+Every design except the classic panel also offers the newest run of the terminal in the terminal's context menu, under *AI → Last agent run*, with the same entries. The classic panel has its own buttons, so the bar is its way to continue a run in a chat.
 
 A right-click on a step opens its own menu with **Copy command**, **Copy output**, **Copy entry** and **Open in Snippet Editor**. That works on a node of the side timeline, a row of the plan or the log table, a card of the stack, a block of the conversation, a line of the tmux pane, a segment of the minimap rail, a toast and a step in the picture-in-picture window.
 

@@ -112,6 +112,59 @@ class AiProfileSelectionSupportTest {
             "deleted", "deleted", "fallback")).isSameInstanceAs(fallback);
     }
 
+    @Test
+    void terminalAgentProfilePrefersExplicitThenConnectionThenAgentThenCodingRole() {
+        AiProfile fallback = profile("fallback", "Fallback");
+        AiProfile coding = profile("coding", "Coding");
+        AiProfile agent = profile("agent", "Agent");
+        AiProfile connection = profile("connection", "Connection");
+        AiProfile explicit = profile("explicit", "Explicit");
+        List<AiProfile> profiles = List.of(fallback, coding, agent, connection, explicit);
+
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            profiles, "explicit", "connection", "agent", "coding", "fallback")).isSameInstanceAs(explicit);
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            profiles, null, "connection", "agent", "coding", "fallback")).isSameInstanceAs(connection);
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            profiles, null, null, "agent", "coding", "fallback")).isSameInstanceAs(agent);
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            profiles, null, null, null, "coding", "fallback")).isSameInstanceAs(coding);
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            profiles, null, null, null, null, "fallback")).isSameInstanceAs(fallback);
+    }
+
+    @Test
+    void terminalAgentProfileFallsThroughDanglingIdsToTheCodingRole() {
+        AiProfile fallback = profile("fallback", "Fallback");
+        AiProfile coding = profile("coding", "Coding");
+        List<AiProfile> profiles = List.of(fallback, coding);
+
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            profiles, "deleted", "deleted", "deleted", "coding", "fallback")).isSameInstanceAs(coding);
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            profiles, null, "deleted", "deleted", "coding", "fallback")).isSameInstanceAs(coding);
+    }
+
+    @Test
+    void terminalAgentProfileFallsBackToTheDefaultWhenNoRoleResolves() {
+        AiProfile fallback = profile("fallback", "Fallback");
+
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            List.of(fallback), null, "deleted", "deleted", "deleted", "fallback")).isSameInstanceAs(fallback);
+        assertThat(AiProfileSelectionSupport.terminalAgentProfile(
+            List.of(), "explicit", null, "agent", "coding", "fallback")).isNull();
+    }
+
+    @Test
+    void reorderWithUnknownRequestedLookupFallsBackToTheRoleOrder() {
+        AiProfile local = profile("legacy-default", "local");
+        AiProfile agent = profile("agent", "Agent");
+        List<AiProfile> profiles = List.of(local, agent);
+
+        assertThat(AiProfileSelectionSupport.reorderByRequestedOrDefault(
+            profiles, "no-such-profile", "agent")).containsExactly(agent, local).inOrder();
+    }
+
     private static AiProfile profile(String id, String name) {
         AiProfile profile = new AiProfile();
         profile.setId(id);

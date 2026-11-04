@@ -137,7 +137,7 @@ class SessionJournalExportServiceTest {
     void pdfExportCanOmitScreenshots() throws Exception {
         Path target = tempDir.resolve("journal-noshots.pdf");
         exportService.export(SessionJournalExportService.Format.PDF, journalDir, target,
-            new SessionJournalExportService.Options(false));
+            new SessionJournalExportService.Options(false, null, true));
         try (PDDocument pdf = Loader.loadPDF(target.toFile())) {
             boolean hasImage = false;
             for (var page : pdf.getPages()) {
@@ -396,14 +396,14 @@ class SessionJournalExportServiceTest {
             List.of(), 0, null, false, false,
             SessionJournalExportFilter.MarkerMode.SELECTED, java.util.Set.of(markerIds),
             java.time.ZoneId.systemDefault());
-        return new SessionJournalExportService.Options(true, filter);
+        return new SessionJournalExportService.Options(true, filter, true);
     }
 
     private static SessionJournalExportService.Options windowOptions(
             java.time.LocalDate from, java.time.LocalDate to) {
         SessionJournalExportFilter filter = SessionJournalExportFilter.none()
             .withWindows(List.of(SessionJournalExportFilter.TimeWindow.ofDates(from, to)));
-        return new SessionJournalExportService.Options(true, filter);
+        return new SessionJournalExportService.Options(true, filter, true);
     }
 
     @Test

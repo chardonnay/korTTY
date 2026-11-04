@@ -100,6 +100,18 @@ public final class SessionJournalBadges {
         return badges;
     }
 
+    /** The pill of a row the background re-evaluation works on or waits for; null for the others. */
+    public static Badge reevaluation(de.kortty.core.SessionJournalReevaluationJob.JournalState state) {
+        if (state == null) {
+            return null;
+        }
+        return switch (state) {
+            case RUNNING -> new Badge("↻ " + I18n.get("journal.manager.badge.reevaluating"), Tone.INFO);
+            case WAITING -> new Badge(I18n.get("journal.manager.badge.reevaluateWaiting"), Tone.NEUTRAL);
+            case NONE -> null;
+        };
+    }
+
     /** The badges as a row of pills. */
     public static HBox render(List<Badge> badges) {
         HBox box = new HBox(4);

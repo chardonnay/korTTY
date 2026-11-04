@@ -8968,6 +8968,17 @@ public class TerminalView extends BorderPane {
         de.kortty.core.SessionJournalSession session = journalSession;
         journalSession = null;
         if (session != null) {
+            // The KI-chats linked to this journal get their final copy now, frozen, before the journal closes. The
+            // sync records the directory as stopped here, so a chat linked after this point is frozen as well. Its
+            // own guard: a failing summary below must not leave a chat that is still followed.
+            try {
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getSessionJournalChatSync() != null) {
+                    app.getSessionJournalChatSync().journalStopped(session.getDirectory());
+                }
+            } catch (Exception e) {
+                logger.warn("Could not freeze the KI-chat copies of the closing journal: {}", e.getMessage());
+            }
             try {
                 de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
                 if (app != null && app.getSessionJournalSummarizer() != null) {

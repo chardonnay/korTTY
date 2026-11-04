@@ -958,6 +958,16 @@
 <p>Eine Genehmigung wird im Terminal mit den Tasten <strong>1</strong> (einmal erlauben), <strong>2</strong> (immer erlauben) und <strong>3</strong> (abbrechen) oder mit Buttons beantwortet. Designs mit eigenen Buttons zeigen diese an: die Verlaufs-Panels, die Meldungen am Rand und das Bild-im-Bild-Fenster. Bei Blöcken im Terminal, im Fokus-Modus oder im Verlauf des klassischen Panels öffnet eine Genehmigung eine Zeile unter dem Terminal mit den Befehlen und den Buttons <strong>1 Einmal erlauben</strong>, <strong>2 Immer erlauben</strong> und <strong>3 Abbrechen</strong>. Eine Passwortanfrage öffnet diese Zeile immer, mit einem maskierten Feld, <strong>Für diese SSH-Sitzung verwenden</strong> und <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> sendet ab und <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht ab. Das klassische Panel behält seine eigenen Prompts bei.</p>
 <h2 id="losungsoptionen-und-speicher-in-designs">Lösungsoptionen und Speicher in Designs<a class="headerlink" href="#losungsoptionen-und-speicher-in-designs" title="Permanent link">&para;</a></h2>
 <p>Bei einem Design, das nicht das klassische Panel ist, erscheinen die Lösungsoptionen des Agents (siehe <a href="ai-tools.html#losungsoptionen">Lösungsoptionen</a>) in der Leiste des Designs mit denselben Auswahlmöglichkeiten. Die <strong>Mitgesendet</strong>-Zeile eines Laufs ist ein Link im Host des Designs, und ein Regelvorschlag öffnet sich als Popup über dem Design; siehe <a href="ai-memory.html">KI-Memory</a>.</p>
+<h2 id="im-ki-chat-fortsetzen">Im KI-Chat fortsetzen<a class="headerlink" href="#im-ki-chat-fortsetzen" title="Permanent link">&para;</a></h2>
+<p>Wenn ein Terminal-Lauf beendet ist, erscheint unter dem Terminal eine Leiste. Sie zeigt den Status des Laufs (✓ <em>Lauf beendet</em> oder ✕ <em>Lauf abgebrochen oder fehlgeschlagen</em>) und seine Aufgabe, danach die Schaltfläche <strong>Im KI-Chat fortsetzen</strong>, das Feld <strong>Nachfrage zum Lauf…</strong> und <strong>✕</strong>, um die Leiste auszublenden. Die Leiste erscheint in jedem Design, auch im klassischen Panel. Sie bleibt sichtbar, bis der nächste Lauf startet, bis Sie sie ausblenden oder bis der Chat geöffnet wird.</p>
+<p><strong>Im KI-Chat fortsetzen</strong> öffnet den Lauf in einem KI-Chat, siehe <a href="ai-assistant.html#chats-aus-ki-agentenlaufen">Chats aus KI-Agent-Läufen</a>: Die Aufgabe ist die erste Nachricht, die finale Antwort die Erwiderung, und die Schritte des Laufs werden unter der Erwiderung in einer eingeklappten <strong>Schritte</strong>-Liste aufgeführt. Ein zweiter Klick auf die Schaltfläche fokussiert denselben Chat, anstatt einen neuen zu erstellen.</p>
+<p><img alt="The bar under a finished run: the status and the task, the button Continue in AI chat, the follow-up field and the hide button" src="../../en/assets/screenshots/plugins/ai-agent-continue-in-chat.png" /></p>
+<p>Geben Sie eine Folgefrage in das Feld ein und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>: Der Chat öffnet sich und die Frage wird dort gesendet. Ein Drücken von <span class="keys"><kbd class="key-enter">Enter</kbd></span> in einem leeren Feld öffnet nur den Chat. Eine Frage, die der Chat im Moment nicht annehmen kann, weil er noch antwortet, wird stattdessen in das Eingabefeld des Chats übernommen.</p>
+<p>Die gleiche Aktion finden Sie als Eintrag <strong>Im KI-Chat fortsetzen</strong> im Lauf-Menü, siehe unten. Er ist grau dargestellt, solange KI-Funktionen deaktiviert sind oder die Richtlinie Ihrer Organisation keine KI-Chats zulässt; die Leiste behält dann ihre Bedienelemente sichtbar bei, ebenfalls grau dargestellt.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Nur Ausführungen, die aus dem Terminal gestartet wurden, werden übergeben. Eine Frage, die mit <strong>Agent fragen…</strong> gestellt wird und keine Befehle ausführt, sowie eine Ausführung im Chat-Fenster erhalten weder die Leiste noch den Menüeintrag.</p>
+</div>
 <h2 id="lauf-menu-und-schritt-menu">Lauf-Menü und Schritt-Menü<a class="headerlink" href="#lauf-menu-und-schritt-menu" title="Permanent link">&para;</a></h2>
 <p>Jedes Design bietet das, was die Buttons des klassischen Panels tun. Die Leisten, die Verlaufs-Panels, das Milchglas-HUD und das Bild-im-Bild-Fenster haben einen ⋯-Button; die Statuspille, die Orbit-Anzeige, die Minimap-Schiene und das Abzeichen der Meldungen am Rand öffnen dasselbe Menü per Rechtsklick. Es funktioniert bei dem Lauf, den das Design zeigt:</p>
 <table>
@@ -989,12 +999,16 @@
 <td>Kopiert die Antwort der Ausführung</td>
 </tr>
 <tr>
+<td>Im KI-Chat fortsetzen</td>
+<td>Öffnet die Ausführung in einem KI-Chat, wie in <a href="#im-ki-chat-fortsetzen">Eine Ausführung in einem KI-Chat fortsetzen</a> beschrieben.</td>
+</tr>
+<tr>
 <td>Läufe dieses Terminals</td>
 <td>Zeigt einen anderen Lauf des Terminals: die noch laufenden und die letzten fünf beendeten</td>
 </tr>
 </tbody>
 </table>
-<p>Die in das Terminal gezeichneten Designs (Blöcke, Fokus-Modus, der Vorschlag an der Cursorzeile) bieten dieselben Einträge im Kontextmenü des Terminals unter <em>KI → Letzter Agent-Lauf</em>.</p>
+<p>Jedes Design außer dem klassischen Panel bietet im Kontextmenü des Terminals auch den neuesten Lauf, unter <em>KI → Letzter Agent-Lauf</em>, mit denselben Einträgen. Das klassische Panel hat eigene Schaltflächen, daher ist die Leiste der Weg, einen Lauf in einem Chat fortzusetzen.</p>
 <p>Ein Rechtsklick auf einen Schritt öffnet ein eigenes Menü mit <strong>Befehl kopieren</strong>, <strong>Ausgabe kopieren</strong>, <strong>Eintrag kopieren</strong> und <strong>Im Snippet-Editor öffnen</strong>. Das funktioniert auf einem Knoten der Zeitachse an der Seite, einer Zeile des Plans oder der Protokoll-Tabelle, einer Karte des Kartenstapels, einem Block des Gesprächsverlaufs, einer Zeile des tmux-Bereichs, einem Segment der Minimap-Schiene, einer Meldung am Rand und einem Schritt im Bild-im-Bild-Fenster.</p>
 <h2 id="optionen">Optionen<a class="headerlink" href="#optionen" title="Permanent link">&para;</a></h2>
 <table>

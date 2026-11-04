@@ -38,17 +38,24 @@ class AiI18nCoverageTest {
     /** Families whose every key in the English bundle must exist in every other bundle. */
     private static final List<String> PREFIXES = List.of(
         "ai.result.terminal.",
-        "settings.ai.chatTerminalActions");
+        "settings.ai.chatTerminalActions",
+        "ai.result.agentRun.",
+        "ai.manager.search.");
 
     private static final List<String> SINGLE_KEYS = List.of(
         "ai.result.streaming",
         "ai.recentOutput.none",
         "terminal.contextMenu.ai.summarizeRecent",
-        "terminal.paste.confirm.source.ai");
+        "terminal.paste.confirm.source.ai",
+        "ai.local.preferences.agentProfile",
+        "ai.local.preferences.agentProfile.hint");
 
     /** The placeholders a key must keep; every other key of the families has none. */
     private static final Map<String, Set<String>> PLACEHOLDERS = Map.ofEntries(
         Map.entry("ai.result.terminal.paneName", Set.of("{0}", "{1}")),
+        Map.entry("ai.result.agentRun.steps", Set.of("{0}")),
+        Map.entry("ai.result.agentRun.exit", Set.of("{0}")),
+        Map.entry("ai.result.agentRun.origin", Set.of("{0}", "{1}")),
         Map.entry("ai.result.terminal.promptUnknown", Set.of("{0}")),
         Map.entry("ai.result.terminal.verdict.ok", Set.of("{0}")),
         Map.entry("ai.result.terminal.verdict.paneBusy", Set.of("{0}")),

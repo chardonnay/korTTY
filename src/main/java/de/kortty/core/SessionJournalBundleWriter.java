@@ -43,6 +43,13 @@ final class SessionJournalBundleWriter {
     void write(Path targetDir, Path journalDir, SessionJournalDocument document,
                List<SessionJournalEntry> entries, SessionJournalExportFilter filter,
                SessionJournalExportService.ExportExcerpt excerpt) throws IOException {
+        write(targetDir, journalDir, document, entries, filter, excerpt, true);
+    }
+
+    /** With {@code includeChats} unset the kept entries lose their chat links and copies. */
+    void write(Path targetDir, Path journalDir, SessionJournalDocument document,
+               List<SessionJournalEntry> entries, SessionJournalExportFilter filter,
+               SessionJournalExportService.ExportExcerpt excerpt, boolean includeChats) throws IOException {
         Files.createDirectories(targetDir);
 
         List<SessionJournalLogFilter.Interval> intervals =
@@ -50,6 +57,14 @@ final class SessionJournalBundleWriter {
         List<SessionJournalLogEntry> keptLog = rewriteLogParts(targetDir, journalDir, intervals, filter);
 
         SessionJournalDocument filtered = filteredDocument(document, entries, keptLog);
+        if (!includeChats) {
+            filtered.setEntries(filtered.getEntries().stream().map(entry -> {
+                entry.setChatId(null);
+                entry.setChatLinkedAt(null);
+                entry.setChatSnapshot(null);
+                return entry;
+            }).toList());
+        }
         service.writeDocument(filtered, targetDir.resolve(SessionJournalService.DOCUMENT_FILE_NAME));
 
         copyScreenshots(targetDir, journalDir, entries, keptLog);

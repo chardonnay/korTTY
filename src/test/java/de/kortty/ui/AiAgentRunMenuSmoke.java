@@ -66,7 +66,7 @@ public final class AiAgentRunMenuSmoke {
 
             List<MenuItem> running = host.runMenuItems("r1", host);
             expect(failures, labels(running).equals(List.of("Workflow…", "Export this run", "Export all runs", "Run again",
-                "Copy answer", "", "Runs of this terminal")), "run menu entries: " + labels(running));
+                "Copy answer", "Continue in AI chat", "", "Runs of this terminal")), "run menu entries: " + labels(running));
             expect(failures, running.get(0).isDisable(), "Workflow is off while the run works");
             expect(failures, running.get(1).isDisable(), "export is off while the run works");
             expect(failures, running.get(3).isDisable(), "run again is off while the run works");
@@ -91,7 +91,7 @@ public final class AiAgentRunMenuSmoke {
 
             host.beginRun("r2", "and /home?", () -> { }, paused -> { }, () -> { }, null,
                 AgentDesignPresets.STANDARD.with(AgentRole.HISTORY, "d16"));
-            Menu runs = (Menu) host.runMenuItems("r2", host).get(6);
+            Menu runs = (Menu) host.runMenuItems("r2", host).get(7);
             expect(failures, !runs.isDisable() && runs.getItems().size() == 2, "both runs are listed");
             expect(failures, host.lastRunMenu(host) != null, "the terminal context menu gets the last run");
 

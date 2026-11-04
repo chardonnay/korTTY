@@ -7,11 +7,13 @@ import de.kortty.agentdesign.AgentModuleCatalog;
 import de.kortty.agentdesign.AgentRole;
 import de.kortty.agentdesign.AgentRunRegistry;
 import de.kortty.agentdesign.MetroStationModel;
+import de.kortty.core.AgentRunChatSource;
 import de.kortty.core.AiSentContext;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.memory.RuleProposal;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.Theme;
 import javafx.application.Platform;
@@ -54,6 +56,33 @@ import java.util.function.Consumer;
  * agent's worker thread; everything else may be called from any thread and runs on the JavaFX thread.
  */
 public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.TerminalSplitPane.PaneSideSlots {
+
+    /**
+     * Where a finished run's KI-chat is bound: the terminal pane the run ran in and that pane's connection.
+     * The handoff binds the chat's code blocks and its memory to these; a {@code null} pane or connection
+     * stands for the terminal tab's focused pane and its connection. {@code runSecrets} are the secrets the run
+     * knew, including those it learned while running; the chat is masked with them too.
+     */
+    public record RunChatTarget(@Nullable TerminalPaneRef pane, @Nullable ServerConnection connection,
+                                @Nullable de.kortty.core.SessionJournalRedactor runSecrets) {
+
+        public RunChatTarget(@Nullable TerminalPaneRef pane, @Nullable ServerConnection connection) {
+            this(pane, connection, null);
+        }
+    }
+
+    /**
+     * Opens a finished run's KI-chat. The host calls it with the run's chat source and where the run ran;
+     * {@code followUp} is the question typed in the bar or the run menu (empty when only the chat should open).
+     * Implemented by the main window for the terminal tab the run belongs to. Returns whether the chat opened
+     * and the question, if any, went into it; the host keeps the typed question otherwise.
+     */
+    public interface ChatHandoffHandler {
+        /** Whether the chat can be opened now (AI features on and not locked by policy). */
+        boolean available();
+
+        boolean open(String runId, AgentRunChatSource source, RunChatTarget target, @Nullable String followUp);
+    }
 
     /** Style class of the host, so the classic panel inside can look past it to the pane's column. */
     static final String STYLE_CLASS = "ai-agent-design-host";
@@ -131,6 +160,22 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     private final AgentDesignApprovalStrip approvalStrip = new AgentDesignApprovalStrip();
     // The "Mitgesendet" line of the designs without an activity list; it sits above the bottom displays and the strip.
     private final AgentDesignSentLink sentLink = new AgentDesignSentLink();
+    // The offer to continue the latest finished run in a KI-chat, with the run it is about; the chats of the kept runs by run.
+    private final AgentChatHandoffBar chatHandoffBar = new AgentChatHandoffBar(new AgentChatHandoffBar.Actions() {
+        @Override
+        public boolean continueInChat(String followUp) {
+            return handoffRunId != null && AgentDesignHost.this.continueInChat(handoffRunId, followUp);
+        }
+
+        @Override
+        public void dismiss() {
+            hideChatHandoff();
+        }
+    });
+    private final Map<String, AgentRunChatSource> chatSources = new HashMap<>();
+    private final Map<String, RunChatTarget> chatTargets = new HashMap<>();
+    private @Nullable String handoffRunId;
+    private @Nullable ChatHandoffHandler chatHandoffHandler;
     // Designs beside or over the terminal by module id, created on first use, and the run state they show.
     private final Map<String, AgentRunPresenter> presenters = new LinkedHashMap<>();
     private final Map<String, AgentInlineBlockLayout.BlockState> traces = new HashMap<>();
@@ -158,9 +203,10 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         this.surface = surface;
         getStyleClass().add(STYLE_CLASS);
         setFillWidth(true);
-        getChildren().addAll(sentLink, approvalStrip);
+        getChildren().addAll(sentLink, chatHandoffBar, approvalStrip);
         approvalStrip.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
         sentLink.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
+        chatHandoffBar.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
         topSlot.setFillWidth(true);
         topSlot.setVisible(false);
         topSlot.setManaged(false);
@@ -206,6 +252,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         runOnFx(() -> {
             applyDesignSettings();
             sentLink.reset();
+            hideChatHandoff();
             registry.begin(runId, prompt, System.currentTimeMillis());
             if (!runDesign.classic() || runDesign.hasStatus() || runDesign.pictureInPicture()) {
                 metroModels.put(runId, new MetroStationModel());
@@ -500,6 +547,72 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         });
     }
 
+    /**
+     * Offers the finished run's KI-chat: the bar shows the run until the next run begins, the bar is
+     * dismissed, or the chat is opened. The source and the run's chat target are kept with the run, for the
+     * run menu too.
+     */
+    public void offerChatHandoff(String runId, AgentRunChatSource source, RunChatTarget target) {
+        if (runId == null || source == null) {
+            return;
+        }
+        runOnFx(() -> {
+            chatSources.put(runId, source);
+            chatTargets.put(runId, target != null ? target : new RunChatTarget(null, null));
+            handoffRunId = runId;
+            showChatHandoff(runId, source);
+        });
+    }
+
+    /** Sets the handler that opens a run's chat; {@code null} removes it (the offer is then unavailable). */
+    public void setChatHandoffHandler(@Nullable ChatHandoffHandler handler) {
+        runOnFx(() -> {
+            chatHandoffHandler = handler;
+            AgentRunChatSource shown = handoffRunId != null ? chatSources.get(handoffRunId) : null;
+            if (shown != null) {
+                showChatHandoff(handoffRunId, shown);
+            }
+        });
+    }
+
+    /**
+     * Opens the chat of a finished run through the handler, sending {@code followUp} when it is not blank.
+     * Returns whether the chat opened; the bar then hides and forgets the question, otherwise the question
+     * stays in the bar.
+     */
+    boolean continueInChat(String runId, @Nullable String followUp) {
+        AgentRunChatSource source = runId != null ? chatSources.get(runId) : null;
+        ChatHandoffHandler handler = chatHandoffHandler;
+        if (source == null || handler == null || !handler.available()) {
+            return false;
+        }
+        String question = followUp != null ? followUp.strip() : "";
+        RunChatTarget target = chatTargets.getOrDefault(runId, new RunChatTarget(null, null));
+        if (!handler.open(runId, source, target, question.isEmpty() ? null : question)) {
+            return false;
+        }
+        if (runId.equals(handoffRunId)) {
+            hideChatHandoff();
+        }
+        return true;
+    }
+
+    private void showChatHandoff(String runId, AgentRunChatSource source) {
+        boolean available = chatHandoffAvailable();
+        chatHandoffBar.show(runId, AiAgentActivityTabsPanel.truncateTabTitle(source.prompt()),
+            source.finalPhase() == TerminalAgentModels.Phase.DONE, available);
+    }
+
+    private void hideChatHandoff() {
+        handoffRunId = null;
+        chatHandoffBar.hideBar();
+    }
+
+    private boolean chatHandoffAvailable() {
+        ChatHandoffHandler handler = chatHandoffHandler;
+        return handler != null && handler.available();
+    }
+
     public void toggleThinkingDetails(String runId) {
         RunDesign design = runDesigns.get(runId);
         if (design == null) {
@@ -591,6 +704,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     public void applyTheme(Theme theme) {
         runOnFx(() -> {
             this.theme = theme;
+            chatHandoffBar.applyPalette(AgentDesignPalette.of(theme));
             if (activeStylesheetUrl != null) {
                 getStylesheets().remove(activeStylesheetUrl);
             }
@@ -861,6 +975,12 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         copyAnswer.setDisable(answer.isBlank());
         copyAnswer.setOnAction(event -> de.kortty.core.KorttyClipboard.setText(answer.strip()));
         items.add(copyAnswer);
+
+        javafx.scene.control.MenuItem continueInChat = new javafx.scene.control.MenuItem(
+            I18n.get("aiAgentDesign.menu.continueInChat"));
+        continueInChat.setDisable(!chatSources.containsKey(runId) || !chatHandoffAvailable());
+        continueInChat.setOnAction(event -> continueInChat(runId, null));
+        items.add(continueInChat);
 
         items.add(new javafx.scene.control.SeparatorMenuItem());
         javafx.scene.control.Menu earlier = new javafx.scene.control.Menu(I18n.get("aiAgentDesign.menu.earlierRuns"));
@@ -1307,6 +1427,11 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             pendingInserts.remove(runId);
             runMetadata.remove(runId);
             runReloads.remove(runId);
+            chatSources.remove(runId);
+            chatTargets.remove(runId);
+            if (runId.equals(handoffRunId)) {
+                hideChatHandoff();
+            }
             if (runId.equals(pinnedRunId)) {
                 pinnedRunId = null;
             }

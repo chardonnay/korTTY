@@ -660,6 +660,10 @@ public final class SessionJournalHtmlRenderer {
             html.append("<span class=\"state-tag agent-tag\">")
                 .append(escapeHtml(i18n("journal.html.agent", "AI agent"))).append("</span>");
         }
+        if (hasChat(entry)) {
+            html.append("<span class=\"state-tag chat-tag\">")
+                .append(escapeHtml(i18n("journal.html.chat.tag", "KI-Chat"))).append("</span>");
+        }
         if (entry.getTitle() != null && !entry.getTitle().isBlank()) {
             html.append("<h3>").append(escapeHtml(entry.getTitle())).append("</h3>");
         }
@@ -751,7 +755,16 @@ public final class SessionJournalHtmlRenderer {
                 .append(linksEnabled() ? escapeHtmlWithLinks(entry.getUserNote()) : escapeHtml(entry.getUserNote()))
                 .append("</p>\n");
         }
+        if (hasChat(entry)) {
+            html.append(SessionJournalChatTranscript.render(entry.getChatSnapshot(), zone));
+        }
         html.append("</div>\n</article>\n");
+    }
+
+    /** An AGENT card that continues in a KI-Chat or keeps a copy of one. */
+    private static boolean hasChat(SessionJournalEntry entry) {
+        return entry.getKind() == SessionJournalEntryKind.AGENT
+            && (notBlank(entry.getChatId()) || entry.getChatSnapshot() != null);
     }
 
     /** Always-visible copy buttons so the information can be taken without the right-click menu. */
@@ -760,10 +773,19 @@ public final class SessionJournalHtmlRenderer {
             || !entry.getInputExcerpt().isEmpty() || !entry.getOutputExcerpt().isEmpty();
         boolean hasImage = entry.getKind() == SessionJournalEntryKind.SCREENSHOT
             && entry.getScreenshotFile() != null;
-        if (!hasText && !hasImage) {
+        boolean hasChatAction = hasChat(entry);
+        if (!hasText && !hasImage && !hasChatAction) {
             return;
         }
         html.append("<div class=\"card-actions\">");
+        if (hasChatAction) {
+            // Hidden until the app answers korttyEnableAppActions: a copy in a browser has no KI-Chat to open.
+            html.append("<button type=\"button\" class=\"chat-open-btn\" data-entry=\"")
+                .append(escapeAttr(nullSafe(entry.getId()))).append("\" hidden title=\"")
+                .append(escapeAttr(i18n("journal.html.chat.open.tooltip", "Continue this run in a KI-Chat")))
+                .append("\">").append(escapeHtml(i18n("journal.html.chat.open", "Open in KI-Chat")))
+                .append("</button>");
+        }
         if (hasText) {
             html.append("<button type=\"button\" class=\"copy-btn\" data-copy=\"text\" title=\"")
                 .append(escapeAttr(i18n("journal.html.copy.entry", "Copy entry"))).append("\">")
@@ -1165,6 +1187,41 @@ public final class SessionJournalHtmlRenderer {
             .final .card{border-left:3px solid var(--accent)}
             .agent-entry .card{border-left:3px solid var(--info)}
             .state-tag.agent-tag{color:var(--info);border-color:var(--info)}
+            .state-tag.chat-tag{color:var(--accent);border-color:var(--accent)}
+            .chat-open-btn{border:1px solid var(--border);background:var(--surface2);color:var(--accent);
+              border-radius:6px;padding:2px 8px;font-size:.8em;font-family:inherit;cursor:pointer;white-space:nowrap}
+            .chat-open-btn:hover{border-color:var(--accent)}
+            .chat-open-btn[hidden]{display:none}
+            .chat-transcript{margin-top:10px;border-top:1px solid var(--border);padding-top:8px}
+            .chat-transcript>summary{cursor:pointer;color:var(--accent);font-size:.87em;list-style:none}
+            .chat-transcript>summary::-webkit-details-marker,.chat-steps>summary::-webkit-details-marker{display:none}
+            .chat-transcript>summary::before,.chat-steps>summary::before{content:"\\25B8\\00a0";}
+            .chat-transcript[open]>summary::before,.chat-steps[open]>summary::before{content:"\\25BE\\00a0";}
+            .chat-body{margin-top:8px;display:grid;gap:8px}
+            .chat-msg{background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--info);
+              border-radius:8px;padding:8px 10px;min-width:0}
+            .chat-msg.user{border-left-color:var(--accent)}
+            .chat-msg-head{font-size:.75em;color:var(--muted);margin-bottom:4px}
+            .chat-role{color:var(--text);font-weight:600}
+            .chat-text{overflow-wrap:anywhere;font-size:.93em}
+            .chat-text p{margin:.4em 0}
+            .chat-text pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;
+              overflow:auto;font-size:.85em;white-space:pre}
+            .chat-text code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em}
+            .chat-text a{color:var(--accent)}
+            .chat-img{color:var(--muted);font-style:italic}
+            .chat-steps{margin-top:8px;font-size:.8em}
+            .chat-steps>summary{cursor:pointer;color:var(--muted);list-style:none}
+            .chat-step-list{margin:6px 0 0;padding-left:1.3em}
+            .chat-step{margin:4px 0}
+            .chat-step-head{color:var(--text)}
+            .chat-step-status{color:var(--muted);font-size:.9em}
+            .chat-step-exit{color:var(--muted)}
+            .chat-step-output{background:var(--bg);color:var(--output);border:1px solid var(--border);
+              border-radius:6px;padding:6px 8px;margin:4px 0 0;max-height:16em;overflow:auto;
+              white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,Menlo,Consolas,monospace;
+              font-size:.92em}
+            .chat-truncated{color:var(--imp);font-size:.8em;margin:6px 0 0}
             /* Long agent answers collapse to a preview; a click expands them. */
             .agent-entry .summary.collapsible{cursor:pointer}
             .agent-entry .summary.collapsed{max-height:220px;overflow:hidden;position:relative}
@@ -1194,6 +1251,27 @@ public final class SessionJournalHtmlRenderer {
               overflow:auto;max-height:min(340px,34vh);white-space:pre;min-width:0}
             .excerpt.input{color:var(--input);border-left:3px solid var(--input)}
             .excerpt.output{color:var(--output);border-left:3px solid var(--output)}
+            /* JavaFX WebKit paints native scrollbars in a last pass over everything, so the scrollbars of
+               these boxes showed through the docked log panel. Styled ones are painted with the page.
+               The page's own scrollbar is styled too: a native one lies over the right edge of the
+               content, where it hid the log panel's scrollbar; a styled one gets a column of its own. */
+            .excerpt::-webkit-scrollbar,.chat-text pre::-webkit-scrollbar,
+              .chat-step-output::-webkit-scrollbar{width:8px;height:8px}
+            html::-webkit-scrollbar,.log-body::-webkit-scrollbar{width:12px;height:12px}
+            html::-webkit-scrollbar-track{background:var(--bg)}
+            /* Mixed from the muted text colour, so the thumb stands out in every scheme. */
+            html::-webkit-scrollbar-thumb,.excerpt::-webkit-scrollbar-thumb,
+              .chat-text pre::-webkit-scrollbar-thumb,.chat-step-output::-webkit-scrollbar-thumb,
+              .log-body::-webkit-scrollbar-thumb{
+              background:color-mix(in srgb,var(--muted) 75%,var(--surface));border-radius:6px}
+            html::-webkit-scrollbar-thumb,.log-body::-webkit-scrollbar-thumb{
+              border:2px solid transparent;background-clip:padding-box}
+            html::-webkit-scrollbar-thumb:hover,.excerpt::-webkit-scrollbar-thumb:hover,
+              .chat-text pre::-webkit-scrollbar-thumb:hover,.chat-step-output::-webkit-scrollbar-thumb:hover,
+              .log-body::-webkit-scrollbar-thumb:hover{background-color:var(--muted)}
+            html::-webkit-scrollbar-corner,.excerpt::-webkit-scrollbar-corner,
+              .chat-text pre::-webkit-scrollbar-corner,.chat-step-output::-webkit-scrollbar-corner,
+              .log-body::-webkit-scrollbar-corner{background:transparent}
             .note{margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--mark);
               background:var(--surface2);border-radius:0 8px 8px 0;font-size:.87em}
             .user-note .card{border-left:3px solid var(--mark)}
@@ -1244,8 +1322,6 @@ public final class SessionJournalHtmlRenderer {
             .log-body{flex:1;margin:0;overflow:auto;padding:10px clamp(8px,2vw,14px);
               font-family:var(--mono-font,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
               font-size:.8em;line-height:1.5;white-space:pre-wrap}
-            .log-body::-webkit-scrollbar{width:10px}
-            .log-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
             .l-in{color:var(--input)} .l-out{color:var(--output)} .l-meta{color:var(--muted)}
             .l-seq{color:var(--muted);user-select:none}
             .l-rep{color:var(--muted);font-style:italic;user-select:none}
@@ -1831,6 +1907,7 @@ public final class SessionJournalHtmlRenderer {
             var appActions=false;
             window.korttyEnableAppActions=function(){
               appActions=true;
+              document.querySelectorAll(".chat-open-btn").forEach(function(b){b.hidden=false;});
               /* Only inside korTTY is the title editable, so only there does it say so. */
               var h1=document.querySelector(".head-main h1");
               if(h1){h1.title=T.renameHint;}
@@ -1951,6 +2028,17 @@ public final class SessionJournalHtmlRenderer {
               callBridge("openExternalLink",link.href);
             });
 
+            /* ---- KI-Chat: the transcript and its button must not open the card's log panel ---- */
+            document.querySelectorAll(".chat-transcript").forEach(function(d){
+              d.addEventListener("click",function(e){e.stopPropagation();});
+            });
+            document.querySelectorAll(".chat-open-btn").forEach(function(b){
+              b.addEventListener("click",function(e){
+                e.stopPropagation();
+                callBridge("requestOpenChat",b.dataset.entry);
+              });
+            });
+
             /* ---- copy buttons ------------------------------------------------------- */
             document.querySelectorAll(".card .copy-btn").forEach(function(button){
               button.addEventListener("click",function(event){
@@ -2001,12 +2089,16 @@ public final class SessionJournalHtmlRenderer {
             var journalNav=makeNav(journalCount,"cur");
             var journalFilter=document.getElementById("journalFilter");
             var journalEntryCount=document.getElementById("journalEntryCount");
+            /* Closed KI-Chat transcripts and step lists that the search opened; closed again on clear. */
+            var chatOpened=[];
             function clearHighlights(){
               timeline.querySelectorAll("mark.gs").forEach(function(mark){
                 var parent=mark.parentNode;
                 parent.replaceChild(document.createTextNode(mark.textContent),mark);
                 parent.normalize();
               });
+              chatOpened.forEach(function(d){d.open=false;});
+              chatOpened=[];
               journalNav.clear();
             }
             /* Words separated by spaces, "quoted phrases" kept whole; lower-case, no duplicates.
@@ -2094,7 +2186,17 @@ public final class SessionJournalHtmlRenderer {
               clearHighlights();
               var entries=Array.prototype.slice.call(timeline.querySelectorAll(".entry"));
               var matching=terms.length?entries.filter(function(e){return entryMatches(e,terms);}):entries;
-              if(terms.length){matching.forEach(function(entry){markMatches(entry,terms);});}
+              if(terms.length){
+                matching.forEach(function(entry){markMatches(entry,terms);});
+                // A hit inside a closed transcript or step list is invisible until its <details> opens.
+                timeline.querySelectorAll("mark.gs").forEach(function(mark){
+                  var d=mark.parentElement?mark.parentElement.closest("details"):null;
+                  while(d){
+                    if(!d.open){d.open=true;chatOpened.push(d);}
+                    d=d.parentElement?d.parentElement.closest("details"):null;
+                  }
+                });
+              }
               applyFilter(matching,journalFilter.checked&&terms.length>0);
               journalEntryCount.textContent=terms.length
                 ?journalEntryCount.dataset.template.replace("{0}",matching.length).replace("{1}",entries.length)

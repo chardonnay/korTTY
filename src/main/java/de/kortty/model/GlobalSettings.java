@@ -794,6 +794,10 @@ public class GlobalSettings {
     @XmlElement
     private String codingAiProfileId;
 
+    /** Preferred AI profile for terminal agent runs (KI-Agent role); null = the Coding profile, then the default. */
+    @XmlElement
+    private String terminalAgentAiProfileId;
+
     /** Local model id used to create embeddings for RAG knowledge stores. */
     @XmlElement
     private String ragEmbeddingModelId;
@@ -3501,6 +3505,14 @@ public class GlobalSettings {
     public void setCodingAiProfileId(String codingAiProfileId) {
         this.codingAiProfileId = normalizeOptionalString(codingAiProfileId);
         normalizeAiProfiles();
+    }
+
+    public String getTerminalAgentAiProfileId() {
+        return terminalAgentAiProfileId;
+    }
+
+    public void setTerminalAgentAiProfileId(String terminalAgentAiProfileId) {
+        this.terminalAgentAiProfileId = normalizeOptionalString(terminalAgentAiProfileId);
     }
 
     public String getRagEmbeddingModelId() {
