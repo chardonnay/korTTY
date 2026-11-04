@@ -243,20 +243,25 @@ final class SessionJournalCommandBlocks {
         return true;
     }
 
-    /** True when the last output of a command — not its echo — is a prompt: the shell waits again. */
+    /**
+     * True when a prompt appeared after the command (its echo aside): the shell waited again. What
+     * follows such a prompt without a new typed line is not the command's — korTTY's own messages
+     * and AI-agent replies are written to the terminal while the shell waits, as is the output of
+     * a background job.
+     */
     private static boolean endsAtPrompt(List<SessionJournalLogEntry> entries, long echoSeq, Set<String> prompts) {
-        for (int i = entries.size() - 1; i >= 0; i--) {
-            SessionJournalLogEntry entry = entries.get(i);
+        boolean afterCommand = entries.stream().noneMatch(entry -> entry.kind() == SessionJournalLogEntry.Kind.IN);
+        for (SessionJournalLogEntry entry : entries) {
             if (entry.kind() == SessionJournalLogEntry.Kind.IN) {
-                return false; // nothing printed since the last typed line
-            }
-            if (entry.kind() != SessionJournalLogEntry.Kind.OUT && entry.kind() != SessionJournalLogEntry.Kind.SEED) {
+                afterCommand = true;
                 continue;
             }
-            if (entry.text() == null || entry.text().isBlank()) {
-                continue;
+            boolean output = entry.kind() == SessionJournalLogEntry.Kind.OUT
+                || entry.kind() == SessionJournalLogEntry.Kind.SEED;
+            if (afterCommand && output && entry.seq() != echoSeq && entry.text() != null && !entry.text().isBlank()
+                    && isPrompt(entry.text(), entry.partial(), prompts)) {
+                return true;
             }
-            return entry.seq() != echoSeq && isPrompt(entry.text(), entry.partial(), prompts);
         }
         return false;
     }

@@ -124,6 +124,17 @@ class SessionJournalCommandBlocksTest {
     }
 
     @Test
+    void whatKorttyWritesAfterThePromptReturnedDoesNotKeepTheCommandRunning() {
+        // korTTY's AI agent: the typed line, the prompt back at once, then the agent's reply block
+        Log log = new Log().command("agent configure nginx on port 9090").out("daniel@fedora:~$")
+            .out("  ◆ AI agent · 13 steps · Exit 1 · 2:30").out("  ✓ Inspect(SSH session)  Server state refreshed.");
+
+        List<Block> blocks = SessionJournalCommandBlocks.cut(log.entries);
+
+        assertThat(blocks.get(0).complete()).isTrue();
+    }
+
+    @Test
     void theShellIntegrationsNoteEndsACommandAndCarriesItsExitStatus() {
         // A prompt no rule knows: only the shell's own report says the command ended.
         Log log = new Log().typed("make test").out("make test").out("FAILED: 2 of 40")
