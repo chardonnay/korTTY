@@ -27,6 +27,12 @@ class SessionJournalI18nCoverageTest {
     private static final List<String> REQUIRED_KEYS = List.of(
         "menu.tools.sessionJournals",
         "journal.html.chat.tag",
+        "journal.html.command.running",
+        "journal.html.command.endedWithSession",
+        "journal.html.command.endedWithSession.tooltip",
+        "journal.manager.badge.finishing",
+        "journal.manager.badge.finishWaiting",
+        "journal.reevaluate.finishing",
         "journal.html.chat.open",
         "journal.html.chat.open.tooltip",
         "journal.html.chat.summary",

@@ -158,6 +158,10 @@ public class SessionJournalEntry {
     @XmlElement
     private SessionJournalChatSnapshot chatSnapshot;
 
+    /** Whether the command this AI_SUMMARY entry describes had finished; null when it had. */
+    @XmlElement
+    private SessionJournalCommandState commandState;
+
     public SessionJournalEntry() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = OffsetDateTime.now();
@@ -197,6 +201,7 @@ public class SessionJournalEntry {
         this.chatLinkedAt = other.chatLinkedAt;
         this.chatSnapshot = other.chatSnapshot != null
             ? new SessionJournalChatSnapshot(other.chatSnapshot) : null;
+        this.commandState = other.commandState;
         this.runAsUser = other.runAsUser;
         if (other.commands != null) {
             this.commands = new ArrayList<>();
@@ -204,6 +209,14 @@ public class SessionJournalEntry {
                 this.commands.add(new SessionJournalCommandInfo(command));
             }
         }
+    }
+
+    public SessionJournalCommandState getCommandState() {
+        return commandState;
+    }
+
+    public void setCommandState(SessionJournalCommandState commandState) {
+        this.commandState = commandState;
     }
 
     public String getRunAsUser() {

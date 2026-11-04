@@ -6006,13 +6006,15 @@ public class MainWindow {
 
     /**
      * Asks before quitting while "Re-evaluate with AI…" runs in the background: the run is invisible
-     * once the journal manager is closed, and quitting stops it halfway through a journal.
+     * once the journal manager is closed, and quitting stops it halfway through a journal. Journals
+     * still being finished after their session closed need no question: korTTY finishes them at the
+     * next start.
      *
      * @return true to proceed with quitting
      */
     private boolean confirmQuitWhileReevaluatingJournals() {
         de.kortty.core.SessionJournalReevaluationJob job = app.getSessionJournalReevaluationJob();
-        if (job == null || !job.isRunning()) {
+        if (job == null || !job.isReevaluating()) {
             return true;
         }
         de.kortty.core.SessionJournalReevaluationJob.Snapshot snapshot = job.snapshot();
@@ -6029,7 +6031,7 @@ public class MainWindow {
         ButtonType choice = alert.showAndWait().orElse(null);
         boolean quit = choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
         if (quit) {
-            job.cancel();
+            job.cancelReevaluations();
         }
         return quit;
     }

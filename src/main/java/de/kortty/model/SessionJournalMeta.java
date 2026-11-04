@@ -188,6 +188,18 @@ public class SessionJournalMeta {
     @XmlJavaTypeAdapter(IsoOffsetDateTimeAdapter.class)
     private OffsetDateTime lastDuplicateAt;
 
+    /**
+     * True from the start of a recording until its closing pass (the last commands, the wrap-up)
+     * has run: a journal korTTY quit or crashed on is finished at the next start. Null otherwise,
+     * so a journal that never needed it keeps its old shape.
+     */
+    @XmlElement
+    private Boolean finishPending;
+
+    /** True when the journal was recorded without AI summaries; its closing pass keeps raw entries. */
+    @XmlElement
+    private Boolean aiSummariesOff;
+
     // --- transient (the keyword alone keeps JAXB away; combining it with @XmlTransient is an
     // IllegalAnnotationsException), populated by SessionJournalService for the management UI ---
 
@@ -245,6 +257,8 @@ public class SessionJournalMeta {
         this.contentHash = other.contentHash;
         this.duplicateRunCount = other.duplicateRunCount;
         this.lastDuplicateAt = other.lastDuplicateAt;
+        this.finishPending = other.finishPending;
+        this.aiSummariesOff = other.aiSummariesOff;
         this.directory = other.directory;
         this.live = other.live;
         this.journalId = other.journalId;
@@ -542,6 +556,22 @@ public class SessionJournalMeta {
 
     public void setRunStatus(AutomationRunStatus runStatus) {
         this.runStatus = runStatus;
+    }
+
+    public boolean isFinishPending() {
+        return Boolean.TRUE.equals(finishPending);
+    }
+
+    public void setFinishPending(boolean finishPending) {
+        this.finishPending = finishPending ? Boolean.TRUE : null;
+    }
+
+    public boolean isAiSummariesOff() {
+        return Boolean.TRUE.equals(aiSummariesOff);
+    }
+
+    public void setAiSummariesOff(boolean aiSummariesOff) {
+        this.aiSummariesOff = aiSummariesOff ? Boolean.TRUE : null;
     }
 
     public boolean isPinned() {

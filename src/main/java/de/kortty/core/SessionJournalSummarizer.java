@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.SessionJournalCommandState;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
@@ -24,14 +25,20 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 /**
- * Periodic AI summarization of session journals: windows the capture log since the last
- * summarized sequence (configurable line limit, 0 = fill the model context via a token budget,
- * optional chunked processing of the whole backlog), asks the AI for a compact journal entry,
- * and appends it to the journal document. Runs a closing pass (final window, session wrap-up,
- * optional AI title) when a session ends.
+ * Periodic AI summarization of session journals: cuts the capture log since the last summarized
+ * sequence at command boundaries ({@link SessionJournalCommandBlocks}), groups finished commands
+ * into windows (configurable line limit, 0 = fill the model context via a token budget), asks the
+ * AI for a compact journal entry per window and appends it to the journal document. A command is
+ * never split over two entries: one larger than a window is condensed — its start, the lines with
+ * errors and warnings, its end — or, in chunked mode, read in parts that end in one entry. A
+ * command still running waits for its prompt; after {@link #RUNNING_CARD_AFTER_MILLIS} it gets an
+ * entry that says so, replaced once it ends. Runs a closing pass (the last commands, session
+ * wrap-up, optional AI title) when a session ends.
  *
  * <p>The scheduler only owns a timer while at least one journal is live (App Nap friendly).
  * All AI calls run sequentially on one worker with a hard timeout. Without an available AI
@@ -58,6 +65,19 @@ public class SessionJournalSummarizer {
     private static final int ENTRY_LINE_MAX_CHARS = 1500;
     private static final String HIDDEN_INPUT_MARKER = "(hidden input)";
     private static final String SCREENSHOT_MARKER = "[screenshot attached]";
+    /** A command running this long gets an entry that says so, refreshed at this pace until it ends. */
+    static final long RUNNING_CARD_AFTER_MILLIS = TimeUnit.MINUTES.toMillis(15);
+    /** How a condensed window shares its lines: the start, notable lines from the middle, the rest the end. */
+    private static final double HEAD_SHARE = 0.3;
+    private static final double NOTABLE_SHARE = 0.3;
+    /** Lines from the middle of a long output that a condensed window keeps: errors, warnings, refusals. */
+    private static final Pattern NOTABLE_LINE = Pattern.compile(
+        "(?iu)\\b(?:errors?|fail(?:ed|ure)?|fatal|warn(?:ing)?|denied|refused|exception|traceback|abort(?:ed)?"
+            + "|panic|segmentation fault|cannot|can't|unable|not found|timed? ?out|fehler|warnung|fehlgeschlagen"
+            + "|verweigert|nicht gefunden|abgebrochen|erreur|échec|errore|fallito|erro|falha|fout|mislukt|greška)\\b");
+    /** Output lines kept before each reply typed into a running program: the question it answered. */
+    private static final int REPLY_CONTEXT_LINES = 8;
+    private static final Pattern EXIT_STATUS_LINE = Pattern.compile("\\[exit status -?\\d+]");
 
     private final SessionJournalService service;
     private final Supplier<GlobalSettings> settingsSupplier;
@@ -78,6 +98,10 @@ public class SessionJournalSummarizer {
     private final java.util.Set<Path> pendingClosePasses = ConcurrentHashMap.newKeySet();
     /** The invoker of the pass running on this thread when it differs from the default one. */
     private final ThreadLocal<SessionJournalAiSupport.AiInvoker> invokerOverride = new ThreadLocal<>();
+    /** One pass per journal at a time: the closing pass waits for a periodic pass still at work. */
+    private final Map<Path, Object> directoryLocks = new ConcurrentHashMap<>();
+    /** Runs a closing pass for a journal whose session just closed; null = on this summarizer's worker. */
+    private volatile Consumer<Path> closePassRunner;
     private ScheduledExecutorService scheduler;
     /** Command name → snippet name of a script the snippet manager knows; null when unknown. */
     private volatile java.util.function.Function<String, String> snippetLookup =
@@ -92,6 +116,11 @@ public class SessionJournalSummarizer {
         volatile boolean failurePlaceholderWritten;
         /** Set for the pass that runs when the session closes — the journal's last chance. */
         volatile boolean closingSession;
+        /** The session is closing: a periodic pass stops after its current window and leaves the rest. */
+        volatile boolean stopRequested;
+        /** Where the command with a "still running" entry starts, and when that entry was written. */
+        volatile long runningCardSeq = -1;
+        volatile long runningCardMillis;
         final AtomicBoolean busy = new AtomicBoolean();
     }
 
@@ -106,7 +135,33 @@ public class SessionJournalSummarizer {
         int omittedOutputLines,
         String firstCommand,
         /** The window's full, uncapped log text: what a summary's identifiers are checked against. */
-        String evidence) {
+        String evidence,
+        /** Lines left out of the middle of one long command's output; 0 when none were. */
+        int leftOutLines,
+        /** Null when its commands finished; RUNNING or ENDED_WITH_SESSION for the last one. */
+        SessionJournalCommandState commandState,
+        /** One long command read in consecutive parts, one AI call each; empty for a single call. */
+        List<Window> parts) {
+
+        Window {
+            parts = parts != null ? List.copyOf(parts) : List.of();
+        }
+
+        Window withState(SessionJournalCommandState state) {
+            return new Window(startSeq, endSeq, fromTime, toTime, inputLines, outputLines, omittedInputLines,
+                omittedOutputLines, firstCommand, evidence, leftOutLines, state, parts);
+        }
+    }
+
+    /**
+     * What one pass makes of the log after the last summarized sequence: the windows of finished
+     * commands, and the last command when it still runs (never while the session ended).
+     */
+    record Cut(List<Window> windows, Window running) {
+    }
+
+    /** A rendered stream cut to fit: the kept lines, with markers where lines were left out. */
+    record Condensed(List<String> lines, int leftOut) {
     }
 
     public SessionJournalSummarizer(SessionJournalService service) {
@@ -171,11 +226,43 @@ public class SessionJournalSummarizer {
         }
         SessionState state = sessions.remove(session);
         stopSchedulerIfIdle();
-        final SessionState closeState = state != null ? state : new SessionState();
-        closeState.closingSession = true;
+        if (state != null) {
+            state.stopRequested = true; // a periodic pass at work hands over after its current window
+        }
         final Path directory = session.getDirectory();
+        Consumer<Path> runner = closePassRunner;
+        if (runner != null) {
+            runner.accept(directory);
+            return;
+        }
+        final SessionState closeState = new SessionState();
+        closeState.closingSession = true;
         final boolean aiEnabled = session.isAiSummariesEnabled();
         workExecutor.submit(() -> runClosePass(directory, closeState, aiEnabled));
+    }
+
+    /**
+     * Hands the closing passes of closed sessions to {@code runner} — the application queues them in
+     * its background job, where the journal manager shows them. It must end in
+     * {@link #finishClosedJournal}. Null runs them on this summarizer's own worker.
+     */
+    public void setClosePassRunner(Consumer<Path> runner) {
+        this.closePassRunner = runner;
+    }
+
+    /**
+     * The closing pass of a journal whose session ended — closed, or left behind when korTTY quit
+     * or crashed: its last commands, the wrap-up and the AI title, with {@code invoker}. Journals
+     * recorded without AI summaries get raw entries. Clears the journal's finish marker.
+     */
+    public CompletableFuture<Void> finishClosedJournal(Path directory, SessionJournalAiSupport.AiInvoker invoker) {
+        boolean aiEnabled;
+        try {
+            aiEnabled = !service.loadDocument(directory).getMeta().isAiSummariesOff();
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return summarizeClosedJournal(directory, invoker, aiEnabled);
     }
 
     /** Manual "summarize now" for a live session; completes when the pass finished. */
@@ -245,6 +332,11 @@ public class SessionJournalSummarizer {
     /** True while an automation close pass for this journal is queued or running. */
     public boolean isPending(Path directory) {
         return directory != null && pendingClosePasses.contains(directory.toAbsolutePath().normalize());
+    }
+
+    /** The invoker of the journal profile, which the periodic and closing passes of live sessions use. */
+    SessionJournalAiSupport.AiInvoker journalInvoker() {
+        return aiInvoker;
     }
 
     private SessionJournalAiSupport.AiInvoker invoker() {
@@ -334,11 +426,25 @@ public class SessionJournalSummarizer {
     }
 
     /**
-     * Reads everything after the last summarized sequence, cuts it into one (newest window) or
-     * many (chunked mode) windows and turns each into a journal entry. Progress advances only on
-     * success, so failed windows retry on the next pass.
+     * Reads everything after the last summarized sequence, cuts it at command boundaries into
+     * windows and turns each into a journal entry. Progress advances only on success, so failed
+     * windows retry on the next pass. A command still running waits; after
+     * {@link #RUNNING_CARD_AFTER_MILLIS}, or when the user asks for a summary now, it gets an entry
+     * that says it still runs, without advancing.
      */
     private void processWindows(
+            Path directory,
+            SessionState state,
+            boolean sessionAiEnabled,
+            GlobalSettings settings,
+            boolean finalPass,
+            SessionJournalSession liveSessionOrNull) throws Exception {
+        synchronized (lockFor(directory)) {
+            processWindowsLocked(directory, state, sessionAiEnabled, settings, finalPass, liveSessionOrNull);
+        }
+    }
+
+    private void processWindowsLocked(
             Path directory,
             SessionState state,
             boolean sessionAiEnabled,
@@ -350,21 +456,12 @@ public class SessionJournalSummarizer {
             state.lastSummarizedSeq = document.getMeta().getLastSummarizedSeq();
         }
         List<SessionJournalLogEntry> newEntries = service.readLogAfter(directory, state.lastSummarizedSeq);
-        List<SessionJournalLogEntry> content = filterContentEntries(newEntries);
-        if (content.isEmpty()) {
-            return;
-        }
-        // Typos ("lnks: command not found") are no journal material; the range they occupied
-        // still counts as done, so the progress below always reaches the true end.
-        long contentEndSeq = content.get(content.size() - 1).seq();
-        content = SessionJournalTypoFilter.withoutNotFoundAttempts(content);
-        if (content.isEmpty()) {
-            state.lastSummarizedSeq = contentEndSeq;
-            service.updateLastSummarizedSeq(directory, contentEndSeq);
+        int contentLines = filterContentEntries(newEntries).size();
+        if (contentLines == 0) {
             return;
         }
         if (!finalPass && liveSessionOrNull != null
-                && content.size() < MIN_NEW_LINES
+                && contentLines < MIN_NEW_LINES
                 && System.currentTimeMillis() - liveSessionOrNull.getLastActivityMillis() < MIN_QUIET_MILLIS) {
             return; // a half-typed command is not worth a journal entry yet
         }
@@ -374,12 +471,16 @@ public class SessionJournalSummarizer {
             && invoker().isAvailable();
         String languageCode = document.getMeta().getAppLanguageCode();
 
-        List<Window> windows = cutWindows(content, contentEndSeq, settings);
+        Cut cut = cutWindows(newEntries, settings, liveSessionOrNull == null);
         String loginUser = document.getMeta().getUsername();
-        for (Window window : windows) {
+        for (Window window : cut.windows()) {
+            if (state.stopRequested && !finalPass) {
+                return; // the session closed: its closing pass takes over from here
+            }
             if (isIdle(window)) {
                 // Nothing was typed and nothing but the prompt was printed: no entry, but the
                 // range counts as done so it never comes back as "no activity".
+                dropRunningEntries(directory, window, null);
                 advanceProgress(directory, state, window);
                 continue;
             }
@@ -407,35 +508,318 @@ public class SessionJournalSummarizer {
                 advanceProgress(directory, state, window);
             } else {
                 handleFailure(directory, state);
-                break;
+                return;
+            }
+        }
+        Window running = cut.running();
+        if (running != null && !isIdle(running) && runningEntryDue(state, running, finalPass)) {
+            boolean ok = aiAvailable
+                ? summarizeWindowWithAi(directory, document, running, languageCode)
+                : writeRawEntry(directory, running, loginUser);
+            if (ok) {
+                state.runningCardSeq = running.startSeq();
+                state.runningCardMillis = System.currentTimeMillis();
             }
         }
     }
 
     /**
-     * The windows a pass cuts {@code content} into: one (newest window) or many (chunked mode); the
-     * last one reaches {@code contentEndSeq}, so a pass always covers the whole range it read.
+     * Whether a command still running gets its "still running" entry now: when it has run for
+     * {@link #RUNNING_CARD_AFTER_MILLIS} and its entry is that old (or missing), or when the user
+     * asked for a summary now ({@code forced}).
      */
-    private List<Window> cutWindows(List<SessionJournalLogEntry> content, long contentEndSeq, GlobalSettings settings) {
-        int maxLines = settings != null ? settings.getSessionJournalAiMaxLines() : 100;
-        int tokenBudget = settings != null ? settings.getSessionJournalAiTokenBudget() : 130_000;
-        boolean chunked = settings != null && settings.isSessionJournalAiChunkingEnabled();
-        List<Window> windows = new ArrayList<>(chunked
-            ? buildChunkedWindows(content, maxLines, tokenBudget)
-            : List.of(buildNewestWindow(content, maxLines, tokenBudget)));
-        Window last = windows.get(windows.size() - 1);
-        if (last.endSeq() < contentEndSeq) {
-            windows.set(windows.size() - 1, new Window(last.startSeq(), contentEndSeq, last.fromTime(),
-                last.toTime(), last.inputLines(), last.outputLines(), last.omittedInputLines(),
-                last.omittedOutputLines(), last.firstCommand(), last.evidence()));
+    private static boolean runningEntryDue(SessionState state, Window running, boolean forced) {
+        if (forced) {
+            return true;
         }
-        return windows;
+        long now = System.currentTimeMillis();
+        long started = running.fromTime() != null ? running.fromTime().toInstant().toEpochMilli() : now;
+        if (now - started < RUNNING_CARD_AFTER_MILLIS) {
+            return false;
+        }
+        return state.runningCardSeq != running.startSeq() || now - state.runningCardMillis >= RUNNING_CARD_AFTER_MILLIS;
+    }
+
+    private Object lockFor(Path directory) {
+        return directoryLocks.computeIfAbsent(directory.toAbsolutePath().normalize(), key -> new Object());
+    }
+
+    /**
+     * Cuts {@code entries} at command boundaries. Finished commands are grouped into windows within
+     * the line limit and the token budget; a command larger than that gets a window of its own,
+     * condensed — or read in parts in chunked mode — but never split over two entries. While the
+     * session lives ({@code sessionEnded} false) a command still running is held back as
+     * {@link Cut#running()}; at the session's end it is summarized as far as it got.
+     */
+    private Cut cutWindows(List<SessionJournalLogEntry> entries, GlobalSettings settings, boolean sessionEnded) {
+        int maxLines = settings != null ? settings.getSessionJournalAiMaxLines() : 100;
+        int budget = promptTokenBudget(settings != null ? settings.getSessionJournalAiTokenBudget() : 130_000);
+        boolean chunked = settings != null && settings.isSessionJournalAiChunkingEnabled();
+        List<SessionJournalCommandBlocks.Block> blocks = new ArrayList<>(SessionJournalCommandBlocks.cut(entries));
+        SessionJournalCommandBlocks.Block runningBlock = null;
+        boolean endedRunning = false;
+        if (!blocks.isEmpty() && !blocks.get(blocks.size() - 1).complete()) {
+            if (sessionEnded) {
+                endedRunning = true;
+            } else {
+                runningBlock = blocks.remove(blocks.size() - 1);
+            }
+        }
+        List<Window> windows = new ArrayList<>();
+        List<SessionJournalCommandBlocks.Block> group = new ArrayList<>();
+        List<SessionJournalLogEntry> groupContent = new ArrayList<>();
+        int groupInput = 0;
+        int groupOutput = 0;
+        int groupTokens = 0;
+        for (SessionJournalCommandBlocks.Block block : blocks) {
+            List<SessionJournalLogEntry> content = contentOf(block);
+            int input = 0;
+            int tokens = 0;
+            for (SessionJournalLogEntry entry : content) {
+                input += entry.kind() == SessionJournalLogEntry.Kind.IN ? 1 : 0;
+                tokens += AiTokenCounter.estimateTokens(renderLine(entry));
+            }
+            int output = content.size() - input;
+            if (!fits(input, output, tokens, maxLines, budget)) {
+                if (!group.isEmpty()) {
+                    windows.add(groupWindow(group, groupContent));
+                    group = new ArrayList<>();
+                    groupContent = new ArrayList<>();
+                    groupInput = groupOutput = groupTokens = 0;
+                }
+                windows.add(chunked
+                    ? partedWindow(block, content, maxLines, budget)
+                    : condensedWindow(block, content, maxLines, budget));
+                continue;
+            }
+            if (!group.isEmpty() && !fits(groupInput + input, groupOutput + output, groupTokens + tokens, maxLines, budget)) {
+                windows.add(groupWindow(group, groupContent));
+                group = new ArrayList<>();
+                groupContent = new ArrayList<>();
+                groupInput = groupOutput = groupTokens = 0;
+            }
+            group.add(block);
+            groupContent.addAll(content);
+            groupInput += input;
+            groupOutput += output;
+            groupTokens += tokens;
+        }
+        if (!group.isEmpty()) {
+            windows.add(groupWindow(group, groupContent));
+        }
+        if (endedRunning && !windows.isEmpty()) {
+            int last = windows.size() - 1;
+            windows.set(last, windows.get(last).withState(SessionJournalCommandState.ENDED_WITH_SESSION));
+        }
+        Window running = runningBlock != null
+            ? condensedWindow(runningBlock, contentOf(runningBlock), maxLines, budget)
+                .withState(SessionJournalCommandState.RUNNING)
+            : null;
+        return new Cut(windows, running);
+    }
+
+    private static boolean fits(int input, int output, int tokens, int maxLines, int budget) {
+        boolean linesFit = maxLines <= 0 || input <= maxLines && output <= maxLines;
+        return linesFit && tokens <= budget;
+    }
+
+    /**
+     * The entries of {@code block} that reach a prompt: without stale partial lines and pipeline
+     * notes, and without a mistyped command — the whole command when it was nothing but that.
+     * A command that only showed help ({@link SessionJournalHelpCommands}) has none at all.
+     */
+    private static List<SessionJournalLogEntry> contentOf(SessionJournalCommandBlocks.Block block) {
+        List<SessionJournalLogEntry> content =
+            SessionJournalTypoFilter.withoutNotFoundAttempts(filterContentEntries(block.entries()));
+        if (block.command() != null && SessionJournalHelpCommands.isHelpOnly(block.command(), content.stream()
+                .filter(entry -> entry.kind() != SessionJournalLogEntry.Kind.IN)
+                .map(SessionJournalLogEntry::text)
+                .toList())) {
+            return List.of();
+        }
+        if (block.command() != null
+                && content.stream().noneMatch(entry -> entry.kind() == SessionJournalLogEntry.Kind.IN)) {
+            // the command was a typo: its exit status says nothing either
+            content = content.stream().filter(entry -> entry.kind() != SessionJournalLogEntry.Kind.NOTE).toList();
+        }
+        return content;
+    }
+
+    /** The window of commands that fit together, covering their whole log range. */
+    private Window groupWindow(List<SessionJournalCommandBlocks.Block> group, List<SessionJournalLogEntry> content) {
+        List<String> inputLines = new ArrayList<>();
+        List<String> outputLines = new ArrayList<>();
+        split(content, inputLines, outputLines);
+        SessionJournalCommandBlocks.Block first = group.get(0);
+        SessionJournalCommandBlocks.Block last = group.get(group.size() - 1);
+        return new Window(first.startSeq(), last.endSeq(), first.startTime(), endTime(last),
+            inputLines, outputLines, 0, 0, firstCommandOf(group, inputLines, outputLines),
+            evidenceOf(content), 0, null, List.of());
+    }
+
+    /**
+     * One command too large for a window, as one prompt: all it was typed with and, of its output,
+     * the start, the notable lines from the middle and the end — the parts that tell what happened.
+     */
+    private Window condensedWindow(SessionJournalCommandBlocks.Block block, List<SessionJournalLogEntry> content,
+                                   int maxLines, int budget) {
+        List<String> inputLines = new ArrayList<>();
+        List<String> outputLines = new ArrayList<>();
+        split(content, inputLines, outputLines);
+        Condensed input = condense(inputLines, maxLines, budget / 4, List.of());
+        int inputTokens = 0;
+        for (String line : input.lines()) {
+            inputTokens += AiTokenCounter.estimateTokens(line);
+        }
+        Condensed output = condense(outputLines, maxLines, Math.max(500, budget - inputTokens), replyContext(content));
+        return new Window(block.startSeq(), block.endSeq(), block.startTime(), endTime(block),
+            input.lines(), output.lines(), input.leftOut(), 0,
+            firstCommandOf(List.of(block), inputLines, outputLines), evidenceOf(content),
+            output.leftOut(), null, List.of());
+    }
+
+    /**
+     * One command too large for a window, read whole in chunked mode: consecutive parts, one call
+     * each, that end in one entry. The window's own lines are the condensed view, for the excerpt.
+     */
+    private Window partedWindow(SessionJournalCommandBlocks.Block block, List<SessionJournalLogEntry> content,
+                                int maxLines, int budget) {
+        Window condensed = condensedWindow(block, content, maxLines, budget);
+        List<Window> parts = buildChunkedWindows(content, maxLines, budget);
+        return new Window(condensed.startSeq(), condensed.endSeq(), condensed.fromTime(), condensed.toTime(),
+            condensed.inputLines(), condensed.outputLines(), condensed.omittedInputLines(), 0,
+            condensed.firstCommand(), condensed.evidence(), 0, null, parts);
+    }
+
+    private static OffsetDateTime endTime(SessionJournalCommandBlocks.Block block) {
+        return block.entries().get(block.entries().size() - 1).timestamp();
+    }
+
+    private static void split(List<SessionJournalLogEntry> content, List<String> inputLines, List<String> outputLines) {
+        for (SessionJournalLogEntry entry : content) {
+            if (entry.kind() == SessionJournalLogEntry.Kind.IN) {
+                inputLines.add(renderLine(entry));
+            } else {
+                outputLines.add(renderLine(entry));
+            }
+        }
+    }
+
+    /**
+     * The output lines just before each line typed into the running command — what it asked, like
+     * dnf's transaction summary above "Is this ok [y/N]:" — nearest first, as output line indexes.
+     */
+    private static List<Integer> replyContext(List<SessionJournalLogEntry> content) {
+        List<Integer> anchors = new ArrayList<>();
+        int outputIndex = 0;
+        boolean commandSeen = false;
+        for (SessionJournalLogEntry entry : content) {
+            if (entry.kind() != SessionJournalLogEntry.Kind.IN) {
+                outputIndex++;
+                continue;
+            }
+            if (commandSeen) {
+                for (int back = 1; back <= REPLY_CONTEXT_LINES && outputIndex - back >= 0; back++) {
+                    anchors.add(outputIndex - back);
+                }
+            }
+            commandSeen = true;
+        }
+        return anchors;
+    }
+
+    /**
+     * {@code lines} cut to {@code maxLines} (0 = no line limit) and {@code tokenBudget}: the first
+     * lines, from the middle the {@code anchors} (output before a reply) and the notable lines
+     * ({@link #NOTABLE_LINE}, each text once), and the last lines, in order, with a marker where
+     * lines were left out.
+     */
+    static Condensed condense(List<String> lines, int maxLines, int tokenBudget, List<Integer> anchors) {
+        int lineCap = maxLines > 0 ? maxLines : Integer.MAX_VALUE;
+        int[] tokens = new int[lines.size()];
+        int total = 0;
+        for (int i = 0; i < lines.size(); i++) {
+            tokens[i] = AiTokenCounter.estimateTokens(lines.get(i));
+            total += tokens[i];
+        }
+        if (lines.size() <= lineCap && total <= tokenBudget) {
+            return new Condensed(List.copyOf(lines), 0);
+        }
+        boolean[] keep = new boolean[lines.size()];
+        int head = take(keep, tokens, 0, lines.size(), 1, share(lineCap, HEAD_SHARE), (int) (tokenBudget * HEAD_SHARE));
+        int tail = take(keep, tokens, lines.size() - 1, head - 1, -1,
+            share(lineCap, 1 - HEAD_SHARE - NOTABLE_SHARE), (int) (tokenBudget * (1 - HEAD_SHARE - NOTABLE_SHARE)));
+        int notableLines = share(lineCap, NOTABLE_SHARE);
+        int notableTokens = (int) (tokenBudget * NOTABLE_SHARE);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i : anchors) {
+            if (i >= head && i <= tail && !keep[i] && notableLines > 0 && tokens[i] <= notableTokens) {
+                keep[i] = true;
+                seen.add(lines.get(i).strip());
+                notableLines--;
+                notableTokens -= tokens[i];
+            }
+        }
+        for (int i = head; i <= tail && notableLines > 0; i++) {
+            String line = lines.get(i);
+            if (!keep[i] && tokens[i] <= notableTokens && NOTABLE_LINE.matcher(line).find() && seen.add(line.strip())) {
+                keep[i] = true;
+                notableLines--;
+                notableTokens -= tokens[i];
+            }
+        }
+        List<String> result = new ArrayList<>();
+        int leftOut = 0;
+        int gap = 0;
+        for (int i = 0; i < lines.size(); i++) {
+            if (!keep[i]) {
+                gap++;
+                continue;
+            }
+            if (gap > 0) {
+                result.add(leftOutMarker(gap));
+                leftOut += gap;
+                gap = 0;
+            }
+            result.add(lines.get(i));
+        }
+        if (gap > 0) {
+            result.add(leftOutMarker(gap));
+            leftOut += gap;
+        }
+        return new Condensed(result, leftOut);
+    }
+
+    private static String leftOutMarker(int lines) {
+        return "[... " + lines + " lines left out ...]";
+    }
+
+    private static int share(int lineCap, double share) {
+        return lineCap == Integer.MAX_VALUE ? Integer.MAX_VALUE : Math.max(1, (int) (lineCap * share));
+    }
+
+    /**
+     * Keeps lines from {@code from} towards {@code stop} (exclusive) while both caps allow; returns
+     * the first index not taken.
+     */
+    private static int take(boolean[] keep, int[] tokens, int from, int stop, int step, int lineCap, int tokenCap) {
+        int i = from;
+        int lines = 0;
+        int used = 0;
+        while (i != stop && lines < lineCap && used + tokens[i] <= tokenCap) {
+            keep[i] = true;
+            used += tokens[i];
+            lines++;
+            i += step;
+        }
+        return i;
     }
 
     /**
      * The AI calls a re-evaluation of a closed journal makes, in order: one per window that is not
-     * idle (with the size of its log text), then the wrap-up and the AI title when they would run.
-     * {@code windowPromptChars} is empty when the AI summaries are switched off.
+     * idle (with the size of its log text; a command read in parts makes one per part), then the
+     * wrap-up and the AI title when they would run. {@code windowPromptChars} is empty when the AI
+     * summaries are switched off.
      */
     public record ReevaluationPlan(List<Integer> windowPromptChars, boolean wrapUp, boolean title) {
         public ReevaluationPlan {
@@ -453,20 +837,34 @@ public class SessionJournalSummarizer {
      * pass will after the reset; makes no call and changes nothing.
      */
     public ReevaluationPlan planReevaluation(Path directory) throws IOException {
+        return plan(directory, 0);
+    }
+
+    /** Plans {@link #finishClosedJournal}: the calls for the log after the last summarized sequence. */
+    public ReevaluationPlan planFinish(Path directory) throws IOException {
+        SessionJournalDocument document = service.loadDocument(directory);
+        if (document.getMeta().isAiSummariesOff()) {
+            return new ReevaluationPlan(List.of(), false, false);
+        }
+        return plan(directory, document.getMeta().getLastSummarizedSeq());
+    }
+
+    private ReevaluationPlan plan(Path directory, long afterSeq) throws IOException {
         GlobalSettings settings = settingsSupplier.get();
         if (settings != null && !settings.isSessionJournalAiSummariesEnabled()) {
             return new ReevaluationPlan(List.of(), false, false);
         }
         List<Integer> windowChars = new ArrayList<>();
-        List<SessionJournalLogEntry> content = filterContentEntries(service.readLogAfter(directory, 0));
-        if (!content.isEmpty()) {
-            long contentEndSeq = content.get(content.size() - 1).seq();
-            content = SessionJournalTypoFilter.withoutNotFoundAttempts(content);
-            if (!content.isEmpty()) {
-                for (Window window : cutWindows(content, contentEndSeq, settings)) {
-                    if (!isIdle(window)) {
-                        windowChars.add(promptChars(window));
-                    }
+        List<SessionJournalLogEntry> entries = service.readLogAfter(directory, afterSeq);
+        if (!filterContentEntries(entries).isEmpty()) {
+            for (Window window : cutWindows(entries, settings, true).windows()) {
+                if (isIdle(window)) {
+                    continue;
+                }
+                if (window.parts().isEmpty()) {
+                    windowChars.add(promptChars(window));
+                } else {
+                    window.parts().forEach(part -> windowChars.add(promptChars(part)));
                 }
             }
         }
@@ -474,6 +872,7 @@ public class SessionJournalSummarizer {
         // The wrap-up needs at least one line to work from: a window summary, a note or a described screenshot.
         boolean wrapUp = !windowChars.isEmpty() || document.getEntries().stream().anyMatch(entry ->
             entry.getKind() == SessionJournalEntryKind.USER_NOTE
+                || entry.getKind() == SessionJournalEntryKind.AI_SUMMARY && afterSeq > 0
                 || entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.hasAiAnalysis());
         boolean title = settings != null && settings.isSessionJournalAiTitleEnabled() && titleLooksDefault(document);
         return new ReevaluationPlan(windowChars, wrapUp, title);
@@ -498,12 +897,28 @@ public class SessionJournalSummarizer {
     }
 
     /**
+     * Removes the "still running" entries of the commands in {@code window} — the window now
+     * describes them as they ended (or found nothing to say).
+     */
+    private void dropRunningEntries(Path directory, Window window, String exceptId) {
+        try {
+            service.removeEntries(directory, entry -> entry.getCommandState() == SessionJournalCommandState.RUNNING
+                && !entry.getId().equals(exceptId)
+                && entry.getLogStartSeq() != null
+                && entry.getLogStartSeq() >= window.startSeq() && entry.getLogStartSeq() <= window.endSeq());
+        } catch (IOException e) {
+            logger.warn("Could not remove the running-command entry of {}: {}", directory.getFileName(), e.getMessage());
+        }
+    }
+
+    /**
      * True when the window holds no activity: no typed input (hidden input counts as typed), no
-     * screenshot, and no output beyond blank lines and bare shell prompts. Omitted lines count as
-     * activity — the window was too big to be idle.
+     * screenshot, and no output beyond blank lines, bare shell prompts and exit statuses. Omitted
+     * lines count as activity — the window was too big to be idle.
      */
     static boolean isIdle(Window window) {
-        if (window.omittedInputLines() > 0 || window.omittedOutputLines() > 0) {
+        if (window.omittedInputLines() > 0 || window.omittedOutputLines() > 0 || window.leftOutLines() > 0
+                || !window.parts().isEmpty()) {
             return false;
         }
         for (String line : window.inputLines()) {
@@ -512,14 +927,18 @@ public class SessionJournalSummarizer {
             }
         }
         for (String line : window.outputLines()) {
-            if (SCREENSHOT_MARKER.equals(line) || !SessionJournalShellPrompts.isIdleLine(line)) {
+            if (SCREENSHOT_MARKER.equals(line)
+                    || !SessionJournalShellPrompts.isIdleLine(line) && !EXIT_STATUS_LINE.matcher(line).matches()) {
                 return false;
             }
         }
         return true;
     }
 
-    /** OUT/SEED/IN/SCREENSHOT entries that carry journal-relevant content; NOTEs are skipped. */
+    /**
+     * OUT/SEED/IN/SCREENSHOT entries that carry journal-relevant content, plus the shell's exit
+     * statuses; other NOTEs are skipped.
+     */
     private static List<SessionJournalLogEntry> filterContentEntries(List<SessionJournalLogEntry> entries) {
         long lastOutputSeq = entries.stream()
             .filter(e -> e.kind() == SessionJournalLogEntry.Kind.OUT
@@ -539,64 +958,19 @@ public class SessionJournalSummarizer {
                 }
                 case IN, SCREENSHOT -> result.add(entry);
                 case NOTE -> {
-                    // pipeline markers are not session content
+                    // pipeline markers are not session content; an exit status the shell reported is
+                    if (SessionJournalCommandBlocks.exitStatusOf(entry) != null
+                            && SessionJournalCommandBlocks.isFinishedNote(entry)) {
+                        result.add(entry);
+                    }
                 }
             }
         }
         return result;
     }
 
-    /**
-     * Newest-window mode: the entry covers the FULL new range, but only the newest lines (per
-     * stream, capped by line limit and token budget) reach the prompt; older overflow is noted.
-     */
-    private Window buildNewestWindow(List<SessionJournalLogEntry> content, int maxLines, int tokenBudget) {
-        int effectiveBudget = promptTokenBudget(tokenBudget);
-        List<String> inputReversed = new ArrayList<>();
-        List<String> outputReversed = new ArrayList<>();
-        int totalInput = 0;
-        int totalOutput = 0;
-        int usedTokens = 0;
-        for (int i = content.size() - 1; i >= 0; i--) {
-            SessionJournalLogEntry entry = content.get(i);
-            boolean isInput = entry.kind() == SessionJournalLogEntry.Kind.IN;
-            if (isInput) {
-                totalInput++;
-            } else {
-                totalOutput++;
-            }
-            String line = renderLine(entry);
-            int lineTokens = AiTokenCounter.estimateTokens(line);
-            List<String> target = isInput ? inputReversed : outputReversed;
-            boolean lineLimitReached = maxLines > 0 && target.size() >= maxLines;
-            boolean budgetReached = usedTokens + lineTokens > effectiveBudget;
-            if (lineLimitReached || budgetReached) {
-                continue; // keep counting omitted lines but stop collecting for this stream
-            }
-            target.add(line);
-            usedTokens += lineTokens;
-        }
-        List<String> inputLines = reversed(inputReversed);
-        List<String> outputLines = reversed(outputReversed);
-        return new Window(
-            content.get(0).seq(),
-            content.get(content.size() - 1).seq(),
-            content.get(0).timestamp(),
-            content.get(content.size() - 1).timestamp(),
-            inputLines,
-            outputLines,
-            totalInput - inputLines.size(),
-            totalOutput - outputLines.size(),
-            firstCommandOf(inputLines, outputLines),
-            evidenceOf(content));
-    }
-
-    /**
-     * Chunked mode (power users): the whole backlog is cut into consecutive windows of the
-     * configured size and each window becomes its own prompt and entry — nothing is dropped.
-     */
-    private List<Window> buildChunkedWindows(List<SessionJournalLogEntry> content, int maxLines, int tokenBudget) {
-        int effectiveBudget = promptTokenBudget(tokenBudget);
+    /** Consecutive parts of {@code content}, each within the line limit and the (prompt) token budget. */
+    private List<Window> buildChunkedWindows(List<SessionJournalLogEntry> content, int maxLines, int budget) {
         List<Window> windows = new ArrayList<>();
         List<SessionJournalLogEntry> current = new ArrayList<>();
         int inputCount = 0;
@@ -607,7 +981,7 @@ public class SessionJournalSummarizer {
             int lineTokens = AiTokenCounter.estimateTokens(line);
             boolean lineLimitReached = maxLines > 0
                 && (inputCount >= maxLines || outputCount >= maxLines);
-            boolean budgetReached = !current.isEmpty() && usedTokens + lineTokens > effectiveBudget;
+            boolean budgetReached = !current.isEmpty() && usedTokens + lineTokens > budget;
             if (lineLimitReached || budgetReached) {
                 windows.add(windowFromEntries(current));
                 current = new ArrayList<>();
@@ -632,13 +1006,7 @@ public class SessionJournalSummarizer {
     private Window windowFromEntries(List<SessionJournalLogEntry> entries) {
         List<String> inputLines = new ArrayList<>();
         List<String> outputLines = new ArrayList<>();
-        for (SessionJournalLogEntry entry : entries) {
-            if (entry.kind() == SessionJournalLogEntry.Kind.IN) {
-                inputLines.add(renderLine(entry));
-            } else {
-                outputLines.add(renderLine(entry));
-            }
-        }
+        split(entries, inputLines, outputLines);
         return new Window(
             entries.get(0).seq(),
             entries.get(entries.size() - 1).seq(),
@@ -649,7 +1017,10 @@ public class SessionJournalSummarizer {
             0,
             0,
             firstCommandOf(inputLines, outputLines),
-            evidenceOf(entries));
+            evidenceOf(entries),
+            0,
+            null,
+            List.of());
     }
 
     /** Reserve a quarter of the budget for prompt scaffolding and the model's reply. */
@@ -660,6 +1031,10 @@ public class SessionJournalSummarizer {
     private static String renderLine(SessionJournalLogEntry entry) {
         if (entry.kind() == SessionJournalLogEntry.Kind.SCREENSHOT) {
             return SCREENSHOT_MARKER;
+        }
+        if (entry.kind() == SessionJournalLogEntry.Kind.NOTE) {
+            Integer exitStatus = SessionJournalCommandBlocks.exitStatusOf(entry);
+            return exitStatus != null ? "[exit status " + exitStatus + "]" : "";
         }
         if (entry.redacted()) {
             return HIDDEN_INPUT_MARKER;
@@ -709,6 +1084,22 @@ public class SessionJournalSummarizer {
         return evidence.toString();
     }
 
+    /**
+     * The first command typed in {@code blocks} that reached the prompt — not a typo or a help call
+     * left out of it; else the first input or output line.
+     */
+    private static String firstCommandOf(List<SessionJournalCommandBlocks.Block> blocks,
+                                         List<String> inputLines, List<String> outputLines) {
+        for (SessionJournalCommandBlocks.Block block : blocks) {
+            String command = block.command() != null ? capLine(block.command(), LINE_CHAR_CAP) : null;
+            if (command != null && !command.isBlank()
+                    && inputLines.stream().anyMatch(line -> line.strip().equals(command))) {
+                return command;
+            }
+        }
+        return firstCommandOf(inputLines, outputLines);
+    }
+
     private static String firstCommandOf(List<String> inputLines, List<String> outputLines) {
         for (String line : inputLines) {
             if (!line.isBlank() && !HIDDEN_INPUT_MARKER.equals(line)) {
@@ -723,23 +1114,16 @@ public class SessionJournalSummarizer {
     private boolean summarizeWindowWithAi(
             Path directory, SessionJournalDocument document, Window window, String languageCode) {
         try {
-            String systemPrompt = SessionJournalPrompts.summarySystemPrompt(languageCode);
-            String userPrompt = SessionJournalPrompts.summaryUserPrompt(
-                document.getMeta().getUsername(),
-                document.getMeta().getHost(),
-                window.fromTime(),
-                window.toTime(),
-                window.omittedOutputLines(),
-                window.omittedInputLines(),
-                window.inputLines(),
-                window.outputLines());
-            AiExecutionResult result = executeWithTimeout(directory, systemPrompt, userPrompt);
-            SessionJournalAiSupport.SummaryResult parsed =
-                SessionJournalAiSupport.parseSummaryResult(result != null ? result.content() : null);
+            SessionJournalAiSupport.SummaryResult parsed = window.parts().isEmpty()
+                ? askForSummary(directory, document, window, notesFor(window), null, languageCode)
+                : summarizeInParts(directory, document, window, languageCode);
             if (parsed == null) {
                 return false;
             }
             if (parsed.skip()) {
+                if (window.commandState() != SessionJournalCommandState.RUNNING) {
+                    dropRunningEntries(directory, window, null);
+                }
                 return true; // the model saw no activity: the range is done, without an entry
             }
             String loginUser = document.getMeta().getUsername();
@@ -764,12 +1148,108 @@ public class SessionJournalSummarizer {
             entry.setMarker(SessionJournalMarker.fromAiCategory(parsed.category()));
             entry.setRunAsUser(runAsUser(window, loginUser, parsed.runAs()));
             entry.setCommands(SessionJournalCommandInfos.from(parsed.commands(), snippetLookup));
-            service.appendEntry(directory, entry);
+            appendWindowEntry(directory, window, entry);
             return true;
         } catch (Exception e) {
             logger.warn("Session journal AI summary failed for {}: {}", directory.getFileName(), e.getMessage());
             return false;
         }
+    }
+
+    /** One window prompt and its parsed reply; null when the call failed or the reply was unusable. */
+    private SessionJournalAiSupport.SummaryResult askForSummary(Path directory, SessionJournalDocument document,
+            Window window, List<String> notes, String earlierEntry, String languageCode) throws Exception {
+        String systemPrompt = SessionJournalPrompts.summarySystemPrompt(languageCode);
+        String userPrompt = SessionJournalPrompts.summaryUserPrompt(
+            document.getMeta().getUsername(),
+            document.getMeta().getHost(),
+            window.fromTime(),
+            window.toTime(),
+            window.omittedOutputLines(),
+            window.omittedInputLines(),
+            notes,
+            earlierEntry,
+            window.inputLines(),
+            window.outputLines());
+        AiExecutionResult result = executeWithTimeout(directory, systemPrompt, userPrompt);
+        return SessionJournalAiSupport.parseSummaryResult(result != null ? result.content() : null);
+    }
+
+    /**
+     * A command read in parts: each call gets the next part and the entry so far, and returns the
+     * entry for everything up to there. The commands named along the way are kept; a part the model
+     * found nothing in leaves the entry as it was.
+     */
+    private SessionJournalAiSupport.SummaryResult summarizeInParts(Path directory, SessionJournalDocument document,
+            Window window, String languageCode) throws Exception {
+        SessionJournalAiSupport.SummaryResult soFar = null;
+        Map<String, SessionJournalAiSupport.CommandMention> commands = new java.util.LinkedHashMap<>();
+        String runAs = null;
+        int count = window.parts().size();
+        for (int i = 0; i < count; i++) {
+            if (i > 0 && invoker().isCancelled()) {
+                return null;
+            }
+            List<String> notes = new ArrayList<>();
+            notes.add("This is part " + (i + 1) + " of " + count + " of the output of one long command."
+                + (soFar != null ? " Return one entry that covers all parts so far: keep the facts of the"
+                    + " earlier entry and add what this part shows." : ""));
+            if (i == count - 1) {
+                notes.addAll(notesFor(window));
+            }
+            SessionJournalAiSupport.SummaryResult parsed = askForSummary(directory, document, window.parts().get(i),
+                notes, soFar != null ? earlierEntryText(soFar) : null, languageCode);
+            if (parsed == null) {
+                return null;
+            }
+            if (parsed.skip()) {
+                continue;
+            }
+            soFar = parsed;
+            for (SessionJournalAiSupport.CommandMention command : parsed.commands()) {
+                if (command.name() != null) {
+                    commands.putIfAbsent(command.name().toLowerCase(java.util.Locale.ROOT), command);
+                }
+            }
+            runAs = runAs != null ? runAs : parsed.runAs();
+        }
+        if (soFar == null) {
+            return SessionJournalAiSupport.SummaryResult.skipped();
+        }
+        return new SessionJournalAiSupport.SummaryResult(soFar.title(), soFar.summary(), soFar.category(),
+            soFar.keywords(), runAs, List.copyOf(commands.values()), false);
+    }
+
+    private static String earlierEntryText(SessionJournalAiSupport.SummaryResult entry) {
+        return "Title: " + nullToEmpty(entry.title()) + "\nSummary: " + nullToEmpty(entry.summary())
+            + "\nCategory: " + nullToEmpty(entry.category());
+    }
+
+    /** What the model must know about how {@code window} was cut. */
+    private static List<String> notesFor(Window window) {
+        List<String> notes = new ArrayList<>();
+        if (window.leftOutLines() > 0) {
+            notes.add("The excerpt is one command. " + window.leftOutLines() + " lines from the middle of its"
+                + " output were left out where marked; the lines that report errors or warnings were kept.");
+        }
+        if (window.commandState() == SessionJournalCommandState.RUNNING) {
+            notes.add("The command was still running when this excerpt was taken. Describe what it has done so"
+                + " far; do not say it finished or failed unless the output shows it.");
+        } else if (window.commandState() == SessionJournalCommandState.ENDED_WITH_SESSION) {
+            notes.add("The session ended before the shell showed its prompt again after the last command."
+                + " If its output shows no end, say that it was still running when the session ended.");
+        }
+        return notes;
+    }
+
+    /**
+     * Appends the entry for {@code window} and removes the "still running" entries it replaces —
+     * of its commands, or the older one of the same running command.
+     */
+    private void appendWindowEntry(Path directory, Window window, SessionJournalEntry entry) throws IOException {
+        entry.setCommandState(window.commandState());
+        service.appendEntry(directory, entry);
+        dropRunningEntries(directory, window, entry.getId());
     }
 
     /**
@@ -778,7 +1258,8 @@ public class SessionJournalSummarizer {
      * was recognised, and only when it names a plausible login name.
      */
     static String runAsUser(Window window, String loginUser, String aiRunAs) {
-        String fromPrompts = SessionJournalShellPrompts.switchedUser(window.outputLines(), loginUser);
+        // the whole log of the window: a condensed one may have left the prompt after "sudo -i" out
+        String fromPrompts = SessionJournalShellPrompts.switchedUser(window.evidence().lines().toList(), loginUser);
         if (fromPrompts != null) {
             return fromPrompts;
         }
@@ -801,7 +1282,7 @@ public class SessionJournalSummarizer {
             entry.setTitle(SessionJournalAiSupport.normalizeTitle(
                 fallbackTitle(window), i18n("journal.summary.raw.title"), TITLE_MAX_CHARS));
             entry.setText(i18n("journal.summary.raw.text"));
-            service.appendEntry(directory, entry);
+            appendWindowEntry(directory, window, entry);
             return true;
         } catch (Exception e) {
             logger.warn("Session journal raw entry failed for {}: {}", directory.getFileName(), e.getMessage());
@@ -884,26 +1365,70 @@ public class SessionJournalSummarizer {
     private void runClosePass(Path directory, SessionState state, boolean aiEnabled) {
         try {
             waitUntilClosed(directory);
-            GlobalSettings settings = settingsSupplier.get();
-            processWindows(directory, state, aiEnabled, settings, true, null);
-
-            boolean aiAvailable = aiEnabled
-                && (settings == null || settings.isSessionJournalAiSummariesEnabled())
-                && invoker().isAvailable();
-            if (!aiAvailable || invoker().isCancelled()) {
+            if (service.isLive(directory)) {
+                // Still recording — a journal found at start-up just as it was created: its own end finishes it.
+                logger.info("Session journal {} still records; its closing pass waits for its end", directory.getFileName());
                 return;
             }
-            SessionJournalDocument document = service.loadDocument(directory);
-            List<String> entryLines = collectEntryLines(document);
-            if (!entryLines.isEmpty()) {
-                writeSessionSummary(directory, document, entryLines);
+            synchronized (lockFor(directory)) {
+                // a periodic pass of the closed session ends its current window before this one starts
+                closePassLocked(directory, state, aiEnabled);
             }
-            boolean aiTitleWanted = settings != null && settings.isSessionJournalAiTitleEnabled();
-            if (aiTitleWanted && !invoker().isCancelled() && titleLooksDefault(document)) {
-                writeAiTitle(directory, document, entryLines);
-            }
+            service.setFinishPending(directory, false);
         } catch (Exception e) {
             logger.warn("Session journal close pass failed for {}: {}", directory.getFileName(), e.getMessage());
+        }
+    }
+
+    private void closePassLocked(Path directory, SessionState state, boolean aiEnabled) throws Exception {
+        service.finalizeAbandoned(directory);
+        dropEntriesBeyondProgress(directory);
+        GlobalSettings settings = settingsSupplier.get();
+        processWindowsLocked(directory, state, aiEnabled, settings, true, null);
+        updateCommandCount(directory);
+
+        boolean aiAvailable = aiEnabled
+            && (settings == null || settings.isSessionJournalAiSummariesEnabled())
+            && invoker().isAvailable();
+        if (!aiAvailable || invoker().isCancelled()) {
+            return;
+        }
+        SessionJournalDocument document = service.loadDocument(directory);
+        List<String> entryLines = collectEntryLines(document);
+        if (!entryLines.isEmpty()) {
+            writeSessionSummary(directory, document, entryLines);
+        }
+        boolean aiTitleWanted = settings != null && settings.isSessionJournalAiTitleEnabled();
+        if (aiTitleWanted && !invoker().isCancelled() && titleLooksDefault(document)) {
+            writeAiTitle(directory, document, entryLines);
+        }
+    }
+
+    /**
+     * Removes the window entries after the progress marker — a "still running" entry, the raw
+     * fallback of a closing pass whose AI failed, an entry written just before korTTY quit and its
+     * progress was saved: the pass that follows writes them again.
+     */
+    private void dropEntriesBeyondProgress(Path directory) throws IOException {
+        long done = service.loadDocument(directory).getMeta().getLastSummarizedSeq();
+        service.removeEntries(directory, entry -> entry.getKind() == SessionJournalEntryKind.AI_SUMMARY
+            && entry.getLogStartSeq() != null && entry.getLogStartSeq() > done);
+    }
+
+    /**
+     * Counts the commands for the journal header: lines typed at a shell prompt, without mistyped
+     * commands, commands that only showed help, and replies to a running program (a password, the
+     * "y" for a question).
+     */
+    private void updateCommandCount(Path directory) {
+        try {
+            long commands = SessionJournalCommandBlocks.cut(service.readLogAfter(directory, 0)).stream()
+                .filter(block -> block.command() != null)
+                .filter(block -> contentOf(block).stream().anyMatch(entry -> entry.kind() == SessionJournalLogEntry.Kind.IN))
+                .count();
+            service.updateCommandCount(directory, commands);
+        } catch (IOException e) {
+            logger.warn("Could not count the commands of {}: {}", directory.getFileName(), e.getMessage());
         }
     }
 
@@ -993,6 +1518,8 @@ public class SessionJournalSummarizer {
             entry.setText(checked.text() + "\n\n" + closingLine(document));
             entry.setCommands(sessionCommands(document));
             entry.setMarker(SessionJournalMarker.fromAiCategory(parsed.category()));
+            // a journal finished again (after a restart, a catch-up) keeps one wrap-up: the new one
+            service.removeEntries(directory, old -> old.getKind() == SessionJournalEntryKind.SESSION_SUMMARY);
             service.appendEntry(directory, entry);
             if (!parsed.keywords().isEmpty()) {
                 // Identifiers must match the journal text exactly — a model-mangled script name

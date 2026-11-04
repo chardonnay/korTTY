@@ -660,6 +660,16 @@ public final class SessionJournalHtmlRenderer {
             html.append("<span class=\"state-tag agent-tag\">")
                 .append(escapeHtml(i18n("journal.html.agent", "AI agent"))).append("</span>");
         }
+        if (entry.getCommandState() == de.kortty.model.SessionJournalCommandState.RUNNING) {
+            html.append("<span class=\"state-tag running-tag\">")
+                .append(escapeHtml(i18n("journal.html.command.running", "still running"))).append("</span>");
+        } else if (entry.getCommandState() == de.kortty.model.SessionJournalCommandState.ENDED_WITH_SESSION) {
+            html.append("<span class=\"state-tag\" title=\"")
+                .append(escapeAttr(i18n("journal.html.command.endedWithSession.tooltip",
+                    "The session ended before the shell showed its prompt again")))
+                .append("\">").append(escapeHtml(i18n("journal.html.command.endedWithSession", "session ended")))
+                .append("</span>");
+        }
         if (hasChat(entry)) {
             html.append("<span class=\"state-tag chat-tag\">")
                 .append(escapeHtml(i18n("journal.html.chat.tag", "KI-Chat"))).append("</span>");
@@ -1188,6 +1198,7 @@ public final class SessionJournalHtmlRenderer {
             .agent-entry .card{border-left:3px solid var(--info)}
             .state-tag.agent-tag{color:var(--info);border-color:var(--info)}
             .state-tag.chat-tag{color:var(--accent);border-color:var(--accent)}
+            .state-tag.running-tag{color:var(--imp);border-color:var(--imp)}
             .chat-open-btn{border:1px solid var(--border);background:var(--surface2);color:var(--accent);
               border-radius:6px;padding:2px 8px;font-size:.8em;font-family:inherit;cursor:pointer;white-space:nowrap}
             .chat-open-btn:hover{border-color:var(--accent)}
@@ -1266,6 +1277,13 @@ public final class SessionJournalHtmlRenderer {
               background:color-mix(in srgb,var(--muted) 75%,var(--surface));border-radius:6px}
             html::-webkit-scrollbar-thumb,.log-body::-webkit-scrollbar-thumb{
               border:2px solid transparent;background-clip:padding-box}
+            /* A long log shrinks the thumb in proportion — to 3 px for 4 000 lines: keep it big enough to grab. */
+            html::-webkit-scrollbar-thumb:vertical,.excerpt::-webkit-scrollbar-thumb:vertical,
+              .chat-text pre::-webkit-scrollbar-thumb:vertical,.chat-step-output::-webkit-scrollbar-thumb:vertical,
+              .log-body::-webkit-scrollbar-thumb:vertical{min-height:40px}
+            html::-webkit-scrollbar-thumb:horizontal,.excerpt::-webkit-scrollbar-thumb:horizontal,
+              .chat-text pre::-webkit-scrollbar-thumb:horizontal,.chat-step-output::-webkit-scrollbar-thumb:horizontal,
+              .log-body::-webkit-scrollbar-thumb:horizontal{min-width:40px}
             html::-webkit-scrollbar-thumb:hover,.excerpt::-webkit-scrollbar-thumb:hover,
               .chat-text pre::-webkit-scrollbar-thumb:hover,.chat-step-output::-webkit-scrollbar-thumb:hover,
               .log-body::-webkit-scrollbar-thumb:hover{background-color:var(--muted)}

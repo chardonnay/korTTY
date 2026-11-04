@@ -22,8 +22,13 @@ public final class SessionJournalAnsiProcessor {
     /** Force-emit guard against binary floods (e.g. cat-ing a binary file). */
     static final int MAX_LINE_CHARS = 16 * 1024;
 
+    /** Longest OSC payload kept for {@link #shellMarkSink}; the marks it wants are a few characters. */
+    private static final int MAX_MARK_CHARS = 32;
+
     private final Consumer<EmittedLine> sink;
+    private final Consumer<String> shellMarkSink;
     private final StringBuilder line = new StringBuilder(256);
+    private final StringBuilder osc = new StringBuilder(MAX_MARK_CHARS);
     private EscState escState = EscState.NONE;
     private boolean overwritePending;
     private boolean lastEmittedBlank;
@@ -31,7 +36,16 @@ public final class SessionJournalAnsiProcessor {
     private long lastAppendNanos;
 
     public SessionJournalAnsiProcessor(Consumer<EmittedLine> sink) {
+        this(sink, null);
+    }
+
+    /**
+     * @param shellMarkSink receives the payload of every shell integration mark ({@code OSC 133;…}),
+     *                      e.g. {@code "133;D;0"}, at its place in the stream; may be null
+     */
+    public SessionJournalAnsiProcessor(Consumer<EmittedLine> sink, Consumer<String> shellMarkSink) {
         this.sink = sink;
+        this.shellMarkSink = shellMarkSink;
     }
 
     /** Processes a decoded output chunk (may split escape sequences and UTF-8 lines arbitrarily). */
@@ -71,6 +85,13 @@ public final class SessionJournalAnsiProcessor {
         sink.accept(new EmittedLine(text, true));
     }
 
+    private void oscEnded() {
+        if (shellMarkSink != null && osc.length() < MAX_MARK_CHARS && osc.indexOf("133;") == 0) {
+            shellMarkSink.accept(osc.toString());
+        }
+        osc.setLength(0);
+    }
+
     /** Final flush on session close: whatever is pending becomes a normal line. */
     public synchronized void flushRemaining() {
         if (line.length() > 0) {
@@ -83,7 +104,10 @@ public final class SessionJournalAnsiProcessor {
             case ESC -> {
                 switch (c) {
                     case '[' -> escState = EscState.CSI;
-                    case ']' -> escState = EscState.OSC;
+                    case ']' -> {
+                        escState = EscState.OSC;
+                        osc.setLength(0);
+                    }
                     case 'P', 'X', '^', '_' -> escState = EscState.DCS;
                     case 'O' -> escState = EscState.SS3;
                     case '(', ')', '*', '+' -> escState = EscState.CHARSET;
@@ -100,13 +124,19 @@ public final class SessionJournalAnsiProcessor {
             case OSC -> {
                 if (c == 0x07) {
                     escState = EscState.NONE;
+                    oscEnded();
                 } else if (c == 0x1B) {
                     escState = EscState.OSC_ESC;
+                } else if (osc.length() < MAX_MARK_CHARS) {
+                    osc.append(c);
                 }
                 return;
             }
             case OSC_ESC -> {
                 escState = c == '\\' ? EscState.NONE : EscState.OSC;
+                if (escState == EscState.NONE) {
+                    oscEnded();
+                }
                 return;
             }
             case DCS -> {

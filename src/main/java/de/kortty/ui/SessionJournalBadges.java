@@ -100,7 +100,7 @@ public final class SessionJournalBadges {
         return badges;
     }
 
-    /** The pill of a row the background re-evaluation works on or waits for; null for the others. */
+    /** The pill of a row the background job re-evaluates or finishes, or that waits for it; null for the others. */
     public static Badge reevaluation(de.kortty.core.SessionJournalReevaluationJob.JournalState state) {
         if (state == null) {
             return null;
@@ -108,6 +108,8 @@ public final class SessionJournalBadges {
         return switch (state) {
             case RUNNING -> new Badge("↻ " + I18n.get("journal.manager.badge.reevaluating"), Tone.INFO);
             case WAITING -> new Badge(I18n.get("journal.manager.badge.reevaluateWaiting"), Tone.NEUTRAL);
+            case FINISHING -> new Badge("↻ " + I18n.get("journal.manager.badge.finishing"), Tone.INFO);
+            case FINISH_WAITING -> new Badge(I18n.get("journal.manager.badge.finishWaiting"), Tone.NEUTRAL);
             case NONE -> null;
         };
     }

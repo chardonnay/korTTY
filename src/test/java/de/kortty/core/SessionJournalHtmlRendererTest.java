@@ -59,6 +59,32 @@ class SessionJournalHtmlRendererTest {
     }
 
     @Test
+    void aRunningCommandAndOneTheSessionEndedOnAreTagged() {
+        SessionJournalEntry running = summaryEntry();
+        running.setCommandState(de.kortty.model.SessionJournalCommandState.RUNNING);
+        SessionJournalEntry ended = summaryEntry();
+        ended.setCommandState(de.kortty.model.SessionJournalCommandState.ENDED_WITH_SESSION);
+        document.getEntries().add(running);
+        document.getEntries().add(ended);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<span class=\"state-tag running-tag\">still running</span>");
+        assertThat(html).contains("The session ended before the shell showed its prompt again");
+        assertThat(html).contains(">session ended</span>");
+    }
+
+    @Test
+    void aFinishedCommandHasNoCommandTag() {
+        document.getEntries().add(summaryEntry());
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).doesNotContain("running-tag\">");
+        assertThat(html).doesNotContain(">session ended</span>");
+    }
+
+    @Test
     void linksUrlsInAUserNoteAndInAnAiSummary() {
         SessionJournalEntry note = new SessionJournalEntry();
         note.setKind(SessionJournalEntryKind.USER_NOTE);
@@ -176,6 +202,29 @@ class SessionJournalHtmlRendererTest {
         for (String box : boxes) {
             assertWithMessage("scroll box " + box + " has no styled scrollbar")
                 .that(css.replaceAll("\\s+", " ")).contains(box + "::-webkit-scrollbar-thumb");
+        }
+    }
+
+    @Test
+    void everyScrollbarThumbKeepsALengthTheMouseCanGrab() {
+        // 4 456 log lines once shrank the log panel's thumb to 3 px.
+        String html = renderer.render(document, sampleLog());
+        String css = html.substring(html.indexOf("<style"), html.indexOf("</style>")).replaceAll("\\s+", " ");
+        for (String box : List.of("html", ".excerpt", ".chat-text pre", ".chat-step-output", ".log-body")) {
+            for (String[] axis : new String[][] {{"vertical", "min-height"}, {"horizontal", "min-width"}}) {
+                java.util.regex.Matcher rule = java.util.regex.Pattern.compile("([^{}]*)\\{" + axis[1] + ":(\\d+)px\\}")
+                    .matcher(css);
+                boolean found = false;
+                while (rule.find()) {
+                    boolean covers = java.util.Arrays.stream(rule.group(1).replaceAll("/\\*.*?\\*/", "").split(","))
+                        .anyMatch(selector -> selector.trim().equals(box + "::-webkit-scrollbar-thumb:" + axis[0]));
+                    if (covers) {
+                        found = true;
+                        assertWithMessage(box + " " + axis[0]).that(Integer.parseInt(rule.group(2))).isAtLeast(24);
+                    }
+                }
+                assertWithMessage(box + " " + axis[0] + " thumb has no minimum length").that(found).isTrue();
+            }
         }
     }
 

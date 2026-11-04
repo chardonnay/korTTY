@@ -133,4 +133,17 @@ class SessionJournalAnsiProcessorTest {
         processor.accept("ab\tc\n");
         assertThat(texts()).containsExactly("ab\tc");
     }
+
+    @Test
+    void handsShellIntegrationMarksOverInStreamOrderAndStripsThem() {
+        List<String> order = new ArrayList<>();
+        SessionJournalAnsiProcessor marking = new SessionJournalAnsiProcessor(
+            line -> order.add("line " + line.text()), mark -> order.add("mark " + mark));
+
+        marking.accept("FAILED: 2 of 40\n\u001b]133;D;");
+        marking.accept("2\u0007\u001b]133;A\u001b\\daniel@web01:~$ \u001b]0;title\u0007\n");
+
+        assertThat(order).containsExactly(
+            "line FAILED: 2 of 40", "mark 133;D;2", "mark 133;A", "line daniel@web01:~$").inOrder();
+    }
 }

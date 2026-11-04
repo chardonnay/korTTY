@@ -945,7 +945,10 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             && reevaluationJob.stateOf(meta.getDirectory()) != de.kortty.core.SessionJournalReevaluationJob.JournalState.NONE;
     }
 
-    /** RUNNING when the run works on one of the row's journals, WAITING when one waits for it, else NONE. */
+    /**
+     * RUNNING (FINISHING) when the run works on one of the row's journals, WAITING (FINISH_WAITING)
+     * when one waits for it, else NONE.
+     */
     private de.kortty.core.SessionJournalReevaluationJob.JournalState reevaluationState(SessionJournalTreeSupport.Node node) {
         de.kortty.core.SessionJournalReevaluationJob.JournalState state =
             de.kortty.core.SessionJournalReevaluationJob.JournalState.NONE;
@@ -957,11 +960,14 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                 continue;
             }
             de.kortty.core.SessionJournalReevaluationJob.JournalState journal = reevaluationJob.stateOf(meta.getDirectory());
-            if (journal == de.kortty.core.SessionJournalReevaluationJob.JournalState.RUNNING) {
-                return journal;
-            }
-            if (journal == de.kortty.core.SessionJournalReevaluationJob.JournalState.WAITING) {
-                state = journal;
+            switch (journal) {
+                case RUNNING, FINISHING -> {
+                    return journal;
+                }
+                case WAITING, FINISH_WAITING -> state = journal;
+                case NONE -> {
+                    // nothing to show for this journal
+                }
             }
         }
         return state;

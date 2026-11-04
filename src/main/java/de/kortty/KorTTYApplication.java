@@ -331,6 +331,14 @@ public class KorTTYApplication extends Application {
         // "Re-evaluate with AI…" runs here, not in a dialog: it outlives the windows that start and show it.
         sessionJournalReevaluationJob = new de.kortty.core.SessionJournalReevaluationJob(
             sessionJournalService, sessionJournalSummarizer, sessionJournalScreenshotAnalyzer, null);
+        // A closed session's last commands and wrap-up are written by the same job, where the journal
+        // manager shows them; journals korTTY quit or crashed on before that are finished now.
+        sessionJournalSummarizer.setClosePassRunner(sessionJournalReevaluationJob::finish);
+        de.kortty.core.SessionJournalReevaluationJob journalJob = sessionJournalReevaluationJob;
+        Thread journalResume = new Thread(() -> journalJob.finishLeftBehind(
+            globalSettingsManager != null ? globalSettingsManager.getSettings() : null), "SessionJournal-Resume");
+        journalResume.setDaemon(true);
+        journalResume.start();
         sessionJournalHtmlRenderer = new de.kortty.core.SessionJournalHtmlRenderer(sessionJournalService);
         sessionJournalHtmlRenderer.attachToServiceChanges();
         // A regenerated page keeps the look the user chose: the font size from the page's A-/A+

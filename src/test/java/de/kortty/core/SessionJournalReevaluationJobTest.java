@@ -235,6 +235,71 @@ class SessionJournalReevaluationJobTest {
         assertThat(summaries(second).stream().noneMatch(e -> e.getTitle().contains("Third"))).isTrue();
     }
 
+    /** A journal whose session ended before its closing pass ran — korTTY quit or crashed. */
+    private Path unfinishedJournal(String tab) throws Exception {
+        ServerConnection connection = new ServerConnection("Test Server", "192.168.1.9", 22, "daniel");
+        connection.getSessionJournalConfig().setEnabled(true);
+        SessionJournalSession session = service.createSession(connection, tab, settings, List.of(), false);
+        session.start();
+        session.appendInputLine("df -h");
+        session.appendOutputChunk("daniel@web01:~$ df -h\n/dev/disk1  100G  42G  58G  42% /\ndaniel@web01:~$\n");
+        Path dir = session.getDirectory();
+        session.close();
+        return dir;
+    }
+
+    @Test(timeOut = 60_000)
+    void aFinishRunWritesTheLastCommandsAndClearsTheMarkerWithoutAResultToRead() throws Exception {
+        Path dir = unfinishedJournal("tab-reevaljob10");
+        assertThat(service.loadDocument(dir).getMeta().isFinishPending()).isTrue();
+        SessionJournalSummarizer journalSummarizer =
+            new SessionJournalSummarizer(service, () -> settings, new ScriptedInvoker("Closed", false, null));
+        SessionJournalReevaluationJob finishing = new SessionJournalReevaluationJob(service, journalSummarizer, null, null);
+        try {
+            assertThat(finishing.finish(dir)).isTrue();
+            long deadline = System.currentTimeMillis() + 30_000;
+            while (System.currentTimeMillis() < deadline && service.loadDocument(dir).getMeta().isFinishPending()) {
+                Thread.sleep(20);
+            }
+
+            assertThat(service.loadDocument(dir).getMeta().isFinishPending()).isFalse();
+            assertThat(summaries(dir).stream().allMatch(e -> e.getTitle().contains("Closed"))).isTrue();
+            assertThat(summaries(dir)).isNotEmpty();
+            Thread.sleep(100);
+            assertThat(finishing.snapshot().lastOutcome()).isNull();
+            assertThat(finishing.isReevaluating()).isFalse();
+        } finally {
+            finishing.stop();
+            journalSummarizer.stop();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void journalsLeftBehindAreFoundAndAFinishRunShowsAsFinishing() throws Exception {
+        Path left = unfinishedJournal("tab-reevaljob11");
+        Path done = closedJournal("tab-reevaljob12");
+        service.setFinishPending(done, false);
+        CountDownLatch release = new CountDownLatch(1);
+        ScriptedInvoker held = new ScriptedInvoker("Closed", false, release);
+        SessionJournalSummarizer journalSummarizer = new SessionJournalSummarizer(service, () -> settings, held);
+        SessionJournalReevaluationJob finishing = new SessionJournalReevaluationJob(service, journalSummarizer, null, null);
+        try {
+            assertThat(finishing.finishLeftBehind(settings)).isEqualTo(1);
+            assertThat(held.firstCall.await(20, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(finishing.stateOf(left)).isEqualTo(SessionJournalReevaluationJob.JournalState.FINISHING);
+            assertThat(finishing.stateOf(done)).isEqualTo(SessionJournalReevaluationJob.JournalState.NONE);
+            assertThat(finishing.snapshot().kind()).isEqualTo(SessionJournalReevaluationJob.Kind.FINISH);
+            // quitting stops re-evaluations, not this: the marker stays for the next start
+            finishing.cancelReevaluations();
+            assertThat(finishing.snapshot().phase()).isNotEqualTo(SessionJournalReevaluationJob.Phase.CANCELLING);
+        } finally {
+            release.countDown();
+            finishing.stop();
+            journalSummarizer.stop();
+        }
+    }
+
     @Test(timeOut = 60_000)
     void theOutcomeStaysUntilDismissed() throws Exception {
         Path dir = closedJournal("tab-reevaljob09");
