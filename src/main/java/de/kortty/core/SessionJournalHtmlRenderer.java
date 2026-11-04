@@ -1252,13 +1252,26 @@ public final class SessionJournalHtmlRenderer {
             .excerpt.input{color:var(--input);border-left:3px solid var(--input)}
             .excerpt.output{color:var(--output);border-left:3px solid var(--output)}
             /* JavaFX WebKit paints native scrollbars in a last pass over everything, so the scrollbars of
-               these boxes showed through the docked log panel. Styled ones are painted with the page. */
+               these boxes showed through the docked log panel. Styled ones are painted with the page.
+               The page's own scrollbar is styled too: a native one lies over the right edge of the
+               content, where it hid the log panel's scrollbar; a styled one gets a column of its own. */
             .excerpt::-webkit-scrollbar,.chat-text pre::-webkit-scrollbar,
               .chat-step-output::-webkit-scrollbar{width:8px;height:8px}
-            .excerpt::-webkit-scrollbar-thumb,.chat-text pre::-webkit-scrollbar-thumb,
-              .chat-step-output::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-            .excerpt::-webkit-scrollbar-corner,.chat-text pre::-webkit-scrollbar-corner,
-              .chat-step-output::-webkit-scrollbar-corner{background:transparent}
+            html::-webkit-scrollbar,.log-body::-webkit-scrollbar{width:12px;height:12px}
+            html::-webkit-scrollbar-track{background:var(--bg)}
+            /* Mixed from the muted text colour, so the thumb stands out in every scheme. */
+            html::-webkit-scrollbar-thumb,.excerpt::-webkit-scrollbar-thumb,
+              .chat-text pre::-webkit-scrollbar-thumb,.chat-step-output::-webkit-scrollbar-thumb,
+              .log-body::-webkit-scrollbar-thumb{
+              background:color-mix(in srgb,var(--muted) 75%,var(--surface));border-radius:6px}
+            html::-webkit-scrollbar-thumb,.log-body::-webkit-scrollbar-thumb{
+              border:2px solid transparent;background-clip:padding-box}
+            html::-webkit-scrollbar-thumb:hover,.excerpt::-webkit-scrollbar-thumb:hover,
+              .chat-text pre::-webkit-scrollbar-thumb:hover,.chat-step-output::-webkit-scrollbar-thumb:hover,
+              .log-body::-webkit-scrollbar-thumb:hover{background-color:var(--muted)}
+            html::-webkit-scrollbar-corner,.excerpt::-webkit-scrollbar-corner,
+              .chat-text pre::-webkit-scrollbar-corner,.chat-step-output::-webkit-scrollbar-corner,
+              .log-body::-webkit-scrollbar-corner{background:transparent}
             .note{margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--mark);
               background:var(--surface2);border-radius:0 8px 8px 0;font-size:.87em}
             .user-note .card{border-left:3px solid var(--mark)}
@@ -1309,8 +1322,6 @@ public final class SessionJournalHtmlRenderer {
             .log-body{flex:1;margin:0;overflow:auto;padding:10px clamp(8px,2vw,14px);
               font-family:var(--mono-font,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
               font-size:.8em;line-height:1.5;white-space:pre-wrap}
-            .log-body::-webkit-scrollbar{width:10px}
-            .log-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
             .l-in{color:var(--input)} .l-out{color:var(--output)} .l-meta{color:var(--muted)}
             .l-seq{color:var(--muted);user-select:none}
             .l-rep{color:var(--muted);font-style:italic;user-select:none}

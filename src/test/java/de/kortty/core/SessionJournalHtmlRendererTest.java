@@ -171,10 +171,57 @@ class SessionJournalHtmlRendererTest {
         }
 
         assertThat(boxes).containsAtLeast(".excerpt", ".chat-text pre", ".chat-step-output", ".log-body");
+        // A native page scrollbar lies over the right edge of the content and hid the log panel's.
+        boxes.add("html");
         for (String box : boxes) {
             assertWithMessage("scroll box " + box + " has no styled scrollbar")
                 .that(css.replaceAll("\\s+", " ")).contains(box + "::-webkit-scrollbar-thumb");
         }
+    }
+
+    @Test
+    void scrollbarThumbsStandOutInBothThemes() {
+        // The log panel's thumb was once painted in the border colour, about 1.2:1 on the panel, so the
+        // log looked as if it had no scrollbar. Controls need 3:1 against what is around them.
+        String html = renderer.render(document, sampleLog());
+        String css = html.substring(html.indexOf("<style"), html.indexOf("</style>")).replaceAll("\\s+", " ");
+        java.util.regex.Matcher thumb = java.util.regex.Pattern.compile("\\.log-body::-webkit-scrollbar-thumb\\{ "
+            + "background:color-mix\\(in srgb,var\\((--[\\w-]+)\\) (\\d+)%,var\\((--[\\w-]+)\\)\\)").matcher(css);
+        assertWithMessage("log scrollbar thumb colour").that(thumb.find()).isTrue();
+
+        for (String theme : List.of(":root{", "[data-theme=\"light\"]{")) {
+            int start = css.indexOf(theme);
+            java.util.Map<String, int[]> colours = new java.util.HashMap<>();
+            java.util.regex.Matcher variable = java.util.regex.Pattern.compile("(--[\\w-]+):#(\\p{XDigit}{6})")
+                .matcher(css.substring(start, css.indexOf('}', start)));
+            while (variable.find()) {
+                int rgb = Integer.parseInt(variable.group(2), 16);
+                colours.put(variable.group(1), new int[] {rgb >> 16, (rgb >> 8) & 0xff, rgb & 0xff});
+            }
+            int[] mixed = new int[3];
+            double share = Integer.parseInt(thumb.group(2)) / 100.0;
+            for (int i = 0; i < 3; i++) {
+                mixed[i] = (int) Math.round(colours.get(thumb.group(1))[i] * share
+                    + colours.get(thumb.group(3))[i] * (1 - share));
+            }
+            for (String background : List.of("--bg", "--surface", "--surface2")) {
+                double a = luminance(mixed);
+                double b = luminance(colours.get(background));
+                assertWithMessage(theme + " thumb on " + background)
+                    .that((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).isAtLeast(3.0);
+            }
+        }
+    }
+
+    /** WCAG relative luminance of an sRGB colour. */
+    private static double luminance(int[] rgb) {
+        double[] weights = {0.2126, 0.7152, 0.0722};
+        double luminance = 0;
+        for (int i = 0; i < 3; i++) {
+            double c = rgb[i] / 255.0;
+            luminance += weights[i] * (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+        }
+        return luminance;
     }
 
     @Test
