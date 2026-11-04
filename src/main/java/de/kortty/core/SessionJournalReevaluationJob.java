@@ -49,20 +49,32 @@ public final class SessionJournalReevaluationJob {
         }
     }
 
+    /**
+     * What a run does: evaluate journals afresh ("Re-evaluate with AI…"), or finish journals whose
+     * session ended — closed, or left behind when korTTY quit or crashed — with the journal profile.
+     */
+    public enum Kind { REEVALUATE, FINISH }
+
     /** One "Re-evaluate" click: the journals, the profile they are evaluated with, and whether screenshots are described again. */
     public record Request(List<Target> targets, String profileId, String profileName,
-                          SessionJournalAiSupport.AiInvoker invoker, boolean screenshots) {
+                          SessionJournalAiSupport.AiInvoker invoker, boolean screenshots, Kind kind) {
         public Request {
             targets = List.copyOf(targets);
             Objects.requireNonNull(invoker, "invoker");
+            kind = kind != null ? kind : Kind.REEVALUATE;
+        }
+
+        public Request(List<Target> targets, String profileId, String profileName,
+                       SessionJournalAiSupport.AiInvoker invoker, boolean screenshots) {
+            this(targets, profileId, profileName, invoker, screenshots, Kind.REEVALUATE);
         }
     }
 
     /** What the job does right now. */
     public enum Phase { IDLE, TESTING, RUNNING, CANCELLING }
 
-    /** A journal's part in the runs: being evaluated now, waiting for its turn, or none. */
-    public enum JournalState { NONE, RUNNING, WAITING }
+    /** A journal's part in the runs: being evaluated (or finished) now, waiting for its turn, or none. */
+    public enum JournalState { NONE, RUNNING, WAITING, FINISHING, FINISH_WAITING }
 
     /** Screenshots of one journal that could not be described. */
     public record ScreenshotIssue(String title, int failed) {
@@ -94,7 +106,14 @@ public final class SessionJournalReevaluationJob {
      * {@code estimate} is null while idle; {@code lastOutcome} stays until {@link #dismissOutcome()}.
      */
     public record Snapshot(Phase phase, String profileName, int journalNumber, int journalCount, String currentTitle,
-                           SessionJournalReevaluationProgress.Estimate estimate, int queuedRuns, Outcome lastOutcome) {
+                           SessionJournalReevaluationProgress.Estimate estimate, int queuedRuns, Outcome lastOutcome,
+                           Kind kind) {
+
+        public Snapshot(Phase phase, String profileName, int journalNumber, int journalCount, String currentTitle,
+                        SessionJournalReevaluationProgress.Estimate estimate, int queuedRuns, Outcome lastOutcome) {
+            this(phase, profileName, journalNumber, journalCount, currentTitle, estimate, queuedRuns, lastOutcome,
+                Kind.REEVALUATE);
+        }
 
         public boolean running() {
             return phase != Phase.IDLE;
@@ -103,7 +122,8 @@ public final class SessionJournalReevaluationJob {
 
     /** One submitted request and its own cancel switch. */
     private static final class Run {
-        final Request request;
+        /** Replaced once by a finish run, when the journal titles have been read. */
+        volatile Request request;
         final AtomicBoolean cancelled = new AtomicBoolean();
 
         Run(Request request) {
@@ -174,7 +194,7 @@ public final class SessionJournalReevaluationJob {
                 return false;
             }
             run = new Run(new Request(fresh, request.profileId(), request.profileName(), request.invoker(),
-                request.screenshots()));
+                request.screenshots(), request.kind()));
             waiting.addLast(run);
         }
         try {
@@ -188,6 +208,51 @@ public final class SessionJournalReevaluationJob {
         }
         notifyListeners();
         return true;
+    }
+
+    /**
+     * Queues the closing pass of a journal whose session ended, with the journal profile. It runs
+     * silently: the journal manager shows it, no window opens and no result waits to be read. The
+     * journal keeps its finish marker until the pass is done, so one that korTTY quits on is
+     * finished at the next start.
+     */
+    public boolean finish(Path directory) {
+        if (directory == null) {
+            return false;
+        }
+        SessionJournalAiSupport.AiInvoker invoker = summarizer.journalInvoker();
+        de.kortty.model.AiProfile profile = null;
+        try {
+            profile = invoker.profile();
+        } catch (RuntimeException e) {
+            logger.debug("Could not resolve the journal profile: {}", e.getMessage());
+        }
+        return submit(new Request(List.of(new Target(directory, directory.getFileName().toString())),
+            profile != null ? profile.getId() : null, profile != null ? profile.getName() : null, invoker, false,
+            Kind.FINISH));
+    }
+
+    /**
+     * Queues the closing pass of every journal korTTY left unfinished — quit or crashed on while
+     * it recorded or before its closing pass ran. Reads the journals folder: call it off the FX
+     * thread. Returns how many were queued.
+     */
+    public int finishLeftBehind(de.kortty.model.GlobalSettings settings) {
+        int queued = 0;
+        try {
+            for (de.kortty.model.SessionJournalMeta meta : service.listJournals(settings)) {
+                if (meta.isFinishPending() && !meta.isLive() && meta.getDirectory() != null
+                        && finish(meta.getDirectory())) {
+                    queued++;
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not look for unfinished session journals: {}", e.getMessage());
+        }
+        if (queued > 0) {
+            logger.info("Finishing {} session journal(s) left behind when korTTY last quit", queued);
+        }
+        return queued;
     }
 
     /** Cancels the run in progress and every queued one. The AI call in flight still finishes. */
@@ -218,6 +283,14 @@ public final class SessionJournalReevaluationJob {
         return current != null || !waiting.isEmpty();
     }
 
+    /** Whether a re-evaluation the user started runs or waits; finish runs do not count. */
+    public synchronized boolean isReevaluating() {
+        if (current != null && current.request.kind() == Kind.REEVALUATE) {
+            return true;
+        }
+        return waiting.stream().anyMatch(run -> run.request.kind() == Kind.REEVALUATE);
+    }
+
     /** Whether the journal in {@code directory} is being re-evaluated or waits for it. */
     public synchronized JournalState stateOf(Path directory) {
         return stateOfLocked(directory);
@@ -236,13 +309,31 @@ public final class SessionJournalReevaluationJob {
             title,
             progress != null && current != null ? progress.estimate() : null,
             waiting.size(),
-            lastOutcome);
+            lastOutcome,
+            request != null ? request.kind() : null);
     }
 
-    /** Stops the job thread; used at application shutdown, after {@link #cancel()}. */
+    /**
+     * Stops the job thread at application shutdown. Re-evaluations are cancelled (the user was
+     * asked); a finish run is not — its journal keeps the finish marker and is finished at the next start.
+     */
     public void stop() {
-        cancel();
+        cancelReevaluations();
         executor.shutdownNow();
+    }
+
+    /**
+     * Cancels the re-evaluations the user started, running or queued, and leaves finish runs alone:
+     * what quitting korTTY stops, since an unfinished journal is finished at the next start anyway.
+     */
+    public void cancelReevaluations() {
+        synchronized (this) {
+            waiting.removeIf(run -> run.request.kind() == Kind.REEVALUATE);
+            if (current != null && current.request.kind() == Kind.REEVALUATE) {
+                current.cancelled.set(true);
+            }
+        }
+        notifyListeners();
     }
 
     private JournalState stateOfLocked(Path directory) {
@@ -251,14 +342,15 @@ public final class SessionJournalReevaluationJob {
         }
         Path key = normalize(directory);
         if (current != null) {
+            boolean finish = current.request.kind() == Kind.FINISH;
             List<Target> targets = current.request.targets();
             for (int i = 0; i < targets.size(); i++) {
                 if (normalize(targets.get(i).directory()).equals(key)) {
                     if (i == journalIndex) {
-                        return JournalState.RUNNING;
+                        return finish ? JournalState.FINISHING : JournalState.RUNNING;
                     }
                     if (i > journalIndex) {
-                        return JournalState.WAITING;
+                        return finish ? JournalState.FINISH_WAITING : JournalState.WAITING;
                     }
                 }
             }
@@ -266,7 +358,7 @@ public final class SessionJournalReevaluationJob {
         for (Run run : waiting) {
             for (Target target : run.request.targets()) {
                 if (normalize(target.directory()).equals(key)) {
-                    return JournalState.WAITING;
+                    return run.request.kind() == Kind.FINISH ? JournalState.FINISH_WAITING : JournalState.WAITING;
                 }
             }
         }
@@ -300,7 +392,11 @@ public final class SessionJournalReevaluationJob {
                 List.of(), null, run.cancelled.get());
         }
         synchronized (this) {
-            lastOutcome = outcome;
+            if (run.request.kind() == Kind.REEVALUATE) {
+                lastOutcome = outcome; // a finish run is background housekeeping: nothing to read afterwards
+            } else if (outcome.hasProblems()) {
+                logger.warn("Finishing session journals: {}", outcome.failures());
+            }
             current = null;
             phase = Phase.IDLE;
             journalIndex = -1;
@@ -310,12 +406,19 @@ public final class SessionJournalReevaluationJob {
     }
 
     private Outcome execute(Run run) {
+        if (run.request.kind() == Kind.FINISH) {
+            run.request = withJournalTitles(run.request);
+        }
         Request request = run.request;
+        boolean finish = request.kind() == Kind.FINISH;
         SessionJournalReevaluationProgress tracker;
         synchronized (this) {
             tracker = progress;
         }
-        SessionJournalAiPreflight.Result test = SessionJournalAiPreflight.check(request.invoker());
+        // A finish run keeps raw entries when the profile does not answer: nothing to test first.
+        SessionJournalAiPreflight.Result test = finish
+            ? SessionJournalAiPreflight.Result.success(request.profileName())
+            : SessionJournalAiPreflight.check(request.invoker());
         if (run.cancelled.get()) {
             // Nothing was reset yet: cancelling during the test changes nothing.
             return new Outcome(request.profileName(), 0, 0, List.of(), List.of(), null, true);
@@ -325,7 +428,7 @@ public final class SessionJournalReevaluationJob {
                 test.message() != null ? test.message() : "", false);
         }
         for (Target target : request.targets()) {
-            tracker.planJournal(plan(target.directory(), request.screenshots()));
+            tracker.planJournal(plan(target.directory(), request.screenshots(), finish));
         }
         synchronized (this) {
             phase = Phase.RUNNING;
@@ -349,7 +452,11 @@ public final class SessionJournalReevaluationJob {
             tracker.journalStarted(i);
             notifyListeners();
             try {
-                summarizer.reevaluateClosedJournal(target.directory(), measuring).get();
+                if (finish) {
+                    summarizer.finishClosedJournal(target.directory(), measuring).get();
+                } else {
+                    summarizer.reevaluateClosedJournal(target.directory(), measuring).get();
+                }
                 if (request.screenshots() && screenshotAnalyzer != null && !run.cancelled.get()) {
                     tracker.screenshotsStarted();
                     int failedShots = describeScreenshots(target.directory(), measuring, run.cancelled);
@@ -380,8 +487,24 @@ public final class SessionJournalReevaluationJob {
             run.cancelled.get());
     }
 
+    /** A finish request with the titles of its journals, read on the job thread rather than by whoever queued it. */
+    private Request withJournalTitles(Request request) {
+        List<Target> targets = new ArrayList<>();
+        for (Target target : request.targets()) {
+            String title = target.title();
+            try {
+                String stored = service.loadDocument(target.directory()).getMeta().getTitle();
+                title = stored != null && !stored.isBlank() ? stored : title;
+            } catch (Exception e) {
+                logger.debug("Could not read the title of {}: {}", target.directory().getFileName(), e.getMessage());
+            }
+            targets.add(new Target(target.directory(), title));
+        }
+        return new Request(targets, request.profileId(), request.profileName(), request.invoker(), false, request.kind());
+    }
+
     /** The planned calls of one journal; a journal that cannot be read counts as one window and a wrap-up. */
-    private List<SessionJournalReevaluationProgress.Step> plan(Path directory, boolean screenshots) {
+    private List<SessionJournalReevaluationProgress.Step> plan(Path directory, boolean screenshots, boolean finish) {
         int shots = 0;
         if (screenshots && screenshotAnalyzer != null) {
             try {
@@ -393,7 +516,8 @@ public final class SessionJournalReevaluationJob {
             }
         }
         try {
-            return SessionJournalReevaluationProgress.steps(summarizer.planReevaluation(directory), shots);
+            return SessionJournalReevaluationProgress.steps(
+                finish ? summarizer.planFinish(directory) : summarizer.planReevaluation(directory), shots);
         } catch (Exception e) {
             logger.debug("Could not plan the re-evaluation of {}: {}", directory.getFileName(), e.getMessage());
             return SessionJournalReevaluationProgress.steps(

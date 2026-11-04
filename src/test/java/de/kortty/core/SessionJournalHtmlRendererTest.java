@@ -59,6 +59,32 @@ class SessionJournalHtmlRendererTest {
     }
 
     @Test
+    void aRunningCommandAndOneTheSessionEndedOnAreTagged() {
+        SessionJournalEntry running = summaryEntry();
+        running.setCommandState(de.kortty.model.SessionJournalCommandState.RUNNING);
+        SessionJournalEntry ended = summaryEntry();
+        ended.setCommandState(de.kortty.model.SessionJournalCommandState.ENDED_WITH_SESSION);
+        document.getEntries().add(running);
+        document.getEntries().add(ended);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<span class=\"state-tag running-tag\">still running</span>");
+        assertThat(html).contains("The session ended before the shell showed its prompt again");
+        assertThat(html).contains(">session ended</span>");
+    }
+
+    @Test
+    void aFinishedCommandHasNoCommandTag() {
+        document.getEntries().add(summaryEntry());
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).doesNotContain("running-tag\">");
+        assertThat(html).doesNotContain(">session ended</span>");
+    }
+
+    @Test
     void linksUrlsInAUserNoteAndInAnAiSummary() {
         SessionJournalEntry note = new SessionJournalEntry();
         note.setKind(SessionJournalEntryKind.USER_NOTE);

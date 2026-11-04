@@ -334,6 +334,11 @@ public class SessionJournalSummarizer {
         return directory != null && pendingClosePasses.contains(directory.toAbsolutePath().normalize());
     }
 
+    /** The invoker of the journal profile, which the periodic and closing passes of live sessions use. */
+    SessionJournalAiSupport.AiInvoker journalInvoker() {
+        return aiInvoker;
+    }
+
     private SessionJournalAiSupport.AiInvoker invoker() {
         SessionJournalAiSupport.AiInvoker override = invokerOverride.get();
         return override != null ? override : aiInvoker;
@@ -1348,6 +1353,11 @@ public class SessionJournalSummarizer {
     private void runClosePass(Path directory, SessionState state, boolean aiEnabled) {
         try {
             waitUntilClosed(directory);
+            if (service.isLive(directory)) {
+                // Still recording — a journal found at start-up just as it was created: its own end finishes it.
+                logger.info("Session journal {} still records; its closing pass waits for its end", directory.getFileName());
+                return;
+            }
             synchronized (lockFor(directory)) {
                 // a periodic pass of the closed session ends its current window before this one starts
                 closePassLocked(directory, state, aiEnabled);

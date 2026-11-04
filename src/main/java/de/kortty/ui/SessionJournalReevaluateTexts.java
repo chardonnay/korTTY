@@ -14,15 +14,16 @@ final class SessionJournalReevaluateTexts {
     private SessionJournalReevaluateTexts() {
     }
 
-    /** What the job does: testing the profile, evaluating journal n of m, or cancelling. */
+    /** What the job does: testing the profile, evaluating or finishing journal n of m, or cancelling. */
     static String headline(SessionJournalReevaluationJob.Snapshot snapshot) {
         return switch (snapshot.phase()) {
             case IDLE -> "";
             case TESTING -> I18n.get("journal.reevaluate.testing", nullToEmpty(snapshot.profileName()));
             case CANCELLING -> I18n.get("journal.reevaluate.cancelling");
             case RUNNING -> snapshot.journalNumber() > 0
-                ? I18n.get("journal.reevaluate.progress", snapshot.journalNumber(), snapshot.journalCount(),
-                    nullToEmpty(snapshot.currentTitle()))
+                ? I18n.get(snapshot.kind() == SessionJournalReevaluationJob.Kind.FINISH
+                        ? "journal.reevaluate.finishing" : "journal.reevaluate.progress",
+                    snapshot.journalNumber(), snapshot.journalCount(), nullToEmpty(snapshot.currentTitle()))
                 : I18n.get("journal.reevaluate.testing", nullToEmpty(snapshot.profileName()));
         };
     }
