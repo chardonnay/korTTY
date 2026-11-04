@@ -298,9 +298,11 @@ Der Manager kombiniert Profil, lokale Inferenz, Abruf und Skill-Management:
 * **Wissensspeicher** – Erstellen Sie lokale HNSW-Speicher, fügen Sie überprüfte Dateien oder rekursive Ordner hinzu, synchronisieren Sie Quellen und führen Sie eine Testsuche durch.
 * **KI-Skills** – Verwalten Sie die Skill-Bibliothek, die unter [KI-Skills](#ki-skills) beschrieben wird, sowie deren [Statistiken](../reference/settings/ai-skills.md#skill-statistik).
 * **Memory** – Das korTTY-Memory, das Chat- und Agent-Anfragen begleitet: das globale und das pro Verbindung gespeicherte Memory, das Token-Budget, das Lernen, die Bereinigung, der Verlauf und die anderen Memory-Dateien. Siehe [KI-Memory](ai-memory.md).
-* **Local AI** - Three sections: **Profile roles** assigns the Text/translation, Coding and [session journal](session-journal.md#ki-zusammenfassungen) profiles; **Local runtime** selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; **Hugging Face** stores an encrypted Hugging Face token. **Save** under the sections writes all of them.
+* **Lokale KI** – Drei Abschnitte: **Profil-Rollen** weist die Profile für Text/Übersetzung, Coding, **Profil für den KI-Agenten** und [Sitzungsjournal](session-journal.md#ki-zusammenfassungen) zu; **Lokale Laufzeit** wählt die Laufzeit-Aktualisierungsrichtlinie, das bevorzugte Laufzeit-Backend und das RAG-Einbettungsmodell; **Hugging Face** speichert einen verschlüsselten Hugging Face token. **Speichern** unter den Abschnitten schreibt alle davon.
 
-Gespeicherte Chats sind kein Tab des KI-Managers. **KI > Gespeicherte Chats...** öffnet sie in einem eigenen Fenster, mit einem **Chats**-Tab für gespeicherte KI-Unterhaltungen und einem **Swarm-Chats**-Tab für gespeicherte [KI-Swarm](ai-swarm.md)-Unterhaltungen, einschließlich der von geplanten Swarm-Jobs erzeugten. Dort können Sie einen Eintrag öffnen, umbenennen, aktualisieren oder löschen.
+Gespeicherte Chats sind kein Tab des KI-Managers. **KI > Gespeicherte Chats...** öffnet sie in einem eigenen Fenster, mit einem **Chats**-Tab für gespeicherte KI-Gespräche und einem **Swarm-Chats**-Tab für gespeicherte [KI-Swarm](ai-swarm.md)-Gespräche, einschließlich solcher, die von geplanten Swarm-Jobs erstellt wurden. Dort können Sie einen Eintrag öffnen, umbenennen, aktualisieren oder löschen. Chats, die aus einem Agentenlauf fortgesetzt wurden, werden ebenfalls im **Chats**-Tab aufgelistet, siehe [Chats aus KI-Agentenläufen](#chats-aus-ki-agentenlaufen).
+
+Der KI-Manager hat oben eine Suchzeile, wie der Einstellungsdialog; siehe [Suche im KI-Manager](../reference/settings/ai.md#searching-the-ai-manager).
 
 Verwenden Sie **KI > KI-Manager > Allgemein** für globale Verhaltensschalter und die anderen KI-Manager-Tabs für das tägliche Profil, Modell, Wissensspeicher und Chat-Management.
 
@@ -460,6 +462,25 @@ korTTY fügt Leitplanken für die Agentenausführung hinzu:
 * Während eine auf das Terminal ausgerichtete Ausführung aktiv ist, ist die normale Eingabe weiterhin zulässig. Nur die Laufsteuerungstasten (++Esc++/++Ctrl+C++ zum Abbrechen des ausgewählten Laufs, ++Ctrl+R++ zum Umschalten seiner Denkdetails) werden abgefangen.
 * Websuchfehler, HTTP-Fehler, Authentifizierungsfehler, leere Ergebnisse und Zeitüberschreitungen werden als explizite Toolfehler angezeigt.
 * Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert korTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.
+
+## Chats aus KI-Agentenläufen
+
+Ein abgeschlossener Terminal-Lauf kann in einem KI-Chat fortgesetzt werden: unter dem Terminal, im Lauf-Menü oder (bei jedem Design außer dem klassischen Panel) im Kontextmenü des Terminals unter *KI → Letzter Agent-Lauf*, **Im KI-Chat fortsetzen** wählen, siehe [Einen Lauf in einem KI-Chat fortsetzen](ai-agent-designs.md#im-ki-chat-fortsetzen). Der Chat wird wie jeder andere Chat gespeichert und daher unter **KI > Gespeicherte Chats...** aufgelistet, und er verwendet das KI-Profil, das der Lauf verwendet hat.
+
+![A chat continued from an agent run: the origin line, the task, the answer and the steps unfolded under the answer](../assets/screenshots/ai/chat-from-agent-run.png)
+
+Der Chat enthält die Aufgabe des Laufs als erste Benutzernachricht und die finale Antwort des Laufs als Assistentenantwort. Unter der Antwort listet ein zusammengeklappter **Schritte (N)**-Aufklappbereich jeden Schritt des Laufs in der Reihenfolge auf, mit Ausnahme des Denkprozesses: Jede Zeile enthält ein Symbol (● für einen noch laufenden Schritt, ✓ für einen abgeschlossenen Schritt mit Exit-Code 0 oder ohne Exit-Code, ✕ für jeden anderen Schritt), den Titel und die Zusammenfassung des Schritts. Ein Befehlsschritt zeigt zusätzlich den Befehl, seine **Exit N**-Zeile und seine Ausgabe an; eine lange Ausgabe behält ihren Anfang und ihr Ende bei, und eine **Ausgabe gekürzt**-Zeile weist darauf hin.
+
+Der Chat öffnet sich mit einer Zeile über den Nachrichten: **Aus einem KI-Agent-Lauf vom** Startzeitpunkt **·** die Verbindung, die der Lauf verwendet hat. Ein Chat, der aus der Leiste eines Laufs geöffnet wurde, behält auch einen Link zu diesem Lauf, sodass ein zweiter Klick auf **Im KI-Chat fortsetzen** denselben Chat fokussiert, anstatt einen neuen zu erstellen.
+
+Alles, was gespeichert oder gesendet wird, wird zuerst maskiert. Die dem Terminal-Tab bekannten Geheimnisse und diejenigen, die der Lauf während der Ausführung erlernt hat – wie ein sudo-Passwort, das Sie während des Laufs eingegeben haben –, werden durch `***` ersetzt, ebenso wie die Maskierungsregeln Ihrer Organisation und die Token-Formate, die korTTY erkennt. Das Modell erhält die Schritte nicht vollständig: Es erhält eine gekürzte Ansicht von etwa 24.000 Zeichen. Jeder Schritt behält seinen Status, seinen Titel, seine Zusammenfassung, seinen Befehl (gekürzt auf 500 Zeichen) und seinen Exit-Code; die Ausgabe jedes Schritts wird auf seinen Anfang und sein Ende gekürzt, und wenn das Budget weiterhin überschritten wird, wird zuerst die Ausgabe der ältesten Schritte entfernt. Eine Nachfrage im Chat baut daher darauf auf, was der Lauf ausgeführt hat.
+
+!!! note "Was nicht übergeben wird"
+    Nur Ausführungen, die aus einem Terminalbereich gestartet wurden, werden weitergeleitet. Eine Frage, die mit **Agent fragen…** gestellt wird und keine Befehle ausführt, sowie eine Ausführung im Chatfenster erhalten weder die Leiste noch den Menüeintrag. Der Eintrag ist nicht verfügbar, solange KI-Funktionen deaktiviert sind oder die Richtlinie Ihrer Organisation KI-Chats nicht zulässt.
+
+Chat-Exports enthalten diese Chats mit ihren Schritten: **Exportieren** als Markdown, Klartext oder PDF schreibt die Ursprungszeile und die Schritte jeder Nachricht. Lange Befehlsausgaben behalten ihren Anfang und ihr Ende bei, markiert als gekürzt; sie sind in Markdown in Codeblöcken, in PDF in einem Panel und in Klartext eingerückt. Ein Chat, der mit einer AGENT-Karte eines Sitzungsjournals verknüpft ist, behält eine Kopie im Journal, das den Chat verfolgt, während es aufzeichnet, siehe [KI-Agent-Karten und ihre KI-Chats](session-journal.md#ki-agent-karten-und-deren-ki-chats).
+
+Wenn eine Journalkopie als Chat geöffnet wird, nachdem der Chat gelöscht wurde, ist der Chat schreibgeschützt und dies wird oberhalb der Nachrichten angezeigt; nichts davon wird erneut gespeichert.
 
 ## AI Swarm (Multiserver)
 

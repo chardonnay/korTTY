@@ -8,6 +8,16 @@ Every AI setting lives in one place: **AI → AI Manager**. Its first tab, **Gen
 
 ![AI Manager, General tab](../../assets/screenshots/ai/ai-manager-general.png)
 
+## Searching the AI Manager { #searching-the-ai-manager }
+
+A search line sits at the top of the AI Manager, above its tabs, like the search of the settings dialog. Type a word and the matching options are listed; choosing one opens its page, scrolls to the option and highlights it. ++cmd+f++ (++ctrl+f++ on Windows and Linux) jumps to the line from the tabs and their pages.
+
+![The AI Manager search line with the options that match Agent, listed by page](../../assets/screenshots/ai/ai-manager-search.png)
+
+- **General**, **Profiles** and **Local AI** are searched by their own options, also before you open their tabs for the first time.
+- **Local Models**, **Knowledge Stores**, **AI Skills** and **Memory** are found by their names and by keywords, for example *GGUF* or *Hugging Face* for Local Models, *RAG* or *embeddings* for Knowledge Stores, *GitHub* or *import* for AI Skills, and *remember* or *MEMORY.md* for Memory.
+- Inside the editors of the **AI Skills** and **Memory** pages, ++cmd+f++ and ++ctrl+f++ keep their own find in the editor; the search line is then reached with the mouse.
+
 ## General tab { #general-tab }
 
 **AI → AI Manager → General** groups the global options on four section tabs. **Save** under the sections writes all of them; closing the AI Manager saves them as well.
@@ -153,23 +163,26 @@ KorTTY stores multiple named AI profiles, each with its own model, connection me
 - **Local CLI**: Execute a local command-line AI client (configure CLI provider, custom executable, arguments template, and custom model name).
 - **Integrated llama.cpp**: Choose the installed chat GGUF in **Local GGUF model**. korTTY acquires a private loopback `llama-server` lease for it; the API URL and profile API key are managed by korTTY and are not editable.
 
-An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the **Default profile**. Configure those roles and the local runtime under **AI > AI Manager > Local AI**; see [Local models with llama.cpp](../../features/local-models.md).
+An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the **Default profile**. Configure those roles and the local runtime under **AI > AI Manager > Local AI**; see [Local models with llama.cpp](../../features/local-models.md). Terminal agent runs follow their own order, which includes the AI agent profile; see [Local AI manager settings](#local-ai-manager-settings).
 
 The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.
 
 ### Local AI manager settings
 
-**AI > AI Manager > Local AI** groups these settings on three section tabs: **Profile roles** (the three profile selectors), **Local runtime** (runtime updates, preferred backend, RAG embedding model ID) and **Hugging Face** (the token). **Save** under the sections writes all of them.
+**AI > AI Manager > Local AI** groups these settings on three section tabs: **Profile roles** (the four profile selectors), **Local runtime** (runtime updates, preferred backend, RAG embedding model ID) and **Hugging Face** (the token). **Save** under the sections writes all of them.
 
 | Setting | Values | Default | Stored as |
 | --- | --- | --- | --- |
 | Text and translation profile | Configured AI profile, or use default | Use default | `textAiProfileId` |
 | Coding profile | Configured AI profile, or use default | Use default | `codingAiProfileId` |
+| AI agent profile | Configured AI profile, or empty (the Coding profile, then the default) | Empty | `terminalAgentAiProfileId` |
 | Session journal profile | Configured AI profile, or use default | Use default | `sessionJournalAiProfileId` |
 | RAG embedding model ID | Installed local embedding model | — | `ragEmbeddingModelId` |
 | llama.cpp runtime updates | Off, Notify me, Install stable updates automatically | Notify me | `llamaRuntimeUpdatePolicy` |
 | Preferred runtime backend | Auto/CPU/Metal on macOS; Auto/CPU/Vulkan on Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |
 | Hugging Face token | Optional encrypted token for gated/private repositories | — | `encryptedHuggingFaceToken` |
+
+The **AI agent profile** is the role of the terminal [AI agent](../../features/ai-tools.md). The profile of a run is chosen in this order: first the profile picked in the run's setup or plan dialog, or named in the agent command; then the connection's own AI profile; then the AI agent profile; then the Coding profile; and finally the default profile. A profile that no longer exists is skipped and the next level applies. An empty AI agent profile keeps the previous behaviour, the Coding profile and then the default profile. Ask runs use the same order.
 
 **Automatic (keep active backend)** retains the active runtime package backend for updates. With no installed package, Auto initially selects Metal on macOS and CPU elsewhere. Starting a model configured for another supported GPU backend offers to install the matching signed package.
 

@@ -89,7 +89,7 @@ Expired automation journals are deleted automatically — a minute after korTTY 
 Two things update live while the session runs:
 
 - **The live log** — the **Live Log** button in the panel header opens the page's log panel in follow mode, streaming the capture log as it is written: command output, the commands you typed, notes and screenshot markers, each with a timestamp. It starts hidden; lines accumulate either way, so opening it later shows everything. Scrolling up pauses following, scrolling back to the bottom resumes it, the ✕ in its corner hides it again (the button stays in sync), and dragging its top edge adjusts the height — which is remembered. The view keeps the newest 5000 lines; everything stays in the capture log and in the entry cards' log excerpts.
-- **The timeline** — new cards (AI summaries, notes, screenshots) and edits appear moments after they happen, without losing your scroll position. A [terminal AI-agent](ai-assistant.md) run adds its own **AI agent** card the moment it finishes: your prompt as the title, the agent's final answer as the body, and a meta line with the model, the run duration and the reported token count. Long answers collapse to a preview — click the text (or **Show full answer**) to expand. Agent work is part of the journal record even though the summarizer treats the agent's inline terminal text as noise.
+- **The timeline** — new cards (AI summaries, notes, screenshots) and edits appear moments after they happen, without losing your scroll position. A [terminal AI-agent](ai-assistant.md) run adds its own **AI agent** card the moment it finishes: your prompt as the title, the agent's final answer as the body, and a meta line with the model, the run duration and the reported token count. Long answers collapse to a preview — click the text (or **Show full answer**) to expand. Agent work is part of the journal record even though the summarizer treats the agent's inline terminal text as noise. When the run was continued in an AI chat, the card also carries that chat, see [AI agent cards and their AI chats](#ai-agent-cards-and-their-ai-chats).
 
 Because it is the real journal page, everything the viewer's page offers works right here: click an entry card to see its log excerpt, search the journal, jump between marked entries, and **right-click** a screenshot to open the [annotation editor](#screenshot-notes-and-annotations) (pen, box, unreadable, text and a note) or copy it — the edited picture appears in the panel as soon as you save. Right-clicking an entry offers the same marker picker as the viewer. The cards adapt to the panel width, so the text stays readable however narrow or wide you drag it.
 
@@ -167,6 +167,26 @@ Follow-up questions continue the conversation (the panel keeps the recent exchan
 Every AI call made for a journal — periodic summaries, the closing session summary and title, screenshot analysis and questions in the AI Q&A panel — adds its token usage to the journal's running totals. The journal page shows the total in its header as **AI tokens** (for example `12.3k · ≈ 0.04 €`), and the journal manager has an **AI tokens** column whose tooltip breaks the number down into input and output tokens, number of AI calls and the profile used. The money amount appears when the profile has a [price per 1M tokens](../reference/settings/ai.md#token-quota-management); a profile running locally shows `local` instead. Each call is priced with the profile's price at the time of the call.
 
 The same calls also count towards the AI profile's token quota, so journal summaries show up in the quota bar of the AI Manager like any other AI request. Journals recorded before this tracking existed show no AI tokens.
+
+## AI agent cards and their AI chats
+
+A terminal run that is continued in an AI chat (see [Continue a run in an AI chat](ai-agent-designs.md#continue-a-run-in-an-ai-chat)) is linked to its **AI agent** card, if the session journal records that terminal at the time. A run without a card, because the journal started after the run or the run gave no answer, gets a new **AI agent** card when you continue it while the journal records. The card then shows an **AI chat** tag. In korTTY it also shows an **Open in AI chat** button, which opens the chat, or the journal's copy of it when the chat is gone. Below the card's answer, a collapsed **Show AI chat (N messages) · as of <time>** transcript shows the chat's messages; under each answer of the chat a nested, collapsed **Steps (N)** list shows the steps of the run. The card's own question and answer are unchanged, whether or not the chat is included in an export.
+
+The journal keeps a copy of the chat, not a link alone. While the journal records, the copy follows the chat: about two seconds after the last change to the chat, the journal's copy is rewritten, so a burst of changes is written once. The copy is masked like the rest of the journal. When the journal stops, the copy is written one last time and marked **(final)** in its as-of line; the same happens when korTTY closes while the journal records. Nothing is written back from the journal to the chat. A very long chat is shortened in the journal page, with a note that the full chat is in the AI chat.
+
+![An AGENT card with its AI chat transcript open below the card's answer, the steps nested under the chat's answer](../assets/screenshots/journal/journal-ai-chat-card.png)
+
+If you delete the chat, the journal keeps its last copy and marks it **(final)**, since the chat cannot change any more. **Open in AI chat** then opens that copy read-only, with the note that the chat is no longer in the AI chat history, and nothing is saved from it.
+
+!!! note "Copies made by older versions"
+    A journal rewritten by a korTTY version from before the AI chat link does not know the link or the copy, so it drops both when it saves the journal. Keep the journal written by the current version, or open it with the current version before it is saved again.
+
+**Redaction** applies to the copy as to every other text of the journal. The copy is masked when it is written, the organisation's automatic replacement rules rewrite it as they rewrite the card, and the journal-wide **Search & replace** changes its title, messages and steps as well.
+
+**Search.** The messages of a linked chat are searchable: the search bar on the journal page highlights hits inside the transcript and opens the closed transcript to show them, and the [AI search across all journals](#ai-search-across-all-journals) indexes the messages of the chat as well, each message in its own section of the journal's digest.
+
+!!! note
+    The **Open in AI chat** button is offered only in korTTY. A copy of the journal page opened in a browser shows the transcript, but has no button to open a chat.
 
 ## Password protection
 
@@ -388,7 +408,7 @@ It is reachable from two places: the **Search & replace…** button in edit mode
 | **Rewrite the capture log as well** | On by default. Off changes only the journal entries and leaves the raw log untouched |
 | **Count matches** | A dry run over the real journal: reports how many entry fields and log lines *would* change, without writing anything |
 
-Replacing covers every entry title, AI summary, note and excerpt, and — unless you turned it off — every capture-log part including the compressed ones. The file header and every untouched line are preserved exactly, so the log keeps its structure.
+Replacing covers every entry title, AI summary, note and excerpt, the copy of a linked AI chat (its title, messages and steps), and — unless you turned it off — every capture-log part including the compressed ones. The file header and every untouched line are preserved exactly, so the log keeps its structure.
 
 !!! warning
     Replacing rewrites the journal files in place and cannot be undone. Use **Count matches** first, especially with a regular expression. Documents you already exported are separate files and are not changed — export them again afterwards. A journal that is still being written cannot be rewritten; stop the session first.
@@ -406,10 +426,20 @@ The **Export** menu in the manager and the viewer offers three formats:
 | Format | Content |
 |--------|---------|
 | **PDF** | The simple journal: header with connection details and statistics, day-grouped entries with marker badges, input/output excerpts, notes — and, if selected, downscaled embedded screenshots |
-| **Markdown** | The same simple journal as a `.md` file; screenshots are copied into a sibling `<name>-files/` folder |
+| **Markdown** | The same simple journal as a `.md` file; screenshots and the files of linked AI chats are written into a sibling `<name>-files/` folder |
 | **HTML bundle (complete)** | A zip archive of the whole journal — `journal.html`, `journal.xml`, the decompressed capture logs and all screenshots — laid out so the page works immediately after unzipping |
 
 PDF and Markdown ask whether screenshots should be included.
+
+### AI chats in exports
+
+The export dialog has an **Include AI chats** check box, on by default, for every format. It decides whether the chat copies of AGENT cards go into the export; see [AI agent cards and their AI chats](#ai-agent-cards-and-their-ai-chats). The question and answer of the card stay in the export either way. With the box cleared, no chat text reaches any file of the export, the `journal.xml` included.
+
+- **PDF** — After the entries, an **AI chats** appendix starts on a new page. It has a heading for every chat, each with its as-of time (and *final* once the journal stopped), its messages and their steps; the headings are bookmarks in the PDF outline. The card itself says *AI chat: see the AI chats appendix*.
+- **Markdown** — Each AGENT card links to its own file `chat-<entry>.md`, with the chat's title, its as-of time and its messages and steps. The files are written into the `<name>-files` folder beside the Markdown file, next to the screenshots, so each one also reads on its own.
+- **HTML bundle** — The transcript stays collapsed in the page, with its steps under each answer. The **Open in AI chat** button is hidden in the bundle, because a browser has no chat to open.
+
+A filtered export carries the chats of the entries it keeps, see [Exporting only part of a journal](#exporting-only-part-of-a-journal).
 
 ### Exporting only part of a journal
 
@@ -483,4 +513,4 @@ regex = true
 label = "AWS access keys"
 ```
 
-These rules run on the capture thread, before a line is written, so a matching text never reaches the log file in the first place; they are applied to AI summaries and notes as well. Every rule of every matching policy tier applies — a rule adding a pattern never switches another one off. The dialog above tells you how many mandated rules are in force. Journals written before a rule existed are not rewritten retroactively; use Search & replace for those. See [Policy configuration](../reference/enterprise-policy.md#rulesession-journalreplace) for every key.
+These rules run on the capture thread, before a line is written, so a matching text never reaches the log file in the first place; they are applied to AI summaries, notes and the copies of linked AI chats as well. Every rule of every matching policy tier applies — a rule adding a pattern never switches another one off. The dialog above tells you how many mandated rules are in force. Journals written before a rule existed are not rewritten retroactively; use Search & replace for those. See [Policy configuration](../reference/enterprise-policy.md#rulesession-journalreplace) for every key.

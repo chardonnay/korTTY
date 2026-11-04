@@ -240,6 +240,10 @@ Eine Regel, die korTTY nicht speichern kann, z. B. eine, die ein mögliches Secr
 
 Jeder Agentlauf und jeder Planungsschritt sendet den korTTY-Speicher: den globalen Speicher und, für eine Verbindung, den Speicher dieser Verbindung – budgetiert und maskiert wie der restliche Prompt. Die Zeile **Mitgesendet** im Panel des Laufs listet die Speichereinträge, Skills und Referenzdateien, die gesendet wurden, mit ihren Token-Zahlen. Im Prompt-Dialog des Agents speichert **Als Regel merken…** eine Regel, die Sie schreiben, ohne KI-Aufruf. Siehe [KI-Memory](ai-memory.md).
 
+## Einen Lauf im KI-Chat fortsetzen
+
+Ein abgeschlossener Terminal-Lauf kann in einen KI-Chat übernommen werden: die Leiste unter dem Terminal und das Lauf-Menü bieten **Im KI-Chat fortsetzen**, und bei jedem Design außer dem klassischen Panel bietet das Kontextmenü des Terminals diese Option unter *KI → Letzter Agent-Lauf*. Der Chat behält die Aufgabe, die finale Antwort und die Schritte des Laufs bei, maskiert wie alles andere, das korTTY sendet, und Sie können darin Nachfragen stellen. Siehe [Einen Lauf in einem KI-Chat fortsetzen](ai-agent-designs.md#im-ki-chat-fortsetzen) und [Chats aus KI-Agent-Läufen](ai-assistant.md#chats-aus-ki-agentenlaufen).
+
 ## Workflow-Skript generieren
 
 Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).
@@ -353,6 +357,8 @@ Konfigurieren Sie den Terminal KI-Agenten in **KI > KI-Manager > Allgemein**:
 | **Standardprofil** | Das KI-Profil, das verwendet wird, wenn der Setup-Dialog deaktiviert ist |
 
 Die Platzierung des Panels wird unter **Ansicht → KI-Agent-Panel** festgelegt, und **Eingeklappt lassen** ist eine Option des Aktivitätspanels selbst (Siehe [Panelplatzierung](#panel-platzierung) und [Panel-Funktionen](#panel-funktionen)).
+
+**Welches Profil ein Lauf verwendet** folgt der spezifischsten Auswahl. Das im Setup- oder Plan-Dialog des Laufs gewählte Profil oder das im Agentenbefehl benannte Profil hat Vorrang. Danach folgen das eigene KI-Profil der Verbindung, die Rolle **Profil für den KI-Agenten** unter **KI > KI-Manager > Lokale KI > Profil-Rollen**, das Coding-Profil und schließlich das Standardprofil. Eine leere Rolle **Profil für den KI-Agenten** bedeutet das bisherige Verhalten: das Coding-Profil, dann das Standardprofil. [Agent fragen…](ai-assistant.md#ai-agent-und-ki-planung) verwendet dieselbe Reihenfolge. Siehe [Text-, Coding-, Übersetzungs- und Embedding-Rollen](local-models.md#text-codierungs-ubersetzungs-und-einbettungsrollen).
 
 ## KI-Skills
 

@@ -89,7 +89,7 @@ Abgelaufene Automationsjournale werden automatisch gelöscht – eine Minute nac
 Zwei Dinge werden während der Sitzung live aktualisiert:
 
 - **Das Live-Protokoll** – Die Schaltfläche **Live-Protokoll** in der Kopfzeile des Bedienfelds öffnet das Protokollfeld der Seite im Folgemodus und streamt das Capture-Log, während es geschrieben wird: Befehlsausgabe, die von Ihnen eingegebenen Befehle, Notizen und Screenshot-Markierungen, jeweils mit einem Zeitstempel. Es beginnt im Verborgenen; Die Zeilen sammeln sich in beide Richtungen an, sodass beim späteren Öffnen alles angezeigt wird. Wenn Sie nach oben scrollen, wird das Folgende angehalten, wenn Sie nach unten scrollen, wird es fortgesetzt, das ✕ in seiner Ecke blendet es wieder aus (die Schaltfläche bleibt synchron) und durch Ziehen an der Oberkante wird die Höhe angepasst – was gespeichert wird. Die Ansicht behält die neuesten 5000 Zeilen; Alles bleibt im Capture-Log und in den Protokollauszügen der Eintrittskarten.
-- **Die Zeitleiste** – neue Karten (KI-Zusammenfassungen, Notizen, Screenshots) und Änderungen werden kurz nach ihrer Ausführung angezeigt, ohne dass Sie Ihre Scrollposition verlieren. Ein [terminaler KI-Agent](ai-assistant.md)-Lauf fügt in dem Moment, in dem er beendet ist, seine eigene **KI-Agent**-Karte hinzu: Ihre Eingabeaufforderung als Titel, die endgültige Antwort des Agenten als Text und eine Metazeile mit dem Modell, der Laufdauer und der gemeldeten Token-Anzahl. Lange Antworten werden zu einer Vorschau verkleinert. Klicken Sie zum Erweitern auf den Text (oder **Vollständige Antwort anzeigen**). Die Agentenarbeit ist Teil des Journaldatensatzes, auch wenn die Zusammenfassung den Inline-Terminaltext des Agenten als Rauschen behandelt.
+- **Die Zeitleiste** — Neue Karten (KI-Zusammenfassungen, Notizen, Screenshots) und Änderungen erscheinen unmittelbar nach ihrem Auftreten, ohne dass Ihre Scrollposition verloren geht. Ein [Terminal-KI-Agent](ai-assistant.md)-Lauf fügt sofort nach Abschluss eine eigene **KI-Agent**-Karte hinzu: Ihr Prompt als Titel, die finale Antwort des Agents als Inhalt und eine Meta-Zeile mit dem Modell, der Laufdauer und der gemeldeten Token-Anzahl. Lange Antworten werden zu einer Vorschau zusammengeklappt — klicken Sie auf den Text (oder **Antwort vollständig anzeigen**), um sie aufzuklappen. Agent-Arbeit ist Teil des Journal-Eintrags, auch wenn der Zusammenfasser den Inline-Terminaltext des Agents als Rauschen behandelt. Wenn der Lauf in einem KI-Chat fortgesetzt wurde, enthält die Karte auch diesen Chat, siehe [KI-Agent-Karten und deren KI-Chats](#ki-agent-karten-und-deren-ki-chats).
 
 Da es sich um die echte Journalseite handelt, funktioniert alles, was die Viewerseite bietet, hier direkt: klicken Sie auf eine Eintragskarte, um deren Logauszug anzuzeigen, durchsuchen Sie das Journal, springen Sie zwischen markierten Einträgen und **Rechtsklick** auf einen Screenshot, um den [Annotation-Editor](#screenshot-notizen-und-anmerkungen) (Stift, Box, unleserlich, Text und eine Notiz) zu öffnen oder ihn zu kopieren – das bearbeitete Bild erscheint im Panel, sobald Sie speichern. Ein Rechtsklick auf einen Eintrag bietet denselben Marker-Picker wie der Viewer. Die Karten passen sich an die Panelbreite an, sodass der Text auch bei sehr schmaler oder breiter Anordnung lesbar bleibt.
 
@@ -167,6 +167,26 @@ Anschlussfragen führen das Gespräch fort (das Gremium behält die jüngsten Ge
 Jede KI-Aufruf, der für ein Journal gemacht wird — periodische Zusammenfassungen, die abschließende Sitzungszusammenfassung und der Titel, die Screenshot-Analyse und Fragen im KI Q&A Panel — trägt seine Token-Nutzung zu den laufenden Gesamtsummen des Journals bei. Die Journal-Seite zeigt die Summe in ihrem Header als **KI-Tokens** (zum Beispiel `12.3k · ≈ 0.04 €`), und der Journal-Manager hat eine Spalte **KI-Tokens**, deren Tooltip die Zahl in Eingabe- und Ausgabe-Tokens, Anzahl der KI-Aufrufe und das verwendete Profil aufschlüsselt. Der Geldbetrag erscheint, wenn das Profil ein [Preis pro 1M Tokens](../reference/settings/ai.md#token-quoten-verwaltung) hat; ein lokal laufendes Profil zeigt `local` stattdessen. Jeder Aufruf wird mit dem Preis des Profils zum Zeitpunkt des Aufrufs berechnet.
 
 Die gleichen Aufrufe zählen ebenfalls zum Token-Kontingent des KI-Profils, sodass Journale zusammengefasst im Kontingentbalken des KI-Managers erscheinen wie jede andere KI-Anfrage. Journale, die vor dieser Verfolgung aufgezeichnet wurden, zeigen keine KI-Tokens.
+
+## KI-Agent-Karten und deren KI-Chats
+
+Eine Terminal-Ausführung, die in einem KI-Chat fortgesetzt wird (siehe [Eine Ausführung in einem KI-Chat fortsetzen](ai-agent-designs.md#im-ki-chat-fortsetzen)), ist mit ihrer **KI-Agent**-Karte verknüpft, wenn das Sitzungsprotokoll dieses Terminal zu diesem Zeitpunkt aufzeichnet. Eine Ausführung ohne Karte, weil das Protokoll nach der Ausführung gestartet wurde oder die Ausführung keine Antwort lieferte, erhält eine neue **KI-Agent**-Karte, wenn Sie sie fortsetzen, während das Protokoll aufzeichnet. Die Karte zeigt dann ein **KI-Chat**-Tag. In korTTY zeigt sie zusätzlich eine Schaltfläche **Im KI-Chat öffnen**, die den Chat öffnet – oder die Kopie im Protokoll, wenn der Chat nicht mehr vorhanden ist. Unter der Antwort der Karte zeigt ein zusammengeklappter **KI-Chat anzeigen (N Nachrichten) · Stand <time>**-Transkript die Nachrichten des Chats; unter jeder Antwort des Chats zeigt eine verschachtelte, zusammengeklappte **Schritte (N)**-Liste die Schritte der Ausführung. Die eigene Frage und Antwort der Karte bleiben unverändert, unabhängig davon, ob der Chat in einen Export aufgenommen wird.
+
+Das Journal speichert eine Kopie des Chats, nicht nur einen Link. Während das Journal aufzeichnet, folgt die Kopie dem Chat: etwa zwei Sekunden nach der letzten Änderung am Chat wird die Kopie des Journals neu geschrieben, sodass ein Schwall von Änderungen nur einmal geschrieben wird. Die Kopie wird wie der Rest des Journals maskiert. Wenn das Journal stoppt, wird die Kopie ein letztes Mal geschrieben und in ihrer Stempelzeile als **(abgeschlossen)** markiert; dasselbe geschieht, wenn korTTY schließt, während das Journal aufzeichnet. Es wird nichts vom Journal zurück in den Chat geschrieben. Ein sehr langer Chat wird auf der Journalseite gekürzt, mit einem Hinweis, dass der vollständige Chat im KI-Chat zu finden ist.
+
+![An AGENT card with its AI chat transcript open below the card's answer, the steps nested under the chat's answer](../assets/screenshots/journal/journal-ai-chat-card.png)
+
+Wenn Sie den Chat löschen, behält das Journal seine letzte Kopie und markiert sie als **(abgeschlossen)**, da der Chat nicht mehr verändert werden kann. **Im KI-Chat öffnen** öffnet diese Kopie dann schreibgeschützt, mit dem Hinweis, dass der Chat nicht mehr im KI-Chat-Verlauf enthalten ist und nichts davon gespeichert wird.
+
+!!! note "Kopien, die von älteren Versionen erstellt wurden"
+    Ein Journal, das von einer korTTY-Version aus der Zeit vor der KI-Chatverknüpfung neu geschrieben wurde, kennt weder den Link noch die Kopie und entfernt beides, wenn es das Journal speichert. Verwenden Sie das Journal, das von der aktuellen Version geschrieben wurde, oder öffnen Sie es mit der aktuellen Version, bevor es erneut gespeichert wird.
+
+**Schwärzen…** gilt für die Kopie wie für jeden anderen Text des Journals. Die Kopie wird beim Schreiben geschwärzt, die automatischen Ersetzungsregeln der Organisation schreiben sie um, wie sie die Karte umschreiben, und das journalweite **Suchen & ersetzen** ändert auch deren Titel, Nachrichten und Schritte.
+
+**Suche.** Die Nachrichten eines verknüpften Chats sind durchsuchbar: Die Suchleiste auf der Journalseite hebt Treffer im Transkript hervor und öffnet das geschlossene Transkript, um sie anzuzeigen, und die [KI-Suche über alle Journale](#ki-suche-in-allen-journale) indexiert die Nachrichten des Chats ebenfalls, wobei jede Nachricht in ihrem eigenen Abschnitt der Zusammenfassung des Journals erscheint.
+
+!!! note
+    Die Schaltfläche **Im KI-Chat öffnen** wird nur in korTTY angeboten. Eine Kopie der Journalseite, die in einem Browser geöffnet wird, zeigt das Transkript, hat aber keine Schaltfläche zum Öffnen eines Chats.
 
 ## Passwortschutz
 
@@ -388,7 +408,7 @@ Es ist von zwei Stellen aus erreichbar: der **Suchen & ersetzen…**-Schaltfläc
 | **Capture-Log ebenfalls umschreiben** | Standardmäßig aktiviert. Aus ändert nur die Journaleinträge und lässt das Capture-Log unberührt |
 | **Treffer zählen** | Ein Probelauf über das echte Journal: Gibt an, wie viele Eintragsfelder und Protokollzeilen sich *ändern* würden, ohne etwas zu schreiben |
 
-Das Ersetzen umfasst jeden Eintragstitel, jede KI-Zusammenfassung, jede Notiz und jeden Auszug sowie – sofern Sie es nicht deaktiviert haben – jeden Teil des Capture-Logs, einschließlich der komprimierten Teile. Der Dateikopf und jede unberührte Zeile bleiben exakt erhalten, sodass das Protokoll seine Struktur behält.
+Ersetzen umfasst jeden Eintragstitel, jede KI-Zusammenfassung, jede Notiz und jeden Auszug, die Kopie eines verknüpften KI-Chats (seinen Titel, seine Nachrichten und Schritte) sowie – sofern Sie es nicht deaktiviert haben – jeden Teil des Capture-Logs, einschließlich der komprimierten. Der Dateikopf und jede unveränderte Zeile bleiben exakt erhalten, sodass das Protokoll seine Struktur behält.
 
 !!! warning
     Durch das Ersetzen werden die vorhandenen Journaldateien neu geschrieben und können nicht rückgängig gemacht werden. Verwenden Sie zuerst **Treffer zählen**, insbesondere bei einem regulären Ausdruck. Dokumente, die Sie bereits exportiert haben, sind separate Dateien und werden nicht geändert – exportieren Sie sie anschließend erneut. Ein Journal, das noch geschrieben wird, kann nicht neu geschrieben werden; beenden Sie zunächst die Sitzung.
@@ -406,10 +426,20 @@ Das **Exportieren**-Menü im Manager und im Viewer bietet drei Formate:
 | Format | Inhalt |
 |--------|---------|
 | **PDF** | Das einfache Journal: Kopfzeile mit Verbindungsdetails und Statistiken, nach Tagen gruppierte Einträge mit Markierungsplaketten, Eingabe-/Ausgabeauszüge, Notizen – und, falls ausgewählt, verkleinerte eingebettete Screenshots |
-| **Markdown** | Das gleiche einfache Journal als `.md`-Datei; Screenshots werden in einen benachbarten Ordner `<name>-files/` kopiert |
+| **Markdown** | Dasselbe einfache Journal als `.md` Datei; Screenshots und die Dateien verknüpfter KI-Chats werden in einen benachbarten `<name>-files/` Ordner |
 | **HTML-Bundle (vollständig)** | Ein Zip-Archiv des gesamten Journals – `journal.html`, `journal.xml`, die dekomprimierten Aufnahmeprotokolle und alle Screenshots – so angeordnet, dass die Seite sofort nach dem Entpacken funktioniert |
 
 PDF und Markdown fragen, ob Screenshots enthalten sein sollen.
+
+### KI-Chats in Exporten
+
+Der Export-Dialog verfügt über ein **KI-Chats einschließen**-Kontrollkästchen, das für jedes Format standardmäßig aktiviert ist. Es bestimmt, ob die Chat-Kopien der AGENT-Karten in den Export aufgenommen werden; siehe [KI-Agent-Karten und deren KI-Chats](#ki-agent-karten-und-deren-ki-chats). Die Frage und Antwort der Karte bleiben in jedem Fall im Export. Ist das Kontrollkästchen deaktiviert, gelangt kein Chat-Text in eine Datei des Exports, auch nicht in die `journal.xml`.
+
+- **PDF** — Nach den Einträgen beginnt ein Anhang **KI-Chats** auf einer neuen Seite. Er enthält eine Überschrift für jeden Chat, jeweils mit dem Stand (und *abgeschlossen*, sobald das Journal gestoppt wurde), seine Nachrichten und deren Schritte; die Überschriften sind Lesezeichen im PDF-Strukturbaum. Die Karte selbst besagt *KI-Chat: siehe Anhang „KI-Chats"*.
+- **Markdown** — Jede AGENT-Karte verlinkt eine eigene Datei `chat-<entry>.md`, mit dem Titel des Chats, seinem Zeitstempel sowie seinen Nachrichten und Schritten. Die Dateien werden in den `<name>-files`-Ordner neben der Markdown-Datei geschrieben, neben den Screenshots, damit sich jede einzelne auch für sich allein lesen lässt.
+- **HTML-Bundle** — Das Transkript bleibt in der Seite eingeklappt, mit seinen Schritten unter jeder Antwort. Die Schaltfläche **Im KI-Chat öffnen** ist im Bundle ausgeblendet, da ein Browser keinen Chat zum Öffnen hat.
+
+Ein gefilterter Export enthält die Chats der Einträge, die er beibehält, siehe [Nur einen Teil eines Journals exportieren](#es-wird-nur-ein-teil-eines-journals-exportiert).
 
 ### Es wird nur ein Teil eines Journals exportiert
 
@@ -483,4 +513,4 @@ regex = true
 label = "AWS access keys"
 ```
 
-Diese Regeln werden im Capture-Thread ausgeführt, bevor eine Zeile geschrieben wird, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt. Sie werden auch auf KI-Zusammenfassungen und -Notizen angewendet. Es gilt jede Regel jeder übereinstimmenden Richtlinienstufe – eine Regel, die ein Muster hinzufügt, schaltet niemals ein anderes aus. Im obigen Dialog erfahren Sie, wie viele vorgeschriebene Regeln in Kraft sind. Journale, die vor dem Inkrafttreten einer Regel geschrieben wurden, werden nicht rückwirkend umgeschrieben; Verwenden Sie für diese Suchen und Ersetzen. Siehe [Richtlinienkonfiguration](../reference/enterprise-policy.md#rulesession-journalreplace) für jeden Schlüssel.
+Diese Regeln werden auf dem Erfassungs-Thread ausgeführt, bevor eine Zeile geschrieben wird, so dass ein übereinstimmender Text zunächst gar nicht erst in die Protokolldatei gelangt; sie werden ebenfalls auf KI-Zusammenfassungen, Notizen und die Kopien verknüpfter KI-Chats angewendet. Jede Regel jedes passenden Policy-Tiers wird angewendet — eine Regel, die ein Muster hinzufügt, schaltet nie eine andere aus. Der obige Dialog zeigt Ihnen an, wie viele vorgeschriebene Regeln in Kraft sind. Protokolle, die vor der Einführung einer Regel geschrieben wurden, werden nicht rückwirkend umgeschrieben; verwenden Sie Suchen & ersetzen dafür. Siehe [Policy-Konfiguration](../reference/enterprise-policy.md#rulesession-journalreplace) für jeden Schlüssel.

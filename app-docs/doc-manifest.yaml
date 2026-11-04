@@ -201,12 +201,13 @@ pages:
       - settings/video.png
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/reference/settings/ai.md
-    owns_i18n: [settings.ai., ai.manager.general.]
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiGeneralSettingsPane.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/AnthropicModelLimits.java, src/main/java/de/kortty/model/AiChatTerminalActions.java]
+    owns_i18n: [settings.ai., ai.manager.general., ai.manager.search., ai.local.preferences.]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiGeneralSettingsPane.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/AnthropicModelLimits.java, src/main/java/de/kortty/model/AiChatTerminalActions.java, src/main/java/de/kortty/core/AiProfileSelectionSupport.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/ui/SettingsSearchBar.java]
     screenshots:
       - ai/ai-manager-general.png
       - ai/ai-profiles.png
-    last_synced_ref: "8a4dad95"
+      - ai/ai-manager-search.png
+    last_synced_ref: "0a5ea066"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/model/AiSkill.java, src/main/java/de/kortty/model/AiSkillTarget.java, src/main/java/de/kortty/model/AiSkillBuiltinBaseline.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AiSkillRelevanceClassifier.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillMarkdownCodec.java, src/main/java/de/kortty/core/BuiltinAiSkillSupport.java, src/main/java/de/kortty/core/BuiltinAiSkillCatalog.java, src/main/java/de/kortty/core/BuiltinAiSkillProvisioner.java, src/main/java/de/kortty/ui/AiSkillPickerControl.java, src/main/java/de/kortty/ui/AiSkillsPane.java, src/main/java/de/kortty/ui/AiSkillListFormat.java, src/main/java/de/kortty/ui/AiSkillStorageGuard.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/AiSkillProvider.java, src/main/java/de/kortty/model/AiSkillProviderType.java, src/main/java/de/kortty/model/AiSkillProviderAuth.java, src/main/java/de/kortty/model/AiSkillExternalSource.java, src/main/java/de/kortty/core/ExternalAiSkillSupport.java, src/main/java/de/kortty/core/GitHubAiSkillClient.java, src/main/java/de/kortty/core/GitHubSkillReference.java, src/main/java/de/kortty/core/SkillsMpAiSkillClient.java, src/main/java/de/kortty/core/HttpAiSkillClient.java, src/main/java/de/kortty/core/ExternalAiSkillHttp.java, src/main/java/de/kortty/ui/ExternalAiSkillImportDialog.java, src/main/java/de/kortty/ui/ExternalAiSkillUpdateDialog.java, src/main/java/de/kortty/ui/AiSkillProvidersDialog.java]
@@ -313,17 +314,17 @@ pages:
     diagrams: [teamwork-sync-flow.svg]
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/features/ai-assistant.md
-    owns_i18n: [ai.result.terminal., ai.result.streaming, ai.recentOutput., terminal.contextMenu.ai.summarizeRecent]
-    owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiProfileWizardDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalAction.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalButtons.java, src/main/java/de/kortty/ui/TerminalPaneRef.java, src/main/java/de/kortty/ui/TerminalRecentOutputSource.java, src/main/java/de/kortty/ui/AiTextActionInput.java, src/main/java/de/kortty/ui/AiStreamCoalescer.java, src/main/java/de/kortty/ui/AiChatStreamingView.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java, src/main/java/de/kortty/ui/ChatMarkdownView.java, src/main/java/de/kortty/ui/ChatAutoScrollSupport.java, src/main/java/de/kortty/ui/AiChatRenderSupport.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-sequence.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-state.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-class.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-er.md]
+    owns_i18n: [ai.result.terminal., ai.result.agentRun., ai.result.streaming, ai.recentOutput., terminal.contextMenu.ai.summarizeRecent]
+    owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiProfileWizardDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalAction.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalButtons.java, src/main/java/de/kortty/ui/TerminalPaneRef.java, src/main/java/de/kortty/ui/TerminalRecentOutputSource.java, src/main/java/de/kortty/ui/AiTextActionInput.java, src/main/java/de/kortty/ui/AiStreamCoalescer.java, src/main/java/de/kortty/ui/AiChatStreamingView.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java, src/main/java/de/kortty/ui/ChatMarkdownView.java, src/main/java/de/kortty/ui/ChatAutoScrollSupport.java, src/main/java/de/kortty/ui/AiChatRenderSupport.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-sequence.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-state.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-class.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-er.md, src/main/java/de/kortty/core/AgentRunChatSeeder.java, src/main/java/de/kortty/core/AgentChatTranscriptFormatter.java, src/main/java/de/kortty/model/SavedAgentStep.java]
     diagrams: [ai-api-integration.svg]
-    screenshots: [ai/chat-code-block-actions.png]
-    last_synced_ref: "8a4dad95"
+    screenshots: [ai/chat-code-block-actions.png, ai/chat-from-agent-run.png]
+    last_synced_ref: "0a5ea066"
   - path: app-docs/site/docs/en/features/local-models.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts]
+    owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts, src/main/java/de/kortty/core/AiProfileSelectionSupport.java]
     diagrams: []
     screenshots: [ai/local-models.png]
-    last_synced_ref: "0fc5f4e"
+    last_synced_ref: "0a5ea066"
   - path: app-docs/site/docs/en/features/rag.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/rag, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/ui/RagKnowledgeStorePane.java, src/main/java/de/kortty/ui/RagKnowledgeStorePresentation.java, src/main/java/de/kortty/model/AiProfile.java]
@@ -332,9 +333,9 @@ pages:
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java, src/main/java/de/kortty/platform/FlatpakSupport.java, src/main/java/de/kortty/ui/AiAgentPlanTab.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java, src/main/java/de/kortty/platform/FlatpakSupport.java, src/main/java/de/kortty/ui/AiAgentPlanTab.java, src/main/java/de/kortty/core/AgentRunChatSource.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "8a4dad95"
+    last_synced_ref: "0a5ea066"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]
@@ -422,6 +423,11 @@ pages:
   - path: app-docs/site/docs/en/features/session-journal.md
     owns_i18n: ["journal.", "settings.journal.", "terminal.journal.", "connEdit.journal.", connEdit.tab.journal, tab.contextMenu.journal, terminal.contextMenu.journalScreenshot, terminal.contextMenu.journalNote, menu.tools.sessionJournals, menu.tools.toggleSessionJournal, menu.tools.journalScreenshot]
     owns_code:
+      - src/main/java/de/kortty/core/SessionJournalChatSync.java
+      - src/main/java/de/kortty/core/SessionJournalChatTranscript.java
+      - src/main/java/de/kortty/core/AgentRunChatSeeder.java
+      - src/main/java/de/kortty/model/SessionJournalChatMessage.java
+      - src/main/java/de/kortty/model/SessionJournalChatSnapshot.java
       - src/main/java/de/kortty/core/SessionJournalCommandInfos.java
       - src/main/java/de/kortty/core/SessionJournalExportProtection.java
       - src/main/java/de/kortty/core/SessionJournalFactCheck.java
@@ -510,7 +516,8 @@ pages:
       - journal/journal-markers.png
       - journal/journal-ask-panel.png
       - journal/journal-search-panel.png
-    last_synced_ref: "f8e06604"
+      - journal/journal-ai-chat-card.png
+    last_synced_ref: "0a5ea066"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java, src/main/java/de/kortty/core/AsciiArtPictureRenderer.java, src/main/java/de/kortty/core/AsciiArtSvgScanner.java, src/main/java/de/kortty/core/AsciiArtRasterizer.java, src/main/java/de/kortty/core/AsciiArtGlyphs.java, src/main/java/de/kortty/core/AsciiArtCopySupport.java, src/main/java/de/kortty/core/AsciiArtImageSupport.java, src/main/java/de/kortty/model/AsciiArtPictureSize.java, src/main/java/de/kortty/model/AsciiArtCommentStyle.java, src/main/java/de/kortty/model/AsciiArtPrintStyle.java]
@@ -525,6 +532,9 @@ pages:
   - path: app-docs/site/docs/en/features/ai-agent-designs.md
     owns_i18n: [aiAgentDesign.]
     owns_code:
+      - src/main/java/de/kortty/ui/AgentChatHandoffBar.java
+      - src/main/java/de/kortty/core/AgentRunChatSource.java
+      - src/main/java/de/kortty/core/AgentStepReader.java
       - src/main/java/de/kortty/agentdesign
       - src/main/java/de/kortty/model/AgentDesignCombinationEntry.java
       - src/main/java/de/kortty/ui/AgentAdaptiveDock.java
@@ -565,8 +575,8 @@ pages:
       - src/main/java/de/kortty/ui/AgentStepDetails.java
       - src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java
       - src/main/java/de/kortty/ui/AgentTerminalSurface.java
-    screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png, plugins/ai-agent-status-designs.png, plugins/ai-agent-history-panels.png, plugins/ai-agent-floating-designs.png, plugins/ai-agent-terminal-designs.png, plugins/ai-agent-arrangements.png]
-    last_synced_ref: "8a4dad95"
+    screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png, plugins/ai-agent-status-designs.png, plugins/ai-agent-history-panels.png, plugins/ai-agent-floating-designs.png, plugins/ai-agent-terminal-designs.png, plugins/ai-agent-arrangements.png, plugins/ai-agent-continue-in-chat.png]
+    last_synced_ref: "0a5ea066"
   - path: app-docs/site/docs/en/features/coding-agents.md
     owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]
     owns_code:

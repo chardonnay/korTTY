@@ -240,6 +240,10 @@ A rule that korTTY cannot save, for example one that holds a possible secret, ke
 
 Each agent run and planning step sends the korTTY memory: the global memory and, for a connection, that connection's memory, budgeted and masked like the rest of the prompt. The **Sent along** line in the run's panel lists the memory entries, skills and reference files that were sent, with their token counts. In the agent's prompt dialog, **Remember as rule…** saves a rule that you write, without an AI call. See [AI memory](ai-memory.md).
 
+## Continue a run in an AI chat
+
+A finished terminal run can be taken into an AI chat: the bar under the terminal and the run menu offer **Continue in AI chat**, and with every design except the classic panel the terminal's context menu offers it under *AI → Last agent run*. The chat keeps the task, the final answer and the steps of the run, masked like everything else korTTY sends, and you can ask follow-up questions in it. See [Continue a run in an AI chat](ai-agent-designs.md#continue-a-run-in-an-ai-chat) and [Chats from AI agent runs](ai-assistant.md#chats-from-ai-agent-runs).
+
 ## Generate Workflow Script
 
 After a finished agent run completes successfully, a **Workflow** button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, **Windows-CMD** batch, or **AppleScript**) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time).
@@ -353,6 +357,8 @@ Configure the Terminal AI Agent in **AI > AI Manager > General**:
 | **Default profile** | The AI profile used when the setup dialog is disabled |
 
 The panel placement is set under **View → AI Agent Panel**, and **Keep collapsed** is an option of the activity panel itself (see [Panel placement](#panel-placement) and [Panel features](#panel-features)).
+
+**Which profile a run uses** follows the most specific choice. The profile picked in the run's setup or plan dialog, or named in the agent command, comes first. Then come the connection's own AI profile, the **AI agent profile** role under **AI > AI Manager > Local AI > Profile roles**, the Coding profile and finally the default profile. An empty **AI agent profile** role means the previous behaviour: the Coding profile, then the default profile. [Ask Agent…](ai-assistant.md#ai-agent-and-ai-planning) uses the same order. See [Text, coding, translation, and embedding roles](local-models.md#text-coding-translation-and-embedding-roles).
 
 ## AI Skills
 

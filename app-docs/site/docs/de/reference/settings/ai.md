@@ -8,6 +8,16 @@ Jede KI-Einstellung befindet sich an einem Ort: **KI → KI-Manager**. Ihr erste
 
 ![KI-Manager, General tab](../../assets/screenshots/ai/ai-manager-general.png)
 
+## Suche im KI-Manager { #searching-the-ai-manager }
+
+Oben im KI-Manager, über seinen Tabs, befindet sich eine Suchzeile, ähnlich der Suche im Einstellungsdialog. Geben Sie ein Wort ein, und die passenden Optionen werden aufgelistet; die Auswahl einer davon öffnet deren Seite, scrollt zur Option und hebt sie hervor. ++cmd+f++ (++ctrl+f++ unter Windows und Linux) springt von den Tabs und deren Seiten zur Suchzeile.
+
+![The KI-Manager search line with the options that match Agent, listed by page](../../assets/screenshots/ai/ai-manager-search.png)
+
+- **Allgemein**, **Profile** und **Lokale KI** werden über ihre eigenen Optionen durchsucht, auch bevor Sie ihre Tabs zum ersten Mal öffnen.
+- **Lokale Modelle**, **Wissensspeicher**, **KI-Skills** und **Memory** werden über ihre Namen und über Schlüsselwörter gefunden, beispielsweise *GGUF* oder *Hugging Face* für Lokale Modelle, *RAG* oder *embeddings* für Wissensspeicher, *GitHub* oder *import* für KI-Skills sowie *remember* oder *MEMORY.md* für Memory.
+- In den Editoren der Seiten **KI-Skills** und **Memory** behalten ++cmd+f++ und ++ctrl+f++ ihre eigene Suche im Editor; die Suchzeile wird dann mit der Maus erreicht.
+
 ## Allgemeiner Tab { #general-tab }
 
 **KI → KI-Manager → Allgemein** gruppiert die globalen Optionen auf vier Abschnittstabellen. **Speichern** unter den Abschnitten schreibt alle; das Schließen des KI-Managers speichert sie ebenfalls.
@@ -29,7 +39,7 @@ Die Tabellen unten listen jede Einstellung dieser Abschnitte mit ihrem gespeiche
 | Bestätigungsdialog vor Absendung von KI-Anfragen anzeigen | Schalter | — | Ein | `aiConfirmBeforeSend` |
 | KI-Chat-Codeblöcke im Terminal | Dropdown | Aus (nur kopieren und speichern), Nur Einfügen, Einfügen und Ausführen | Einfügen und Ausführen | `aiChatTerminalActions` |
 
-Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, zeigen **Zusammenfassen**, **Letzte Ausgabe zusammenfassen** und **Problem lösen** im **KI**-Kontextmenü des Terminals an, was sie an die KI senden, und warten auf eine Bestätigung. **Fragen** öffnet immer seinen Dialog, da die Frage dort eingegeben wird. Der Terminal-Agent hat vor jedem Start einen eigenen Dialog; er wird unter [Terminal-KI-Agent](#ki-agent-im-terminal) über **Terminal-Agent-Abfrage vor jedem Start anzeigen** deaktiviert.
+Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, zeigen **Zusammenfassen**, **Letzte Ausgabe zusammenfassen** und **Problem lösen** im **KI**-Kontextmenü des Terminals an, was sie an die KI senden, und warten auf eine Bestätigung. **Fragen** öffnet immer seinen Dialog, da die Frage dort eingegeben wird. Der Terminal-Agent hat vor jedem Start einen eigenen Dialog; er wird unter [KI-Agent im Terminal](#ki-agent-im-terminal) über **Terminal-Agent-Abfrage vor jedem Start anzeigen** deaktiviert.
 
 **KI-Chat-Codeblöcke im Terminal** legt fest, welche Schaltflächen die Codeblöcke eines KI-Chats anbieten: **Einfügen** gibt einen Block an der Eingabeaufforderung eines Terminalbereichs ein, ohne Enter zu drücken, und **Ausführen** führt eine einzelne Shell-Befehlszeile nach einer Bestätigung aus. Die Unternehmensrichtlinie kann nur weitere Schaltflächen wegnehmen. Siehe [Codeblöcke im Terminal](../../features/ai-assistant.md#codeblocke-im-terminal).
 
@@ -153,23 +163,26 @@ korTTY speichert mehrere benannte KI-Profile, jedes mit eigener Modellvariante, 
 - **Lokale CLI**: Ausführung eines lokalen Befehlszeilen-Tools für KI (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte Ausführbarkeit, die Argumentenvorlage und den benutzerdefinierten Modellnamen).
 - **Integriertes llama.cpp**: Wählen Sie den installierten Chat-GGUF im **Lokalen GGUF-Modell** aus. korTTY erhält einen privaten Loopback-`llama-server`-Zugriff (Lease) dafür; die API-URL und das Profil-API-Schlüssel werden von korTTY verwaltet und sind nicht bearbeitbar.
 
-Ein explizit ausgewählter oder sicherheitsgeprüfter Profil bleibt am spezifischsten. Andernfalls verwenden Aktionen im Terminal den konfigurierten Textprofil, Aktionen im Code das Coding-Profil, und ein nicht zugewiesenes Rolle fällt auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **KI > KI-Manager > Lokale KI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
+Ein explizit gewähltes oder für Sicherheitsprüfungen bestimmtes Profil hat die höchste Priorität. Andernfalls verwenden Terminal-Textaktionen das konfigurierte Text-Profil, Code-Aktionen das Coding-Profil, und eine nicht zugewiesene Rolle fällt auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die Lokale Laufzeit unter **KI > KI-Manager > Lokale KI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md). Ausführungen des Terminal-Agenten folgen ihrer eigenen Reihenfolge, die das Profil für den KI-Agenten umfasst; siehe [Einstellungen des lokalen KI-Managers](#einstellungen-des-lokalen-ki-managers).
 
 Der KI-Manager ist moduslos und kann während der Nutzung des Hauptfensters geöffnet bleiben. Ein erneutes Aufrufen des Managers führt dazu, dass der gleiche Manager für das Hauptfenster wiederhergestellt und gefokussiert wird, und der offene primäre Abschnitt bleibt bei Interaktion mit den Steuerelementen sichtbar mit einem fett unterstrichenen Akzent.
 
 ### Einstellungen des lokalen KI-Managers
 
-**KI > KI-Manager > Lokale KI** gruppiert diese Einstellungen in drei Abschnittstabs: **Profil-Rollen** (die drei Profil-Auswahlfelder), **Lokale Laufzeit** (Laufzeit-Updates, bevorzugtes Backend, RAG-Embedding-Modell-ID) und **Hugging Face** (der Token). **Speichern** unter den Abschnitten schreibt alle davon.
+**KI > KI-Manager > Lokale KI** gruppiert diese Einstellungen in drei Tab-Abschnitten: **Profil-Rollen** (die vier Profil-Auswahlfelder), **Lokale Laufzeit** (Laufzeit-Updates, bevorzugtes Backend, RAG-Embedding-Modell-ID) und **Hugging Face** (der Token). Über **Speichern** unter den Abschnitten werden alle davon gespeichert.
 
 | Wert für | Werte | Standard | als gespeichert |
 | --- | --- | --- | --- |
 | Profil für Text und Übersetzung | konfiguriertes KI-Profil oder Standard verwenden | Standard verwenden | `textAiProfileId` |
 | Coding-Profil | konfiguriertes KI-Profil oder Standard verwenden | Standard verwenden | `codingAiProfileId` |
+| Profil für den KI-Agenten | Konfiguriertes KI-Profil oder leer (dann das Coding-Profil, dann der Standard) | Leer | `terminalAgentAiProfileId` |
 | Sitzungsjournal-Profil | konfiguriertes KI-Profil oder Standard verwenden | Standard verwenden | `sessionJournalAiProfileId` |
 | RAG-Embedding-Modell-ID | Installiertes lokales Embedding-Modell | — | `ragEmbeddingModelId` |
 | llama.cpp Runtime-Updates | Aus, Benachrichtigen, Stabile Updates automatisch installieren | Benachrichtigen | `llamaRuntimeUpdatePolicy` |
 | Bevorzugtes Runtime-Backend | Auto/CPU/Metal unter macOS; Auto/CPU/Vulkan unter Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |
 | Hugging Face token | Optionales verschlüsseltes Token für begrenzte/private Repositorys | — | `encryptedHuggingFaceToken` |
+
+Das **Profil für den KI-Agenten** ist die Rolle des [KI-Agent](../../features/ai-tools.md) im Terminal. Das Profil eines Laufs wird in dieser Reihenfolge gewählt: zuerst das Profil, das im Setup- oder Plan-Dialog des Laufs ausgewählt wurde oder im Agenten-Befehl benannt ist; dann das eigene KI-Profil der Verbindung; dann das Profil für den KI-Agenten; dann das Coding-Profil; und schließlich das Standardprofil. Ein Profil, das nicht mehr existiert, wird übersprungen und das nächste Level gilt. Ein leeres Profil für den KI-Agenten behält das vorherige Verhalten bei, nämlich das Coding-Profil und dann das Standardprofil. Ask-Läufe verwenden dieselbe Reihenfolge.
 
 **Automatisch (aktives Backend beibehalten)** behält das aktive Runtime-Paket-Backend für Updates. Bei fehlenden installierten Paketen wählt Auto standardmäßig Metal unter macOS und CPU an anderen Orten. Das Starten eines Modells, das für ein anderes unterstütztes GPU-Backend konfiguriert ist, bietet die Installation des entsprechenden signierten Pakets an.
 
