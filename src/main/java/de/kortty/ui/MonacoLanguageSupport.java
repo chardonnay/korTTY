@@ -29,7 +29,7 @@ public final class MonacoLanguageSupport {
             case "jinja2" -> "jinja2";
             case "puppet" -> "puppet";
             case "toml" -> "toml";
-            case "python", "perl", "ruby", "java", "css", "go", "rust", "sql", "xml", "json", "yaml", "html", "markdown", "ini", "hcl" -> normalized;
+            case "python", "perl", "ruby", "lua", "java", "css", "go", "rust", "sql", "xml", "json", "yaml", "html", "markdown", "ini", "hcl" -> normalized;
             default -> "plaintext";
         };
     }

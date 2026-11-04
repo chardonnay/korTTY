@@ -13,6 +13,7 @@ public final class SnippetLanguageSupport {
         "python",
         "perl",
         "ruby",
+        "lua",
         "javascript",
         "groovy",
         "powershell");
@@ -22,7 +23,7 @@ public final class SnippetLanguageSupport {
      * Anything else (its raw-passthrough default branch) is off-list, unbounded text.
      */
     private static final Set<String> KNOWN_LANGUAGES = Set.of(
-        "bash", "python", "perl", "ruby", "javascript", "typescript", "powershell", "groovy", "java",
+        "bash", "python", "perl", "ruby", "lua", "javascript", "typescript", "powershell", "groovy", "java",
         "json", "yaml", "xml", "markdown", "asciidoctor", "sql", "dockerfile",
         "properties", "html", "plain");
 
@@ -77,6 +78,7 @@ public final class SnippetLanguageSupport {
             case "py", "python", "python3" -> "python";
             case "pl", "perl" -> "perl";
             case "rb", "ruby" -> "ruby";
+            case "lua", "luajit" -> "lua";
             case "js", "javascript", "node", "nodejs" -> "javascript";
             case "ts", "typescript" -> "typescript";
             case "ps", "ps1", "pwsh", "powershell" -> "powershell";
@@ -102,6 +104,7 @@ public final class SnippetLanguageSupport {
             case "py" -> "python";
             case "pl" -> "perl";
             case "rb" -> "ruby";
+            case "lua" -> "lua";
             case "js" -> "javascript";
             case "ts" -> "typescript";
             case "ps", "ps1", "pwsh" -> "powershell";
@@ -130,6 +133,7 @@ public final class SnippetLanguageSupport {
             case "python" -> ".py";
             case "perl" -> ".pl";
             case "ruby" -> ".rb";
+            case "lua" -> ".lua";
             case "javascript" -> ".js";
             case "typescript" -> ".ts";
             case "groovy" -> ".groovy";
@@ -196,6 +200,9 @@ public final class SnippetLanguageSupport {
         }
         if (normalized.startsWith("ruby")) {
             return "ruby";
+        }
+        if (normalized.startsWith("lua")) {
+            return "lua"; // lua, lua5.4, luajit
         }
         if ("pwsh".equals(normalized) || "powershell".equals(normalized)) {
             return "powershell";

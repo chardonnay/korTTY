@@ -205,11 +205,12 @@ public final class SnippetCompletionSupport {
         Pattern.compile("^\\s*(?:foreach|for)\\s+(?:(?:my|our|state|local)\\s+)?\\$(" + NAME + ")\\s*\\(");
     private static final Pattern PERL_COND_DECL =
         Pattern.compile("^\\s*(?:while|if|unless|until|elsif)\\s*\\(\\s*(?:my|our)\\s+([$@%])(" + NAME + ")");
+    private static final Pattern PERL_SCOPE_KEYWORD = Pattern.compile("\\b(my|our|local|state)\\b");
 
     // ---------------------------------------------------------------- python
 
-    private static final Pattern PY_DEF = Pattern.compile("^\\s*(?:async\\s+)?def\\s+(" + NAME + ")\\s*\\((.*)$");
-    private static final Pattern PY_CLASS = Pattern.compile("^\\s*class\\s+(" + NAME + ")");
+    static final Pattern PY_DEF = Pattern.compile("^\\s*(?:async\\s+)?def\\s+(" + NAME + ")\\s*\\((.*)$");
+    static final Pattern PY_CLASS = Pattern.compile("^\\s*class\\s+(" + NAME + ")");
     private static final Pattern PY_TUPLE_ASSIGN =
         Pattern.compile("^\\s*(" + NAME + "(?:\\s*,\\s*" + NAME + ")+)\\s*=(?!=)");
     private static final Pattern PY_ASSIGN = Pattern.compile("^\\s*(" + NAME + ")\\s*(?::\\s*([^=]+?))?\\s*"
@@ -227,7 +228,7 @@ public final class SnippetCompletionSupport {
 
     // ---------------------------------------------------------------- powershell
 
-    private static final Pattern PS_FUNCTION =
+    static final Pattern PS_FUNCTION =
         Pattern.compile("^\\s*(?:function|filter|workflow)\\s+(" + PS_NAME + ")", Pattern.CASE_INSENSITIVE);
     private static final Pattern PS_ASSIGN = Pattern.compile(
         "^\\s*(?:\\[([A-Za-z_][A-Za-z0-9_.]*(?:\\[\\])?)\\]\\s*)?\\$(?:script:|global:|local:|private:)?("
@@ -238,6 +239,8 @@ public final class SnippetCompletionSupport {
         Pattern.compile("^\\s*foreach\\s*\\(\\s*\\$(" + NAME + ")\\s+in\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern PS_PARAM_LINE = Pattern.compile("^\\s*param\\s*\\((.*)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern PS_VAR_REF = Pattern.compile("\\$(" + NAME + ")");
+    private static final Pattern PS_GLOBAL_PREFIX =
+        Pattern.compile("^\\s*(?:\\[[^\\]]*\\]\\s*)?\\$(?:script|global):", Pattern.CASE_INSENSITIVE);
     private static final Pattern PS_ARRAY_RHS = Pattern.compile("^(?:@\\(|\\S+\\.\\.\\S+|[^\"'(@]*,"
         + "|(?:Get-ChildItem|Get-Content|Import-Csv|Get-Process|Get-Service|Get-Item|gci|ls|dir|gc)\\b)",
         Pattern.CASE_INSENSITIVE);
@@ -258,6 +261,28 @@ public final class SnippetCompletionSupport {
     private static final Pattern RB_HASH_RHS =
         Pattern.compile("^(?:\\{|Hash\\.new|Hash\\[|JSON\\.parse|YAML\\.(?:load|safe_load)|.*\\.(?:to_h|group_by)\\b)");
 
+    // ---------------------------------------------------------------- lua
+
+    /** {@code function name(}, {@code local function name(}, {@code function M.name(}, {@code function M:name(}. */
+    static final Pattern LUA_FUNCTION = Pattern.compile(
+        "^\\s*(?:local\\s+)?function\\s+(" + NAME + "(?:[.:]" + NAME + ")*)\\s*\\((.*)$");
+    /** {@code local f = function(…)}, {@code M.f = function(…)}. */
+    private static final Pattern LUA_FUNCTION_VALUE =
+        Pattern.compile("^\\s*(?:local\\s+)?(" + NAME + "(?:\\." + NAME + ")*)\\s*=\\s*function\\b");
+    /** {@code local a, b <const> = …} — Lua 5.4 attributes ({@code <const>}, {@code <close>}) allowed. */
+    private static final Pattern LUA_LOCAL = Pattern.compile("^\\s*local\\s+(" + NAME + "(?:\\s*<\\s*\\w+\\s*>)?"
+        + "(?:\\s*,\\s*" + NAME + "(?:\\s*<\\s*\\w+\\s*>)?)*)\\s*(?:=(?!=)\\s*(.*))?$");
+    private static final Pattern LUA_ASSIGN =
+        Pattern.compile("^\\s*(" + NAME + "(?:\\s*,\\s*" + NAME + ")*)\\s*=(?!=)\\s*(.*)$");
+    private static final Pattern LUA_FOR_IN =
+        Pattern.compile("^\\s*for\\s+(" + NAME + "(?:\\s*,\\s*" + NAME + ")*)\\s+in\\b");
+    private static final Pattern LUA_FOR_NUMERIC = Pattern.compile("^\\s*for\\s+(" + NAME + ")\\s*=");
+    private static final Pattern LUA_ATTRIBUTE = Pattern.compile("<\\s*(\\w+)\\s*>");
+    /** A table constructor with keys ({@code {a = 1}}, {@code {["k"] = v}}) or an empty one is used as a map. */
+    private static final Pattern LUA_HASH_RHS =
+        Pattern.compile("^(?:\\{\\s*}|\\{\\s*(?:" + NAME + "|\\[[^\\]]*])\\s*=|setmetatable\\s*\\()");
+    private static final Pattern LUA_ARRAY_RHS = Pattern.compile("^(?:\\{|table\\.pack\\s*\\()");
+
     // ---------------------------------------------------------------- generic (all other languages)
 
     private static final Pattern GEN_FUNCTION_KEYWORD = Pattern.compile(
@@ -268,19 +293,22 @@ public final class SnippetCompletionSupport {
         "^\\s*(?:(?:public|private|protected|internal|static|final|abstract|synchronized|default|override|virtual"
             + "|inline|async|export|unsafe|extern)\\s+)*(?:[A-Za-z_][A-Za-z0-9_.]*(?:<[^<>]*>)?(?:\\[\\])*\\s+)?"
             + "(" + NAME + ")\\s*\\([^()]*\\)\\s*(?:throws\\s+[A-Za-z0-9_.,\\s]+|:\\s*[^{=]+)?\\{\\s*$");
-    private static final Pattern GEN_ARROW = Pattern.compile(
+    static final Pattern GEN_ARROW = Pattern.compile(
         "^\\s*(?:export\\s+(?:default\\s+)?)?(?:const|let|var)\\s+(" + NAME + ")\\s*=\\s*(?:async\\s*)?"
             + "(?:\\([^()]*\\)|" + NAME + ")\\s*(?::\\s*[^=]+)?=>");
-    private static final Pattern GEN_FUNC_EXPR = Pattern.compile(
+    static final Pattern GEN_FUNC_EXPR = Pattern.compile(
         "^\\s*(?:export\\s+(?:default\\s+)?)?(?:(?:const|let|var)\\s+)?(?:[A-Za-z_][A-Za-z0-9_.]*\\.)?("
             + NAME + ")\\s*[:=]\\s*(?:async\\s+)?function\\b");
-    private static final Pattern GEN_SQL_CREATE = Pattern.compile(
+    static final Pattern GEN_SQL_CREATE = Pattern.compile(
         "^\\s*create\\s+(?:or\\s+replace\\s+)?(?:(?:temporary|temp)\\s+)?(function|procedure|trigger|view|table)\\s+"
             + "(?:if\\s+not\\s+exists\\s+)?([A-Za-z_][A-Za-z0-9_.]*)", Pattern.CASE_INSENSITIVE);
     private static final Pattern GEN_VAR = Pattern.compile(
         "^\\s*(?:export\\s+)?(?:(?:const|let|var|val|final|static|private|public|protected|readonly|def|global)\\s+)*"
             + "(?:([A-Za-z_][A-Za-z0-9_.]*(?:<[^<>]*>)?(?:\\[\\])*)\\s+)?(" + NAME + ")"
             + "\\s*(?::\\s*([^=]+?))?\\s*=(?![=>])\\s*(.*)$");
+    /** A declaring keyword in front of a {@link #GEN_VAR} assignment ({@code const x = …}, not {@code x = …}). */
+    private static final Pattern GEN_DECLARING_KEYWORD = Pattern.compile(
+        "^\\s*(?:export\\s+)?(?:const|let|var|val|final|static|private|public|protected|readonly|def)\\s");
     private static final Pattern GEN_ARRAY_TYPE = Pattern.compile(
         "^(?:[A-Za-z_][A-Za-z0-9_.]*\\[\\]|(?:java\\.util\\.)?"
             + "(?:List|ArrayList|LinkedList|Set|HashSet|TreeSet|LinkedHashSet|Collection|Iterable|Iterator|Deque"
@@ -314,7 +342,7 @@ public final class SnippetCompletionSupport {
             + " create table where group order by having join left right inner outer on union all distinct into"
             + " values limit offset drop alter index primary key foreign references between like exists desc asc cast"
             + " when end begin rescue ensure nil elseif func fn pub struct impl trait mut match loop param process"
-            + " filter type").split(" ")));
+            + " filter type repeat").split(" ")));
 
     private SnippetCompletionSupport() {
     }
@@ -859,10 +887,35 @@ public final class SnippetCompletionSupport {
 
     // ================================================================ harvesting
 
-    /** Collects the symbols of one language, line by line; buckets keep first-appearance order. */
-    private static final class Harvester {
+    /** How a definition was written, beyond its bucket — what the editor's structure view shows. */
+    enum Flavor {
+        PLAIN, EXPORTED, CONSTANT, PARAMETER, FIELD
+    }
+
+    /**
+     * Where the written form puts a definition: {@code LOCAL} for a declaring form that binds it to
+     * the enclosing function ({@code local}, {@code my}, {@code let}, a typed declaration),
+     * {@code GLOBAL} for an explicitly global one ({@code our}, {@code $global:}, {@code export}),
+     * {@code DEFAULT} for a plain assignment whose scope depends on the language.
+     */
+    enum ScopeHint {
+        DEFAULT, LOCAL, GLOBAL
+    }
+
+    /** Receives every definition the rules find, uncapped, in the order of the lines fed. */
+    interface DefinitionSink {
+        void define(CandidateKind kind, String name, Flavor flavor, ScopeHint scope);
+    }
+
+    /**
+     * Collects the symbols of one language, line by line; buckets keep first-appearance order. With
+     * a {@link DefinitionSink} it also reports every definition with its flavour (the structure view
+     * of the snippet editor reads it that way) and skips the identifier ranking.
+     */
+    static final class Harvester {
 
         private final String language;
+        private final DefinitionSink sink;
         private final LinkedHashSet<String> arrays = new LinkedHashSet<>();
         private final LinkedHashSet<String> hashes = new LinkedHashSet<>();
         private final LinkedHashSet<String> scalars = new LinkedHashSet<>();
@@ -871,7 +924,12 @@ public final class SnippetCompletionSupport {
         private final Map<String, int[]> identifiers = new LinkedHashMap<>();
 
         Harvester(String language) {
+            this(language, null);
+        }
+
+        Harvester(String language, DefinitionSink sink) {
             this.language = language;
+            this.sink = sink;
         }
 
         void line(String line) {
@@ -881,9 +939,12 @@ public final class SnippetCompletionSupport {
                 case "python" -> python(line);
                 case "powershell" -> powershell(line);
                 case "ruby" -> ruby(line);
+                case "lua" -> lua(line);
                 default -> generic(line);
             }
-            words(line);
+            if (sink == null) {
+                words(line);
+            }
         }
 
         Symbols symbols(String typedWord) {
@@ -921,18 +982,42 @@ public final class SnippetCompletionSupport {
                 words);
         }
 
-        private static void add(Set<String> bucket, String name) {
-            if (name != null && !name.isEmpty() && bucket.size() < MAX_NAMES_PER_BUCKET) {
+        private void add(Set<String> bucket, String name) {
+            add(bucket, name, Flavor.PLAIN, ScopeHint.DEFAULT);
+        }
+
+        private void add(Set<String> bucket, String name, Flavor flavor, ScopeHint scope) {
+            if (name == null || name.isEmpty()) {
+                return;
+            }
+            if (sink != null) {
+                sink.define(kindOf(bucket), name, flavor, scope);
+            }
+            if (bucket.size() < MAX_NAMES_PER_BUCKET) {
                 bucket.add(name);
             }
         }
 
+        private CandidateKind kindOf(Set<String> bucket) {
+            if (bucket == arrays) {
+                return CandidateKind.ARRAY;
+            }
+            if (bucket == hashes) {
+                return CandidateKind.HASH;
+            }
+            return bucket == functions ? CandidateKind.FUNCTION : CandidateKind.VARIABLE;
+        }
+
         private void addKind(CandidateKind kind, String name) {
+            addKind(kind, name, Flavor.PLAIN, ScopeHint.DEFAULT);
+        }
+
+        private void addKind(CandidateKind kind, String name, Flavor flavor, ScopeHint scope) {
             switch (kind) {
-                case ARRAY -> add(arrays, name);
-                case HASH -> add(hashes, name);
-                case FUNCTION -> add(functions, name);
-                default -> add(scalars, name);
+                case ARRAY -> add(arrays, name, flavor, scope);
+                case HASH -> add(hashes, name, flavor, scope);
+                case FUNCTION -> add(functions, name, flavor, scope);
+                default -> add(scalars, name, flavor, scope);
             }
         }
 
@@ -995,15 +1080,40 @@ public final class SnippetCompletionSupport {
                 if (options.indexOf('f') >= 0 || options.indexOf('F') >= 0) {
                     continue;
                 }
+                Flavor flavor = bashFlavor(keyword, options);
+                ScopeHint scope = bashScope(keyword, options);
                 if (options.indexOf('A') >= 0) {
-                    add(hashes, name);
+                    add(hashes, name, flavor, scope);
                 } else if (options.indexOf('a') >= 0 || token.startsWith(name + "=(")
                     || token.startsWith(name + "+=(")) {
-                    add(arrays, name);
+                    add(arrays, name, flavor, scope);
                 } else {
-                    add(scalars, name);
+                    add(scalars, name, flavor, scope);
                 }
             }
+        }
+
+        /** {@code readonly}/{@code -r} is a constant, {@code export}/{@code -x} an exported variable. */
+        private static Flavor bashFlavor(String keyword, String options) {
+            if ("readonly".equals(keyword) || options.indexOf('r') >= 0) {
+                return Flavor.CONSTANT;
+            }
+            if ("export".equals(keyword) || options.indexOf('x') >= 0) {
+                return Flavor.EXPORTED;
+            }
+            return Flavor.PLAIN;
+        }
+
+        /**
+         * {@code local}, and {@code declare}/{@code typeset} without {@code -g}, bind the name to the
+         * enclosing function; {@code export} and {@code readonly} set a global one.
+         */
+        private static ScopeHint bashScope(String keyword, String options) {
+            return switch (keyword) {
+                case "local" -> ScopeHint.LOCAL;
+                case "declare", "typeset" -> options.indexOf('g') >= 0 ? ScopeHint.GLOBAL : ScopeHint.LOCAL;
+                default -> ScopeHint.GLOBAL;
+            };
         }
 
         /** {@code read -r -a words}, {@code read -p "Name: " user}, {@code while read -r line}. */
@@ -1065,27 +1175,45 @@ public final class SnippetCompletionSupport {
             }
             if ((m = PERL_DECL_LIST.matcher(line)).find()) {
                 Matcher names = PERL_SIGIL_NAME.matcher(m.group(1));
+                ScopeHint scope = perlScope(line);
                 while (names.find()) {
-                    perlSigil(names.group(1), names.group(2));
+                    perlSigil(names.group(1), names.group(2), scope);
                 }
                 return;
             }
-            if ((m = PERL_DECL.matcher(line)).find() || (m = PERL_ASSIGN.matcher(line)).find()
-                || (m = PERL_COND_DECL.matcher(line)).find()) {
-                perlSigil(m.group(1), m.group(2));
+            // The three forms never match the same line: a declaration starts with my/our/…, an
+            // assignment with a sigil, a conditional declaration with while/if/….
+            if ((m = PERL_DECL.matcher(line)).find() || (m = PERL_COND_DECL.matcher(line)).find()) {
+                perlSigil(m.group(1), m.group(2), perlScope(line));
+                return;
+            }
+            if ((m = PERL_ASSIGN.matcher(line)).find()) {
+                perlSigil(m.group(1), m.group(2), ScopeHint.DEFAULT);
                 return;
             }
             if ((m = PERL_FOREACH_VAR.matcher(line)).find()) {
-                add(scalars, m.group(1));
+                add(scalars, m.group(1), Flavor.PLAIN, perlScope(line));
             }
         }
 
-        private void perlSigil(String sigil, String name) {
+        private void perlSigil(String sigil, String name, ScopeHint scope) {
             switch (sigil) {
-                case "@" -> add(arrays, name);
-                case "%" -> add(hashes, name);
-                default -> add(scalars, name);
+                case "@" -> add(arrays, name, Flavor.PLAIN, scope);
+                case "%" -> add(hashes, name, Flavor.PLAIN, scope);
+                default -> add(scalars, name, Flavor.PLAIN, scope);
             }
+        }
+
+        /** {@code my}/{@code state} are lexical; {@code our}/{@code local} name a package variable. */
+        private static ScopeHint perlScope(String line) {
+            Matcher keyword = PERL_SCOPE_KEYWORD.matcher(line);
+            if (!keyword.find()) {
+                return ScopeHint.DEFAULT;
+            }
+            return switch (keyword.group(1)) {
+                case "my", "state" -> ScopeHint.LOCAL;
+                default -> ScopeHint.GLOBAL;
+            };
         }
 
         // ------------------------------------------------------------ python
@@ -1099,7 +1227,7 @@ public final class SnippetCompletionSupport {
                 for (String param : (close >= 0 ? params.substring(0, close) : params).split(",")) {
                     String name = leadingName(param.strip().replaceFirst("^\\*+", ""));
                     if (name != null && !name.equals("self") && !name.equals("cls")) {
-                        add(scalars, name);
+                        add(scalars, name, Flavor.PARAMETER, ScopeHint.LOCAL);
                     }
                 }
                 return;
@@ -1175,12 +1303,13 @@ public final class SnippetCompletionSupport {
             if ((m = PS_PARAM_LINE.matcher(line)).find()) {
                 Matcher names = PS_VAR_REF.matcher(m.group(1));
                 while (names.find()) {
-                    add(scalars, names.group(1));
+                    add(scalars, names.group(1), Flavor.PARAMETER, ScopeHint.LOCAL);
                 }
                 return;
             }
             if ((m = PS_ASSIGN.matcher(line)).find()) {
-                addKind(powershellKind(m.group(1), m.group(3)), m.group(2));
+                ScopeHint scope = PS_GLOBAL_PREFIX.matcher(line).find() ? ScopeHint.GLOBAL : ScopeHint.DEFAULT;
+                addKind(powershellKind(m.group(1), m.group(3)), m.group(2), Flavor.PLAIN, scope);
                 return;
             }
             if ((m = PS_TYPED_DECL.matcher(line)).find()) {
@@ -1223,12 +1352,15 @@ public final class SnippetCompletionSupport {
             }
             if ((m = RB_BLOCK_PARAMS.matcher(line)).find()) {
                 for (String param : m.group(1).split(",")) {
-                    add(scalars, leadingName(param.strip().replaceFirst("^[*&]+", "")));
+                    add(scalars, leadingName(param.strip().replaceFirst("^[*&]+", "")), Flavor.PARAMETER,
+                        ScopeHint.LOCAL);
                 }
             }
             if ((m = RB_ASSIGN.matcher(line)).find()) {
                 String sigil = m.group(1) != null ? m.group(1) : "";
-                addKind(rubyKind(m.group(3)), sigil + m.group(2));
+                Flavor flavor = sigil.startsWith("@") ? Flavor.FIELD : Flavor.PLAIN;
+                ScopeHint scope = "$".equals(sigil) ? ScopeHint.GLOBAL : ScopeHint.DEFAULT;
+                addKind(rubyKind(m.group(3)), sigil + m.group(2), flavor, scope);
             }
         }
 
@@ -1241,6 +1373,70 @@ public final class SnippetCompletionSupport {
                 return CandidateKind.ARRAY;
             }
             return CandidateKind.VARIABLE;
+        }
+
+        // ------------------------------------------------------------ lua
+
+        private void lua(String line) {
+            Matcher m;
+            if ((m = LUA_FUNCTION.matcher(line)).find()) {
+                add(functions, m.group(1));
+                String params = m.group(2);
+                int close = params.indexOf(')');
+                for (String param : (close >= 0 ? params.substring(0, close) : params).split(",")) {
+                    String name = leadingName(param.strip());
+                    if (name != null && !name.equals("self")) {
+                        add(scalars, name, Flavor.PARAMETER, ScopeHint.LOCAL);
+                    }
+                }
+                return;
+            }
+            if ((m = LUA_FUNCTION_VALUE.matcher(line)).find()) {
+                add(functions, m.group(1));
+                return;
+            }
+            if ((m = LUA_FOR_IN.matcher(line)).find()) {
+                for (String name : m.group(1).split(",")) {
+                    add(scalars, name.strip(), Flavor.PLAIN, ScopeHint.LOCAL);
+                }
+                return;
+            }
+            if ((m = LUA_FOR_NUMERIC.matcher(line)).find()) {
+                add(scalars, m.group(1), Flavor.PLAIN, ScopeHint.LOCAL);
+                return;
+            }
+            if ((m = LUA_LOCAL.matcher(line)).find()) {
+                luaNames(m.group(1), m.group(2), ScopeHint.LOCAL);
+                return;
+            }
+            if ((m = LUA_ASSIGN.matcher(line)).find()) {
+                luaNames(m.group(1), m.group(2), ScopeHint.DEFAULT);
+            }
+        }
+
+        /** {@code a, b <const> = {…}, 2}: the first name gets the value's kind, an attribute its flavour. */
+        private void luaNames(String names, String rhs, ScopeHint scope) {
+            boolean first = true;
+            for (String declarator : names.split(",")) {
+                // No stop-word filter: a Lua keyword cannot be assigned, and names such as "type"
+                // or "limit" are ordinary variables here.
+                String name = leadingName(declarator.strip());
+                if (name == null) {
+                    continue;
+                }
+                Matcher attribute = LUA_ATTRIBUTE.matcher(declarator);
+                Flavor flavor = attribute.find() && "const".equals(attribute.group(1)) ? Flavor.CONSTANT : Flavor.PLAIN;
+                addKind(first ? luaKind(rhs) : CandidateKind.VARIABLE, name, flavor, scope);
+                first = false;
+            }
+        }
+
+        private static CandidateKind luaKind(String rhs) {
+            String value = rhs != null ? rhs.strip() : "";
+            if (LUA_HASH_RHS.matcher(value).find()) {
+                return CandidateKind.HASH;
+            }
+            return LUA_ARRAY_RHS.matcher(value).find() ? CandidateKind.ARRAY : CandidateKind.VARIABLE;
         }
 
         // ------------------------------------------------------------ generic
@@ -1268,7 +1464,9 @@ public final class SnippetCompletionSupport {
                 return;
             }
             if ((m = GEN_VAR.matcher(line)).find() && !isStopWord(m.group(2))) {
-                addKind(genericKind(m.group(1), m.group(3), m.group(4)), m.group(2));
+                ScopeHint scope = m.group(1) != null || GEN_DECLARING_KEYWORD.matcher(line).find()
+                    ? ScopeHint.LOCAL : ScopeHint.DEFAULT;
+                addKind(genericKind(m.group(1), m.group(3), m.group(4)), m.group(2), Flavor.PLAIN, scope);
             }
         }
 

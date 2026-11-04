@@ -60,7 +60,7 @@ public class SnippetAiDiffPane extends VBox {
     private static final String FALLBACK_BG = "#1e1e1e";
     private static final String FALLBACK_FG = "#d6d6d6";
     private static final List<String> HIGHLIGHT_LANGUAGES = List.of(
-        "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "groovy",
+        "plain", "bash", "shell", "python", "perl", "ruby", "lua", "java", "javascript", "groovy",
         "powershell", "sql", "xml", "json", "yaml", "yml", "toml", "properties", "ini", "html",
         "markdown", "dockerfile");
 

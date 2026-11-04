@@ -40,6 +40,27 @@ class SnippetCodeFormatterTest {
     }
 
     @Test
+    void luaUsesStyLuaWithItsColumnWidth() throws Exception {
+        CodeFormatterService.FormatterInfo formatter = CodeFormatterService.getFormatterInfo("lua");
+
+        assertThat(formatter).isNotNull();
+        assertThat(formatter.commandName()).isEqualTo("stylua");
+        assertThat(formatter.fileExtension()).isEqualTo(".lua");
+        assertThat(CodeFormatterService.supportsLineWidth("lua")).isTrue();
+        if (!formatter.available()) {
+            throw new SkipException("StyLua is not installed");
+        }
+        assertThat(formatter.commandLine()).containsAtLeast("--search-parent-directories", "-").inOrder();
+        String messy = "local t={alpha=1,beta=2,gamma=3,delta=4,epsilon=5}\nif t then print(t) end\n";
+
+        String formatted = CodeFormatterService.formatOrThrow(messy, "lua", 30);
+
+        assertThat(formatted).contains("local t = {\n");
+        assertThat(formatted).contains("if t then\n");
+        assertThat(formatted).doesNotContain("epsilon = 5 }");
+    }
+
+    @Test
     void reportsUnsupportedPlainText() {
         assertThat(SnippetCodeFormatter.isSupported("plain")).isFalse();
         assertThat(SnippetCodeFormatter.getFormatterInfo("plain")).isNull();

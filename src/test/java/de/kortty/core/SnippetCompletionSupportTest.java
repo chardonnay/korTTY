@@ -212,6 +212,29 @@ class SnippetCompletionSupportTest {
         assertThat(list).containsAtLeast("@args", "%opts", "$self", "$first").inOrder();
     }
 
+    // ---------------------------------------------------------------- lua
+
+    @Test
+    void luaHarvestsLocalsFunctionsTablesAndLoopVariables() {
+        String text = """
+            local M = {}
+            local items = { "a", "b" }
+            local limit <const> = 3
+            local function helper(path, ...)
+              for i, v in ipairs(items) do end
+              for n = 1, limit do end
+            end
+            function M.load(name) end
+            log = function(msg) end
+            total = 0
+            print\s""";
+        Symbols symbols = SnippetCompletionSupport.harvest("lua", text, text.length());
+        assertThat(symbols.functions()).containsExactly("helper", "M.load", "log").inOrder();
+        assertThat(symbols.hashes()).containsExactly("M");
+        assertThat(symbols.arrays()).containsExactly("items");
+        assertThat(symbols.scalars()).containsExactly("limit", "path", "i", "v", "n", "name", "total").inOrder();
+    }
+
     // ---------------------------------------------------------------- python
 
     @Test

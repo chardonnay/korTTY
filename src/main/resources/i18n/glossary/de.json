@@ -2711,6 +2711,12 @@
       "to": "Hilfeaufruf",
       "scope": "markdown",
       "note": "A command that shows help; Hilferuf means a cry for help."
+    },
+    {
+      "from": "Formater",
+      "to": "Formatierer",
+      "scope": "markdown",
+      "note": "The local model misspells formatter; the guide says Formatierer everywhere."
     }
   ]
 }

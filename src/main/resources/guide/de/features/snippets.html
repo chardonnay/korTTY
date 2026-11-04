@@ -937,6 +937,7 @@
 <li><strong>Syntax prüfen</strong> – Validieren Sie die Syntax (lokal oder KI-unterstützt).</li>
 <li><strong>KI-Text</strong> – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.</li>
 <li><strong>KI-Code</strong> – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung, Kommentare oder eine benutzerdefinierte Anweisung), migrieren Sie das Snippet in eine einzelne Sprache, überprüfen Sie die Sicherheit oder generieren Sie Diagramme.</li>
+<li><strong>Struktur</strong> — Ein- oder Ausblenden des <a href="#struktur-panel">Struktur-Panels</a> links neben dem Code: Klassen und Funktionen, Variablen und Platzhalter.</li>
 <li><strong>Einzeiler</strong> – Als Terminal-Einzeiler exportieren.</li>
 <li><strong>Editor-Zoom</strong> – Passen Sie die Textgröße mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span> an, auch wenn der Editor ein Tab des Hauptfensters oder ein Snippet-Manager-Tab ist.</li>
 <li><strong>Editor-Profile</strong> – Wechseln Sie zwischen integrierten, von IntelliJ inspirierten Profilen und benutzerdefinierten Farbschemata.</li>
@@ -945,6 +946,87 @@
 <li><strong>Zeilennummern</strong> – Anzeige der Zeilennummern umschalten.</li>
 </ul>
 <p>Wenn der Editor über den SFTP-Manager für eine lokale oder Remote-Datei geöffnet wird, bleibt dieselbe Symbolleiste verfügbar und das Dialogfeld verwendet Schaltflächen zum Speichern im Dateimodus.</p>
+<h3 id="struktur-panel">Struktur-Panel<a class="headerlink" href="#struktur-panel" title="Permanent link">&para;</a></h3>
+<p><strong>Struktur</strong> in der Symbolleiste des Editors zeigt ein Panel links neben dem Code mit drei Listen: die Klassen und Funktionen des Codes, seine Variablen und seine Platzhalter. korTTY merkt sich, ob das Panel angezeigt wird und die Breite, auf die Sie es ziehen, und verwendet beides für jeden Snippet-Editor, den Sie öffnen. Während die Markdown-<strong>Vorschau</strong> den Code abdeckt, ist das Panel ausgeblendet.</p>
+<p><img alt="Structure panel beside a Bash snippet: functions, variables and placeholders" src="../../en/assets/screenshots/tools/snippet-structure-panel.png" /></p>
+<ul>
+<li><strong>Klassen und Funktionen</strong> — Ein Baum der Klassen, Module und Pakete mit ihren Methoden sowie der Funktionen außerhalb davon, jeweils mit ihrer Zeilennummer und, sofern die Sprache eine besitzt, ihrer Parameterliste. Für Markdown und AsciiDoc zeigt der Baum die <strong>Überschriften</strong>, für SQL die erstellten Tabellen, Ansichten, Funktionen, Prozeduren und Trigger (<strong>Datenbankobjekte</strong>), für eine Dockerfile die <code>FROM</code> Stufen (<strong>Build-Stufen</strong>).</li>
+<li><strong>Variablen</strong> — Jede Variable, die der Code definiert, einmal pro Bereich: ihre <strong>Art</strong> (Variable, Array, Hash, Konstante, Parameter, Exportiert oder Feld), ihr <strong>Bereich</strong> (die Funktion, Methode oder Klasse, der sie zugeordnet ist, oder <em>global</em>), die <strong>Zeile</strong>, in der sie erstmals definiert wird, und ihre <strong>Verwendungen</strong> abgesehen von der Definition. Klicken Sie auf eine Spaltenüberschrift, um danach zu sortieren.</li>
+<li><strong>Platzhalter</strong> — Die <code>${…}</code> <a href="#platzhaltervariablen">Platzhalter</a> des Snippets, gruppiert so, wie Kopieren und Senden sie behandeln: <strong>Eingebaut</strong>, <strong>Gespeicherter Wert</strong> (im <a href="#variablen-manager">Variablen-Manager</a> mit einem Wert deklariert), <strong>Fragt bei jeder Verwendung</strong> (ohne Wert deklariert) und <strong>Nicht deklariert</strong>. Jeder Eintrag zeigt, wie oft er vorkommt und die Zeile seines ersten Vorkommens. Gespeicherte Werte werden nie angezeigt.</li>
+</ul>
+<p>Klicken Sie auf einen Eintrag, um seinen Namen im Code auszuwählen: Der Editor scrollt dorthin und hebt die anderen Vorkommen des Namens hervor. Ein Doppelklick oder <span class="keys"><kbd class="key-enter">Enter</kbd></span> verschiebt ebenfalls den Tastaturfokus auf den Code. Während Sie den Cursor bewegen, markiert der Baum die Funktion, Methode oder Klasse, in der er sich befindet. <strong>Namen filtern</strong> schränkt alle drei Listen ein; <span class="keys"><kbd class="key-escape">Esc</kbd></span> im Filterfeld entfernt den Filtertext.</p>
+<p>Das Panel liest den Code mit festen Regeln pro Sprache und aktualisiert sich kurz nachdem Sie mit dem Tippen aufgehört haben. Es ist eine Lesehilfe, kein Compiler: Konstruktionen, die die Regeln nicht kennen, werden weggelassen statt geraten.</p>
+<table>
+<thead>
+<tr>
+<th>Code-Sprache</th>
+<th>Klassen und Funktionen</th>
+<th>Variablen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bash / Shell</td>
+<td>Funktionen</td>
+<td>Zuweisungen, <code>declare</code>/<code>typeset</code> (<code>-a</code> Array, <code>-A</code> Hash, <code>-r</code> Konstante, <code>-x</code> exportiert), <code>local</code>, <code>export</code>, <code>readonly</code>, <code>read</code>, <code>mapfile</code>, <code>for</code>, <code>getopts</code></td>
+</tr>
+<tr>
+<td>Python</td>
+<td>Klassen, Methoden und Funktionen, verschachtelt nach Einrückung</td>
+<td>Zuweisungen, Parameter, Klassenattribute und <code>self.</code> Attribute als Felder, Namen in Großbuchstaben als Konstanten</td>
+</tr>
+<tr>
+<td>Perl</td>
+<td><code>package</code> Blöcke mit ihren Subs</td>
+<td><code>my</code>, <code>our</code>, <code>local</code>, <code>state</code> nach Sigil, Parameter von Signaturen, <code>use constant</code></td>
+</tr>
+<tr>
+<td>Ruby</td>
+<td>Module, Klassen und Methoden</td>
+<td>Lokale, Parameter, <code>@</code> und <code>@@</code> Variablen als Felder, <code>$</code> globale, Konstanten</td>
+</tr>
+<tr>
+<td>Lua</td>
+<td>Funktionen und lokale Funktionen; <code>function M.name</code> und <code>function M:name</code> gruppiert unter der Tabelle <code>M</code> (eine Tabelle mit Methoden, die mit <code>:</code> definiert sind, wird als Klasse dargestellt)</td>
+<td><code>local</code> Variablen (auch <code>&lt;const&gt;</code>), globale Zuweisungen, Parameter, <code>for</code> Schleifenvariablen, <code>self.</code> und Tabellenfelder, Großbuchstaben-Namen als Konstanten</td>
+</tr>
+<tr>
+<td>PowerShell</td>
+<td>Funktionen, Filter, Workflows, Klassen und deren Methoden</td>
+<td><code>param(…)</code> Blöcke, Zuweisungen, <code>$script:</code> und <code>$global:</code> Variablen als globale, <code>$env:</code> Variablen als exportierte, Klasseneigenschaften als Felder</td>
+</tr>
+<tr>
+<td>Java, Groovy</td>
+<td>Klassen, Interfaces, Enums, Records, Methoden und Konstruktoren; Groovy-Funktionen außerhalb einer Klasse</td>
+<td>Felder, <code>static final</code> Konstanten in Großbuchstaben, Parameter, lokale Variablen</td>
+</tr>
+<tr>
+<td>JavaScript, TypeScript</td>
+<td>Klassen, Interfaces, Enums, Namespaces, Methoden, Funktionen und Arrow-Funktionen</td>
+<td><code>const</code>/<code>let</code>/<code>var</code>, Parameter, Klassenfelder und <code>this.</code> Felder</td>
+</tr>
+<tr>
+<td>SQL</td>
+<td><code>CREATE TABLE</code>, <code>VIEW</code>, <code>FUNCTION</code>, <code>PROCEDURE</code>, <code>TRIGGER</code></td>
+<td><code>DECLARE @name</code>, <code>SET @name</code></td>
+</tr>
+<tr>
+<td>Markdown, AsciiDoc</td>
+<td>Überschriften, nach Ebene verschachtelt (Überschriften in Codeblöcken werden übersprungen)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Dockerfile</td>
+<td><code>FROM</code> Stufen</td>
+<td><code>ARG</code> als Parameter, <code>ENV</code> als exportierte Variablen, pro Stufe</td>
+</tr>
+</tbody>
+</table>
+<p>Kommentare, Zeichenketten und Heredoc-Texte werden übersprungen, sodass eine in einem Kommentar oder Heredoc geschriebene Funktion nicht aufgelistet wird. Eine in doppelten Anführungszeichen oder einem Heredoc ohne Anführungszeichen verwendete Variable zählt in Shell-Skripten weiterhin als Verwendung. In Bash ist eine in einer Funktion ohne <code>local</code> zugewiesene Variable global und wird daher als global aufgelistet. Plain Text mit einer Shebang-Zeile (<code>#!/bin/bash</code>, <code>#!/usr/bin/env python3</code>, …) verwendet die Sprache der Shebang. Für JSON-, YAML-, TOML-, XML-, HTML-, INI- und Properties-Dateien, reinen Text und eine von Ihnen selbst hinzugefügte Sprache listet das Panel nur die Platzhalter auf. Ein Text mit mehr als 512.000 Zeichen wird nicht gelesen, und jede Liste zeigt höchstens 2.000 Einträge.</p>
+<div class="admonition note">
+<p class="admonition-title">Nicht deklarierte Platzhalter</p>
+<p>Die Gruppe <strong>Nicht deklariert</strong> listet die nicht deklarierten Namen, die ein geplanter Job oder eine KI-Swarm-Ausführung ablehnt (siehe <a href="#geplante-und-swarm-ausfuhrungen">Geplante und KI-Swarm-Ausführungen</a>), einschließlich eines Namens wie <code>${target}</code>, den das Skript als eigene Shell-Variable verwendet. Deklarieren Sie den Namen im Variablen-Manager, oder schreiben Sie <code>$${target}</code>, damit korTTY ihn der Shell überlässt. Ein Name unter <strong>Fragt bei jeder Verwendung</strong> blockiert eine solche Ausführung ebenfalls.</p>
+</div>
 <h3 id="spaltenlineal-und-formatierung-der-zeilenbreite">Spaltenlineal und Formatierung der Zeilenbreite<a class="headerlink" href="#spaltenlineal-und-formatierung-der-zeilenbreite" title="Permanent link">&para;</a></h3>
 <p>Oberhalb des Inhaltsfelds hält das Spaltenlineal die aktuelle Caret-Spalte links als <code>Column N</code> fest und zeigt eine Live-Markierung an der entsprechenden Editorposition an. Wenn Sie mit der Maus über den Live-Marker fahren, wird <code>Position N</code> angezeigt. Klicken Sie auf das Lineal, um eine Markierung für die maximale Zeilenlänge festzulegen (Spalten 20–240). Klicken Sie mit der rechten Maustaste auf diese Markierung, um den Inhalt auf die ausgewählte Breite zu formatieren oder die Markierung zu entfernen.</p>
 <p>Die Formatierung der Zeilenbreite funktioniert lokal nur für Formatierer, die konfigurierbare Breite unterstützen:</p>
@@ -952,6 +1034,7 @@
 <li>Prettier-gestützte Webformate (JavaScript, TypeScript, HTML, CSS)</li>
 <li>Python (Schwarz)</li>
 <li>Perl (Perl::Tidy)</li>
+<li>Lua (StyLua)</li>
 </ul>
 <p>Für Sprachen ohne lokale Zeilenlänge-Unterstützung fragt korTTY ab, ob KI-geleitete Formatierung verwendet werden soll. Sowohl lokale Zeilenlänge-Formatierung als auch KI-geleitete Formatierung zeigen im Editor-Area vor der Änderung eine Vorschau vor und nach der Änderung; siehe <a href="#uberprufung-einer-ki-anderung">Ein KI-Änderung überprüfen</a>.</p>
 <h3 id="formatcode">Formatcode<a class="headerlink" href="#formatcode" title="Permanent link">&para;</a></h3>
@@ -960,9 +1043,12 @@
 <li><strong>Eingebaute Formatierer:</strong> JSON, XML, YAML/YML, TOML, INI/properties, Groovy</li>
 <li><strong>Gebündelte Formatierer:</strong> Java (google-java-format), Bash/Shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)</li>
 <li><strong>Fallback:</strong> Optionale PATH-Fallbacks für Entwickler-Setups, wenn ein gebündelter Formatierer fehlt</li>
+<li><strong>Von Ihnen selbst installierte Formatierer:</strong> Python (Black), Ruby (RuboCop) und Lua (StyLua, <code>brew install stylua</code>); korTTY verwendet jeden von ihnen, sobald er installiert ist</li>
 </ul>
+<p>korTTY sucht nach installierten Formatierern im <code>PATH</code> und in den üblichen Installationsordnern wie <code>/opt/homebrew/bin</code>, <code>/usr/local/bin</code> und <code>~/.cargo/bin</code>, damit sie auch dann gefunden werden, wenn korTTY aus dem Finder oder dem Dock gestartet wurde. StyLua liest Ihre eigenen Einstellungen aus <code>~/.config/stylua/stylua.toml</code>, zum Beispiel <code>indent_type = "Spaces"</code> anstatt der Standard-Tabulatoren.</p>
 <p>Prettier läuft als Offline-Standalone-Browser-Build mit nur den Plugins Babel, Estree, TypeScript, HTML und PostCSS; SQL verwendet den gebündelten SQL-Formatter-Browser-Build. Beide werden träge in einem isolierten JavaFX-WebView initialisiert und benötigen keine installierte oder gepackte Node.js-Laufzeit. Anfragen werden serialisiert und behalten das gleiche 15-Sekunden-Timeout, die gleiche Anbieteranzeige und die konfigurierbare Prettier-Linienbreite wie das Prozess-Backend; Eine ausgefallene oder abgelaufene Engine wird vor der nächsten Anfrage verworfen.</p>
 <p>Wenn die lokale Formatierung nicht verfügbar ist und das konfigurierte KI-Profil Snippet-KI-Funktionen bietet, fragt KorTTY, ob die KI-Unterstützung verwendet werden soll. Die KI-Formatierung wird erst angewendet, nachdem die Vorher/Nachher-Vorschau akzeptiert wurde.</p>
+<p><strong>Syntax prüfen</strong> prüft JSON und XML lokal. Für Lua verwendet es <code>luac -p</code>, wenn Lua installiert ist: <code>luac</code> parst nur den Code und führt ihn nie aus, und jeder Fehler wird mit seiner Zeile gemeldet. Für die anderen Sprachen und für Lua ohne <code>luac</code> bietet korTTY stattdessen eine KI-Syntaxprüfung an.</p>
 <h3 id="editor-profile">Editor-Profile<a class="headerlink" href="#editor-profile" title="Permanent link">&para;</a></h3>
 <p>Wechseln Sie zwischen:</p>
 <ul>
@@ -1265,6 +1351,7 @@
 </ul>
 <h2 id="platzhaltervariablen">Platzhaltervariablen<a class="headerlink" href="#platzhaltervariablen" title="Permanent link">&para;</a></h2>
 <p>Snippets können Platzhalter enthalten, die als <code>${name}</code> geschrieben sind. Wenn Sie ein Snippet kopieren, einfügen oder senden, ersetzt korTTY genau zwei Arten von ihnen: die eingebauten Variablen unten und die in <a href="#variablen-manager">Variablenmanager</a> deklarierten Variablen. Jeder andere <code>${...}</code> gelangt genau so in den Editor, die Zwischenablage oder die Shell, wie er geschrieben ist, sodass Shell-Erweiterungen wie <code>${HOME}</code>, <code>${1:-default}</code>, <code>${#array[@]}</code> und <code>${file%%.*}</code> weiterhin funktionieren. Die gleichen Regeln gelten überall dort, wo ein Snippet verwendet wird: Kopieren, Einfügen in einen Editor, beide Terminalsendungen, geplante Jobs, KI-Swarm-Skriptläufe und Skript-Header.</p>
+<p>Während Sie ein Snippet bearbeiten, listet das <a href="#struktur-panel">Struktur-Panel</a> seine Platzhalter, gruppiert nach ihrer Behandlung.</p>
 <h3 id="eingebaute-variablen">Eingebaute Variablen<a class="headerlink" href="#eingebaute-variablen" title="Permanent link">&para;</a></h3>
 <p>Diese Variablen werden automatisch ersetzt:</p>
 <table>
@@ -1322,6 +1409,7 @@
 <p>Schreiben Sie <code>$${name}</code>, um den wörtlichen Text <code>${name}</code> zu erhalten, zum Beispiel für eine Shell-Variable, die denselben Namen wie ein eingebautes (<code>$${date}</code>) oder eine deklarierte Variable hat. Das Maskieren funktioniert für jeden Platzhalter, einschließlich <code>$${cursor}</code>. Text, der einen wörtlichen <code>$${name}</code> behalten muss, wie ein Makefile oder eine Compose-Datei, wird <code>$$${name}</code> geschrieben.</p>
 <h3 id="geplante-und-swarm-ausfuhrungen">Geplante und Swarm-Ausführungen<a class="headerlink" href="#geplante-und-swarm-ausfuhrungen" title="Permanent link">&para;</a></h3>
 <p>JobScheduler Snippet-Jobs und <strong>Skript ausführen…</strong> im KI-Swarm können keinen Wert abfragen, daher sorgen zwei weitere Regeln dafür, dass eine Variable, die niemand beantwortet hat, stillschweigend zu leerem Text wird: Eine deklarierte Variable ohne gespeicherten Wert blockiert die Ausführung, ebenso ein nicht deklarierter einfacher Name wie <code>${target}</code>. Shell-Formen wie <code>${1:-default}</code>, <code>${#array[@]}</code> und <code>${file%%.*}</code>, Positions- und Spezialparameter wie <code>${1}</code> und <code>${@}</code> sowie die Umgebungsvariablen <code>${HOME}</code>, <code>${USER}</code>, <code>${PATH}</code> und <code>${PWD}</code> werden durchgelassen. Schreiben Sie jede andere Shell-Variable mit dem Escape, z. B. <code>$${HOSTNAME}</code>.</p>
+<p>Während Sie ein Snippet bearbeiten, zeigt das <a href="#struktur-panel">Struktur-Panel</a> diese Namen in seinen Gruppen <strong>Fragt bei jeder Verwendung</strong> und <strong>Nicht deklariert</strong>.</p>
 <h3 id="variablen-manager">Variablen-Manager<a class="headerlink" href="#variablen-manager" title="Permanent link">&para;</a></h3>
 <p><strong>Variablen…</strong> im Snippet-Manager öffnet den Variablen-Manager, in dem gespeicherte Werte hinzugefügt, bearbeitet und gelöscht werden können. Das Dialogfeld zum Hinzufügen/Bearbeiten erklärt beide Felder: Der <strong>Name</strong> ist das, worauf ein Snippet als <code>${name}</code> verweist, der <strong>Wert</strong> ist der gespeicherte Standardwert, der dafür eingesetzt wird — lassen Sie den Wert leer, um jedes Mal gefragt zu werden. Mehrere Variablen können gleichzeitig zum Löschen oder Exportieren ausgewählt werden.</p>
 <ul>

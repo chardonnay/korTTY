@@ -409,6 +409,8 @@ class GlobalSettingsManagerTest {
             manager.getSettings().setSnippetAnalysisPanelWidth(612.0);
             manager.getSettings().setSnippetAnalysisPanelVisible(true);
             manager.getSettings().setSnippetAiProgressDockVisible(false);
+            manager.getSettings().setSnippetStructurePanelVisible(true);
+            manager.getSettings().setSnippetStructurePanelWidth(280.0);
             manager.save();
 
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
@@ -416,6 +418,12 @@ class GlobalSettingsManagerTest {
             assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isEqualTo(612.0);
             assertThat(reloaded.getSettings().isSnippetAnalysisPanelVisible()).isTrue();
             assertThat(reloaded.getSettings().isSnippetAiProgressDockVisible()).isFalse();
+            assertThat(reloaded.getSettings().isSnippetStructurePanelVisible()).isTrue();
+            assertThat(reloaded.getSettings().getSnippetStructurePanelWidth()).isEqualTo(280.0);
+            reloaded.getSettings().setSnippetStructurePanelWidth(Double.NaN);
+            assertThat(reloaded.getSettings().getSnippetStructurePanelWidth()).isNull();
+            reloaded.getSettings().setSnippetStructurePanelWidth(40.0);
+            assertThat(reloaded.getSettings().getSnippetStructurePanelWidth()).isEqualTo(160.0);
 
             // Junk widths read as "unset", tiny ones are raised to the panel's minimum.
             reloaded.getSettings().setSnippetAnalysisPanelWidth(-4.0);
@@ -429,6 +437,8 @@ class GlobalSettingsManagerTest {
             legacy.load();
             assertThat(legacy.getSettings().getSnippetAnalysisPanelWidth()).isNull();
             assertThat(legacy.getSettings().isSnippetAnalysisPanelVisible()).isFalse();
+            assertThat(legacy.getSettings().isSnippetStructurePanelVisible()).isFalse();
+            assertThat(legacy.getSettings().getSnippetStructurePanelWidth()).isNull();
             // The docked "AI processing" column is on unless the user switched it off.
             assertThat(legacy.getSettings().isSnippetAiProgressDockVisible()).isTrue();
         } finally {

@@ -113,6 +113,7 @@ Die Symbolleiste des Snippet-Editors bietet:
 - **Syntax prüfen** – Validieren Sie die Syntax (lokal oder KI-unterstützt).
 - **KI-Text** – Korrigieren Sie die Rechtschreibung, übersetzen Sie oder erstellen Sie technische Beschreibungen.
 - **KI-Code** – Vervollständigen Sie den Code, führen Sie eine vollständige Codeanalyse durch, verbessern Sie eine Auswahl (Lesbarkeit, Robustheit, Leistung, Kommentare oder eine benutzerdefinierte Anweisung), migrieren Sie das Snippet in eine einzelne Sprache, überprüfen Sie die Sicherheit oder generieren Sie Diagramme.
+- **Struktur** — Ein- oder Ausblenden des [Struktur-Panels](#struktur-panel) links neben dem Code: Klassen und Funktionen, Variablen und Platzhalter.
 - **Einzeiler** – Als Terminal-Einzeiler exportieren.
 - **Editor-Zoom** – Passen Sie die Textgröße mit ++ctrl+plus++ und ++ctrl+minus++ an, auch wenn der Editor ein Tab des Hauptfensters oder ein Snippet-Manager-Tab ist.
 - **Editor-Profile** – Wechseln Sie zwischen integrierten, von IntelliJ inspirierten Profilen und benutzerdefinierten Farbschemata.
@@ -121,6 +122,39 @@ Die Symbolleiste des Snippet-Editors bietet:
 - **Zeilennummern** – Anzeige der Zeilennummern umschalten.
 
 Wenn der Editor über den SFTP-Manager für eine lokale oder Remote-Datei geöffnet wird, bleibt dieselbe Symbolleiste verfügbar und das Dialogfeld verwendet Schaltflächen zum Speichern im Dateimodus.
+
+### Struktur-Panel
+
+**Struktur** in der Symbolleiste des Editors zeigt ein Panel links neben dem Code mit drei Listen: die Klassen und Funktionen des Codes, seine Variablen und seine Platzhalter. korTTY merkt sich, ob das Panel angezeigt wird und die Breite, auf die Sie es ziehen, und verwendet beides für jeden Snippet-Editor, den Sie öffnen. Während die Markdown-**Vorschau** den Code abdeckt, ist das Panel ausgeblendet.
+
+![Structure panel beside a Bash snippet: functions, variables and placeholders](../assets/screenshots/tools/snippet-structure-panel.png)
+
+- **Klassen und Funktionen** — Ein Baum der Klassen, Module und Pakete mit ihren Methoden sowie der Funktionen außerhalb davon, jeweils mit ihrer Zeilennummer und, sofern die Sprache eine besitzt, ihrer Parameterliste. Für Markdown und AsciiDoc zeigt der Baum die **Überschriften**, für SQL die erstellten Tabellen, Ansichten, Funktionen, Prozeduren und Trigger (**Datenbankobjekte**), für eine Dockerfile die `FROM` Stufen (**Build-Stufen**).
+- **Variablen** — Jede Variable, die der Code definiert, einmal pro Bereich: ihre **Art** (Variable, Array, Hash, Konstante, Parameter, Exportiert oder Feld), ihr **Bereich** (die Funktion, Methode oder Klasse, der sie zugeordnet ist, oder *global*), die **Zeile**, in der sie erstmals definiert wird, und ihre **Verwendungen** abgesehen von der Definition. Klicken Sie auf eine Spaltenüberschrift, um danach zu sortieren.
+- **Platzhalter** — Die `${…}` [Platzhalter](#platzhaltervariablen) des Snippets, gruppiert so, wie Kopieren und Senden sie behandeln: **Eingebaut**, **Gespeicherter Wert** (im [Variablen-Manager](#variablen-manager) mit einem Wert deklariert), **Fragt bei jeder Verwendung** (ohne Wert deklariert) und **Nicht deklariert**. Jeder Eintrag zeigt, wie oft er vorkommt und die Zeile seines ersten Vorkommens. Gespeicherte Werte werden nie angezeigt.
+
+Klicken Sie auf einen Eintrag, um seinen Namen im Code auszuwählen: Der Editor scrollt dorthin und hebt die anderen Vorkommen des Namens hervor. Ein Doppelklick oder ++enter++ verschiebt ebenfalls den Tastaturfokus auf den Code. Während Sie den Cursor bewegen, markiert der Baum die Funktion, Methode oder Klasse, in der er sich befindet. **Namen filtern** schränkt alle drei Listen ein; ++esc++ im Filterfeld entfernt den Filtertext.
+
+Das Panel liest den Code mit festen Regeln pro Sprache und aktualisiert sich kurz nachdem Sie mit dem Tippen aufgehört haben. Es ist eine Lesehilfe, kein Compiler: Konstruktionen, die die Regeln nicht kennen, werden weggelassen statt geraten.
+
+| Code-Sprache | Klassen und Funktionen | Variablen |
+|---------------|-----------------------|-----------|
+| Bash / Shell | Funktionen | Zuweisungen, `declare`/`typeset` (`-a` Array, `-A` Hash, `-r` Konstante, `-x` exportiert), `local`, `export`, `readonly`, `read`, `mapfile`, `for`, `getopts` |
+| Python | Klassen, Methoden und Funktionen, verschachtelt nach Einrückung | Zuweisungen, Parameter, Klassenattribute und `self.` Attribute als Felder, Namen in Großbuchstaben als Konstanten |
+| Perl | `package` Blöcke mit ihren Subs | `my`, `our`, `local`, `state` nach Sigil, Parameter von Signaturen, `use constant` |
+| Ruby | Module, Klassen und Methoden | Lokale, Parameter, `@` und `@@` Variablen als Felder, `$` globale, Konstanten |
+| Lua | Funktionen und lokale Funktionen; `function M.name` und `function M:name` gruppiert unter der Tabelle `M` (eine Tabelle mit Methoden, die mit `:` definiert sind, wird als Klasse dargestellt) | `local` Variablen (auch `<const>`), globale Zuweisungen, Parameter, `for` Schleifenvariablen, `self.` und Tabellenfelder, Großbuchstaben-Namen als Konstanten |
+| PowerShell | Funktionen, Filter, Workflows, Klassen und deren Methoden | `param(…)` Blöcke, Zuweisungen, `$script:` und `$global:` Variablen als globale, `$env:` Variablen als exportierte, Klasseneigenschaften als Felder |
+| Java, Groovy | Klassen, Interfaces, Enums, Records, Methoden und Konstruktoren; Groovy-Funktionen außerhalb einer Klasse | Felder, `static final` Konstanten in Großbuchstaben, Parameter, lokale Variablen |
+| JavaScript, TypeScript | Klassen, Interfaces, Enums, Namespaces, Methoden, Funktionen und Arrow-Funktionen | `const`/`let`/`var`, Parameter, Klassenfelder und `this.` Felder |
+| SQL | `CREATE TABLE`, `VIEW`, `FUNCTION`, `PROCEDURE`, `TRIGGER` | `DECLARE @name`, `SET @name` |
+| Markdown, AsciiDoc | Überschriften, nach Ebene verschachtelt (Überschriften in Codeblöcken werden übersprungen) | — |
+| Dockerfile | `FROM` Stufen | `ARG` als Parameter, `ENV` als exportierte Variablen, pro Stufe |
+
+Kommentare, Zeichenketten und Heredoc-Texte werden übersprungen, sodass eine in einem Kommentar oder Heredoc geschriebene Funktion nicht aufgelistet wird. Eine in doppelten Anführungszeichen oder einem Heredoc ohne Anführungszeichen verwendete Variable zählt in Shell-Skripten weiterhin als Verwendung. In Bash ist eine in einer Funktion ohne `local` zugewiesene Variable global und wird daher als global aufgelistet. Plain Text mit einer Shebang-Zeile (`#!/bin/bash`, `#!/usr/bin/env python3`, …) verwendet die Sprache der Shebang. Für JSON-, YAML-, TOML-, XML-, HTML-, INI- und Properties-Dateien, reinen Text und eine von Ihnen selbst hinzugefügte Sprache listet das Panel nur die Platzhalter auf. Ein Text mit mehr als 512.000 Zeichen wird nicht gelesen, und jede Liste zeigt höchstens 2.000 Einträge.
+
+!!! note "Nicht deklarierte Platzhalter"
+    Die Gruppe **Nicht deklariert** listet die nicht deklarierten Namen, die ein geplanter Job oder eine KI-Swarm-Ausführung ablehnt (siehe [Geplante und KI-Swarm-Ausführungen](#geplante-und-swarm-ausfuhrungen)), einschließlich eines Namens wie `${target}`, den das Skript als eigene Shell-Variable verwendet. Deklarieren Sie den Namen im Variablen-Manager, oder schreiben Sie `$${target}`, damit korTTY ihn der Shell überlässt. Ein Name unter **Fragt bei jeder Verwendung** blockiert eine solche Ausführung ebenfalls.
 
 ### Spaltenlineal und Formatierung der Zeilenbreite
 
@@ -131,6 +165,7 @@ Die Formatierung der Zeilenbreite funktioniert lokal nur für Formatierer, die k
 - Prettier-gestützte Webformate (JavaScript, TypeScript, HTML, CSS)
 - Python (Schwarz)
 - Perl (Perl::Tidy)
+- Lua (StyLua)
 
 Für Sprachen ohne lokale Zeilenlänge-Unterstützung fragt korTTY ab, ob KI-geleitete Formatierung verwendet werden soll. Sowohl lokale Zeilenlänge-Formatierung als auch KI-geleitete Formatierung zeigen im Editor-Area vor der Änderung eine Vorschau vor und nach der Änderung; siehe [Ein KI-Änderung überprüfen](#uberprufung-einer-ki-anderung).
 
@@ -141,10 +176,15 @@ Für Sprachen ohne lokale Zeilenlänge-Unterstützung fragt korTTY ab, ob KI-gel
 - **Eingebaute Formatierer:** JSON, XML, YAML/YML, TOML, INI/properties, Groovy
 - **Gebündelte Formatierer:** Java (google-java-format), Bash/Shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)
 - **Fallback:** Optionale PATH-Fallbacks für Entwickler-Setups, wenn ein gebündelter Formatierer fehlt
+- **Von Ihnen selbst installierte Formatierer:** Python (Black), Ruby (RuboCop) und Lua (StyLua, `brew install stylua`); korTTY verwendet jeden von ihnen, sobald er installiert ist
+
+korTTY sucht nach installierten Formatierern im `PATH` und in den üblichen Installationsordnern wie `/opt/homebrew/bin`, `/usr/local/bin` und `~/.cargo/bin`, damit sie auch dann gefunden werden, wenn korTTY aus dem Finder oder dem Dock gestartet wurde. StyLua liest Ihre eigenen Einstellungen aus `~/.config/stylua/stylua.toml`, zum Beispiel `indent_type = "Spaces"` anstatt der Standard-Tabulatoren.
 
 Prettier läuft als Offline-Standalone-Browser-Build mit nur den Plugins Babel, Estree, TypeScript, HTML und PostCSS; SQL verwendet den gebündelten SQL-Formatter-Browser-Build. Beide werden träge in einem isolierten JavaFX-WebView initialisiert und benötigen keine installierte oder gepackte Node.js-Laufzeit. Anfragen werden serialisiert und behalten das gleiche 15-Sekunden-Timeout, die gleiche Anbieteranzeige und die konfigurierbare Prettier-Linienbreite wie das Prozess-Backend; Eine ausgefallene oder abgelaufene Engine wird vor der nächsten Anfrage verworfen.
 
 Wenn die lokale Formatierung nicht verfügbar ist und das konfigurierte KI-Profil Snippet-KI-Funktionen bietet, fragt KorTTY, ob die KI-Unterstützung verwendet werden soll. Die KI-Formatierung wird erst angewendet, nachdem die Vorher/Nachher-Vorschau akzeptiert wurde.
+
+**Syntax prüfen** prüft JSON und XML lokal. Für Lua verwendet es `luac -p`, wenn Lua installiert ist: `luac` parst nur den Code und führt ihn nie aus, und jeder Fehler wird mit seiner Zeile gemeldet. Für die anderen Sprachen und für Lua ohne `luac` bietet korTTY stattdessen eine KI-Syntaxprüfung an.
 
 ### Editor-Profile
 
@@ -545,6 +585,8 @@ Beide Diagramm-Ansichten — das eigenständige **Diagramm**-Dialogfeld und die 
 
 Snippets können Platzhalter enthalten, die als `${name}` geschrieben sind. Wenn Sie ein Snippet kopieren, einfügen oder senden, ersetzt korTTY genau zwei Arten von ihnen: die eingebauten Variablen unten und die in [Variablenmanager](#variablen-manager) deklarierten Variablen. Jeder andere `${...}` gelangt genau so in den Editor, die Zwischenablage oder die Shell, wie er geschrieben ist, sodass Shell-Erweiterungen wie `${HOME}`, `${1:-default}`, `${#array[@]}` und `${file%%.*}` weiterhin funktionieren. Die gleichen Regeln gelten überall dort, wo ein Snippet verwendet wird: Kopieren, Einfügen in einen Editor, beide Terminalsendungen, geplante Jobs, KI-Swarm-Skriptläufe und Skript-Header.
 
+Während Sie ein Snippet bearbeiten, listet das [Struktur-Panel](#struktur-panel) seine Platzhalter, gruppiert nach ihrer Behandlung.
+
 ### Eingebaute Variablen
 
 Diese Variablen werden automatisch ersetzt:
@@ -581,6 +623,8 @@ Schreiben Sie `$${name}`, um den wörtlichen Text `${name}` zu erhalten, zum Bei
 ### Geplante und Swarm-Ausführungen
 
 JobScheduler Snippet-Jobs und **Skript ausführen…** im KI-Swarm können keinen Wert abfragen, daher sorgen zwei weitere Regeln dafür, dass eine Variable, die niemand beantwortet hat, stillschweigend zu leerem Text wird: Eine deklarierte Variable ohne gespeicherten Wert blockiert die Ausführung, ebenso ein nicht deklarierter einfacher Name wie `${target}`. Shell-Formen wie `${1:-default}`, `${#array[@]}` und `${file%%.*}`, Positions- und Spezialparameter wie `${1}` und `${@}` sowie die Umgebungsvariablen `${HOME}`, `${USER}`, `${PATH}` und `${PWD}` werden durchgelassen. Schreiben Sie jede andere Shell-Variable mit dem Escape, z. B. `$${HOSTNAME}`.
+
+Während Sie ein Snippet bearbeiten, zeigt das [Struktur-Panel](#struktur-panel) diese Namen in seinen Gruppen **Fragt bei jeder Verwendung** und **Nicht deklariert**.
 
 ### Variablen-Manager
 

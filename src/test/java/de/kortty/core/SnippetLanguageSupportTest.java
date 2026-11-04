@@ -77,6 +77,7 @@ class SnippetLanguageSupportTest {
             "py", "python", "python3",
             "pl", "perl",
             "rb", "ruby",
+            "lua", "luajit",
             "js", "javascript", "node", "nodejs",
             "ts", "typescript",
             "ps", "ps1", "pwsh", "powershell",
@@ -97,6 +98,18 @@ class SnippetLanguageSupportTest {
         for (String alias : representativeAliases) {
             assertThat(SnippetLanguageSupport.telemetryLanguageToken(alias, "")).isNotEqualTo("other");
         }
+    }
+
+    @Test
+    void luaIsARecognizedScriptLanguage() {
+        assertThat(SnippetLanguageSupport.normalizeSnippetLanguage("LuaJIT")).isEqualTo("lua");
+        assertThat(SnippetLanguageSupport.detectSnippetLanguage("plain", "#!/usr/bin/env lua5.4\nprint(1)\n"))
+            .isEqualTo("lua");
+        assertThat(SnippetLanguageSupport.detectSnippetLanguage("", "#!/usr/local/bin/luajit\n")).isEqualTo("lua");
+        assertThat(SnippetLanguageSupport.detectFileLanguage("init.lua", "")).isEqualTo("lua");
+        assertThat(SnippetLanguageSupport.defaultFileExtension("lua")).isEqualTo(".lua");
+        assertThat(SnippetLanguageSupport.isScriptSnippetCandidate("lua", "print(1)")).isTrue();
+        assertThat(de.kortty.ui.MonacoLanguageSupport.toMonacoLanguage("lua")).isEqualTo("lua");
     }
 
     @Test

@@ -48,7 +48,7 @@ public final class SnippetPlaceholderResolver {
      * {@code ${name}} or the escaped {@code $${name}}. The body excludes braces, so in
      * {@code ${a:-${b}}} only the inner {@code ${b}} is a placeholder.
      */
-    private static final Pattern PLACEHOLDER = Pattern.compile("\\$(\\$)?\\{([^{}]+)}");
+    static final Pattern PLACEHOLDER = Pattern.compile("\\$(\\$)?\\{([^{}]+)}");
     /** A name korTTY could have declared; a lone {@code _} is the shell's special parameter, like {@code ${@}}. */
     private static final Pattern SIMPLE_NAME = Pattern.compile("(?!_$)[A-Za-z_][A-Za-z0-9_]*");
 
