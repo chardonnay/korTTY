@@ -937,6 +937,7 @@
 <li><strong>Check Syntax</strong> — Validate the syntax (local or AI-assisted).</li>
 <li><strong>AI Text</strong> — Correct spelling, translate, or generate technical descriptions.</li>
 <li><strong>AI Code</strong> — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, comments, or a custom instruction), migrate the snippet into a single language, check security, or generate diagrams.</li>
+<li><strong>Structure</strong> — Show or hide the <a href="#structure-panel">structure panel</a> left of the code: classes and functions, variables and placeholders.</li>
 <li><strong>One-liner</strong> — Export as a terminal one-liner.</li>
 <li><strong>Editor zoom</strong> — Adjust text size with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span>, also when the editor is a main-window tab or a Snippet Manager tab.</li>
 <li><strong>Editor profiles</strong> — Switch between built-in IntelliJ-inspired profiles and custom color schemes.</li>
@@ -945,6 +946,87 @@
 <li><strong>Line numbers</strong> — Toggle line-number display.</li>
 </ul>
 <p>When the editor opens from the SFTP Manager for a local or remote file, the same toolbar remains available and the dialog uses file-mode save buttons.</p>
+<h3 id="structure-panel">Structure panel<a class="headerlink" href="#structure-panel" title="Permanent link">&para;</a></h3>
+<p><strong>Structure</strong> in the editor toolbar shows a panel left of the code with three lists: the classes and functions of the code, its variables, and its placeholders. korTTY remembers whether the panel is shown and the width you drag it to, and uses both for every snippet editor you open. While the Markdown <strong>Preview</strong> covers the code, the panel is hidden.</p>
+<p><img alt="Structure panel beside a Bash snippet: functions, variables and placeholders" src="../assets/screenshots/tools/snippet-structure-panel.png" /></p>
+<ul>
+<li><strong>Classes and functions</strong> — A tree of the classes, modules and packages with their methods, and the functions outside them, each with its line number and, where the language has one, its parameter list. For Markdown and AsciiDoc the tree shows the <strong>Headings</strong>, for SQL the created tables, views, functions, procedures and triggers (<strong>Database objects</strong>), for a Dockerfile the <code>FROM</code> stages (<strong>Build stages</strong>).</li>
+<li><strong>Variables</strong> — Every variable the code defines, once per scope: its <strong>Kind</strong> (Variable, Array, Hash, Constant, Parameter, Exported or Field), its <strong>Scope</strong> (the function, method or class it belongs to, or <em>global</em>), the <strong>Line</strong> it is first defined on, and its <strong>Usages</strong> apart from the definition. Click a column header to sort by it.</li>
+<li><strong>Placeholders</strong> — The <code>${…}</code> <a href="#placeholder-variables">placeholders</a> of the snippet, grouped the way copying and sending treat them: <strong>Built in</strong>, <strong>Stored value</strong> (declared in the <a href="#variable-manager">Variable Manager</a> with a value), <strong>Asks on every use</strong> (declared without a value) and <strong>Not declared</strong>. Each entry shows how often it occurs and the line of its first occurrence. Stored values are never shown.</li>
+</ul>
+<p>Click an entry to select its name in the code: the editor scrolls to it and highlights the other occurrences of the name. A double-click or <span class="keys"><kbd class="key-enter">Enter</kbd></span> also moves the keyboard focus to the code. While you move the caret, the tree marks the function, method or class it is in. <strong>Filter names</strong> narrows all three lists; <span class="keys"><kbd class="key-escape">Esc</kbd></span> in the filter field removes the filter text.</p>
+<p>The panel reads the code with fixed rules per language and updates a moment after you stop typing. It is a reading aid, not a compiler: a construct the rules do not know is left out rather than guessed.</p>
+<table>
+<thead>
+<tr>
+<th>Code language</th>
+<th>Classes and functions</th>
+<th>Variables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bash / shell</td>
+<td>Functions</td>
+<td>Assignments, <code>declare</code>/<code>typeset</code> (<code>-a</code> array, <code>-A</code> hash, <code>-r</code> constant, <code>-x</code> exported), <code>local</code>, <code>export</code>, <code>readonly</code>, <code>read</code>, <code>mapfile</code>, <code>for</code>, <code>getopts</code></td>
+</tr>
+<tr>
+<td>Python</td>
+<td>Classes, methods and functions, nested by indentation</td>
+<td>Assignments, parameters, class attributes and <code>self.</code> attributes as fields, upper-case names as constants</td>
+</tr>
+<tr>
+<td>Perl</td>
+<td><code>package</code> blocks with their subs</td>
+<td><code>my</code>, <code>our</code>, <code>local</code>, <code>state</code> by sigil, parameters of signatures, <code>use constant</code></td>
+</tr>
+<tr>
+<td>Ruby</td>
+<td>Modules, classes and methods</td>
+<td>Locals, parameters, <code>@</code> and <code>@@</code> variables as fields, <code>$</code> globals, constants</td>
+</tr>
+<tr>
+<td>Lua</td>
+<td>Functions and local functions; <code>function M.name</code> and <code>function M:name</code> grouped under the table <code>M</code> (a table with methods defined with <code>:</code> is shown as a class)</td>
+<td><code>local</code> variables (also <code>&lt;const&gt;</code>), global assignments, parameters, <code>for</code> loop variables, <code>self.</code> and table fields, upper-case names as constants</td>
+</tr>
+<tr>
+<td>PowerShell</td>
+<td>Functions, filters, workflows, classes and their methods</td>
+<td><code>param(…)</code> blocks, assignments, <code>$script:</code> and <code>$global:</code> variables as global ones, <code>$env:</code> variables as exported ones, class properties as fields</td>
+</tr>
+<tr>
+<td>Java, Groovy</td>
+<td>Classes, interfaces, enums, records, methods and constructors; Groovy functions outside a class</td>
+<td>Fields, <code>static final</code> upper-case constants, parameters, local variables</td>
+</tr>
+<tr>
+<td>JavaScript, TypeScript</td>
+<td>Classes, interfaces, enums, namespaces, methods, functions and arrow functions</td>
+<td><code>const</code>/<code>let</code>/<code>var</code>, parameters, class fields and <code>this.</code> fields</td>
+</tr>
+<tr>
+<td>SQL</td>
+<td><code>CREATE TABLE</code>, <code>VIEW</code>, <code>FUNCTION</code>, <code>PROCEDURE</code>, <code>TRIGGER</code></td>
+<td><code>DECLARE @name</code>, <code>SET @name</code></td>
+</tr>
+<tr>
+<td>Markdown, AsciiDoc</td>
+<td>Headings, nested by level (headings inside code blocks are skipped)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Dockerfile</td>
+<td><code>FROM</code> stages</td>
+<td><code>ARG</code> as parameters, <code>ENV</code> as exported variables, per stage</td>
+</tr>
+</tbody>
+</table>
+<p>Comments, strings and heredoc bodies are skipped, so a function written inside a comment or a heredoc is not listed. A variable used inside double quotes or an unquoted heredoc still counts as a use in shell scripts. In Bash a variable assigned inside a function without <code>local</code> is global, so it is listed as global. Plain text with a shebang line (<code>#!/bin/bash</code>, <code>#!/usr/bin/env python3</code>, …) uses the language of the shebang. For JSON, YAML, TOML, XML, HTML, INI and properties files, plain text, and a language you added yourself, the panel lists only the placeholders. A text over 512,000 characters is not read, and each list shows at most 2,000 entries.</p>
+<div class="admonition note">
+<p class="admonition-title">Not declared placeholders</p>
+<p>The <strong>Not declared</strong> group lists the undeclared names a scheduled job or an AI Swarm run refuses (see <a href="#scheduled-and-swarm-runs">Scheduled and swarm runs</a>), including a name such as <code>${target}</code> that the script uses as its own shell variable. Declare the name in the Variable Manager, or write <code>$${target}</code> so that korTTY leaves it to the shell. A name under <strong>Asks on every use</strong> blocks such a run as well.</p>
+</div>
 <h3 id="column-ruler-and-line-width-formatting">Column ruler and line-width formatting<a class="headerlink" href="#column-ruler-and-line-width-formatting" title="Permanent link">&para;</a></h3>
 <p>Above the content field, the column ruler keeps the current caret column fixed at the left as <code>Column N</code> and shows a live marker at the matching editor position. Moving the mouse over the live marker shows <code>Position N</code>. Click the ruler to set a maximum line-length marker (columns 20–240). Right-click that marker to format the content to the selected width or remove the marker.</p>
 <p>Line-width formatting works locally only for formatters that support configurable width:</p>
@@ -952,6 +1034,7 @@
 <li>Prettier-backed web formats (JavaScript, TypeScript, HTML, CSS)</li>
 <li>Python (Black)</li>
 <li>Perl (Perl::Tidy)</li>
+<li>Lua (StyLua)</li>
 </ul>
 <p>For languages without local line-width support, KorTTY asks whether to use AI-assisted formatting. Both local line-width formatting and AI-assisted formatting show a before/after review in the editor area before anything changes; see <a href="#reviewing-an-ai-change">Reviewing an AI change</a>.</p>
 <h3 id="format-code">Format Code<a class="headerlink" href="#format-code" title="Permanent link">&para;</a></h3>
@@ -960,9 +1043,12 @@
 <li><strong>Built-in formatters:</strong> JSON, XML, YAML/YML, TOML, INI/properties, Groovy</li>
 <li><strong>Bundled formatters:</strong> Java (google-java-format), Bash/shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)</li>
 <li><strong>Fallback:</strong> Optional PATH fallbacks for developer setups when a bundled formatter is missing</li>
+<li><strong>Formatters you install yourself:</strong> Python (Black), Ruby (RuboCop) and Lua (StyLua, <code>brew install stylua</code>); korTTY uses each one as soon as it is installed</li>
 </ul>
+<p>korTTY looks for installed formatters in the <code>PATH</code> and in the usual install folders such as <code>/opt/homebrew/bin</code>, <code>/usr/local/bin</code> and <code>~/.cargo/bin</code>, so they are found also when korTTY was started from the Finder or the Dock. StyLua reads your own settings from <code>~/.config/stylua/stylua.toml</code>, for example <code>indent_type = "Spaces"</code> instead of its default tabs.</p>
 <p>Prettier runs as its offline Standalone browser build with only the Babel, Estree, TypeScript, HTML and PostCSS plugins; SQL uses the bundled sql-formatter browser build. Both are initialized lazily in an isolated JavaFX WebView and need no installed or packaged Node.js runtime. Requests are serialized and retain the same 15-second timeout, provider display and configurable Prettier line width as the process backend; a failed or timed-out engine is discarded before the next request.</p>
 <p>If local formatting is unavailable and the configured AI profile provides snippet AI capability, KorTTY asks whether to use AI assistance. AI formatting is applied only after the before/after preview is accepted.</p>
+<p><strong>Check Syntax</strong> checks JSON and XML locally. For Lua it uses <code>luac -p</code> when Lua is installed: <code>luac</code> only parses the code and never runs it, and every error is reported with its line. For the other languages, and for Lua without <code>luac</code>, korTTY offers an AI syntax check instead.</p>
 <h3 id="editor-profiles">Editor profiles<a class="headerlink" href="#editor-profiles" title="Permanent link">&para;</a></h3>
 <p>Switch between:</p>
 <ul>
@@ -1265,6 +1351,7 @@
 </ul>
 <h2 id="placeholder-variables">Placeholder variables<a class="headerlink" href="#placeholder-variables" title="Permanent link">&para;</a></h2>
 <p>Snippets can contain placeholders written as <code>${name}</code>. When you copy, insert or send a snippet, korTTY replaces exactly two kinds of them: the built-in variables below and the variables declared in the <a href="#variable-manager">Variable Manager</a>. Every other <code>${...}</code> reaches the editor, the clipboard or the shell exactly as written, so shell expansions such as <code>${HOME}</code>, <code>${1:-default}</code>, <code>${#array[@]}</code> and <code>${file%%.*}</code> keep working. The same rules apply everywhere a snippet is used: copying, inserting into an editor, both terminal sends, scheduled jobs, AI Swarm script runs and script headers.</p>
+<p>While you edit a snippet, the <a href="#structure-panel">structure panel</a> lists its placeholders grouped by how they are treated.</p>
 <h3 id="built-in-variables">Built-in variables<a class="headerlink" href="#built-in-variables" title="Permanent link">&para;</a></h3>
 <p>These variables are automatically replaced:</p>
 <table>
@@ -1322,6 +1409,7 @@
 <p>Write <code>$${name}</code> to get the literal text <code>${name}</code>, for example for a shell variable that has the same name as a built-in (<code>$${date}</code>) or as a declared variable. The escape works for every placeholder, including <code>$${cursor}</code>. Text that must keep a literal <code>$${name}</code>, as a Makefile or a Compose file does, is written <code>$$${name}</code>.</p>
 <h3 id="scheduled-and-swarm-runs">Scheduled and swarm runs<a class="headerlink" href="#scheduled-and-swarm-runs" title="Permanent link">&para;</a></h3>
 <p>JobScheduler snippet jobs and <strong>Run script…</strong> in the AI Swarm cannot ask for a value, so two more rules keep a variable nobody answered from silently turning into empty text: a declared variable without a stored value blocks the run, and so does an undeclared simple name such as <code>${target}</code>. Shell forms such as <code>${1:-default}</code>, <code>${#array[@]}</code> and <code>${file%%.*}</code>, positional and special parameters such as <code>${1}</code> and <code>${@}</code>, and the environment variables <code>${HOME}</code>, <code>${USER}</code>, <code>${PATH}</code> and <code>${PWD}</code> pass through. Write any other shell variable with the escape, for example <code>$${HOSTNAME}</code>.</p>
+<p>While you edit a snippet, the <a href="#structure-panel">structure panel</a> shows these names in its <strong>Asks on every use</strong> and <strong>Not declared</strong> groups.</p>
 <h3 id="variable-manager">Variable Manager<a class="headerlink" href="#variable-manager" title="Permanent link">&para;</a></h3>
 <p><strong>Variables...</strong> in the Snippet Manager opens the Variable Manager, where stored values are added, edited and deleted. The add/edit dialog explains both fields: the <strong>Name</strong> is what a snippet references as <code>${name}</code>, the <strong>Value</strong> is the stored default inserted for it — leave the value empty to be asked every time. Several variables can be selected at once for deleting or exporting.</p>
 <ul>
