@@ -2639,6 +2639,60 @@
       "to": "„web-01“",
       "scope": "markdown",
       "note": "German quotes close with “, not a straight quote."
+    },
+    {
+      "from": "*Keine solche Datei oder kein Verzeichnis*",
+      "to": "*No such file or directory*",
+      "scope": "markdown",
+      "note": "A literal shell message the page quotes in English."
+    },
+    {
+      "from": "*Befehl nicht gefunden*",
+      "to": "*command not found*",
+      "scope": "markdown",
+      "note": "A literal shell message the page quotes in English."
+    },
+    {
+      "from": "ein vorgeschlagener Marker: info, important oder error",
+      "to": "eine vorgeschlagene Markierung: Info, wichtig oder Fehler",
+      "scope": "markdown",
+      "note": "The marker names as the journal UI shows them."
+    },
+    {
+      "from": "Protokoll-Panel",
+      "to": "Log-Panel",
+      "scope": "markdown",
+      "note": "The journal page's log panel is the Log-Panel throughout the guide."
+    },
+    {
+      "from": "Neubewertung",
+      "to": "Neuauswertung",
+      "scope": "markdown",
+      "note": "The UI calls re-evaluating a journal Neuauswertung (journal.manager.badge.reevaluateWaiting)."
+    },
+    {
+      "from": "**KI benennt das Journal bei Sitzungsende**",
+      "to": "**Journal-Titel zum Abschluss von der KI vergeben lassen**",
+      "scope": "markdown",
+      "note": "The UI label of journal.options.aiTitle."
+    },
+    {
+      "from": "bis die Shell ihr Prompt erneut",
+      "to": "bis die Shell ihren Prompt erneut",
+      "scope": "markdown",
+      "note": "der Prompt: accusative ihren."
+    },
+    {
+      "from": "eine lange `dnf upgrade`",
+      "to": "ein langes `dnf upgrade`",
+      "scope": "markdown",
+      "note": "A command is das (Kommando): neuter."
+    },
+    {
+      "from": "eine `tail -f`",
+      "to": "ein `tail -f`",
+      "scope": "markdown",
+      "note": "A command is das (Kommando): neuter."
     }
   ]
 }
