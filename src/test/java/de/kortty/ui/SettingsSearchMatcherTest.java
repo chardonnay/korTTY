@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import javafx.scene.control.Tab;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
@@ -77,6 +78,28 @@ class SettingsSearchMatcherTest {
         assertThat(SettingsSearchMatcher.search(candidates, "  ")).isEmpty();
         assertThat(SettingsSearchMatcher.search(null, "option")).isEmpty();
         assertThat(SettingsSearchMatcher.search(candidates, "option")).hasSize(SettingsSearchMatcher.MAX_RESULTS);
+    }
+
+    @Test
+    void aPageIsFoundByItsKeywordsBeforeItsFirstVisit() {
+        SettingsSearchMatcher.Candidate<String> localModels = new SettingsSearchMatcher.Candidate<>(
+            "Local Models", "Hugging Face, GGUF", "Local Models", true, "page:local");
+        List<SettingsSearchMatcher.Candidate<String>> candidates = List.of(page("Skills"), localModels);
+        assertThat(labels(SettingsSearchMatcher.search(candidates, "hugging face"))).containsExactly("Local Models");
+        assertThat(labels(SettingsSearchMatcher.search(candidates, "gguf"))).containsExactly("Local Models");
+        assertThat(SettingsSearchMatcher.search(candidates, "hugging skills")).isEmpty();
+    }
+
+    @Test
+    void tabKeywordsAreStoredOnTheTabAndBlankOnesClearThem() {
+        Tab tab = new Tab("Local Models");
+        assertThat(SettingsSearchBar.keywords(tab)).isEmpty();
+        SettingsSearchBar.setKeywords(tab, "  Hugging Face, GGUF ");
+        assertThat(SettingsSearchBar.keywords(tab)).isEqualTo("Hugging Face, GGUF");
+        SettingsSearchBar.setKeywords(tab, " ");
+        assertThat(SettingsSearchBar.keywords(tab)).isEmpty();
+        SettingsSearchBar.setKeywords(null, "ignored");
+        assertThat(SettingsSearchBar.keywords(null)).isEmpty();
     }
 
     @Test

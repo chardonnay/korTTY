@@ -89,8 +89,9 @@ class SentContextWiringSourceScanTest {
     void theLinkIsPlacedAboveTheApprovalStripAndResetByEveryNewRun() throws IOException {
         String host = source("ui/AgentDesignHost.java");
 
-        // The line sits above the bottom displays and the approval row, so the approval buttons keep their place.
-        assertThat(host).contains("getChildren().addAll(sentLink, approvalStrip);");
+        // The line sits above the bottom displays and the approval row (with the chat hand-off bar between them),
+        // so the approval buttons keep their place.
+        assertThat(host).contains("getChildren().addAll(sentLink, chatHandoffBar, approvalStrip);");
         assertThat(host).contains("runOnFx(() -> {\n            applyDesignSettings();\n            sentLink.reset();");
     }
 }

@@ -33,6 +33,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Window;
 import javafx.util.StringConverter;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,12 +42,15 @@ import java.util.function.Supplier;
 /**
  * The AI options that are not part of a profile — the former Settings → AI tab — as the first tab
  * of the AI Manager, on four section tabs: features and safety, the terminal agent, defaults, and
- * internet access. {@link #save(boolean)} writes them; the dialog also saves quietly on close.
+ * internet access. {@link #save(boolean)} writes them; the dialog also saves quietly on close, and
+ * that quiet save writes nothing when no field changed since the form was built or last saved.
  */
 final class AiGeneralSettingsPane extends VBox {
 
     private final KorTTYApplication app;
     private final Label status = new Label();
+    /** The form's values as built or last saved; {@link #hasUnsavedChanges()} compares the form with them. */
+    private List<Object> savedState = List.of();
 
     private final CheckBox featuresEnabled = new CheckBox(I18n.get("settings.ai.featuresEnabled"));
     private final CheckBox confirmBeforeSend = new CheckBox(I18n.get("settings.ai.confirmBeforeSend"));
@@ -104,6 +108,35 @@ final class AiGeneralSettingsPane extends VBox {
         status.setWrapText(true);
         status.setStyle(MutedTextStyle.HINT);
         getChildren().addAll(sections, AiManagerSections.saveRow(save, status));
+        markSaved();
+    }
+
+    /** Whether a field differs from what was loaded or last saved; an untouched form has nothing to write. */
+    boolean hasUnsavedChanges() {
+        return !formState().equals(savedState);
+    }
+
+    /** Every value {@link #save(boolean)} would write, as a comparable snapshot; a typed secret counts by its presence only. */
+    private List<Object> formState() {
+        return Arrays.asList(
+            featuresEnabled.isSelected(), confirmBeforeSend.isSelected(), chatTerminalActions.getValue(),
+            showDebugMessages.isSelected(), showRuntimeMessages.isSelected(),
+            agentExecutionEnabled.isSelected(), agentConfirmMutating.isSelected(), agentShowRunDialog.isSelected(),
+            agentTriage.getValue(), agentCommandName.getText(), agentCommandCaseInsensitive.isSelected(),
+            executionTarget.getValue(), agentInputHistorySize.getValue(),
+            profileId(securityCheckProfile.getValue()),
+            codeTextLanguage.getSelectionModel().getSelectedItem(), snippetInstructions.isSelected(),
+            alternativeSolutionCount.getValue(),
+            !tavilyKey.getText().isEmpty(), clearTavilyKey.isSelected(),
+            !brightDataToken.getText().isEmpty(), clearBrightDataToken.isSelected(),
+            !braveKey.getText().isEmpty(), clearBraveKey.isSelected(),
+            searxngUrl.getText(), tavilyLabel.getText(), brightDataLabel.getText(),
+            bravePluginId.getText(), searxngPluginId.getText(), toolpackPluginId.getText(),
+            agentAlwaysOfferWebTools.isSelected());
+    }
+
+    private static String profileId(AiProfile profile) {
+        return profile != null ? profile.getId() : null;
     }
 
     private GlobalSettings settings() {
@@ -365,20 +398,40 @@ final class AiGeneralSettingsPane extends VBox {
         updatePrompt.run();
     }
 
-    /** Reloads the security-check profile choices after the profile list changed. */
+    /**
+     * Reloads the security-check profile choices after the profile list changed. The stored choice applies only
+     * while the list is still empty (the first load); after that the pick stays, including a deliberate "none".
+     */
     void refreshProfiles(List<AiProfile> profiles) {
+        // Only an untouched form takes the applied profile list as its new baseline; unsaved edits keep
+        // the baseline they were made against, so a later quiet save still writes them.
+        boolean untouched = !hasUnsavedChanges();
         GlobalSettings s = settings();
         String wanted = securityCheckProfile.getValue() != null ? securityCheckProfile.getValue().getId()
-            : s != null ? s.getSecurityCheckAiProfileId() : null;
+            : securityCheckProfile.getItems().isEmpty() && s != null ? s.getSecurityCheckAiProfileId() : null;
         securityCheckProfile.getItems().setAll(profiles);
         securityCheckProfile.setValue(profiles.stream()
             .filter(p -> p.getId() != null && p.getId().equals(wanted)).findFirst().orElse(null));
+        if (untouched) {
+            markSaved();
+        }
+    }
+
+    /** Makes the form as it now shows the baseline that {@link #hasUnsavedChanges()} compares against. */
+    void markSaved() {
+        savedState = formState();
     }
 
     // ----- save -----------------------------------------------------------------------------
 
-    /** Writes every field into the settings and saves them; typed secrets need the unlocked vault. */
+    /**
+     * Writes every field into the settings and saves them; typed secrets need the unlocked vault. A quiet save
+     * (the dialog closing) with nothing changed writes nothing; the explicit Save button always writes.
+     */
     boolean save(boolean quiet) {
+        if (quiet && !hasUnsavedChanges()) {
+            return true;
+        }
         GlobalSettings s = settings();
         if (s == null) {
             return false;
@@ -435,6 +488,7 @@ final class AiGeneralSettingsPane extends VBox {
         tavilyKey.clear();
         brightDataToken.clear();
         braveKey.clear();
+        markSaved();
         trackChanges(before, snapshot(s));
         if (!quiet) {
             status.setText(I18n.get("ai.manager.general.saved"));

@@ -145,6 +145,19 @@ public class SessionJournalEntry {
     @XmlElement
     private Long agentTokens;
 
+    /** Id of the AI chat this AGENT entry is continued in; null until the run is handed to a chat. */
+    @XmlElement
+    private String chatId;
+
+    /** When the chat was linked to this AGENT entry; not an edit, so it never sets {@link #editedAt}. */
+    @XmlElement
+    @XmlJavaTypeAdapter(IsoOffsetDateTimeAdapter.class)
+    private OffsetDateTime chatLinkedAt;
+
+    /** Copy of the linked chat, rewritten until the journal stops; null when no chat is linked. */
+    @XmlElement
+    private SessionJournalChatSnapshot chatSnapshot;
+
     public SessionJournalEntry() {
         this.id = UUID.randomUUID().toString();
         this.createdAt = OffsetDateTime.now();
@@ -180,6 +193,10 @@ public class SessionJournalEntry {
         this.agentModel = other.agentModel;
         this.agentDurationMillis = other.agentDurationMillis;
         this.agentTokens = other.agentTokens;
+        this.chatId = other.chatId;
+        this.chatLinkedAt = other.chatLinkedAt;
+        this.chatSnapshot = other.chatSnapshot != null
+            ? new SessionJournalChatSnapshot(other.chatSnapshot) : null;
         this.runAsUser = other.runAsUser;
         if (other.commands != null) {
             this.commands = new ArrayList<>();
@@ -236,6 +253,32 @@ public class SessionJournalEntry {
 
     public void setAgentTokens(Long agentTokens) {
         this.agentTokens = agentTokens;
+    }
+
+    public String getChatId() {
+        return chatId;
+    }
+
+    public void setChatId(String chatId) {
+        this.chatId = chatId != null && !chatId.isBlank() ? chatId : null;
+    }
+
+    public OffsetDateTime getChatLinkedAt() {
+        return chatLinkedAt;
+    }
+
+    public void setChatLinkedAt(OffsetDateTime chatLinkedAt) {
+        this.chatLinkedAt = chatLinkedAt;
+    }
+
+    /** The linked chat's copy, or null when the entry has no chat. */
+    public SessionJournalChatSnapshot getChatSnapshot() {
+        return chatSnapshot;
+    }
+
+    /** Stores a copy of the snapshot; null removes it. */
+    public void setChatSnapshot(SessionJournalChatSnapshot chatSnapshot) {
+        this.chatSnapshot = chatSnapshot != null ? new SessionJournalChatSnapshot(chatSnapshot) : null;
     }
 
     public String getId() {

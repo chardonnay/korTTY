@@ -7,6 +7,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Accordion;
 import javafx.scene.control.Button;
 import javafx.scene.control.Control;
@@ -30,6 +31,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.scene.web.WebView;
 import javafx.util.Duration;
 
 import java.util.ArrayList;
@@ -62,6 +64,8 @@ final class SettingsSearchBar {
     private static final double RESULTS_WIDTH = 640;
     private static final double RESULTS_MAX_HEIGHT = 380;
     private static final double RESULT_ROW_HEIGHT = 40;
+    private static final String KEYWORDS_PROPERTY = "kortty.search.keywords";
+    private static final KeyCombination FOCUS_SEARCH = KeyCombination.keyCombination("Shortcut+F");
 
     /** Where a result leads: the page, the node on it (none for the page itself) and the containers in between. */
     record Target(Tab section, Node node, List<Object> path) {
@@ -77,16 +81,28 @@ final class SettingsSearchBar {
     private final PauseTransition highlightTimer = new PauseTransition(HIGHLIGHT_DURATION);
 
     /**
+     * The search line of the settings dialog, with the settings' own prompt and tooltip.
+     *
      * @param tabPane the dialog's section tabs
      * @param body    what the results list floats over: the section navigation and the tabs
      */
     SettingsSearchBar(TabPane tabPane, Node body) {
+        this(tabPane, body, "settings.nav.search.prompt", "settings.nav.search.tooltip");
+    }
+
+    /**
+     * @param tabPane    the dialog's section tabs
+     * @param body       what the results list floats over
+     * @param promptKey  i18n key of the prompt text shown in the empty field
+     * @param tooltipKey i18n key of the field's tooltip, the Cmd/Ctrl+F hint
+     */
+    SettingsSearchBar(TabPane tabPane, Node body, String promptKey, String tooltipKey) {
         this.tabPane = Objects.requireNonNull(tabPane, "tabPane");
-        String prompt = I18n.get("settings.nav.search.prompt");
+        String prompt = I18n.get(promptKey);
         field.setId("settings-search-field");
         field.setPromptText(prompt);
         field.setAccessibleText(prompt);
-        field.setTooltip(new Tooltip(I18n.get("settings.nav.search.tooltip")));
+        field.setTooltip(new Tooltip(I18n.get(tooltipKey)));
         field.setMaxWidth(UiFontScaleSupport.scaleDimension(RESULTS_WIDTH, true));
         field.getStyleClass().add("settings-search-field");
 
@@ -138,9 +154,12 @@ final class SettingsSearchBar {
         });
         field.addEventFilter(KeyEvent.KEY_PRESSED, this::onFieldKey);
         highlightTimer.setOnFinished(event -> clearHighlight());
-        // Cmd+F / Ctrl+F anywhere in the dialog jumps to the search line.
+        // Cmd+F / Ctrl+F anywhere in the dialog jumps to the search line, except in a web view: the
+        // Monaco editors of the skills and memory pages keep their own find.
         host.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (FOCUS_SEARCH.match(event)) {
+            Scene scene = host.getScene();
+            Node focusOwner = scene != null ? scene.getFocusOwner() : null;
+            if (FOCUS_SEARCH.match(event) && !isInWebView(focusOwner)) {
                 event.consume();
                 field.requestFocus();
                 field.selectAll();
@@ -148,7 +167,32 @@ final class SettingsSearchBar {
         });
     }
 
-    private static final KeyCombination FOCUS_SEARCH = KeyCombination.keyCombination("Shortcut+F");
+    /** The search words a page is found by before its first visit: synonyms and names its options do not spell out. */
+    static void setKeywords(Tab tab, String keywords) {
+        if (tab == null) {
+            return;
+        }
+        if (keywords == null || keywords.isBlank()) {
+            tab.getProperties().remove(KEYWORDS_PROPERTY);
+        } else {
+            tab.getProperties().put(KEYWORDS_PROPERTY, keywords.strip());
+        }
+    }
+
+    /** The keywords set with {@link #setKeywords}, or an empty text. */
+    static String keywords(Tab tab) {
+        return tab != null && tab.getProperties().get(KEYWORDS_PROPERTY) instanceof String text ? text : "";
+    }
+
+    /** Whether {@code node} is a web view or lies inside one, such as the Monaco editor of the skills page. */
+    static boolean isInWebView(Node node) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current instanceof WebView) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /** The search line with its clear button, for the top of the dialog. */
     StackPane node() {
@@ -182,7 +226,8 @@ final class SettingsSearchBar {
         List<SettingsSearchMatcher.Candidate<Target>> candidates = new ArrayList<>();
         for (Tab tab : tabPane.getTabs()) {
             String title = tab.getText();
-            candidates.add(new SettingsSearchMatcher.Candidate<>(title, "", title, true, new Target(tab, null, List.of())));
+            // The keywords stand in for the page's detail text, so a page not built yet is still found by them.
+            candidates.add(new SettingsSearchMatcher.Candidate<>(title, keywords(tab), title, true, new Target(tab, null, List.of())));
             Node content = LazyTabContent.peek(tab);
             if (content != null) {
                 collect(content, tab, title, new ArrayList<>(), candidates);

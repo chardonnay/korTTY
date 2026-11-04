@@ -82,7 +82,12 @@ public final class SessionJournalExportOptionsDialog {
 
     /** What the user chose; {@link SessionJournalExportProtection.Protection#NONE} means unencrypted. */
     public record ExportChoice(boolean includeScreenshots, SessionJournalExportProtection.Protection protection,
-                               SessionJournalExportFilter filter) {
+                               SessionJournalExportFilter filter, boolean includeChats) {
+
+        public ExportChoice(boolean includeScreenshots, SessionJournalExportProtection.Protection protection,
+                            SessionJournalExportFilter filter) {
+            this(includeScreenshots, protection, filter, true);
+        }
     }
 
     private SessionJournalExportOptionsDialog() {
@@ -105,6 +110,8 @@ public final class SessionJournalExportOptionsDialog {
         private final boolean offersScreenshots;
 
         private final CheckBox includeCheck = new CheckBox(I18n.get("journal.export.includeScreenshots"));
+        /** KI-Chats linked to AGENT entries; applies to every format, the copy is left out when unticked. */
+        private final CheckBox includeChatsCheck = new CheckBox(I18n.get("journal.export.includeChats"));
         private final VBox windowRows = new VBox(6);
         private final Spinner<Integer> tolerance = new Spinner<>(0,
             SessionJournalExportFilter.MAX_TOLERANCE_MINUTES, SessionJournalExportFilter.DEFAULT_TOLERANCE_MINUTES);
@@ -186,7 +193,8 @@ public final class SessionJournalExportOptionsDialog {
                 return Optional.empty();
             }
             return Optional.of(new ExportChoice(
-                !offersScreenshots || includeCheck.isSelected(), currentProtection(), currentFilter()));
+                !offersScreenshots || includeCheck.isSelected(), currentProtection(), currentFilter(),
+                includeChatsCheck.isSelected()));
         }
 
         private SessionJournalExportProtection.Protection currentProtection() {
@@ -225,6 +233,9 @@ public final class SessionJournalExportOptionsDialog {
                 includeCheck.setSelected(true);
                 topRow.getChildren().add(includeCheck);
             }
+            includeChatsCheck.setSelected(true);
+            includeChatsCheck.setTooltip(new javafx.scene.control.Tooltip(I18n.get("journal.export.includeChats.tooltip")));
+            topRow.getChildren().add(includeChatsCheck);
             javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
             javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
             topRow.getChildren().addAll(spacer, new Label(I18n.get("journal.export.protection") + ":"), protectionMode);

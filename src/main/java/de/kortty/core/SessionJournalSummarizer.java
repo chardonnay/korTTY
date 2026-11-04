@@ -595,7 +595,8 @@ public class SessionJournalSummarizer {
         return entry.repeat() > 1 ? line + " (×" + entry.repeat() + ")" : line;
     }
 
-    private static String capLine(String line, int maxChars) {
+    /** Keeps the head and the tail of a line with a marker between them; shared with the KI-Agent chat seeding. */
+    static String capLine(String line, int maxChars) {
         if (line.length() <= maxChars) {
             return line;
         }

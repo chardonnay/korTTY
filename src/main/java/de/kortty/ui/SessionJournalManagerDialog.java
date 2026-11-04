@@ -1044,7 +1044,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                 SessionJournalExportService exportService = new SessionJournalExportService(
                     service(), app != null ? app.getSessionJournalHtmlRenderer() : null);
                 SessionJournalExportService.Options options =
-                    new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter());
+                    new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter(),
+                        choice.includeChats());
                 SessionJournalExportService.ExportResult result = de.kortty.core.SessionJournalExportProtection.export(
                     target.toPath(), archive,
                     de.kortty.core.SessionJournalExportProtection.plainName(target.toPath(), extension, plainExtension),

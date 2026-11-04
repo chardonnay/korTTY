@@ -78,7 +78,9 @@ class AiSelectionRedactionWiringTest {
 
     @Test
     void everyFollowUpOfTheAiTabIsMaskedForTheProfileItGoesTo() throws IOException {
-        String followUp = onlyBody(RESULT_TAB, "private void sendFollowUp(");
+        // The follow-up body is the one with the (prompt, fromComposer) parameters; the no-argument and
+        // String wrappers only delegate to it.
+        String followUp = onlyBody(RESULT_TAB, "private boolean sendFollowUp(String prompt, boolean fromComposer");
         assertThat(followUp).contains("outboundContextFor(selectedProfile, plainTranscript.toString())");
         assertThat(followUp).contains("outbound.selectedText(),");
         assertThat(followUp).contains("outbound.conversation())");

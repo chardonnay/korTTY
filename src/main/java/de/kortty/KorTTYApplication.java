@@ -125,6 +125,7 @@ public class KorTTYApplication extends Application {
     private AiChatManager aiChatManager;
     private SwarmChatManager swarmChatManager;
     private de.kortty.core.SessionJournalService sessionJournalService;
+    private de.kortty.core.SessionJournalChatSync sessionJournalChatSync;
     private de.kortty.core.SessionJournalSummarizer sessionJournalSummarizer;
     private de.kortty.core.AutomationJournalRetention automationJournalRetention;
     private de.kortty.core.SessionJournalScreenshotAnalyzer sessionJournalScreenshotAnalyzer;
@@ -300,6 +301,22 @@ public class KorTTYApplication extends Application {
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
         sessionJournalService = new de.kortty.core.SessionJournalService();
+        // A KI-chat linked to a journal entry keeps its copy in that journal up to date (see SessionJournalChatSync).
+        sessionJournalChatSync = de.kortty.core.SessionJournalChatSync.create(
+            aiChatManager::findById,
+            new de.kortty.core.SessionJournalChatSync.SnapshotWriter() {
+                @Override
+                public boolean write(java.nio.file.Path journalDir, String entryId,
+                                     de.kortty.model.SessionJournalChatSnapshot snapshot) throws java.io.IOException {
+                    return sessionJournalService.updateChatSnapshot(journalDir, entryId, snapshot);
+                }
+
+                @Override
+                public boolean freeze(java.nio.file.Path journalDir, String entryId) throws java.io.IOException {
+                    return sessionJournalService.freezeChatSnapshot(journalDir, entryId);
+                }
+            });
+        aiChatManager.addChangeListener(sessionJournalChatSync::onChatChanged);
         sessionJournalSummarizer = new de.kortty.core.SessionJournalSummarizer(sessionJournalService);
         automationJournalRetention = new de.kortty.core.AutomationJournalRetention(
             sessionJournalService,
@@ -887,6 +904,9 @@ public class KorTTYApplication extends Application {
         }
         if (sessionJournalHtmlRenderer != null) {
             shutdownStep("stop session journal HTML renderer", sessionJournalHtmlRenderer::stop);
+        }
+        if (sessionJournalChatSync != null) {
+            shutdownStep("flush session journal chat copies", sessionJournalChatSync::close);
         }
         if (gpgKeyManager != null && saveStores) {
             shutdownStep("save GPG keys", gpgKeyManager::save);
@@ -1974,6 +1994,11 @@ public class KorTTYApplication extends Application {
                 .orElse(null);
         }
         return null;
+    }
+
+    /** Keeps the KI-chat copies of live session journals current; see {@link de.kortty.core.SessionJournalChatSync}. */
+    public de.kortty.core.SessionJournalChatSync getSessionJournalChatSync() {
+        return sessionJournalChatSync;
     }
 
     public de.kortty.core.SessionJournalService getSessionJournalService() {

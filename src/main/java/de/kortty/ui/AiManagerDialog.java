@@ -57,6 +57,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -100,6 +101,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final KorTTYApplication app;
     private final ObservableList<AiProfile> profiles;
     private final ListView<AiProfile> profileListView;
+    /** The primary section tabs; the search line below the header finds the options on all of them. */
+    private final TabPane tabPane;
+    private SettingsSearchBar aiManagerSearch;
     // Built on first selection of their tab (LazyTabContent): each constructor scans registries,
     // starts watchers or holds a WebView, none of which should be paid for merely opening the
     // dialog. Null until then — every access goes through the null-safe helpers below.
@@ -287,7 +291,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         embeddedConnectionHintLabel.setWrapText(true);
         embeddedConnectionHintLabel.setStyle(MutedTextStyle.HINT);
 
-        TabPane tabPane = new TabPane();
+        tabPane = new TabPane();
         tabPane.getStyleClass().add("ai-manager-primary-navigation");
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         List<Tab> primaryTabs = List.of(
@@ -301,14 +305,24 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         primaryTabs.forEach(tab -> tab.getStyleClass().add("ai-manager-primary-tab"));
         tabPane.getTabs().addAll(primaryTabs);
 
-        VBox root = new VBox(10, tabPane, statusLabel);
-        root.setPadding(new Insets(8, 0, 0, 0));
+        VBox body = new VBox(10, tabPane, statusLabel);
+        body.setPadding(new Insets(8, 0, 0, 0));
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
         statusLabel.setWrapText(true);
         statusLabel.setStyle(MutedTextStyle.HINT);
 
-        getDialogPane().setContent(root);
+        // The same search line as the settings dialog, over the tabs; it finds pages that are not opened yet by their keywords.
+        aiManagerSearch = new SettingsSearchBar(tabPane, body, "ai.manager.search.prompt", "ai.manager.search.tooltip");
+        HBox searchRow = new HBox(aiManagerSearch.node());
+        HBox.setHgrow(aiManagerSearch.node(), Priority.ALWAYS);
+        searchRow.setAlignment(Pos.CENTER);
+        searchRow.setPadding(new Insets(4, 8, 0, 8));
+        searchRow.getStyleClass().add("settings-search-row");
+        BorderPane content = new BorderPane(aiManagerSearch.host());
+        content.setTop(searchRow);
+
+        getDialogPane().setContent(content);
         getDialogPane().setPrefSize(980, 640);
         getDialogPane().setMinSize(760, 480);
         restoreGeometry();
@@ -365,6 +379,11 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         });
 
         refreshAll();
+    }
+
+    /** The search line over the tabs; for tests and smokes. */
+    SettingsSearchBar aiManagerSearch() {
+        return aiManagerSearch;
     }
 
     /** Restore the user's last size/position for this dialog (mirrors other korTTY dialogs). */
@@ -738,6 +757,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         Tab tab = new Tab(I18n.get("ai.manager.tab.profiles"));
         tab.setContent(root);
+        SettingsSearchBar.setKeywords(tab, I18n.get("ai.manager.search.keywords.profiles"));
         return tab;
     }
 
@@ -891,6 +911,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private Tab buildAiSkillsTab() {
         Tab tab = new Tab(I18n.get("settings.tab.aiSkills"));
         aiSkillsTab = tab;
+        SettingsSearchBar.setKeywords(tab, I18n.get("ai.manager.search.keywords.skills"));
         // The pane (and with it the Monaco WebView: native WebKit + JS bridge + web workers) is
         // built and activated on the first visit, so merely opening the AI Manager never spins up
         // that path.
@@ -906,6 +927,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     /** The korTTY memory: the global and per-connection MEMORY.md files. Built on the first visit, like the skills tab. */
     private Tab buildAiMemoryTab() {
         Tab tab = new Tab(I18n.get("settings.tab.aiMemory"));
+        SettingsSearchBar.setKeywords(tab, I18n.get("ai.manager.search.keywords.memory"));
         LazyTabContent.defer(tab, () -> {
             aiMemoryPane = new AiMemoryPane(app, paneOwner, null);
             // The entries and the Markdown editor take the dialog's height; a small dialog scrolls the lower sections
@@ -915,30 +937,32 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return tab;
     }
 
-    /** The options that are not part of a profile — the former Settings → AI tab. */
+    /**
+     * The options that are not part of a profile — the former Settings → AI tab. Built now rather than on the first
+     * visit, so the search line finds its options before the page is opened; it attaches on its first selection.
+     * The profile list reaches it through {@link #refreshProfiles()}, which runs after the constructor loads them.
+     */
     private Tab buildGeneralTab() {
         Tab tab = new Tab(I18n.get("ai.manager.tab.general"));
-        LazyTabContent.defer(tab, () -> {
-            generalPane = new AiGeneralSettingsPane(app);
-            generalPane.refreshProfiles(profiles);
-            return generalPane;
-        });
+        generalPane = new AiGeneralSettingsPane(app);
+        LazyTabContent.defer(tab, generalPane);
+        SettingsSearchBar.setKeywords(tab, I18n.get("ai.manager.search.keywords.general"));
         return tab;
     }
 
+    /** Built now for the same reason as the General page; the profile list arrives with {@link #refreshProfiles()}. */
     private Tab buildLocalPreferencesTab() {
         Tab tab = new Tab(I18n.get("ai.local.preferences.tab"));
-        LazyTabContent.defer(tab, () -> {
-            localPreferencesPane = new AiLocalPreferencesPane(app);
-            localPreferencesPane.refresh(profiles);
-            return localPreferencesPane;
-        });
+        localPreferencesPane = new AiLocalPreferencesPane(app);
+        LazyTabContent.defer(tab, localPreferencesPane);
+        SettingsSearchBar.setKeywords(tab, I18n.get("ai.manager.search.keywords.localAi"));
         return tab;
     }
 
     private Tab buildLocalModelsTab() {
         Tab tab = new Tab(I18n.get("ai.local.models.tab"));
         localModelsTab = tab;
+        SettingsSearchBar.setKeywords(tab, I18n.get("ai.manager.search.keywords.localModels"));
         // The constructor ends with refresh(): registry reload, runtime status, table refresh.
         LazyTabContent.defer(tab, () -> {
             localModelManagerPane = new LocalModelManagerPane(app, paneOwner, this::mergeExternalProfileChanges);
@@ -957,6 +981,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private Tab buildKnowledgeStoresTab() {
         Tab tab = new Tab(I18n.get("ai.rag.tab"));
+        SettingsSearchBar.setKeywords(tab, I18n.get("ai.manager.search.keywords.knowledge"));
         if (ownerWindow == null) {
             // Headless UI harnesses intentionally have no application owner or configuration
             // lifecycle. Avoid starting file watchers against the real user directory there.
@@ -999,6 +1024,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         defaultProfileId = getConfiguredDefaultProfileId();
         globalRequestTimeoutSpinner.getValueFactory().setValue(configuredGlobalRequestTimeoutMinutes());
         profiles.setAll(loadedProfiles);
+        if (generalPane != null) {
+            generalPane.refreshProfiles(profiles);
+        }
         if (localPreferencesPane != null) {
             localPreferencesPane.refresh(profiles);
         }
@@ -1023,6 +1051,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         String selectedProfileId = selectedProfile != null ? selectedProfile.getId() : null;
         defaultProfileId = getConfiguredDefaultProfileId();
         profiles.setAll(mergeExternalProfiles(profiles, loadProfiles()));
+        if (generalPane != null) {
+            generalPane.refreshProfiles(profiles);
+        }
         if (localPreferencesPane != null) {
             localPreferencesPane.refresh(profiles);
         }

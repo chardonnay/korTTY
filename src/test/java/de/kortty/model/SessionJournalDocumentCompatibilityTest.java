@@ -7,6 +7,7 @@ import org.testng.annotations.Test;
 
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -188,5 +189,114 @@ class SessionJournalDocumentCompatibilityTest {
         copy.getMarkerDefinitions().get(0).setName("Changed");
 
         assertThat(document.getMarkerDefinitions().get(0).getName()).isEqualTo("Deployment");
+    }
+
+    @Test
+    void reMarshallingALegacyDocumentAddsNoChatElements() throws Exception {
+        String rewritten = marshal(unmarshal(LEGACY_DOCUMENT));
+
+        assertThat(rewritten).doesNotContain("chatId");
+        assertThat(rewritten).doesNotContain("chatLinkedAt");
+        assertThat(rewritten).doesNotContain("chatSnapshot");
+    }
+
+    @Test
+    void roundTripsTheChatLinkAndItsSnapshotWithSteps() throws Exception {
+        SessionJournalDocument document = unmarshal(LEGACY_DOCUMENT);
+        SessionJournalEntry entry = document.getEntries().get(0);
+        entry.setChatId("chat-7");
+        entry.setChatLinkedAt(java.time.OffsetDateTime.parse("2026-11-03T10:05:00+01:00"));
+        SessionJournalChatSnapshot snapshot = new SessionJournalChatSnapshot();
+        snapshot.setTitle("Disk");
+        snapshot.setCapturedAt(java.time.OffsetDateTime.parse("2026-11-03T10:06:00+01:00"));
+        snapshot.setFrozen(true);
+        SessionJournalChatMessage message = new SessionJournalChatMessage();
+        message.setRole("ASSISTANT");
+        message.setContent("80% full.");
+        message.setCreatedAt(java.time.OffsetDateTime.parse("2026-11-03T10:05:42+01:00"));
+        message.setAiProfileName("GPT Ops");
+        SavedAgentStep step = new SavedAgentStep();
+        step.setType("ACTION");
+        step.setTitle("Run(df -h)");
+        step.setCommand("df -h");
+        step.setExitCode(0);
+        step.setOutput("/dev/disk1 100G");
+        step.setElapsedSeconds(3L);
+        step.setTruncated(true);
+        message.setSteps(List.of(step));
+        snapshot.setMessages(List.of(message));
+        entry.setChatSnapshot(snapshot);
+
+        SessionJournalEntry read = unmarshal(marshal(document)).getEntries().get(0);
+
+        assertThat(read.getChatId()).isEqualTo("chat-7");
+        assertThat(read.getChatLinkedAt().toInstant()).isEqualTo(entry.getChatLinkedAt().toInstant());
+        SessionJournalChatSnapshot readSnapshot = read.getChatSnapshot();
+        assertThat(readSnapshot.getTitle()).isEqualTo("Disk");
+        assertThat(readSnapshot.isFrozen()).isTrue();
+        assertThat(readSnapshot.getCapturedAt().toInstant()).isEqualTo(snapshot.getCapturedAt().toInstant());
+        SessionJournalChatMessage readMessage = readSnapshot.getMessages().get(0);
+        assertThat(readMessage.getContent()).isEqualTo("80% full.");
+        assertThat(readMessage.getAiProfileName()).isEqualTo("GPT Ops");
+        SavedAgentStep readStep = readMessage.getSteps().get(0);
+        assertThat(readStep.getCommand()).isEqualTo("df -h");
+        assertThat(readStep.getExitCode()).isEqualTo(0);
+        assertThat(readStep.getOutput()).isEqualTo("/dev/disk1 100G");
+        assertThat(readStep.getElapsedSeconds()).isEqualTo(3L);
+        assertThat(readStep.isTruncated()).isTrue();
+    }
+
+    @Test
+    void anUnfrozenSnapshotWithoutStepsWritesNoFlagAndNoEmptyWrapper() throws Exception {
+        SessionJournalDocument document = unmarshal(LEGACY_DOCUMENT);
+        SessionJournalChatSnapshot snapshot = new SessionJournalChatSnapshot();
+        snapshot.setTitle("Plain");
+        SessionJournalChatMessage message = new SessionJournalChatMessage();
+        message.setRole("USER");
+        message.setContent("Hi");
+        snapshot.setMessages(List.of(message));
+        document.getEntries().get(0).setChatSnapshot(snapshot);
+
+        String xml = marshal(document);
+
+        assertThat(xml).doesNotContain("frozen");
+        assertThat(xml).doesNotContain("<steps");
+        assertThat(xml).doesNotContain("<agentSteps");
+        assertThat(xml).contains("<content>Hi</content>");
+    }
+
+    @Test
+    void anEntryWithoutMessagesWritesNoEmptyMessagesWrapper() throws Exception {
+        SessionJournalDocument document = unmarshal(LEGACY_DOCUMENT);
+        SessionJournalChatSnapshot snapshot = new SessionJournalChatSnapshot();
+        snapshot.setTitle("Empty");
+        document.getEntries().get(0).setChatSnapshot(snapshot);
+
+        assertThat(marshal(document)).doesNotContain("<messages");
+    }
+
+    @Test
+    void copyConstructorDeepCopiesTheChatSnapshotAndItsSteps() {
+        SessionJournalEntry original = new SessionJournalEntry();
+        SessionJournalChatSnapshot snapshot = new SessionJournalChatSnapshot();
+        snapshot.setTitle("Disk");
+        SessionJournalChatMessage message = new SessionJournalChatMessage();
+        message.setContent("original");
+        SavedAgentStep step = new SavedAgentStep();
+        step.setTitle("Run(ls)");
+        message.setSteps(List.of(step));
+        snapshot.setMessages(List.of(message));
+        original.setChatId("chat-1");
+        original.setChatSnapshot(snapshot);
+
+        SessionJournalEntry copy = new SessionJournalEntry(original);
+        copy.getChatSnapshot().getMessages().get(0).setContent("changed");
+        copy.getChatSnapshot().getMessages().get(0).getSteps().get(0).setTitle("changed");
+        copy.getChatSnapshot().setTitle("changed");
+
+        assertThat(original.getChatId()).isEqualTo("chat-1");
+        assertThat(original.getChatSnapshot().getTitle()).isEqualTo("Disk");
+        assertThat(original.getChatSnapshot().getMessages().get(0).getContent()).isEqualTo("original");
+        assertThat(original.getChatSnapshot().getMessages().get(0).getSteps().get(0).getTitle()).isEqualTo("Run(ls)");
     }
 }

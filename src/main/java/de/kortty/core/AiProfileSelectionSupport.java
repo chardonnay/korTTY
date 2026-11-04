@@ -40,6 +40,28 @@ public final class AiProfileSelectionSupport {
     }
 
     /**
+     * Resolves the profile of a terminal agent run: explicit choice, then the connection's own
+     * profile, then the KI-Agent role, then the Coding role, then the default. A dangling id at any
+     * level falls through to the next one.
+     */
+    public static AiProfile terminalAgentProfile(
+        List<AiProfile> profiles,
+        String explicitProfileId,
+        String connectionProfileId,
+        String agentProfileId,
+        String codingProfileId,
+        String defaultProfileId) {
+
+        for (String candidateId : new String[] {explicitProfileId, connectionProfileId, agentProfileId, codingProfileId}) {
+            AiProfile candidate = findById(profiles, candidateId);
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+        return defaultProfile(profiles, defaultProfileId);
+    }
+
+    /**
      * Applies the complete per-action routing order used by interactive snippet tools: explicit
      * selection, dedicated security profile, connection profile, workload role, then default.
      */
@@ -86,7 +108,11 @@ public final class AiProfileSelectionSupport {
         }
         AiProfile preferred = trimToNull(requestedProfileLookup) != null
             ? findByLookup(profiles, requestedProfileLookup)
-            : defaultProfile(profiles, defaultProfileId);
+            : null;
+        if (preferred == null) {
+            // An unknown or absent request keeps the role/default order instead of dropping it.
+            preferred = defaultProfile(profiles, defaultProfileId);
+        }
         if (preferred == null) {
             return profiles;
         }

@@ -182,6 +182,14 @@ public class TerminalAgentService {
          */
         default void publishSentContext(String runId, AiSentContext context) {
         }
+
+        /**
+         * The run's own secrets, the tab's plus those it learns while running (a typed sudo password), so that what
+         * the run leaves behind, such as a KI-chat seeded from it, is masked like its prompts. Called once when the
+         * run starts; the redactor keeps growing during the run.
+         */
+        default void publishRunSecrets(String runId, SessionJournalRedactor secrets) {
+        }
     }
 
     public interface PlanProgressUi {
@@ -624,6 +632,7 @@ public class TerminalAgentService {
             boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
             cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
             rememberSudoPassword(outbound, cachedPassword);
+            ui.publishRunSecrets(runId, outbound.knownSecrets());
 
             if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
                 return;

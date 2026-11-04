@@ -43,6 +43,11 @@ public class SavedAiChatMessage {
     @XmlElement(name = "webToolCall")
     private List<SavedAiWebToolCall> webToolCalls;
 
+    /** KI-Agent steps behind an assistant reply of an agent-run chat; display-only, null when none. */
+    @XmlElementWrapper(name = "agentSteps")
+    @XmlElement(name = "step")
+    private List<SavedAgentStep> agentSteps;
+
     public SavedAiChatMessage() {
         this.createdAt = System.currentTimeMillis();
     }
@@ -62,6 +67,12 @@ public class SavedAiChatMessage {
             this.webToolCalls = new ArrayList<>();
             for (SavedAiWebToolCall call : source.webToolCalls) {
                 this.webToolCalls.add(new SavedAiWebToolCall(call));
+            }
+        }
+        if (source.agentSteps != null && !source.agentSteps.isEmpty()) {
+            this.agentSteps = new ArrayList<>();
+            for (SavedAgentStep step : source.agentSteps) {
+                this.agentSteps.add(new SavedAgentStep(step));
             }
         }
     }
@@ -121,5 +132,24 @@ public class SavedAiChatMessage {
     /** Stores the calls; an empty list is kept as {@code null} so chats without web use stay unchanged on disk. */
     public void setWebToolCalls(List<SavedAiWebToolCall> webToolCalls) {
         this.webToolCalls = webToolCalls != null && !webToolCalls.isEmpty() ? new ArrayList<>(webToolCalls) : null;
+    }
+
+    public List<SavedAgentStep> getAgentSteps() {
+        return agentSteps != null ? agentSteps : List.of();
+    }
+
+    /** Stores the steps; an empty list is kept as {@code null} so ordinary replies stay unchanged on disk. */
+    public void setAgentSteps(List<SavedAgentStep> agentSteps) {
+        if (agentSteps == null || agentSteps.isEmpty()) {
+            this.agentSteps = null;
+            return;
+        }
+        List<SavedAgentStep> copies = new ArrayList<>();
+        for (SavedAgentStep step : agentSteps) {
+            if (step != null) {
+                copies.add(new SavedAgentStep(step));
+            }
+        }
+        this.agentSteps = copies.isEmpty() ? null : copies;
     }
 }

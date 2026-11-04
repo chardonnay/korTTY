@@ -1188,6 +1188,58 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void terminalAgentAiProfileIdRoundTripsAndAnAbsentElementLoadsAsNull() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-agent-profile");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            AiProfile profile = new AiProfile();
+            profile.setId("profile-1");
+            profile.setName("Agent profile");
+            manager.getSettings().setAiProfiles(List.of(profile));
+            manager.getSettings().setTerminalAgentAiProfileId(" profile-1 ");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getTerminalAgentAiProfileId()).isEqualTo("profile-1");
+
+            // A cleared role is omitted from the file, so it reads back exactly like a file written before the role existed.
+            reloaded.getSettings().setTerminalAgentAiProfileId(null);
+            reloaded.save();
+            assertThat(Files.readString(dir.resolve("global-settings.xml"))).doesNotContain("terminalAgentAiProfileId");
+
+            GlobalSettingsManager cleared = new GlobalSettingsManager(dir);
+            cleared.load();
+            assertThat(cleared.getSettings().getTerminalAgentAiProfileId()).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void terminalAgentAiProfileIdIsKeptWhenItsProfileIsGoneBecauseTheResolverFallsThrough() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-agent-dangling");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            AiProfile profile = new AiProfile();
+            profile.setId("profile-1");
+            profile.setName("Only Profile");
+            manager.getSettings().setAiProfiles(List.of(profile));
+            manager.getSettings().setTerminalAgentAiProfileId("missing-profile");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getTerminalAgentAiProfileId()).isEqualTo("missing-profile");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void closeActiveTerminalWindowsWithoutConfirmationDefaultsToFalseAndPersists() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-close-confirm");
         try {

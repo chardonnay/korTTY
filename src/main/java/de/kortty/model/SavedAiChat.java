@@ -17,6 +17,9 @@ import java.util.UUID;
 @XmlAccessorType(XmlAccessType.FIELD)
 public class SavedAiChat {
 
+    /** {@link #origin} of a chat seeded from a KI-Agent run; ordinary chats keep it null. */
+    public static final String ORIGIN_AGENT_RUN = "AGENT_RUN";
+
     @XmlElement
     private String id;
 
@@ -54,6 +57,28 @@ public class SavedAiChat {
     @XmlElement
     private String attachmentContent;
 
+    /** How the chat came to be: {@link #ORIGIN_AGENT_RUN} for a handoff from a KI-Agent run; null otherwise. */
+    @XmlElement
+    private String origin;
+
+    /** The KI-Agent run this chat was seeded from; null for ordinary chats. */
+    @XmlElement
+    private String sourceRunId;
+
+    @XmlElement
+    private String sourceTerminalSessionId;
+
+    @XmlElement
+    private String sourceConnectionId;
+
+    /** Id of the session journal the run was recorded in, when one was active. */
+    @XmlElement
+    private String sourceJournalId;
+
+    /** Id of the journal's AGENT entry for the run, when one was written. */
+    @XmlElement
+    private String sourceJournalEntryId;
+
     @XmlElementWrapper(name = "messages")
     @XmlElement(name = "message")
     private List<SavedAiChatMessage> messages = new ArrayList<>();
@@ -85,6 +110,12 @@ public class SavedAiChat {
         this.attachmentFileName = source.attachmentFileName;
         this.attachmentSourcePath = source.attachmentSourcePath;
         this.attachmentContent = source.attachmentContent;
+        this.origin = source.origin;
+        this.sourceRunId = source.sourceRunId;
+        this.sourceTerminalSessionId = source.sourceTerminalSessionId;
+        this.sourceConnectionId = source.sourceConnectionId;
+        this.sourceJournalId = source.sourceJournalId;
+        this.sourceJournalEntryId = source.sourceJournalEntryId;
         setMessages(source.messages);
     }
 
@@ -182,6 +213,59 @@ public class SavedAiChat {
 
     public void setAttachmentContent(String attachmentContent) {
         this.attachmentContent = attachmentContent;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
+    /** True when the chat was seeded from a KI-Agent run. */
+    public boolean isAgentRunChat() {
+        return ORIGIN_AGENT_RUN.equals(origin);
+    }
+
+    public String getSourceRunId() {
+        return sourceRunId;
+    }
+
+    public void setSourceRunId(String sourceRunId) {
+        this.sourceRunId = sourceRunId;
+    }
+
+    public String getSourceTerminalSessionId() {
+        return sourceTerminalSessionId;
+    }
+
+    public void setSourceTerminalSessionId(String sourceTerminalSessionId) {
+        this.sourceTerminalSessionId = sourceTerminalSessionId;
+    }
+
+    public String getSourceConnectionId() {
+        return sourceConnectionId;
+    }
+
+    public void setSourceConnectionId(String sourceConnectionId) {
+        this.sourceConnectionId = sourceConnectionId;
+    }
+
+    public String getSourceJournalId() {
+        return sourceJournalId;
+    }
+
+    public void setSourceJournalId(String sourceJournalId) {
+        this.sourceJournalId = sourceJournalId;
+    }
+
+    public String getSourceJournalEntryId() {
+        return sourceJournalEntryId;
+    }
+
+    public void setSourceJournalEntryId(String sourceJournalEntryId) {
+        this.sourceJournalEntryId = sourceJournalEntryId;
     }
 
     /** True when a file attachment with a name and non-empty content is stored. */

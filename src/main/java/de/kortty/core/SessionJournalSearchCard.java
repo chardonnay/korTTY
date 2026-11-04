@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.model.SessionJournalChatMessage;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
 import de.kortty.model.SessionJournalMeta;
@@ -97,10 +98,32 @@ public record SessionJournalSearchCard(
                     entry.getLogPart(),
                     entry.getLogStartSeq(),
                     entry.getLogEndSeq()));
+                if (entry.getChatSnapshot() != null) {
+                    appendChatSections(sections, entry);
+                }
             }
         }
         return new SessionJournalSearchCard(journalId, documentMtimeMillis,
             metaText.toString().strip(), sections);
+    }
+
+    /** One section per message of the entry's linked chat, so the chat's own words are searchable too. */
+    private static void appendChatSections(List<Section> sections, SessionJournalEntry entry) {
+        for (SessionJournalChatMessage message : entry.getChatSnapshot().getMessages()) {
+            String flat = flatten(message.getContent(), MAX_SECTION_CHARS);
+            if (flat == null || flat.isEmpty()) {
+                continue;
+            }
+            sections.add(new Section(
+                entry.getId(),
+                entry.getKind(),
+                flatten(entry.getTitle(), 120),
+                flat,
+                List.of(),
+                entry.getLogPart(),
+                entry.getLogStartSeq(),
+                entry.getLogEndSeq()));
+        }
     }
 
     private static void appendWord(StringBuilder sb, String value) {

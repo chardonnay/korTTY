@@ -1,7 +1,10 @@
 package de.kortty.core;
 
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.SavedAgentStep;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.SessionJournalChatMessage;
+import de.kortty.model.SessionJournalChatSnapshot;
 import de.kortty.model.SessionJournalConfig;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
@@ -87,7 +90,10 @@ public class SessionJournalService {
                 SessionJournalEntry.class,
                 de.kortty.model.SessionJournalMarkerDefinition.class,
                 de.kortty.model.SessionJournalAnnotation.class,
-                de.kortty.model.SessionJournalCommandInfo.class);
+                de.kortty.model.SessionJournalCommandInfo.class,
+                SessionJournalChatSnapshot.class,
+                SessionJournalChatMessage.class,
+                SavedAgentStep.class);
         } catch (JAXBException e) {
             throw new IllegalStateException("Failed to create JAXB context for session journals", e);
         }
@@ -337,6 +343,11 @@ public class SessionJournalService {
             for (int i = 0; i < entries.size(); i++) {
                 if (entries.get(i).getId() != null && entries.get(i).getId().equals(entry.getId())) {
                     SessionJournalEntry updated = new SessionJournalEntry(entry);
+                    // The chat link is written by linkChat/updateChatSnapshot only; a caller's copy may predate it.
+                    SessionJournalEntry stored = entries.get(i);
+                    updated.setChatId(stored.getChatId());
+                    updated.setChatLinkedAt(stored.getChatLinkedAt());
+                    updated.setChatSnapshot(stored.getChatSnapshot());
                     updated.setEditedAt(OffsetDateTime.now());
                     applyPolicyReplacements(updated);
                     snapshotEntryMarker(document, updated);
@@ -355,6 +366,94 @@ public class SessionJournalService {
         } else {
             logger.warn("Session journal entry {} not found for update in {}", entry.getId(), journalDir.getFileName());
         }
+    }
+
+    /**
+     * Links an AGENT entry to the AI chat that continues its run and stores the chat's copy. Unlike
+     * {@link #updateEntry} this is not an edit, so {@code editedAt} stays as it is.
+     *
+     * @throws IllegalStateException when the journal has no entry with this id
+     */
+    public void linkChat(Path journalDir, String entryId, String chatId, SessionJournalChatSnapshot snapshot)
+            throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            int index = indexOfEntry(document, entryId);
+            if (index < 0) {
+                throw new IllegalStateException(
+                    "Session journal entry " + entryId + " not found in " + journalDir.getFileName());
+            }
+            SessionJournalEntry linked = new SessionJournalEntry(document.getEntries().get(index));
+            linked.setChatId(chatId);
+            linked.setChatLinkedAt(OffsetDateTime.now());
+            linked.setChatSnapshot(snapshot);
+            applyPolicyReplacements(linked);
+            document.getEntries().set(index, linked);
+            refreshErrorCount(document);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
+    /**
+     * Replaces the chat copy of an AGENT entry, for example while its chat changes. Does not touch
+     * {@code editedAt}. Returns false, after a log line, when the journal has no entry with this id.
+     */
+    public boolean updateChatSnapshot(Path journalDir, String entryId, SessionJournalChatSnapshot snapshot)
+            throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            int index = indexOfEntry(document, entryId);
+            if (index < 0) {
+                logger.warn("Session journal entry {} not found for chat update in {}", entryId, journalDir.getFileName());
+                return false;
+            }
+            SessionJournalEntry updated = new SessionJournalEntry(document.getEntries().get(index));
+            updated.setChatSnapshot(snapshot);
+            applyPolicyReplacements(updated);
+            document.getEntries().set(index, updated);
+            refreshErrorCount(document);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+        return true;
+    }
+
+    /**
+     * Marks the chat copy of an AGENT entry frozen and keeps its text, for a journal that stopped while its
+     * chat was already gone: no later save of that chat would write the final mark. Returns false, after a
+     * log line, when the journal has no such entry or the entry has no copy.
+     */
+    public boolean freezeChatSnapshot(Path journalDir, String entryId) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            int index = indexOfEntry(document, entryId);
+            if (index < 0) {
+                logger.warn("Session journal entry {} not found for freezing in {}", entryId, journalDir.getFileName());
+                return false;
+            }
+            SessionJournalChatSnapshot snapshot = document.getEntries().get(index).getChatSnapshot();
+            if (snapshot == null) {
+                return false;
+            }
+            if (snapshot.isFrozen()) {
+                return true;
+            }
+            snapshot.setFrozen(true);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+        return true;
+    }
+
+    private static int indexOfEntry(SessionJournalDocument document, String entryId) {
+        List<SessionJournalEntry> entries = document.getEntries();
+        for (int i = 0; i < entries.size(); i++) {
+            if (entryId != null && entryId.equals(entries.get(i).getId())) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** How much a redaction pass changed. */
@@ -512,7 +611,40 @@ public class SessionJournalService {
         hits += replaceInLines(entry.getInputExcerpt(), replacer, dryRun);
         hits += replaceInLines(entry.getOutputExcerpt(), replacer, dryRun);
         hits += replaceInLines(entry.getAiTags(), replacer, dryRun);
+        if (entry.getChatSnapshot() != null) {
+            hits += replaceInChatSnapshot(entry.getChatSnapshot(), replacer, dryRun);
+        }
         return hits;
+    }
+
+    /** Rewrites the title, message texts and step texts of a linked chat's copy; returns how many changed. */
+    private static int replaceInChatSnapshot(
+            SessionJournalChatSnapshot snapshot, SessionJournalReplacer replacer, boolean dryRun) {
+        int hits = replaceText(snapshot.getTitle(), replacer, dryRun, snapshot::setTitle);
+        for (SessionJournalChatMessage message : snapshot.getMessages()) {
+            hits += replaceText(message.getContent(), replacer, dryRun, message::setContent);
+            hits += replaceText(message.getAiProfileName(), replacer, dryRun, message::setAiProfileName);
+            for (SavedAgentStep step : message.getSteps()) {
+                hits += replaceText(step.getTitle(), replacer, dryRun, step::setTitle);
+                hits += replaceText(step.getSummary(), replacer, dryRun, step::setSummary);
+                hits += replaceText(step.getCommand(), replacer, dryRun, step::setCommand);
+                hits += replaceText(step.getOutput(), replacer, dryRun, step::setOutput);
+            }
+        }
+        return hits;
+    }
+
+    /** Applies the replacer to one text and stores the result through {@code setter} unless it is a dry run. */
+    private static int replaceText(
+            String value, SessionJournalReplacer replacer, boolean dryRun, Consumer<String> setter) {
+        String rewritten = replacer.apply(value);
+        if (!changed(value, rewritten)) {
+            return 0;
+        }
+        if (!dryRun) {
+            setter.accept(rewritten);
+        }
+        return 1;
     }
 
     private static int replaceInLines(

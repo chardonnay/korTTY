@@ -269,8 +269,16 @@ class AiCodeBlockTerminalActionTest {
             java.nio.file.Path.of("src/main/java/de/kortty/ui/MainWindow.java"), StandardCharsets.UTF_8);
         assertWithMessage("the selection actions, Summarize Recent Output and Ask Agent bind the source pane")
             .that(occurrences(source, "resultTab.setSourcePane(sourcePane);")).isEqualTo(2);
-        assertWithMessage("nothing else binds one: a reopened saved chat has no pane")
-            .that(occurrences(source, ".setSourcePane(")).isEqualTo(2);
+        // The run-to-chat handoff binds the pane of the terminal tab it came from when it seeds a new chat; a
+        // reopened saved chat still has no pane.
+        assertWithMessage("the handoff binds the run's pane; nothing else does, a reopened saved chat has no pane")
+            .that(occurrences(source, ".setSourcePane(")).isEqualTo(3);
+        // The pane the run ran in travels with the handoff (the focused pane when that pane is gone), and the
+        // handoff binds it to the chat that already exists and to the one saved now.
+        assertWithMessage("the handoff binds the pane of the run it came from")
+            .that(occurrences(source, "tab.setSourcePane(target.pane());")).isEqualTo(1);
+        assertWithMessage("the run's pane is carried into the handoff")
+            .that(occurrences(source, "aiSourcePane(terminalTab, resolvedRunContext), agentConnection, agentRunSecrets.get());")).isEqualTo(1);
         assertThat(occurrences(source, "TerminalPaneRef sourcePane = aiSourcePane(terminalTab, runContext);"))
             .isEqualTo(2);
     }

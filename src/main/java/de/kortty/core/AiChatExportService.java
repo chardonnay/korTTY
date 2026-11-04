@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import de.kortty.model.SavedAgentStep;
+import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedAiChatMessage;
 import de.kortty.ui.I18n;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -22,7 +24,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,12 +90,46 @@ public class AiChatExportService {
         int fontSize,
         AiChatExportContext exportContext,
         AiPdfExportOptions pdfOptions) throws IOException {
+        exportChat(targetFile, format, messages, fontSize, exportContext, pdfOptions, null);
+    }
+
+    /**
+     * Exports the chat. {@code origin} is the chat the messages belong to; for a chat that came from a
+     * KI-Agent run it adds the origin line, and the steps of the messages are written in every format.
+     * A null origin keeps an ordinary chat's output unchanged.
+     */
+    public void exportChat(
+        Path targetFile,
+        Format format,
+        List<SavedAiChatMessage> messages,
+        int fontSize,
+        AiChatExportContext exportContext,
+        AiPdfExportOptions pdfOptions,
+        SavedAiChat origin) throws IOException {
 
         switch (format) {
-            case PDF -> exportPdf(targetFile, messages, exportContext, pdfOptions);
-            case MARKDOWN -> Files.writeString(targetFile, buildMarkdownExport(messages), StandardCharsets.UTF_8);
-            case TEXT -> Files.writeString(targetFile, buildPlainTextExport(messages), StandardCharsets.UTF_8);
+            case PDF -> exportPdf(targetFile, messages, exportContext, pdfOptions, origin);
+            case MARKDOWN -> Files.writeString(targetFile, buildMarkdownExport(messages, origin), StandardCharsets.UTF_8);
+            case TEXT -> Files.writeString(targetFile, buildPlainTextExport(messages, origin), StandardCharsets.UTF_8);
         }
+    }
+
+    /**
+     * The origin line of a chat that came from a KI-Agent run: the connection and the start of the run.
+     * Null for any other chat.
+     */
+    static String originLine(SavedAiChat origin) {
+        if (origin == null || !origin.isAgentRunChat()) {
+            return null;
+        }
+        String connection = origin.getConnectionDisplayName() != null && !origin.getConnectionDisplayName().isBlank()
+            ? origin.getConnectionDisplayName().strip()
+            : "-";
+        String when = origin.getCreatedAt() > 0
+            ? Instant.ofEpochMilli(origin.getCreatedAt()).atZone(ZoneId.systemDefault())
+                .toLocalDateTime().format(PDF_TIMESTAMP_FORMAT)
+            : "-";
+        return I18n.get("ai.result.agentRun.origin", when, connection);
     }
 
     /** Explicit branding overrides the persisted settings; null resolves them per export. */
@@ -121,19 +159,39 @@ public class AiChatExportService {
     }
 
     public String buildPlainTextExport(List<SavedAiChatMessage> messages) {
+        return buildPlainTextExport(messages, null);
+    }
+
+    public String buildPlainTextExport(List<SavedAiChatMessage> messages, SavedAiChat origin) {
         StringBuilder builder = new StringBuilder();
+        String originLine = originLine(origin);
+        if (originLine != null) {
+            builder.append(originLine);
+        }
         for (SavedAiChatMessage message : safeMessages(messages)) {
             if (builder.length() > 0) {
                 builder.append("\n\n");
             }
             builder.append(resolveRoleLabel(message)).append("\n");
             builder.append(message.getContent() != null ? message.getContent().trim() : "");
+            String steps = AgentChatTranscriptFormatter.plainSteps(message.getAgentSteps());
+            if (!steps.isEmpty()) {
+                builder.append('\n').append(steps);
+            }
         }
         return builder.toString();
     }
 
     public String buildMarkdownExport(List<SavedAiChatMessage> messages) {
+        return buildMarkdownExport(messages, null);
+    }
+
+    public String buildMarkdownExport(List<SavedAiChatMessage> messages, SavedAiChat origin) {
         StringBuilder builder = new StringBuilder();
+        String originLine = originLine(origin);
+        if (originLine != null) {
+            builder.append(originLine);
+        }
         for (SavedAiChatMessage message : safeMessages(messages)) {
             if (builder.length() > 0) {
                 builder.append("\n\n");
@@ -141,6 +199,7 @@ public class AiChatExportService {
             builder.append("## ").append(resolveRoleLabel(message)).append("\n\n");
             if (!SavedAiChatMessage.ROLE_ASSISTANT.equals(message.getRole())) {
                 builder.append(message.getContent() != null ? message.getContent().trim() : "");
+                appendMarkdownSteps(builder, message.getAgentSteps());
                 continue;
             }
 
@@ -169,15 +228,25 @@ public class AiChatExportService {
                     builder.append(section.content());
                 }
             }
+            appendMarkdownSteps(builder, message.getAgentSteps());
         }
         return builder.toString();
+    }
+
+    /** The agent steps of a message as a Markdown block, after its text; the formatter owns the layout. */
+    private static void appendMarkdownSteps(StringBuilder builder, List<SavedAgentStep> steps) {
+        String block = AgentChatTranscriptFormatter.markdownSteps(steps);
+        if (!block.isEmpty()) {
+            builder.append("\n\n").append(block);
+        }
     }
 
     private void exportPdf(
         Path targetFile,
         List<SavedAiChatMessage> messages,
         AiChatExportContext exportContext,
-        AiPdfExportOptions pdfOptions) throws IOException {
+        AiPdfExportOptions pdfOptions,
+        SavedAiChat origin) throws IOException {
 
         AiChatExportContext effectiveContext = exportContext != null
             ? exportContext
@@ -197,6 +266,7 @@ public class AiChatExportService {
                 branding());
             LayoutCursor cursor = openFirstPage(state);
             cursor = renderOpeningSection(state, cursor);
+            cursor = renderOriginNote(state, cursor, originLine(origin));
 
             int messageIndex = 0;
             for (SavedAiChatMessage message : safeMessages(messages)) {
@@ -348,6 +418,42 @@ public class AiChatExportService {
         return cursor.withY(cursor.y - 62f);
     }
 
+    private LayoutCursor renderOriginNote(RenderState state, LayoutCursor cursor, String originLine) throws IOException {
+        if (originLine == null) {
+            return cursor;
+        }
+        cursor = ensureSpace(state, cursor, 24f);
+        drawText(
+            cursor.stream(),
+            state.fonts.sans(),
+            9.6f,
+            state.theme.mutedText,
+            PAGE_MARGIN,
+            cursor.y,
+            fitTextToWidth(originLine, state.fonts.sans(), 9.6f, getContentWidth(cursor.page())));
+        return cursor.withY(cursor.y - 20f);
+    }
+
+    /** The steps of an agent-run message, after its text: each step as a line, its output as a code block. */
+    private LayoutCursor renderMessageSteps(RenderState state, LayoutCursor cursor, SavedAiChatMessage message) throws IOException {
+        List<SavedAgentStep> steps = message.getAgentSteps();
+        if (steps == null || steps.isEmpty()) {
+            return cursor;
+        }
+        cursor = renderParagraphBlock(state, cursor, I18n.get("ai.result.agentRun.steps", steps.size()), message);
+        for (SavedAgentStep step : steps) {
+            cursor = renderParagraphBlock(state, cursor, AgentChatTranscriptFormatter.stepHeadline(step), message);
+            List<String> body = AgentChatTranscriptFormatter.stepBody(step);
+            if (!body.isEmpty()) {
+                cursor = renderCodeBlock(state, cursor, "text", String.join("\n", body));
+            }
+            if (step.isTruncated()) {
+                cursor = renderParagraphBlock(state, cursor, I18n.get("ai.result.agentRun.truncated"), message);
+            }
+        }
+        return cursor;
+    }
+
     private String buildMetaLine(AiChatExportContext context) {
         List<String> parts = new ArrayList<>();
         parts.add(I18n.get("ai.result.export.pdf.meta.exportedAt") + ": " + context.exportTimestamp().format(PDF_TIMESTAMP_FORMAT));
@@ -377,6 +483,7 @@ public class AiChatExportService {
         } else {
             cursor = renderStructuredText(state, cursor, message.getContent(), message);
         }
+        cursor = renderMessageSteps(state, cursor, message);
         return cursor.withY(cursor.y - SECTION_SPACING);
     }
 
