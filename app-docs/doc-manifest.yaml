@@ -460,6 +460,11 @@ pages:
       - src/main/java/de/kortty/core/SessionJournalPrompts.java
       - src/main/java/de/kortty/core/SessionJournalRedactor.java
       - src/main/java/de/kortty/ui/SessionJournalReevaluateDialog.java
+      - src/main/java/de/kortty/ui/SessionJournalReevaluateProgressWindow.java
+      - src/main/java/de/kortty/ui/SessionJournalReevaluateTexts.java
+      - src/main/java/de/kortty/ui/SessionJournalReevaluationBar.java
+      - src/main/java/de/kortty/core/SessionJournalReevaluationJob.java
+      - src/main/java/de/kortty/core/SessionJournalReevaluationProgress.java
       - src/main/java/de/kortty/core/SessionJournalService.java
       - src/main/java/de/kortty/core/SessionJournalSession.java
       - src/main/java/de/kortty/core/SessionJournalSummarizer.java
@@ -517,6 +522,7 @@ pages:
       - journal/journal-ask-panel.png
       - journal/journal-search-panel.png
       - journal/journal-ai-chat-card.png
+      - journal/journal-reevaluate-progress.png
     last_synced_ref: "0a5ea066"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
