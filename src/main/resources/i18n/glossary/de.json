@@ -2693,6 +2693,24 @@
       "to": "ein `tail -f`",
       "scope": "markdown",
       "note": "A command is das (Kommando): neuter."
+    },
+    {
+      "from": "*Keine solche Datei oder kein solches Verzeichnis*",
+      "to": "*No such file or directory*",
+      "scope": "markdown",
+      "note": "A literal shell message the page quotes in English."
+    },
+    {
+      "from": "*Ist das in Ordnung [j/N]*",
+      "to": "*Is this ok [y/N]*",
+      "scope": "markdown",
+      "note": "dnf's literal question, quoted in English."
+    },
+    {
+      "from": "Hilferuf",
+      "to": "Hilfeaufruf",
+      "scope": "markdown",
+      "note": "A command that shows help; Hilferuf means a cry for help."
     }
   ]
 }

@@ -626,10 +626,17 @@ public class SessionJournalSummarizer {
     /**
      * The entries of {@code block} that reach a prompt: without stale partial lines and pipeline
      * notes, and without a mistyped command — the whole command when it was nothing but that.
+     * A command that only showed help ({@link SessionJournalHelpCommands}) has none at all.
      */
     private static List<SessionJournalLogEntry> contentOf(SessionJournalCommandBlocks.Block block) {
         List<SessionJournalLogEntry> content =
             SessionJournalTypoFilter.withoutNotFoundAttempts(filterContentEntries(block.entries()));
+        if (block.command() != null && SessionJournalHelpCommands.isHelpOnly(block.command(), content.stream()
+                .filter(entry -> entry.kind() != SessionJournalLogEntry.Kind.IN)
+                .map(SessionJournalLogEntry::text)
+                .toList())) {
+            return List.of();
+        }
         if (block.command() != null
                 && content.stream().noneMatch(entry -> entry.kind() == SessionJournalLogEntry.Kind.IN)) {
             // the command was a typo: its exit status says nothing either
@@ -1077,12 +1084,17 @@ public class SessionJournalSummarizer {
         return evidence.toString();
     }
 
-    /** The first command typed in {@code blocks}; else the first input or output line. */
+    /**
+     * The first command typed in {@code blocks} that reached the prompt — not a typo or a help call
+     * left out of it; else the first input or output line.
+     */
     private static String firstCommandOf(List<SessionJournalCommandBlocks.Block> blocks,
                                          List<String> inputLines, List<String> outputLines) {
         for (SessionJournalCommandBlocks.Block block : blocks) {
-            if (block.command() != null && !block.command().isBlank()) {
-                return capLine(block.command(), LINE_CHAR_CAP);
+            String command = block.command() != null ? capLine(block.command(), LINE_CHAR_CAP) : null;
+            if (command != null && !command.isBlank()
+                    && inputLines.stream().anyMatch(line -> line.strip().equals(command))) {
+                return command;
             }
         }
         return firstCommandOf(inputLines, outputLines);
@@ -1405,7 +1417,8 @@ public class SessionJournalSummarizer {
 
     /**
      * Counts the commands for the journal header: lines typed at a shell prompt, without mistyped
-     * commands and without replies to a running program (a password, the "y" for a question).
+     * commands, commands that only showed help, and replies to a running program (a password, the
+     * "y" for a question).
      */
     private void updateCommandCount(Path directory) {
         try {

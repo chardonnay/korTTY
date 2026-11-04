@@ -424,6 +424,7 @@ pages:
     owns_i18n: ["journal.", "settings.journal.", "terminal.journal.", "connEdit.journal.", connEdit.tab.journal, tab.contextMenu.journal, terminal.contextMenu.journalScreenshot, terminal.contextMenu.journalNote, menu.tools.sessionJournals, menu.tools.toggleSessionJournal, menu.tools.journalScreenshot]
     owns_code:
       - src/main/java/de/kortty/core/SessionJournalCommandBlocks.java
+      - src/main/java/de/kortty/core/SessionJournalHelpCommands.java
       - src/main/java/de/kortty/model/SessionJournalCommandState.java
       - src/main/java/de/kortty/core/SessionJournalChatSync.java
       - src/main/java/de/kortty/core/SessionJournalChatTranscript.java

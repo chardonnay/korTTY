@@ -337,6 +337,31 @@ class SessionJournalSummarizerTest {
     }
 
     @Test
+    void commandsThatOnlyShowHelpNeverReachTheAiNorTheCount() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        command(session, "ls --help", "Aufruf: ls [OPTION]... [DATEI]...", "  -a, --all");
+        command(session, "df -h", "Dateisystem    Größe Benutzt Verf. Verw% Eingehängt auf",
+            "/dev/vda3       40G     12G   28G   30% /");
+        command(session, "man ls", "LS(1)            User Commands            LS(1)", "NAME", "       ls - list");
+        prompt(session);
+        summarizer.register(session);
+        Path dir = session.getDirectory();
+        summarizer.summarizeNow(session).get();
+
+        assertThat(invoker.userPrompts).hasSize(1);
+        String prompt = invoker.userPrompts.get(0);
+        assertThat(prompt).contains("df -h");
+        assertThat(prompt).doesNotContain("--help");
+        assertThat(prompt).doesNotContain("man ls");
+        assertThat(entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY)).hasSize(1);
+
+        summarizer.onSessionClosing(session);
+        session.close();
+        awaitFinished(dir);
+        assertThat(service.loadDocument(dir).getMeta().getCommandCount()).isEqualTo(1L);
+    }
+
+    @Test
     void aJournalLeftBehindByACrashIsFinishedWithItsEndAndWrapUp() throws Exception {
         SessionJournalSession session = newLiveSession();
         command(session, "uptime", " 11:40 up 3 days");
