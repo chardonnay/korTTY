@@ -195,12 +195,13 @@ public final class AgentRunChatSeeder {
             }
         }
         String[] parts = new String[items.size()];
+        long budget = budgetChars;
         long total = 0;
         for (int i = 0; i < items.size(); i++) {
             parts[i] = items.get(i).render();
             total += parts[i].length();
         }
-        for (int i = 0; i < items.size() && total > budgetChars; i++) {
+        for (int i = 0; i < items.size() && total > budget; i++) {
             Rendered item = items.get(i);
             if (item.output == null) {
                 continue;
