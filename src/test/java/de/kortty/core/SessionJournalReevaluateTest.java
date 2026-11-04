@@ -26,7 +26,7 @@ import static org.testng.Assert.assertThrows;
  */
 class SessionJournalReevaluateTest {
 
-    private static final class AnswerInvoker implements SessionJournalAiSupport.AiInvoker {
+    private static class AnswerInvoker implements SessionJournalAiSupport.AiInvoker {
         private final String title;
         private final boolean fails;
 
@@ -132,6 +132,75 @@ class SessionJournalReevaluateTest {
 
         assertThat(entries(dir).stream().anyMatch(e -> e.getKind() == SessionJournalEntryKind.AI_SUMMARY
             && e.getState() == SessionJournalEntry.State.RAW)).isTrue();
+    }
+
+    @Test(timeOut = 60_000)
+    void thePlanNamesEveryCallTheReevaluationMakes() throws Exception {
+        Path dir = closedJournal();
+
+        SessionJournalSummarizer.ReevaluationPlan plan = summarizer.planReevaluation(dir);
+
+        // Newest-window mode: one window over the whole log, then the wrap-up; no AI title by default.
+        assertThat(plan.windowPromptChars()).hasSize(1);
+        assertThat(plan.windowPromptChars().get(0)).isGreaterThan(10);
+        assertThat(plan.wrapUp()).isTrue();
+        assertThat(plan.title()).isFalse();
+        assertThat(plan.calls()).isEqualTo(2);
+    }
+
+    @Test(timeOut = 60_000)
+    void chunkedModePlansOneCallPerWindow() throws Exception {
+        settings.setSessionJournalAiChunkingEnabled(true);
+        settings.setSessionJournalAiMaxLines(2);
+        ServerConnection connection = new ServerConnection("Chunks", "192.168.1.11", 22, "daniel");
+        connection.getSessionJournalConfig().setEnabled(true);
+        SessionJournalSession session = service.createSession(connection, "tab-reevaluate03", settings, List.of(), false);
+        session.start();
+        for (int i = 0; i < 5; i++) {
+            session.appendInputLine("echo step" + i);
+            session.appendOutputChunk("step" + i + "\n");
+        }
+        Path dir = session.getDirectory();
+        session.close();
+
+        SessionJournalSummarizer.ReevaluationPlan plan = summarizer.planReevaluation(dir);
+
+        assertThat(plan.windowPromptChars().size()).isAtLeast(3);
+    }
+
+    @Test(timeOut = 60_000)
+    void switchedOffSummariesPlanNoCall() throws Exception {
+        Path dir = closedJournal();
+        settings.setSessionJournalAiSummariesEnabled(false);
+
+        assertThat(summarizer.planReevaluation(dir).calls()).isEqualTo(0);
+    }
+
+    @Test(timeOut = 60_000)
+    void aCancelledRunMakesNoCallAndKeepsTheActivityAsRawEntries() throws Exception {
+        Path dir = closedJournal();
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        SessionJournalAiSupport.AiInvoker cancelled = new AnswerInvoker("Cancelled", false) {
+            @Override
+            public AiExecutionResult execute(String systemPrompt, String userPrompt) throws Exception {
+                calls.incrementAndGet();
+                return super.execute(systemPrompt, userPrompt);
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return true;
+            }
+        };
+
+        summarizer.reevaluateClosedJournal(dir, cancelled).get(30, TimeUnit.SECONDS);
+
+        assertThat(calls.get()).isEqualTo(0);
+        assertThat(entries(dir).stream().anyMatch(e -> e.getKind() == SessionJournalEntryKind.AI_SUMMARY
+            && e.getState() == SessionJournalEntry.State.RAW)).isTrue();
+        assertThat(entries(dir).stream().noneMatch(e -> e.getKind() == SessionJournalEntryKind.SESSION_SUMMARY)).isTrue();
+        // The window counts as done: a catch-up would not summarize it a second time next to the raw entry.
+        assertThat(service.loadDocument(dir).getMeta().getLastSummarizedSeq()).isGreaterThan(0L);
     }
 
     @Test(timeOut = 60_000)

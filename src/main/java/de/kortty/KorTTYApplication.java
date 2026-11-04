@@ -127,6 +127,7 @@ public class KorTTYApplication extends Application {
     private de.kortty.core.SessionJournalService sessionJournalService;
     private de.kortty.core.SessionJournalChatSync sessionJournalChatSync;
     private de.kortty.core.SessionJournalSummarizer sessionJournalSummarizer;
+    private de.kortty.core.SessionJournalReevaluationJob sessionJournalReevaluationJob;
     private de.kortty.core.AutomationJournalRetention automationJournalRetention;
     private de.kortty.core.SessionJournalScreenshotAnalyzer sessionJournalScreenshotAnalyzer;
     private de.kortty.core.SessionJournalHtmlRenderer sessionJournalHtmlRenderer;
@@ -327,6 +328,9 @@ public class KorTTYApplication extends Application {
             java.time.Clock.systemDefaultZone());
         sessionJournalScreenshotAnalyzer =
             new de.kortty.core.SessionJournalScreenshotAnalyzer(sessionJournalService);
+        // "Re-evaluate with AI…" runs here, not in a dialog: it outlives the windows that start and show it.
+        sessionJournalReevaluationJob = new de.kortty.core.SessionJournalReevaluationJob(
+            sessionJournalService, sessionJournalSummarizer, sessionJournalScreenshotAnalyzer, null);
         sessionJournalHtmlRenderer = new de.kortty.core.SessionJournalHtmlRenderer(sessionJournalService);
         sessionJournalHtmlRenderer.attachToServiceChanges();
         // A regenerated page keeps the look the user chose: the font size from the page's A-/A+
@@ -892,6 +896,9 @@ public class KorTTYApplication extends Application {
         }
         if (terminalHighlightService != null) {
             shutdownStep("stop keyword highlighting", terminalHighlightService::stop);
+        }
+        if (sessionJournalReevaluationJob != null) {
+            shutdownStep("stop session journal re-evaluation", sessionJournalReevaluationJob::stop);
         }
         if (sessionJournalSummarizer != null) {
             shutdownStep("stop session journal summarizer", sessionJournalSummarizer::stop);
@@ -2007,6 +2014,11 @@ public class KorTTYApplication extends Application {
 
     public de.kortty.core.SessionJournalSummarizer getSessionJournalSummarizer() {
         return sessionJournalSummarizer;
+    }
+
+    /** The background "Re-evaluate with AI…" runs; see {@link de.kortty.core.SessionJournalReevaluationJob}. */
+    public de.kortty.core.SessionJournalReevaluationJob getSessionJournalReevaluationJob() {
+        return sessionJournalReevaluationJob;
     }
 
     public de.kortty.core.SessionJournalScreenshotAnalyzer getSessionJournalScreenshotAnalyzer() {

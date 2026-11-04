@@ -1,16 +1,10 @@
 package de.kortty.ui;
 
-import de.kortty.core.SessionJournalAiPreflight;
 import de.kortty.core.SessionJournalAiSupport;
-import de.kortty.core.SessionJournalScreenshotAnalyzer;
-import de.kortty.core.SessionJournalService;
-import de.kortty.core.SessionJournalSummarizer;
+import de.kortty.core.SessionJournalReevaluationJob;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
-import de.kortty.model.SessionJournalEntry;
-import de.kortty.model.SessionJournalEntryKind;
 import de.kortty.model.SessionJournalMeta;
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -18,42 +12,39 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Window;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * "Re-evaluate with AI…": summarizes stored journals again with a profile the user picks — when
  * the first result was poor or the AI was not reachable while recording. The previous AI
  * summaries and the session summary are replaced; notes, screenshots and agent entries stay.
  * The chosen profile is tested before anything is removed.
+ *
+ * <p>This dialog only asks; the run belongs to {@link SessionJournalReevaluationJob} and goes on in
+ * the background, shown by {@link SessionJournalReevaluateProgressWindow} and the journal manager.</p>
  */
 final class SessionJournalReevaluateDialog {
 
     private final Window owner;
-    private final SessionJournalService service;
-    private final SessionJournalSummarizer summarizer;
-    private final SessionJournalScreenshotAnalyzer screenshotAnalyzer;
     private final GlobalSettings settings;
-    private final Runnable onChanged;
+    private final SessionJournalReevaluationJob job;
+    private final Supplier<Window> progressOwner;
 
-    SessionJournalReevaluateDialog(Window owner, SessionJournalService service, SessionJournalSummarizer summarizer,
-                                   SessionJournalScreenshotAnalyzer screenshotAnalyzer, GlobalSettings settings,
-                                   Runnable onChanged) {
+    /**
+     * @param progressOwner the window the progress window belongs to — the main window, so it stays
+     *                      when the journal manager closes
+     */
+    SessionJournalReevaluateDialog(Window owner, GlobalSettings settings, SessionJournalReevaluationJob job,
+                                   Supplier<Window> progressOwner) {
         this.owner = owner;
-        this.service = service;
-        this.summarizer = summarizer;
-        this.screenshotAnalyzer = screenshotAnalyzer;
         this.settings = settings;
-        this.onChanged = onChanged != null ? onChanged : () -> { };
+        this.job = job;
+        this.progressOwner = progressOwner != null ? progressOwner : () -> owner;
     }
 
     /** Journals that can be re-evaluated: closed ones with a folder. */
@@ -63,9 +54,17 @@ final class SessionJournalReevaluateDialog {
             .toList();
     }
 
+    /** {@link #eligible(List)} without the journals a background run already works on or waits for. */
+    static List<SessionJournalMeta> eligible(List<SessionJournalMeta> journals, SessionJournalReevaluationJob job) {
+        return eligible(journals).stream()
+            .filter(meta -> job == null
+                || job.stateOf(meta.getDirectory()) == SessionJournalReevaluationJob.JournalState.NONE)
+            .toList();
+    }
+
     void show(List<SessionJournalMeta> selection) {
-        List<SessionJournalMeta> targets = eligible(selection);
-        if (targets.isEmpty() || summarizer == null) {
+        List<SessionJournalMeta> targets = eligible(selection, job);
+        if (targets.isEmpty() || job == null) {
             return;
         }
         List<AiProfile> profiles = settings != null && settings.getAiProfiles() != null
@@ -89,7 +88,7 @@ final class SessionJournalReevaluateDialog {
         boolean anyScreenshots = targets.stream().anyMatch(meta -> meta.getScreenshotCount() > 0);
         CheckBox screenshotsCheck = new CheckBox(I18n.get("journal.reevaluate.screenshots"));
         screenshotsCheck.setSelected(false);
-        screenshotsCheck.setVisible(anyScreenshots && screenshotAnalyzer != null);
+        screenshotsCheck.setVisible(anyScreenshots && job.canDescribeScreenshots());
         screenshotsCheck.setManaged(screenshotsCheck.isVisible());
         Runnable updateVision = () -> {
             AiProfile chosen = profileCombo.getValue();
@@ -160,114 +159,17 @@ final class SessionJournalReevaluateDialog {
         return profiles.isEmpty() ? null : profiles.get(0);
     }
 
+    /** Hands the run to the background job and shows its progress; returns at once. */
     private void run(List<SessionJournalMeta> targets, AiProfile profile, boolean screenshots) {
-        Dialog<ButtonType> progressDialog = new Dialog<>();
-        DialogThemeHelper.applyTheme(progressDialog);
-        progressDialog.initOwner(owner);
-        progressDialog.initModality(Modality.NONE);
-        progressDialog.setTitle(I18n.get("journal.reevaluate.title"));
-        progressDialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
-        ProgressBar bar = new ProgressBar(-1);
-        bar.setPrefWidth(380);
-        Label statusLabel = new Label(I18n.get("journal.reevaluate.testing", profile.getName()));
-        statusLabel.setWrapText(true);
-        statusLabel.setMaxWidth(380);
-        VBox content = new VBox(8, statusLabel, bar);
-        content.setPadding(new Insets(10));
-        progressDialog.getDialogPane().setContent(content);
-        AtomicBoolean cancelled = new AtomicBoolean();
-        progressDialog.setOnHidden(event -> cancelled.set(true));
-        progressDialog.show();
-
-        SessionJournalAiSupport.AiInvoker invoker = SessionJournalAiSupport.profileInvoker(profile.getId());
-        Thread worker = new Thread(() -> {
-            SessionJournalAiPreflight.Result test = SessionJournalAiPreflight.check(invoker);
-            if (!test.ok()) {
-                // nothing was removed yet: the old evaluation stays untouched
-                Platform.runLater(() -> finish(progressDialog, bar, statusLabel,
-                    I18n.get("journal.reevaluate.testFailed", profile.getName(),
-                        test.message() != null ? test.message() : ""), 0));
-                return;
-            }
-            long tokensBefore = totalTokens(targets);
-            List<String> failures = new ArrayList<>();
-            List<String> screenshotIssues = new ArrayList<>();
-            int done = 0;
-            for (SessionJournalMeta meta : targets) {
-                if (cancelled.get()) {
-                    break;
-                }
-                int index = done;
-                Platform.runLater(() -> {
-                    bar.setProgress((double) index / targets.size());
-                    statusLabel.setText(I18n.get("journal.reevaluate.progress",
-                        index + 1, targets.size(), titleOf(meta)));
-                });
-                try {
-                    summarizer.reevaluateClosedJournal(meta.getDirectory(), invoker).get();
-                    if (screenshots) {
-                        int failedShots = describeScreenshots(meta.getDirectory(), invoker);
-                        if (failedShots > 0) {
-                            screenshotIssues.add(I18n.get("journal.reevaluate.screenshotsFailed", titleOf(meta), failedShots));
-                        }
-                    }
-                } catch (Exception e) {
-                    Throwable cause = e.getCause() != null ? e.getCause() : e;
-                    failures.add(titleOf(meta) + ": " + cause.getMessage());
-                }
-                done++;
-            }
-            long tokens = Math.max(0, totalTokens(targets) - tokensBefore);
-            int processed = done - failures.size();
-            String summary = I18n.get("journal.reevaluate.done", processed, String.format("%,d", tokens));
-            if (!failures.isEmpty()) {
-                summary += "\n" + I18n.get("journal.reevaluate.failed", failures.size(), String.join("\n", failures));
-            }
-            if (!screenshotIssues.isEmpty()) {
-                summary += "\n" + String.join("\n", screenshotIssues);
-            }
-            String text = summary;
-            Platform.runLater(() -> finish(progressDialog, bar, statusLabel, text, 1));
-        }, "SessionJournal-Reevaluate");
-        worker.setDaemon(true);
-        worker.start();
+        List<SessionJournalReevaluationJob.Target> jobTargets = targets.stream()
+            .map(meta -> new SessionJournalReevaluationJob.Target(meta.getDirectory(), titleOf(meta)))
+            .toList();
+        job.submit(new SessionJournalReevaluationJob.Request(jobTargets, profile.getId(), profile.getName(),
+            SessionJournalReevaluationJob.invokerFor(profile), screenshots));
+        SessionJournalReevaluateProgressWindow.show(progressOwner.get(), job);
     }
 
-    private void finish(Dialog<ButtonType> progressDialog, ProgressBar bar, Label statusLabel, String text, double progress) {
-        onChanged.run();
-        if (!progressDialog.isShowing()) {
-            return;
-        }
-        bar.setProgress(progress);
-        statusLabel.setText(text);
-        progressDialog.getDialogPane().getButtonTypes().setAll(ButtonType.CLOSE);
-    }
-
-    /** @return the number of screenshots that could not be described */
-    private int describeScreenshots(Path directory, SessionJournalAiSupport.AiInvoker invoker) throws Exception {
-        int failed = 0;
-        for (SessionJournalEntry entry : service.loadDocument(directory).getEntries()) {
-            if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT
-                    && !screenshotAnalyzer.analyzeNow(directory, entry.getId(), invoker)) {
-                failed++;
-            }
-        }
-        return failed;
-    }
-
-    private long totalTokens(List<SessionJournalMeta> targets) {
-        long total = 0;
-        for (SessionJournalMeta meta : targets) {
-            try {
-                total += service.loadDocument(meta.getDirectory()).getMeta().getAiTotalTokens();
-            } catch (Exception ignored) {
-                // a journal that cannot be read contributes nothing
-            }
-        }
-        return total;
-    }
-
-    private static String titleOf(SessionJournalMeta meta) {
+    static String titleOf(SessionJournalMeta meta) {
         if (meta.getTitle() != null && !meta.getTitle().isBlank()) {
             return meta.getTitle();
         }

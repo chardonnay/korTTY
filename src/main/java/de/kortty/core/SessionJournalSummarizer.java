@@ -8,6 +8,7 @@ import de.kortty.model.SessionJournalMarker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -368,28 +369,24 @@ public class SessionJournalSummarizer {
             return; // a half-typed command is not worth a journal entry yet
         }
 
-        int maxLines = settings != null ? settings.getSessionJournalAiMaxLines() : 100;
-        int tokenBudget = settings != null ? settings.getSessionJournalAiTokenBudget() : 130_000;
-        boolean chunked = settings != null && settings.isSessionJournalAiChunkingEnabled();
         boolean aiAvailable = sessionAiEnabled
             && (settings == null || settings.isSessionJournalAiSummariesEnabled())
             && invoker().isAvailable();
         String languageCode = document.getMeta().getAppLanguageCode();
 
-        List<Window> windows = new ArrayList<>(chunked
-            ? buildChunkedWindows(content, maxLines, tokenBudget)
-            : List.of(buildNewestWindow(content, maxLines, tokenBudget)));
-        Window last = windows.get(windows.size() - 1);
-        if (last.endSeq() < contentEndSeq) {
-            windows.set(windows.size() - 1, new Window(last.startSeq(), contentEndSeq, last.fromTime(),
-                last.toTime(), last.inputLines(), last.outputLines(), last.omittedInputLines(),
-                last.omittedOutputLines(), last.firstCommand(), last.evidence()));
-        }
+        List<Window> windows = cutWindows(content, contentEndSeq, settings);
         String loginUser = document.getMeta().getUsername();
         for (Window window : windows) {
             if (isIdle(window)) {
                 // Nothing was typed and nothing but the prompt was printed: no entry, but the
                 // range counts as done so it never comes back as "no activity".
+                advanceProgress(directory, state, window);
+                continue;
+            }
+            if (aiAvailable && invoker().isCancelled()) {
+                // The run was cancelled: no further call. The window stays visible as raw activity
+                // and counts as done, so the journal is complete and a later re-evaluation redoes it.
+                writeRawEntry(directory, window, loginUser);
                 advanceProgress(directory, state, window);
                 continue;
             }
@@ -413,6 +410,84 @@ public class SessionJournalSummarizer {
                 break;
             }
         }
+    }
+
+    /**
+     * The windows a pass cuts {@code content} into: one (newest window) or many (chunked mode); the
+     * last one reaches {@code contentEndSeq}, so a pass always covers the whole range it read.
+     */
+    private List<Window> cutWindows(List<SessionJournalLogEntry> content, long contentEndSeq, GlobalSettings settings) {
+        int maxLines = settings != null ? settings.getSessionJournalAiMaxLines() : 100;
+        int tokenBudget = settings != null ? settings.getSessionJournalAiTokenBudget() : 130_000;
+        boolean chunked = settings != null && settings.isSessionJournalAiChunkingEnabled();
+        List<Window> windows = new ArrayList<>(chunked
+            ? buildChunkedWindows(content, maxLines, tokenBudget)
+            : List.of(buildNewestWindow(content, maxLines, tokenBudget)));
+        Window last = windows.get(windows.size() - 1);
+        if (last.endSeq() < contentEndSeq) {
+            windows.set(windows.size() - 1, new Window(last.startSeq(), contentEndSeq, last.fromTime(),
+                last.toTime(), last.inputLines(), last.outputLines(), last.omittedInputLines(),
+                last.omittedOutputLines(), last.firstCommand(), last.evidence()));
+        }
+        return windows;
+    }
+
+    /**
+     * The AI calls a re-evaluation of a closed journal makes, in order: one per window that is not
+     * idle (with the size of its log text), then the wrap-up and the AI title when they would run.
+     * {@code windowPromptChars} is empty when the AI summaries are switched off.
+     */
+    public record ReevaluationPlan(List<Integer> windowPromptChars, boolean wrapUp, boolean title) {
+        public ReevaluationPlan {
+            windowPromptChars = List.copyOf(windowPromptChars);
+        }
+
+        public int calls() {
+            return windowPromptChars.size() + (wrapUp ? 1 : 0) + (title ? 1 : 0);
+        }
+    }
+
+    /**
+     * Plans {@link #reevaluateClosedJournal}: which AI calls it will make and how large their prompts
+     * are, for a progress bar and a remaining-time estimate. Reads the whole capture log the way the
+     * pass will after the reset; makes no call and changes nothing.
+     */
+    public ReevaluationPlan planReevaluation(Path directory) throws IOException {
+        GlobalSettings settings = settingsSupplier.get();
+        if (settings != null && !settings.isSessionJournalAiSummariesEnabled()) {
+            return new ReevaluationPlan(List.of(), false, false);
+        }
+        List<Integer> windowChars = new ArrayList<>();
+        List<SessionJournalLogEntry> content = filterContentEntries(service.readLogAfter(directory, 0));
+        if (!content.isEmpty()) {
+            long contentEndSeq = content.get(content.size() - 1).seq();
+            content = SessionJournalTypoFilter.withoutNotFoundAttempts(content);
+            if (!content.isEmpty()) {
+                for (Window window : cutWindows(content, contentEndSeq, settings)) {
+                    if (!isIdle(window)) {
+                        windowChars.add(promptChars(window));
+                    }
+                }
+            }
+        }
+        SessionJournalDocument document = service.loadDocument(directory);
+        // The wrap-up needs at least one line to work from: a window summary, a note or a described screenshot.
+        boolean wrapUp = !windowChars.isEmpty() || document.getEntries().stream().anyMatch(entry ->
+            entry.getKind() == SessionJournalEntryKind.USER_NOTE
+                || entry.getKind() == SessionJournalEntryKind.SCREENSHOT && entry.hasAiAnalysis());
+        boolean title = settings != null && settings.isSessionJournalAiTitleEnabled() && titleLooksDefault(document);
+        return new ReevaluationPlan(windowChars, wrapUp, title);
+    }
+
+    private static int promptChars(Window window) {
+        int chars = 0;
+        for (String line : window.inputLines()) {
+            chars += line.length() + 1;
+        }
+        for (String line : window.outputLines()) {
+            chars += line.length() + 1;
+        }
+        return chars;
     }
 
     private void advanceProgress(Path directory, SessionState state, Window window) throws Exception {
@@ -815,7 +890,7 @@ public class SessionJournalSummarizer {
             boolean aiAvailable = aiEnabled
                 && (settings == null || settings.isSessionJournalAiSummariesEnabled())
                 && invoker().isAvailable();
-            if (!aiAvailable) {
+            if (!aiAvailable || invoker().isCancelled()) {
                 return;
             }
             SessionJournalDocument document = service.loadDocument(directory);
@@ -824,7 +899,7 @@ public class SessionJournalSummarizer {
                 writeSessionSummary(directory, document, entryLines);
             }
             boolean aiTitleWanted = settings != null && settings.isSessionJournalAiTitleEnabled();
-            if (aiTitleWanted && titleLooksDefault(document)) {
+            if (aiTitleWanted && !invoker().isCancelled() && titleLooksDefault(document)) {
                 writeAiTitle(directory, document, entryLines);
             }
         } catch (Exception e) {

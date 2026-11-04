@@ -5932,6 +5932,9 @@ public class MainWindow {
         if (closesApplication && !confirmQuitWhileTranslatingGuide()) {
             return false;
         }
+        if (closesApplication && !confirmQuitWhileReevaluatingJournals()) {
+            return false;
+        }
         if (!confirmActiveConnectionsClose()) {
             return false;
         }
@@ -5996,6 +5999,36 @@ public class MainWindow {
         boolean quit = choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
         if (quit) {
             // Stop at the next batch boundary so the checkpoint on disk is consistent.
+            job.cancel();
+        }
+        return quit;
+    }
+
+    /**
+     * Asks before quitting while "Re-evaluate with AI…" runs in the background: the run is invisible
+     * once the journal manager is closed, and quitting stops it halfway through a journal.
+     *
+     * @return true to proceed with quitting
+     */
+    private boolean confirmQuitWhileReevaluatingJournals() {
+        de.kortty.core.SessionJournalReevaluationJob job = app.getSessionJournalReevaluationJob();
+        if (job == null || !job.isRunning()) {
+            return true;
+        }
+        de.kortty.core.SessionJournalReevaluationJob.Snapshot snapshot = job.snapshot();
+        int percent = snapshot.estimate() != null ? snapshot.estimate().percent() : 0;
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(stage);
+        alert.setTitle(I18n.get("journal.reevaluate.quit.title"));
+        alert.setHeaderText(I18n.get("journal.reevaluate.quit.header", percent));
+        alert.setContentText(I18n.get("journal.reevaluate.quit.message"));
+        alert.getButtonTypes().setAll(
+            new ButtonType(I18n.get("journal.reevaluate.quit.stopAndQuit"), ButtonBar.ButtonData.OK_DONE),
+            new ButtonType(I18n.get("journal.reevaluate.quit.keepRunning"), ButtonBar.ButtonData.CANCEL_CLOSE));
+        ButtonType choice = alert.showAndWait().orElse(null);
+        boolean quit = choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
+        if (quit) {
             job.cancel();
         }
         return quit;

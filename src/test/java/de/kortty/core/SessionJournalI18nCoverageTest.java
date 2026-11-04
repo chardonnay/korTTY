@@ -423,7 +423,32 @@ class SessionJournalI18nCoverageTest {
         "journal.screenshot.tool.pixelate",
         "journal.screenshot.tool.pixelate.hint",
         "journal.html.rename",
-        "journal.html.rename.hint");
+        "journal.html.rename.hint",
+        // "Re-evaluate with AI…" in the background: progress window, manager status line, badges, quit prompt
+        "journal.reevaluate.background",
+        "journal.reevaluate.cancel",
+        "journal.reevaluate.cancelling",
+        "journal.reevaluate.cancelled",
+        "journal.reevaluate.cancelled.note",
+        "journal.reevaluate.step.window",
+        "journal.reevaluate.step.wrapUp",
+        "journal.reevaluate.step.title",
+        "journal.reevaluate.step.screenshot",
+        "journal.reevaluate.time",
+        "journal.reevaluate.remaining",
+        "journal.reevaluate.remaining.underMinute",
+        "journal.reevaluate.remaining.unknown",
+        "journal.reevaluate.queued",
+        "journal.reevaluate.strip.show",
+        "journal.reevaluate.strip.details",
+        "journal.reevaluate.strip.dismiss",
+        "journal.reevaluate.quit.title",
+        "journal.reevaluate.quit.header",
+        "journal.reevaluate.quit.message",
+        "journal.reevaluate.quit.stopAndQuit",
+        "journal.reevaluate.quit.keepRunning",
+        "journal.manager.badge.reevaluating",
+        "journal.manager.badge.reevaluateWaiting");
 
     @Test
     void allSessionJournalKeysExistInEveryBundledLocaleAndKeepPlaceholderCounts() throws Exception {
