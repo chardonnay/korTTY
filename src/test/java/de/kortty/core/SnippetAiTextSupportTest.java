@@ -24,6 +24,21 @@ class SnippetAiTextSupportTest {
     }
 
     @Test
+    void extractEditableSegmentsReadsLuaCommentsAndStrings() {
+        List<SnippetAiTextSupport.EditableTextSegment> segments = SnippetAiTextSupport.extractEditableSegments(
+            """
+            -- loads the confg
+            --[[ block coment ]]
+            print("Loading finishd")
+            local n = #items
+            """,
+            "lua");
+
+        assertThat(segments.stream().map(SnippetAiTextSupport.EditableTextSegment::coreText).toList())
+            .containsExactly("loads the confg", "block coment", "Loading finishd").inOrder();
+    }
+
+    @Test
     void extractEditableSegmentsUsesFullSnippetContextForTextSelectedInsideComment() {
         String snippet = "echo start\n# Die Sicherung ist abgeschlossen\necho done\n";
         String selectedText = "Sicherung ist abgeschlossen";

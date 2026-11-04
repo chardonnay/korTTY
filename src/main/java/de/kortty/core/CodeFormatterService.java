@@ -124,6 +124,10 @@ public final class CodeFormatterService {
                 "Install black for developer fallback: pip install black  /  brew install black", ".py");
             case "ruby" -> externalOnly(lang, "rubocop", List.of("rubocop", "-a", "--stderr", "--stdin"), ExecutionMode.FILE_APPEND,
                 "Install RuboCop for developer fallback: gem install rubocop", ".rb");
+            // --search-parent-directories also finds the user's ~/.config/stylua/stylua.toml (indent style …).
+            case "lua" -> externalOnly(lang, "stylua", List.of("stylua", "--search-parent-directories", "-"),
+                ExecutionMode.STDIN,
+                "Install StyLua for developer fallback: brew install stylua  /  cargo install stylua", ".lua");
             case "go" -> externalOnly(lang, "gofmt", List.of("gofmt"), ExecutionMode.STDIN,
                 "Install Go for developer fallback; gofmt is included with Go.", ".go");
             case "rust" -> externalOnly(lang, "rustfmt", List.of("rustfmt"), ExecutionMode.STDIN,
@@ -197,7 +201,7 @@ public final class CodeFormatterService {
             return false;
         }
         return switch (info.formatterId()) {
-            case "prettier", "black", "perltidy" -> true;
+            case "prettier", "black", "perltidy", "stylua" -> true;
             default -> false;
         };
     }
@@ -223,11 +227,12 @@ public final class CodeFormatterService {
                 commandLine.add("--print-width");
                 commandLine.add(Integer.toString(maxLineLength));
             }
-            case "black" -> {
+            case "black", "stylua" -> {
+                String option = "black".equals(info.formatterId()) ? "--line-length" : "--column-width";
                 int insertAt = !commandLine.isEmpty() && "-".equals(commandLine.get(commandLine.size() - 1))
                     ? commandLine.size() - 1
                     : commandLine.size();
-                commandLine.add(insertAt, "--line-length");
+                commandLine.add(insertAt, option);
                 commandLine.add(insertAt + 1, Integer.toString(maxLineLength));
             }
             case "perltidy" -> commandLine.add("-l=" + maxLineLength);
@@ -916,7 +921,12 @@ public final class CodeFormatterService {
         }
     }
 
-    private static Optional<Path> findCommandOnPath(String command) {
+    /**
+     * The executable {@code command} in the PATH or one of the usual install locations
+     * ({@link AiCliProviderRegistry#executableSearchDirectories()}): a formatter installed with
+     * Homebrew must be found when korTTY was started from the Finder, whose PATH lacks it.
+     */
+    static Optional<Path> findCommandOnPath(String command) {
         if (command == null || command.isBlank()) {
             return Optional.empty();
         }
@@ -925,12 +935,8 @@ public final class CodeFormatterService {
             return Files.isExecutable(path) ? Optional.of(path) : Optional.empty();
         }
 
-        String path = System.getenv("PATH");
-        if (path == null || path.isBlank()) {
-            return Optional.empty();
-        }
         String[] executableSuffixes = executableSuffixes();
-        for (String dir : path.split(PATH_SEPARATOR_REGEX)) {
+        for (String dir : AiCliProviderRegistry.executableSearchDirectories()) {
             if (dir.isBlank()) {
                 continue;
             }

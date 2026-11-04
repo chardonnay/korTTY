@@ -29,7 +29,7 @@ class SnippetWorkspaceI18nCoverageTest {
     private static final List<String> LOCALES = List.of("", "_de", "_es", "_fr", "_hr", "_it", "_nl", "_pt");
     private static final Pattern KEY_USE = Pattern.compile(
         "\"(snippets\\.(?:(?:workspace|draft|saveAsNew|batchExport|folder|executable|transfer|modularize|preview|project"
-            + "|analyze|variables)\\.[A-Za-z.]*[A-Za-z]|folder|fileName))\"");
+            + "|analyze|variables|structure)\\.[A-Za-z.]*[A-Za-z]|folder|fileName))\"");
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
     @Test

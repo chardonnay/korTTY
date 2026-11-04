@@ -246,6 +246,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      */
     private final SnippetEditorWorkbench analysisWorkbench;
     private final Region analysisDivider;
+    /** Classes, functions, variables and placeholders of the code, left of it (toolbar "Structure"). */
+    private final SnippetStructurePanel structurePanel;
+    /** The code row: the structure panel (while shown) and the column ruler plus editor. */
+    private final SnippetStructureRow structureRow;
+    private final ToggleButton structureToggleButton;
+    /** Toggle on and no Markdown preview covering the code; kept as a field so it is not collected. */
+    private final javafx.beans.binding.BooleanBinding structureShown;
     private final StackPane editorAreaStack;
     private final VBox editorFormLayout;
     /** The change review currently shown instead of the editor form, or {@code null}. */
@@ -380,7 +387,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN);
     
     private static final List<String> LANGUAGES = List.of(
-        "plain", "bash", "shell", "python", "perl", "ruby", "java", "javascript", "typescript", "groovy",
+        "plain", "bash", "shell", "python", "perl", "ruby", "lua", "java", "javascript", "typescript", "groovy",
         "powershell", "sql", "xml", "json", "yaml", "yml", "toml", "properties", "ini", "html",
         "markdown", "asciidoctor", "dockerfile"
     );
@@ -1220,6 +1227,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             updateOneLinerButtonState();
             updateMarkupPreviewAvailability();
             updateAiActionAvailability();
+            notifyStructureLanguageChanged();
         });
         
         // Re-apply highlighting on text change
@@ -1238,6 +1246,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             updateColumnRulerCaret();
             scheduleMarkupPreviewRefresh();
             scheduleAutoCompletion();
+            notifyStructureContentChanged();
             if (analysisController != null) {
                 analysisController.onContentChanged();
             }
@@ -1252,6 +1261,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         contentArea.caretPositionProperty().addListener((obs, oldValue, newValue) -> {
             updateColumnRulerCaret();
             scheduleAutoCompletion();
+            notifyStructureCaretMoved();
         });
         contentArea.caretColumnProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerCaret());
         autoCompletionDelay.setOnFinished(event -> requestGhostCompletion());
@@ -1492,9 +1502,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         analysisToggleButton.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.panel.toggle.tooltip")));
         analysisToggleButton.setOnAction(e -> toggleAnalysisPanel());
 
+        structureToggleButton = new ToggleButton(I18n.get("snippets.structure.toggle"));
+        structureToggleButton.setId("snippet-structure-toggle");
+        structureToggleButton.setTooltip(new Tooltip(I18n.get("snippets.structure.toggle.tooltip")));
+        structureToggleButton.setSelected(SnippetStructureSettings.loadVisible());
+        structureToggleButton.setOnAction(e -> SnippetStructureSettings.saveVisible(structureToggleButton.isSelected()));
+
         HBox contentHeader = new HBox(10,
                 new Label(I18n.get("snippets.content") + ":"),
-                editMenu, formatBtn, lintBtn, aiTextMenu, aiCodeMenu, analysisToggleButton,
+                editMenu, formatBtn, lintBtn, aiTextMenu, aiCodeMenu, analysisToggleButton, structureToggleButton,
                 toggleLastAiChangeButton, oneLinerMenu,
                 new Separator(), zoomOutButton, fontSizeLabel, zoomInButton, editorProfileMenu, backgroundBrightnessMenu,
                 new Separator(), markupPreviewToggleButton, wordWrapCheckBox, lineNumbersCheckBox);
@@ -1517,9 +1533,23 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         updateColumnRulerMetrics();
         updateColumnRulerCaret();
 
-        VBox contentBox = new VBox(0, columnRuler, contentStack, placeholderInfo);
-        VBox.setMargin(placeholderInfo, new Insets(5, 0, 0, 0));
+        // The structure panel sits left of the code; the ruler stays in the code's own column so it
+        // remains aligned with the editor's character columns.
+        VBox codeColumn = new VBox(0, columnRuler, contentStack);
         VBox.setVgrow(contentStack, Priority.ALWAYS);
+        codeColumn.setMinWidth(0);
+        structurePanel = new SnippetStructurePanel(new StructureSource(), SnippetStructureSettings.declarations(),
+            SnippetStructureSettings::storedValue);
+        structurePanel.setPrefWidth(SnippetStructureSettings.loadWidth());
+        structureRow = new SnippetStructureRow(structurePanel, buildStructureDivider(), codeColumn);
+        structureRow.setId("snippet-structure-row");
+        // Hidden while the Markdown preview covers the code: there is nothing to jump to then.
+        structureShown = structureToggleButton.selectedProperty().and(markupPreviewToggleButton.selectedProperty().not());
+        structureShown.addListener((obs, wasShown, shown) -> applyStructurePanelShown(shown));
+        applyStructurePanelShown(structureShown.get());
+        VBox contentBox = new VBox(0, structureRow, placeholderInfo);
+        VBox.setMargin(placeholderInfo, new Insets(5, 0, 0, 0));
+        VBox.setVgrow(structureRow, Priority.ALWAYS);
         formGrid.add(contentBox, 0, 7, 2, 1);
         GridPane.setVgrow(contentBox, Priority.ALWAYS);
 
@@ -1784,6 +1814,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         setOnHidden(event -> {
             // First: a running apply is recorded as interrupted before cancelAiTasks() cancels it.
             analysisController.dispose();
+            structurePanel.dispose();
             if (draftAutosave != null) {
                 draftAutosave.dispose();
             }
@@ -7907,6 +7938,100 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         return analysisWorkbench.panel();
     }
 
+    // ---- Structure panel: class browser, variables and placeholders left of the code ----
+
+    private void applyStructurePanelShown(boolean shown) {
+        structureRow.setPanelShown(shown);
+        structurePanel.setActive(shown);
+    }
+
+    private void notifyStructureContentChanged() {
+        if (structurePanel != null) {
+            structurePanel.contentChanged();
+        }
+    }
+
+    private void notifyStructureLanguageChanged() {
+        if (structurePanel != null) {
+            structurePanel.languageChanged();
+        }
+    }
+
+    private void notifyStructureCaretMoved() {
+        if (structurePanel != null) {
+            structurePanel.caretMoved();
+        }
+    }
+
+    /** The structure panel of this editor (tests, screenshots). */
+    SnippetStructurePanel structurePanel() {
+        return structurePanel;
+    }
+
+    /** The toolbar toggle that shows and hides the structure panel (tests, screenshots). */
+    ToggleButton structureToggleButton() {
+        return structureToggleButton;
+    }
+
+    /** The drag handle between the structure panel and the code; the width is stored when the drag ends. */
+    private Region buildStructureDivider() {
+        Region divider = new Region();
+        divider.setId("snippet-structure-divider");
+        divider.setMinWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setPrefWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setMaxWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setCursor(javafx.scene.Cursor.H_RESIZE);
+        divider.setStyle("-fx-background-color: rgba(128,128,128,0.22);");
+        double[] drag = new double[2];
+        divider.setOnMousePressed(event -> {
+            drag[0] = event.getScreenX();
+            drag[1] = structurePanel.getWidth();
+        });
+        divider.setOnMouseDragged(event -> {
+            double width = drag[1] + (event.getScreenX() - drag[0]);
+            double maximum = structureRow.maximumPanelWidth();
+            structurePanel.setPrefWidth(Math.max(SnippetStructurePanel.MIN_WIDTH, Math.min(maximum, width)));
+        });
+        divider.setOnMouseReleased(event -> SnippetStructureSettings.saveWidth(structurePanel.getPrefWidth()));
+        return divider;
+    }
+
+    /** What the structure panel reads from this editor, and where its clicks select. */
+    private final class StructureSource implements SnippetStructurePanel.Source {
+
+        @Override
+        public String text() {
+            return safeContentText();
+        }
+
+        @Override
+        public String language() {
+            return languageCombo.getValue();
+        }
+
+        @Override
+        public int caretOffset() {
+            return contentArea.getCaretPosition();
+        }
+
+        @Override
+        public void select(int start, int end, boolean focus) {
+            int length = safeContentText().length();
+            int from = Math.max(0, Math.min(start, length));
+            int to = Math.max(from, Math.min(end, length));
+            contentArea.selectRange(from, to);
+            if (focus) {
+                contentArea.requestEditorFocus();
+            }
+        }
+
+        @Override
+        public boolean isCodeShown() {
+            // The panel may be activated while the constructor still builds the form.
+            return editorFormLayout == null || editorFormLayout.isVisible();
+        }
+    }
+
     /** Whether the analysis side panel currently sits beside the editor area. */
     boolean isAnalysisSidePanelShown() {
         return analysisWorkbench.isPanelShown();
@@ -8034,6 +8159,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             return;
         }
         editorFormLayout.setVisible(true);
+        structurePanel.codeShown();
         Platform.runLater(this::focusEditor);
     }
 

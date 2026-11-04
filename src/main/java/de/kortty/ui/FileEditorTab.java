@@ -163,6 +163,7 @@ public class FileEditorTab extends Tab implements HostedCloseGuard {
         PYTHON,
         PERL,
         RUBY,
+        LUA,
         SHELL,
         HTML,
         CSS,
@@ -1194,6 +1195,7 @@ public class FileEditorTab extends Tab implements HostedCloseGuard {
             case PYTHON -> "python";
             case PERL -> "perl";
             case RUBY -> "ruby";
+            case LUA -> "lua";
             case SHELL -> "bash";
             case HTML -> "html";
             case CSS -> "css";
@@ -1316,6 +1318,7 @@ public class FileEditorTab extends Tab implements HostedCloseGuard {
                 : (checkCommandAvailable("flake8") ? Optional.of("flake8") : Optional.empty());
             case PERL -> checkCommandAvailable("perl") ? Optional.of("perl -c") : Optional.empty();
             case RUBY -> checkCommandAvailable("ruby") ? Optional.of("ruby -c") : Optional.empty();
+            case LUA -> checkCommandAvailable("luac") ? Optional.of("luac -p") : Optional.empty();
             case SHELL -> checkCommandAvailable("shellcheck") ? Optional.of("shellcheck") : Optional.empty();
             case JAVASCRIPT -> checkCommandAvailable("eslint") ? Optional.of("eslint") : Optional.empty();
             case GO -> checkCommandAvailable("go") ? Optional.of("go vet") : Optional.empty();
@@ -1353,6 +1356,7 @@ public class FileEditorTab extends Tab implements HostedCloseGuard {
             case PYTHON -> ".py";
             case PERL -> ".pl";
             case RUBY -> ".rb";
+            case LUA -> ".lua";
             case SHELL -> ".sh";
             case HTML -> ".html";
             case CSS -> ".css";
@@ -1404,6 +1408,7 @@ public class FileEditorTab extends Tab implements HostedCloseGuard {
         if (lower.endsWith(".py") || lower.endsWith(".pyw")) return FileType.PYTHON;
         if (lower.endsWith(".pl") || lower.endsWith(".pm") || lower.endsWith(".perl")) return FileType.PERL;
         if (lower.endsWith(".rb") || lower.endsWith(".rake") || lower.endsWith(".gemspec")) return FileType.RUBY;
+        if (lower.endsWith(".lua")) return FileType.LUA;
         if (lower.endsWith(".sh") || lower.endsWith(".bash") || lower.endsWith(".zsh") || lower.endsWith(".ksh") || lower.endsWith(".fish")) return FileType.SHELL;
         if (lower.endsWith(".html") || lower.endsWith(".htm") || lower.endsWith(".xhtml")) return FileType.HTML;
         if (lower.endsWith(".css") || lower.endsWith(".scss") || lower.endsWith(".less")) return FileType.CSS;
@@ -1460,6 +1465,7 @@ public class FileEditorTab extends Tab implements HostedCloseGuard {
             case PYTHON -> "python";
             case PERL -> "perl";
             case RUBY -> "ruby";
+            case LUA -> "lua";
             case SHELL -> "shell";
             case HTML -> "html";
             case CSS -> "css";

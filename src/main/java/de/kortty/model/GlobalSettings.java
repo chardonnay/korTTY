@@ -1424,6 +1424,14 @@ public class GlobalSettings {
     @XmlElement
     private Boolean snippetAnalysisPanelVisible;
 
+    /** Whether the snippet editor shows its structure panel (outline, variables, placeholders); unset = no. */
+    @XmlElement
+    private Boolean snippetStructurePanelVisible;
+
+    /** Width of the snippet editor's structure panel left of the code; unset = default. */
+    @XmlElement
+    private Double snippetStructurePanelWidth;
+
     /**
      * Whether a Full-code-analysis apply shows its progress in the "AI processing" column docked at
      * the snippet editor's right edge (unset = yes); {@code false} keeps it at the analysis panel's bottom.
@@ -5396,6 +5404,30 @@ public class GlobalSettings {
 
     public void setSnippetAnalysisPanelVisible(boolean snippetAnalysisPanelVisible) {
         this.snippetAnalysisPanelVisible = snippetAnalysisPanelVisible;
+    }
+
+    public boolean isSnippetStructurePanelVisible() {
+        return Boolean.TRUE.equals(snippetStructurePanelVisible);
+    }
+
+    public void setSnippetStructurePanelVisible(boolean snippetStructurePanelVisible) {
+        this.snippetStructurePanelVisible = snippetStructurePanelVisible;
+    }
+
+    /** The structure panel width, or {@code null} for the default; junk values read as unset. */
+    public Double getSnippetStructurePanelWidth() {
+        return normalizeStructurePanelWidth(snippetStructurePanelWidth);
+    }
+
+    public void setSnippetStructurePanelWidth(Double snippetStructurePanelWidth) {
+        this.snippetStructurePanelWidth = normalizeStructurePanelWidth(snippetStructurePanelWidth);
+    }
+
+    private static Double normalizeStructurePanelWidth(Double width) {
+        if (width == null || width.isNaN() || width <= 0) {
+            return null;
+        }
+        return Math.max(160.0, Math.min(800.0, width));
     }
 
     public boolean isSnippetAiProgressDockVisible() {

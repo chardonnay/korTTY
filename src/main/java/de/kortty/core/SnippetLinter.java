@@ -3,15 +3,31 @@ package de.kortty.core;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Built-in syntax checker (linter) for snippet content.
- * Supports JSON and XML validation without external tools.
+ * Supports JSON and XML validation without external tools, and Lua with an installed {@code luac}
+ * ({@code luac -p}, which only parses and never runs the code).
  */
 public final class SnippetLinter {
+
+    /** {@code luac: stdin:2: unexpected symbol near 'if'}: the line and the message of a luac error. */
+    private static final Pattern LUAC_ERROR = Pattern.compile("^(?:\\S*luac\\S*:\\s*)?stdin:(\\d+):\\s*(.*)$");
+    private static final long LUAC_TIMEOUT_SECONDS = 10;
+    /** How long a luac lookup is reused; the button state asks on every keystroke. */
+    private static final long LUAC_LOOKUP_TTL_MILLIS = 30_000;
+    private static volatile Optional<Path> luacPath = Optional.empty();
+    private static volatile long luacCheckedAt;
 
     /**
      * Result of a lint check: either success or a list of error messages.
@@ -55,13 +71,70 @@ public final class SnippetLinter {
         return switch (language.toLowerCase()) {
             case "json" -> lintJson(text);
             case "xml" -> lintXml(text);
+            case "lua" -> lintLua(text);
             default -> new LintResult(false, List.of("No linter available for language: " + language));
         };
     }
 
     public static boolean isSupported(String language) {
         if (language == null) return false;
-        return "json".equalsIgnoreCase(language) || "xml".equalsIgnoreCase(language);
+        return "json".equalsIgnoreCase(language) || "xml".equalsIgnoreCase(language)
+            || "lua".equalsIgnoreCase(language) && luac().isPresent();
+    }
+
+    /** The {@code luac} found in the PATH or a usual install location, looked up at most every 30 s. */
+    static Optional<Path> luac() {
+        long now = System.currentTimeMillis();
+        if (now - luacCheckedAt > LUAC_LOOKUP_TTL_MILLIS) {
+            luacPath = CodeFormatterService.findCommandOnPath("luac");
+            luacCheckedAt = now;
+        }
+        return luacPath;
+    }
+
+    private static LintResult lintLua(String text) {
+        Optional<Path> luac = luac();
+        if (luac.isEmpty()) {
+            return new LintResult(false, List.of("No linter available for language: lua (luac was not found)"));
+        }
+        Process process = null;
+        try {
+            process = new ProcessBuilder(luac.get().toString(), "-p", "-").redirectErrorStream(true).start();
+            try (OutputStream stdin = process.getOutputStream()) {
+                stdin.write(text.getBytes(StandardCharsets.UTF_8));
+            }
+            if (!process.waitFor(LUAC_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                return new LintResult(false, List.of("luac did not answer within " + LUAC_TIMEOUT_SECONDS + " seconds"));
+            }
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            return process.exitValue() == 0 ? new LintResult(true, List.of()) : new LintResult(false, luacErrors(output));
+        } catch (IOException e) {
+            return new LintResult(false, List.of("Could not run luac: " + e.getMessage()));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new LintResult(false, List.of("The Lua syntax check was interrupted"));
+        } finally {
+            if (process != null && process.isAlive()) {
+                process.destroyForcibly();
+            }
+        }
+    }
+
+    /** {@code luac: stdin:2: unexpected symbol near 'if'} becomes {@code Line 2: unexpected symbol near 'if'}. */
+    static List<String> luacErrors(String output) {
+        List<String> errors = new ArrayList<>();
+        for (String line : (output != null ? output : "").split("\\R")) {
+            String trimmed = line.strip();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            Matcher matcher = LUAC_ERROR.matcher(trimmed);
+            errors.add(matcher.matches() ? "Line " + matcher.group(1) + ": " + matcher.group(2) : trimmed);
+        }
+        if (errors.isEmpty()) {
+            errors.add("luac reported a syntax error");
+        }
+        return errors;
     }
 
     private static LintResult lintJson(String text) {

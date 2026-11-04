@@ -300,8 +300,13 @@ public final class AiCliProviderRegistry {
         }
     }
 
-    /** Ordered, de-duplicated list of directories to search for CLI executables. */
-    private static List<String> executableSearchDirectories() {
+    /**
+     * Ordered, de-duplicated list of directories to search for CLI executables: the process PATH,
+     * then the usual install locations (Homebrew, /usr/local, ~/.cargo/bin, …), which a macOS app
+     * started from the Finder or the Dock does not have on its PATH. Also used for the snippet
+     * editor's external formatters and syntax checks.
+     */
+    static List<String> executableSearchDirectories() {
         java.util.LinkedHashSet<String> dirs = new java.util.LinkedHashSet<>();
         String pathEnv = System.getenv("PATH");
         if (pathEnv != null && !pathEnv.isBlank()) {

@@ -13,6 +13,7 @@ import "monaco-editor/languages/definitions/hcl/register";
 import "monaco-editor/languages/definitions/html/register";
 import "monaco-editor/languages/definitions/ini/register";
 import "monaco-editor/languages/definitions/java/register";
+import "monaco-editor/languages/definitions/lua/register";
 import "monaco-editor/languages/definitions/javascript/register";
 import "monaco-editor/languages/definitions/markdown/register";
 import "monaco-editor/languages/definitions/perl/register";

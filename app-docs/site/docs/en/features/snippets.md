@@ -113,6 +113,7 @@ The snippet editor toolbar provides:
 - **Check Syntax** — Validate the syntax (local or AI-assisted).
 - **AI Text** — Correct spelling, translate, or generate technical descriptions.
 - **AI Code** — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, comments, or a custom instruction), migrate the snippet into a single language, check security, or generate diagrams.
+- **Structure** — Show or hide the [structure panel](#structure-panel) left of the code: classes and functions, variables and placeholders.
 - **One-liner** — Export as a terminal one-liner.
 - **Editor zoom** — Adjust text size with ++ctrl+plus++ and ++ctrl+minus++, also when the editor is a main-window tab or a Snippet Manager tab.
 - **Editor profiles** — Switch between built-in IntelliJ-inspired profiles and custom color schemes.
@@ -121,6 +122,39 @@ The snippet editor toolbar provides:
 - **Line numbers** — Toggle line-number display.
 
 When the editor opens from the SFTP Manager for a local or remote file, the same toolbar remains available and the dialog uses file-mode save buttons.
+
+### Structure panel
+
+**Structure** in the editor toolbar shows a panel left of the code with three lists: the classes and functions of the code, its variables, and its placeholders. korTTY remembers whether the panel is shown and the width you drag it to, and uses both for every snippet editor you open. While the Markdown **Preview** covers the code, the panel is hidden.
+
+![Structure panel beside a Bash snippet: functions, variables and placeholders](../assets/screenshots/tools/snippet-structure-panel.png)
+
+- **Classes and functions** — A tree of the classes, modules and packages with their methods, and the functions outside them, each with its line number and, where the language has one, its parameter list. For Markdown and AsciiDoc the tree shows the **Headings**, for SQL the created tables, views, functions, procedures and triggers (**Database objects**), for a Dockerfile the `FROM` stages (**Build stages**).
+- **Variables** — Every variable the code defines, once per scope: its **Kind** (Variable, Array, Hash, Constant, Parameter, Exported or Field), its **Scope** (the function, method or class it belongs to, or *global*), the **Line** it is first defined on, and its **Usages** apart from the definition. Click a column header to sort by it.
+- **Placeholders** — The `${…}` [placeholders](#placeholder-variables) of the snippet, grouped the way copying and sending treat them: **Built in**, **Stored value** (declared in the [Variable Manager](#variable-manager) with a value), **Asks on every use** (declared without a value) and **Not declared**. Each entry shows how often it occurs and the line of its first occurrence. Stored values are never shown.
+
+Click an entry to select its name in the code: the editor scrolls to it and highlights the other occurrences of the name. A double-click or ++enter++ also moves the keyboard focus to the code. While you move the caret, the tree marks the function, method or class it is in. **Filter names** narrows all three lists; ++esc++ in the filter field removes the filter text.
+
+The panel reads the code with fixed rules per language and updates a moment after you stop typing. It is a reading aid, not a compiler: a construct the rules do not know is left out rather than guessed.
+
+| Code language | Classes and functions | Variables |
+|---------------|-----------------------|-----------|
+| Bash / shell | Functions | Assignments, `declare`/`typeset` (`-a` array, `-A` hash, `-r` constant, `-x` exported), `local`, `export`, `readonly`, `read`, `mapfile`, `for`, `getopts` |
+| Python | Classes, methods and functions, nested by indentation | Assignments, parameters, class attributes and `self.` attributes as fields, upper-case names as constants |
+| Perl | `package` blocks with their subs | `my`, `our`, `local`, `state` by sigil, parameters of signatures, `use constant` |
+| Ruby | Modules, classes and methods | Locals, parameters, `@` and `@@` variables as fields, `$` globals, constants |
+| Lua | Functions and local functions; `function M.name` and `function M:name` grouped under the table `M` (a table with methods defined with `:` is shown as a class) | `local` variables (also `<const>`), global assignments, parameters, `for` loop variables, `self.` and table fields, upper-case names as constants |
+| PowerShell | Functions, filters, workflows, classes and their methods | `param(…)` blocks, assignments, `$script:` and `$global:` variables as global ones, `$env:` variables as exported ones, class properties as fields |
+| Java, Groovy | Classes, interfaces, enums, records, methods and constructors; Groovy functions outside a class | Fields, `static final` upper-case constants, parameters, local variables |
+| JavaScript, TypeScript | Classes, interfaces, enums, namespaces, methods, functions and arrow functions | `const`/`let`/`var`, parameters, class fields and `this.` fields |
+| SQL | `CREATE TABLE`, `VIEW`, `FUNCTION`, `PROCEDURE`, `TRIGGER` | `DECLARE @name`, `SET @name` |
+| Markdown, AsciiDoc | Headings, nested by level (headings inside code blocks are skipped) | — |
+| Dockerfile | `FROM` stages | `ARG` as parameters, `ENV` as exported variables, per stage |
+
+Comments, strings and heredoc bodies are skipped, so a function written inside a comment or a heredoc is not listed. A variable used inside double quotes or an unquoted heredoc still counts as a use in shell scripts. In Bash a variable assigned inside a function without `local` is global, so it is listed as global. Plain text with a shebang line (`#!/bin/bash`, `#!/usr/bin/env python3`, …) uses the language of the shebang. For JSON, YAML, TOML, XML, HTML, INI and properties files, plain text, and a language you added yourself, the panel lists only the placeholders. A text over 512,000 characters is not read, and each list shows at most 2,000 entries.
+
+!!! note "Not declared placeholders"
+    The **Not declared** group lists the undeclared names a scheduled job or an AI Swarm run refuses (see [Scheduled and swarm runs](#scheduled-and-swarm-runs)), including a name such as `${target}` that the script uses as its own shell variable. Declare the name in the Variable Manager, or write `$${target}` so that korTTY leaves it to the shell. A name under **Asks on every use** blocks such a run as well.
 
 ### Column ruler and line-width formatting
 
@@ -131,6 +165,7 @@ Line-width formatting works locally only for formatters that support configurabl
 - Prettier-backed web formats (JavaScript, TypeScript, HTML, CSS)
 - Python (Black)
 - Perl (Perl::Tidy)
+- Lua (StyLua)
 
 For languages without local line-width support, KorTTY asks whether to use AI-assisted formatting. Both local line-width formatting and AI-assisted formatting show a before/after review in the editor area before anything changes; see [Reviewing an AI change](#reviewing-an-ai-change).
 
@@ -141,10 +176,15 @@ For languages without local line-width support, KorTTY asks whether to use AI-as
 - **Built-in formatters:** JSON, XML, YAML/YML, TOML, INI/properties, Groovy
 - **Bundled formatters:** Java (google-java-format), Bash/shell (shfmt), Web/JS/TS/HTML/CSS (Prettier), SQL (sql-formatter), Perl (Perl::Tidy)
 - **Fallback:** Optional PATH fallbacks for developer setups when a bundled formatter is missing
+- **Formatters you install yourself:** Python (Black), Ruby (RuboCop) and Lua (StyLua, `brew install stylua`); korTTY uses each one as soon as it is installed
+
+korTTY looks for installed formatters in the `PATH` and in the usual install folders such as `/opt/homebrew/bin`, `/usr/local/bin` and `~/.cargo/bin`, so they are found also when korTTY was started from the Finder or the Dock. StyLua reads your own settings from `~/.config/stylua/stylua.toml`, for example `indent_type = "Spaces"` instead of its default tabs.
 
 Prettier runs as its offline Standalone browser build with only the Babel, Estree, TypeScript, HTML and PostCSS plugins; SQL uses the bundled sql-formatter browser build. Both are initialized lazily in an isolated JavaFX WebView and need no installed or packaged Node.js runtime. Requests are serialized and retain the same 15-second timeout, provider display and configurable Prettier line width as the process backend; a failed or timed-out engine is discarded before the next request.
 
 If local formatting is unavailable and the configured AI profile provides snippet AI capability, KorTTY asks whether to use AI assistance. AI formatting is applied only after the before/after preview is accepted.
+
+**Check Syntax** checks JSON and XML locally. For Lua it uses `luac -p` when Lua is installed: `luac` only parses the code and never runs it, and every error is reported with its line. For the other languages, and for Lua without `luac`, korTTY offers an AI syntax check instead.
 
 ### Editor profiles
 
@@ -545,6 +585,8 @@ Both diagram views — the standalone **Diagram** dialog and the **Full code ana
 
 Snippets can contain placeholders written as `${name}`. When you copy, insert or send a snippet, korTTY replaces exactly two kinds of them: the built-in variables below and the variables declared in the [Variable Manager](#variable-manager). Every other `${...}` reaches the editor, the clipboard or the shell exactly as written, so shell expansions such as `${HOME}`, `${1:-default}`, `${#array[@]}` and `${file%%.*}` keep working. The same rules apply everywhere a snippet is used: copying, inserting into an editor, both terminal sends, scheduled jobs, AI Swarm script runs and script headers.
 
+While you edit a snippet, the [structure panel](#structure-panel) lists its placeholders grouped by how they are treated.
+
 ### Built-in variables
 
 These variables are automatically replaced:
@@ -581,6 +623,8 @@ Write `$${name}` to get the literal text `${name}`, for example for a shell vari
 ### Scheduled and swarm runs
 
 JobScheduler snippet jobs and **Run script…** in the AI Swarm cannot ask for a value, so two more rules keep a variable nobody answered from silently turning into empty text: a declared variable without a stored value blocks the run, and so does an undeclared simple name such as `${target}`. Shell forms such as `${1:-default}`, `${#array[@]}` and `${file%%.*}`, positional and special parameters such as `${1}` and `${@}`, and the environment variables `${HOME}`, `${USER}`, `${PATH}` and `${PWD}` pass through. Write any other shell variable with the escape, for example `$${HOSTNAME}`.
+
+While you edit a snippet, the [structure panel](#structure-panel) shows these names in its **Asks on every use** and **Not declared** groups.
 
 ### Variable Manager
 

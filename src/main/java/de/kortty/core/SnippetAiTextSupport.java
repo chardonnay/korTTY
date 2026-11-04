@@ -72,6 +72,8 @@ public final class SnippetAiTextSupport {
     }
 
     private static final Pattern C_STYLE_BLOCK_COMMENT_PATTERN = Pattern.compile("(?s)/\\*(.*?)\\*/");
+    private static final Pattern LUA_LINE_COMMENT_PATTERN = Pattern.compile("(?m)^\\s*--(?!\\[=*\\[)(.*)$");
+    private static final Pattern LUA_BLOCK_COMMENT_PATTERN = Pattern.compile("(?s)--\\[(=*)\\[(.*?)]\\1]");
     private static final Pattern XML_COMMENT_PATTERN = Pattern.compile("(?s)<!--(.*?)-->");
     // Unrolled-loop form of (?:[^X\\]|\\.)* — same language, but plain characters are consumed by
     // a single possessive class instead of one recursive alternation step per character, which kept
@@ -97,6 +99,7 @@ public final class SnippetAiTextSupport {
                 extractHashStyleSegments(text, segments, normalizedLanguage);
             case "java", "javascript", "groovy" -> extractCStyleSegments(text, segments, true);
             case "sql" -> extractSqlSegments(text, segments);
+            case "lua" -> extractLuaSegments(text, segments);
             case "xml", "html" -> extractXmlSegments(text, segments);
             default -> {
                 return List.of();
@@ -384,6 +387,14 @@ public final class SnippetAiTextSupport {
         addGroupSegments(text, segments, SINGLE_QUOTED_PATTERN, 1, SegmentType.STRING);
     }
 
+    /** Lua: {@code --} line comments, {@code --[[ … ]]} block comments, single- and double-quoted strings. */
+    private static void extractLuaSegments(String text, List<EditableTextSegment> segments) {
+        addGroupSegments(text, segments, LUA_LINE_COMMENT_PATTERN, 1, SegmentType.COMMENT);
+        addGroupSegments(text, segments, LUA_BLOCK_COMMENT_PATTERN, 2, SegmentType.COMMENT);
+        addGroupSegments(text, segments, DOUBLE_QUOTED_PATTERN, 1, SegmentType.STRING);
+        addGroupSegments(text, segments, SINGLE_QUOTED_PATTERN, 1, SegmentType.STRING);
+    }
+
     private static void extractXmlSegments(String text, List<EditableTextSegment> segments) {
         addGroupSegments(text, segments, XML_COMMENT_PATTERN, 1, SegmentType.XML_COMMENT);
     }
@@ -453,7 +464,7 @@ public final class SnippetAiTextSupport {
             case "bash", "python", "perl", "ruby", "powershell", "dockerfile", "yaml", "properties" ->
                 new CommentFormat("#", null, false);
             case "java", "javascript", "typescript", "groovy" -> new CommentFormat("//", null, false);
-            case "sql" -> new CommentFormat("--", null, false);
+            case "sql", "lua" -> new CommentFormat("--", null, false);
             case "xml", "html" -> new CommentFormat("<!--", "-->", true);
             default -> null;
         };
