@@ -1251,6 +1251,14 @@ public final class SessionJournalHtmlRenderer {
               overflow:auto;max-height:min(340px,34vh);white-space:pre;min-width:0}
             .excerpt.input{color:var(--input);border-left:3px solid var(--input)}
             .excerpt.output{color:var(--output);border-left:3px solid var(--output)}
+            /* JavaFX WebKit paints native scrollbars in a last pass over everything, so the scrollbars of
+               these boxes showed through the docked log panel. Styled ones are painted with the page. */
+            .excerpt::-webkit-scrollbar,.chat-text pre::-webkit-scrollbar,
+              .chat-step-output::-webkit-scrollbar{width:8px;height:8px}
+            .excerpt::-webkit-scrollbar-thumb,.chat-text pre::-webkit-scrollbar-thumb,
+              .chat-step-output::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+            .excerpt::-webkit-scrollbar-corner,.chat-text pre::-webkit-scrollbar-corner,
+              .chat-step-output::-webkit-scrollbar-corner{background:transparent}
             .note{margin:8px 0 0;padding:6px 10px;border-left:3px solid var(--mark);
               background:var(--surface2);border-radius:0 8px 8px 0;font-size:.87em}
             .user-note .card{border-left:3px solid var(--mark)}

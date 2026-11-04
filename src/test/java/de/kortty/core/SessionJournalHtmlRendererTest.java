@@ -19,6 +19,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 class SessionJournalHtmlRendererTest {
 
@@ -151,6 +152,29 @@ class SessionJournalHtmlRendererTest {
         assertThat(html).contains("&lt;script&gt;");
         // The context menu offers the analysis entry (visibility is decided at runtime).
         assertThat(html).contains("ctxAnalyzeAi");
+    }
+
+    @Test
+    void everyScrollBoxHasAStyledScrollbar() {
+        // JavaFX WebKit paints native scrollbars over everything, the docked log panel included:
+        // two excerpt scrollbars once showed as bars inside the panel. Styled scrollbars stay under it.
+        document.getEntries().add(summaryEntry());
+        String html = renderer.render(document, sampleLog());
+        String css = html.substring(html.indexOf("<style"), html.indexOf("</style>"));
+        java.util.regex.Matcher rule = java.util.regex.Pattern
+            .compile("([^{}]+)\\{([^{}]*overflow(?:-[xy])?:(?:auto|scroll)[^{}]*)\\}").matcher(css);
+        List<String> boxes = new java.util.ArrayList<>();
+        while (rule.find()) {
+            for (String selector : rule.group(1).replaceAll("(?s)/\\*.*?\\*/", "").split(",")) {
+                boxes.add(selector.trim());
+            }
+        }
+
+        assertThat(boxes).containsAtLeast(".excerpt", ".chat-text pre", ".chat-step-output", ".log-body");
+        for (String box : boxes) {
+            assertWithMessage("scroll box " + box + " has no styled scrollbar")
+                .that(css.replaceAll("\\s+", " ")).contains(box + "::-webkit-scrollbar-thumb");
+        }
     }
 
     @Test
