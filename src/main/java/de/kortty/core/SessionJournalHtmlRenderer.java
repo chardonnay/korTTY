@@ -1277,6 +1277,13 @@ public final class SessionJournalHtmlRenderer {
               background:color-mix(in srgb,var(--muted) 75%,var(--surface));border-radius:6px}
             html::-webkit-scrollbar-thumb,.log-body::-webkit-scrollbar-thumb{
               border:2px solid transparent;background-clip:padding-box}
+            /* A long log shrinks the thumb in proportion — to 3 px for 4 000 lines: keep it big enough to grab. */
+            html::-webkit-scrollbar-thumb:vertical,.excerpt::-webkit-scrollbar-thumb:vertical,
+              .chat-text pre::-webkit-scrollbar-thumb:vertical,.chat-step-output::-webkit-scrollbar-thumb:vertical,
+              .log-body::-webkit-scrollbar-thumb:vertical{min-height:40px}
+            html::-webkit-scrollbar-thumb:horizontal,.excerpt::-webkit-scrollbar-thumb:horizontal,
+              .chat-text pre::-webkit-scrollbar-thumb:horizontal,.chat-step-output::-webkit-scrollbar-thumb:horizontal,
+              .log-body::-webkit-scrollbar-thumb:horizontal{min-width:40px}
             html::-webkit-scrollbar-thumb:hover,.excerpt::-webkit-scrollbar-thumb:hover,
               .chat-text pre::-webkit-scrollbar-thumb:hover,.chat-step-output::-webkit-scrollbar-thumb:hover,
               .log-body::-webkit-scrollbar-thumb:hover{background-color:var(--muted)}

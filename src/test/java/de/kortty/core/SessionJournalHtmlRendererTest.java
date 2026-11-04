@@ -206,6 +206,29 @@ class SessionJournalHtmlRendererTest {
     }
 
     @Test
+    void everyScrollbarThumbKeepsALengthTheMouseCanGrab() {
+        // 4 456 log lines once shrank the log panel's thumb to 3 px.
+        String html = renderer.render(document, sampleLog());
+        String css = html.substring(html.indexOf("<style"), html.indexOf("</style>")).replaceAll("\\s+", " ");
+        for (String box : List.of("html", ".excerpt", ".chat-text pre", ".chat-step-output", ".log-body")) {
+            for (String[] axis : new String[][] {{"vertical", "min-height"}, {"horizontal", "min-width"}}) {
+                java.util.regex.Matcher rule = java.util.regex.Pattern.compile("([^{}]*)\\{" + axis[1] + ":(\\d+)px\\}")
+                    .matcher(css);
+                boolean found = false;
+                while (rule.find()) {
+                    boolean covers = java.util.Arrays.stream(rule.group(1).replaceAll("/\\*.*?\\*/", "").split(","))
+                        .anyMatch(selector -> selector.trim().equals(box + "::-webkit-scrollbar-thumb:" + axis[0]));
+                    if (covers) {
+                        found = true;
+                        assertWithMessage(box + " " + axis[0]).that(Integer.parseInt(rule.group(2))).isAtLeast(24);
+                    }
+                }
+                assertWithMessage(box + " " + axis[0] + " thumb has no minimum length").that(found).isTrue();
+            }
+        }
+    }
+
+    @Test
     void scrollbarThumbsStandOutInBothThemes() {
         // The log panel's thumb was once painted in the border colour, about 1.2:1 on the panel, so the
         // log looked as if it had no scrollbar. Controls need 3:1 against what is around them.
