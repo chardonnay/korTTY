@@ -114,6 +114,42 @@ class SessionJournalSummarizerTest {
         waitForLogEntries(session.getDirectory(), outputLines + inputLines);
     }
 
+    /** A command typed at the prompt as the log records it: the typed line, its echo, its output. */
+    private void command(SessionJournalSession session, String line, String... output) {
+        long before = logSize(session.getDirectory());
+        session.appendInputLine(line);
+        session.appendOutputChunk("daniel@web01:~$ " + line + "\n");
+        for (String text : output) {
+            session.appendOutputChunk(text + "\n");
+        }
+        waitForLogEntries(session.getDirectory(), (int) before + 2 + output.length);
+    }
+
+    /** The shell back at its prompt. */
+    private void prompt(SessionJournalSession session) {
+        long before = logSize(session.getDirectory());
+        session.appendOutputChunk("daniel@web01:~$\n");
+        waitForLogEntries(session.getDirectory(), (int) before + 1);
+    }
+
+    private long logSize(Path dir) {
+        try {
+            Path file = SessionJournalLogReader.findPartFile(dir, 1);
+            return file != null ? SessionJournalLogReader.readPart(file).size() : 0;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    /** Waits until the closing pass cleared the journal's finish marker. */
+    private void awaitFinished(Path dir) throws Exception {
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < deadline && service.loadDocument(dir).getMeta().isFinishPending()) {
+            Thread.sleep(50);
+        }
+        assertThat(service.loadDocument(dir).getMeta().isFinishPending()).isFalse();
+    }
+
     private void waitForLogEntries(Path dir, int minimum) {
         long deadline = System.currentTimeMillis() + 5000;
         while (System.currentTimeMillis() < deadline) {
@@ -151,10 +187,11 @@ class SessionJournalSummarizerTest {
     }
 
     @Test
-    void summarizeNowCreatesAiEntryCoveringFullRangeWithCappedWindow() throws Exception {
-        settings.setSessionJournalAiMaxLines(2);
+    void finishedCommandsShareAnEntryCoveringTheirWholeRange() throws Exception {
         SessionJournalSession session = newLiveSession();
-        appendLines(session, 5, 3);
+        command(session, "uptime", " 11:40 up 3 days, load average: 0.42");
+        command(session, "df -h", "/dev/sda1  40G  12G  28G  30% /");
+        prompt(session);
         summarizer.register(session);
         summarizer.summarizeNow(session).get();
 
@@ -162,27 +199,186 @@ class SessionJournalSummarizerTest {
         assertThat(entries).hasSize(1);
         SessionJournalEntry entry = entries.get(0);
         assertThat(entry.getState()).isEqualTo(SessionJournalEntry.State.SUMMARIZED);
-        assertThat(entry.getTitle()).isEqualTo("Checked nginx");
-        assertThat(entry.getMarker()).isEqualTo(SessionJournalMarker.INFO);
+        assertThat(entry.getCommandState()).isNull();
         assertThat(entry.getLogStartSeq()).isEqualTo(1);
-        assertThat(entry.getLogEndSeq()).isEqualTo(8);
-        assertThat(entry.getInputExcerpt()).isNotEmpty();
-
-        // The prompt window was capped at 2 lines per stream, with an omission note.
-        String prompt = invoker.userPrompts.get(0);
-        assertThat(prompt).contains("User input (2 lines)");
-        assertThat(prompt).contains("Server output (2 lines)");
-        assertThat(prompt).contains("earlier input lines");
-        assertThat(prompt).contains("command-2");
-        assertThat(prompt).doesNotContain("command-0");
+        long end = session.getLastSequence();
+        assertThat(entry.getLogEndSeq()).isEqualTo(end);
+        assertThat(invoker.userPrompts.get(0)).contains("df -h");
+        assertThat(invoker.userPrompts.get(0)).contains("uptime");
 
         // Progress is persisted so nothing is re-summarized.
-        assertThat(service.loadDocument(session.getDirectory()).getMeta().getLastSummarizedSeq()).isEqualTo(8);
+        assertThat(service.loadDocument(session.getDirectory()).getMeta().getLastSummarizedSeq()).isEqualTo(end);
         summarizer.summarizeNow(session).get();
         assertThat(entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY)).hasSize(1);
         session.close();
     }
 
+    @Test
+    void aCommandLargerThanTheWindowIsCondensedIntoOneEntryNotSplit() throws Exception {
+        settings.setSessionJournalAiMaxLines(10);
+        SessionJournalSession session = newLiveSession();
+        List<String> output = new ArrayList<>();
+        for (int i = 0; i < 60; i++) {
+            output.add(i == 30 ? "error: package conflict in libfoo-" + i : "Upgrading libfoo-" + i);
+        }
+        command(session, "sudo dnf upgrade", output.toArray(String[]::new));
+        prompt(session);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        List<SessionJournalEntry> entries = entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY);
+        assertThat(entries).hasSize(1);
+        assertThat(entries.get(0).getLogEndSeq()).isEqualTo(session.getLastSequence());
+        assertThat(invoker.userPrompts).hasSize(1);
+        String prompt = invoker.userPrompts.get(0);
+        // the start, the error from the middle and the end — the rest marked as left out
+        assertThat(prompt).contains("Upgrading libfoo-0");
+        assertThat(prompt).contains("error: package conflict in libfoo-30");
+        assertThat(prompt).contains("Upgrading libfoo-59");
+        assertThat(prompt).doesNotContain("Upgrading libfoo-20\n");
+        assertThat(prompt).contains("lines left out ...]");
+        assertThat(prompt).contains("from the middle of its output were left out");
+        session.close();
+    }
+
+    @Test
+    void aCondensedCommandKeepsWhatItAskedBeforeTheReply() throws Exception {
+        settings.setSessionJournalAiMaxLines(10);
+        SessionJournalSession session = newLiveSession();
+        List<String> listing = new ArrayList<>();
+        for (int i = 0; i < 40; i++) {
+            listing.add(" libfoo-" + i + "   aarch64   updates");
+        }
+        listing.add("Transaction Summary: Upgrade 413 Packages");
+        command(session, "sudo dnf upgrade", listing.toArray(String[]::new));
+        session.appendOutputChunk("Is this ok [y/N]: ");
+        session.appendInputLine("y");
+        session.appendOutputChunk("y\n");
+        for (int i = 0; i < 40; i++) {
+            session.appendOutputChunk("[" + i + "/413] Upgrading libfoo-" + i + "\n");
+        }
+        session.appendOutputChunk("Complete!\n");
+        prompt(session);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        String prompt = invoker.userPrompts.get(0);
+        assertThat(prompt).contains("Transaction Summary: Upgrade 413 Packages");
+        assertThat(prompt).contains("Complete!");
+        session.close();
+    }
+
+    @Test
+    void aRunningCommandWaitsAndSummarizeNowMarksItRunningUntilItEnds() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        command(session, "sudo dnf upgrade", "Paketquellen geladen.", "[ 12/418] kernel-modules  40%");
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        Path dir = session.getDirectory();
+        List<SessionJournalEntry> running = entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY);
+        assertThat(running).hasSize(1);
+        assertThat(running.get(0).getCommandState()).isEqualTo(de.kortty.model.SessionJournalCommandState.RUNNING);
+        assertThat(invoker.userPrompts.get(0)).contains("still running");
+        // the running command is not done: the next pass reads it again
+        assertThat(service.loadDocument(dir).getMeta().getLastSummarizedSeq()).isEqualTo(0L);
+
+        session.appendOutputChunk("Abgeschlossen!\n");
+        prompt(session);
+        summarizer.summarizeNow(session).get();
+
+        List<SessionJournalEntry> entries = entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY);
+        assertThat(entries).hasSize(1);
+        assertThat(entries.get(0).getCommandState()).isNull();
+        assertThat(entries.get(0).getLogStartSeq()).isEqualTo(1);
+        assertThat(service.loadDocument(dir).getMeta().getLastSummarizedSeq()).isEqualTo(session.getLastSequence());
+        session.close();
+    }
+
+    @Test
+    void aCommandStillRunningAtTheSessionsEndIsSummarizedAsFarAsItGot() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        command(session, "tail -f /var/log/nginx/error.log", "connect() failed (111: Connection refused)");
+        summarizer.register(session);
+        Path dir = session.getDirectory();
+
+        summarizer.onSessionClosing(session);
+        session.close();
+        awaitFinished(dir);
+
+        List<SessionJournalEntry> entries = entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY);
+        assertThat(entries).hasSize(1);
+        assertThat(entries.get(0).getCommandState())
+            .isEqualTo(de.kortty.model.SessionJournalCommandState.ENDED_WITH_SESSION);
+        assertThat(invoker.userPrompts.get(0)).contains("The session ended before the shell showed its prompt again");
+    }
+
+    @Test
+    void theHeaderCountsCommandsWithoutTyposOrReplies() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        command(session, "lnks", "bash: lnks: command not found");
+        command(session, "sudo dnf upgrade", "[sudo] password for daniel:");
+        session.appendInputLine(""); // never recorded: an empty Enter
+        session.appendOutputChunk("Is this ok [y/N]: ");
+        waitForLogEntries(session.getDirectory(), 6);
+        session.appendInputLine("y");
+        session.appendOutputChunk("Is this ok [y/N]: y\n");
+        session.appendOutputChunk("Complete!\n");
+        command(session, "uptime", " 11:40 up 3 days");
+        prompt(session);
+        summarizer.register(session);
+        Path dir = session.getDirectory();
+
+        summarizer.onSessionClosing(session);
+        session.close();
+        awaitFinished(dir);
+
+        assertThat(service.loadDocument(dir).getMeta().getCommandCount()).isEqualTo(2L);
+    }
+
+    @Test
+    void aJournalLeftBehindByACrashIsFinishedWithItsEndAndWrapUp() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        command(session, "uptime", " 11:40 up 3 days");
+        prompt(session);
+        Path dir = session.getDirectory();
+        assertThat(service.loadDocument(dir).getMeta().isFinishPending()).isTrue();
+        session.close();
+        // as if korTTY had died while recording: no end, the finish marker still set
+        SessionJournalDocument document = service.loadDocument(dir);
+        document.getMeta().setEndedAt(null);
+        service.saveDocument(dir, document);
+
+        summarizer.finishClosedJournal(dir, invoker).get();
+
+        var meta = service.loadDocument(dir).getMeta();
+        assertThat(meta.getEndedAt()).isNotNull();
+        assertThat(meta.isFinishPending()).isFalse();
+        assertThat(entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY)).hasSize(1);
+        assertThat(entriesOf(dir, SessionJournalEntryKind.SESSION_SUMMARY)).hasSize(1);
+
+        // finishing again (a second restart) writes nothing twice
+        service.setFinishPending(dir, true);
+        summarizer.finishClosedJournal(dir, invoker).get();
+        assertThat(entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY)).hasSize(1);
+        assertThat(entriesOf(dir, SessionJournalEntryKind.SESSION_SUMMARY)).hasSize(1);
+    }
+
+    @Test
+    void theShellIntegrationsExitStatusReachesThePrompt() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        command(session, "make test", "FAILED: 2 of 40");
+        session.appendOutputChunk("\u001b]133;D;2\u0007");
+        session.appendOutputChunk("build-box ~/src \u2502\n");
+        waitForLogEntries(session.getDirectory(), 5);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        assertThat(invoker.userPrompts.get(0)).contains("[exit status 2]");
+        assertThat(entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY).get(0).getCommandState())
+            .isNull();
+        session.close();
+    }
     @Test
     void repeatedOutputLinesReachThePromptAsOneCountedLine() throws Exception {
         SessionJournalSession session = newLiveSession();
@@ -201,46 +397,50 @@ class SessionJournalSummarizerTest {
     }
 
     @Test
-    void chunkingProcessesWholeBacklogInMultipleWindows() throws Exception {
-        settings.setSessionJournalAiMaxLines(2);
+    void chunkingReadsALongCommandInPartsThatEndInOneEntry() throws Exception {
+        settings.setSessionJournalAiMaxLines(4);
         settings.setSessionJournalAiChunkingEnabled(true);
         SessionJournalSession session = newLiveSession();
-        appendLines(session, 5, 0);
+        command(session, "make", "cc -c a.c", "cc -c b.c", "cc -c c.c", "cc -c d.c", "ld -o app", "done");
+        prompt(session);
         summarizer.register(session);
         summarizer.summarizeNow(session).get();
 
-        // 5 output lines in chunks of 2 -> 3 windows -> 3 entries, ranges advancing.
         List<SessionJournalEntry> entries = entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY);
-        assertThat(entries).hasSize(3);
+        assertThat(entries).hasSize(1);
         assertThat(entries.get(0).getLogStartSeq()).isEqualTo(1);
-        assertThat(entries.get(2).getLogEndSeq()).isEqualTo(5);
-        assertThat(invoker.userPrompts).hasSize(3);
-        assertThat(invoker.userPrompts.get(0)).doesNotContain("earlier output lines");
+        assertThat(entries.get(0).getLogEndSeq()).isEqualTo(session.getLastSequence());
+        assertThat(invoker.userPrompts.size()).isGreaterThan(1);
+        String last = invoker.userPrompts.get(invoker.userPrompts.size() - 1);
+        assertThat(last).contains("of the output of one long command");
+        assertThat(last).contains("Journal entry for the earlier parts");
+        assertThat(invoker.userPrompts.get(0)).doesNotContain("Journal entry for the earlier parts");
         session.close();
     }
-
     @Test
-    void tokenBudgetModeFillsWindowWhenMaxLinesIsZero() throws Exception {
+    void tokenBudgetModeCondensesALongCommandWhenMaxLinesIsZero() throws Exception {
         settings.setSessionJournalAiMaxLines(0);
         settings.setSessionJournalAiTokenBudget(1_000); // clamped minimum; forces a small window
         SessionJournalSession session = newLiveSession();
+        String[] output = new String[60];
         for (int i = 0; i < 60; i++) {
-            session.appendOutputChunk("a rather long output line number " + i
-                + " with plenty of words to consume estimated tokens quickly\n");
+            output[i] = "a rather long output line number " + i
+                + " with plenty of words to consume estimated tokens quickly";
         }
-        waitForLogEntries(session.getDirectory(), 60);
+        command(session, "./report.sh", output);
+        prompt(session);
         summarizer.register(session);
         summarizer.summarizeNow(session).get();
 
         List<SessionJournalEntry> entries = entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY);
         assertThat(entries).hasSize(1);
         String prompt = invoker.userPrompts.get(0);
-        // The token budget kept the newest lines and omitted older ones.
+        // the token budget kept the start and the end of the command and left the middle out
+        assertThat(prompt).contains("number 0 ");
         assertThat(prompt).contains("number 59");
-        assertThat(prompt).contains("earlier output lines were omitted");
+        assertThat(prompt).contains("lines left out ...]");
         session.close();
     }
-
     @Test
     void unavailableAiProducesRawEntries() throws Exception {
         invoker.available = false;

@@ -179,6 +179,12 @@ public class SessionJournalService {
         if (metaCustomizer != null) {
             metaCustomizer.accept(meta);
         }
+        SessionJournalConfig config = configOverride != null ? configOverride : connection.getSessionJournalConfig();
+        if (meta.getSourceKind() == null) {
+            // Cleared by the closing pass; still set at the next start when korTTY quit or crashed first.
+            meta.setFinishPending(true);
+            meta.setAiSummariesOff(!config.isAiSummariesEnabled());
+        }
         saveDocumentInternal(directory, document);
 
         SessionJournalRedactor redactor = new SessionJournalRedactor();
@@ -188,7 +194,6 @@ public class SessionJournalService {
         // Policy replacements run on the capture thread, so an admin-mandated secret never
         // reaches the log at all — there is nothing to clean up afterwards.
         redactor.setReplacements(policyReplacements());
-        SessionJournalConfig config = configOverride != null ? configOverride : connection.getSessionJournalConfig();
         SessionJournalSession session = new SessionJournalSession(
             this,
             directory,
@@ -964,6 +969,103 @@ public class SessionJournalService {
                 saveDocumentInternal(journalDir, document);
             }
         }
+    }
+
+    /** Marks whether the journal still needs its closing pass; see {@link SessionJournalMeta#isFinishPending()}. */
+    public void setFinishPending(Path journalDir, boolean pending) throws IOException {
+        boolean changed;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            changed = document.getMeta().isFinishPending() != pending;
+            if (changed) {
+                document.getMeta().setFinishPending(pending);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        if (changed) {
+            notifyChanged(journalDir);
+        }
+    }
+
+    /** Records that a live journal's AI summaries were switched off (or on again), for its closing pass. */
+    public void setAiSummariesOff(Path journalDir, boolean off) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            if (document.getMeta().isAiSummariesOff() != off) {
+                document.getMeta().setAiSummariesOff(off);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+    }
+
+    /** Sets the number of commands the journal header shows. */
+    public void updateCommandCount(Path journalDir, long commandCount) throws IOException {
+        boolean changed;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            changed = document.getMeta().getCommandCount() != commandCount;
+            if (changed) {
+                document.getMeta().setCommandCount(commandCount);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        if (changed) {
+            notifyChanged(journalDir);
+        }
+    }
+
+    /**
+     * Removes every entry {@code filter} accepts, in one write, and returns how many went.
+     * Screenshot entries are never removed this way: their image files stay with them.
+     */
+    public int removeEntries(Path journalDir, java.util.function.Predicate<SessionJournalEntry> filter)
+            throws IOException {
+        int removed;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            int before = document.getEntries().size();
+            document.getEntries().removeIf(entry -> entry.getKind() != SessionJournalEntryKind.SCREENSHOT
+                && filter.test(entry));
+            removed = before - document.getEntries().size();
+            if (removed > 0) {
+                refreshErrorCount(document);
+                SessionJournalMarkers.pruneUnused(document);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        if (removed > 0) {
+            notifyChanged(journalDir);
+        }
+        return removed;
+    }
+
+    /**
+     * Gives a journal that korTTY quit or crashed on while recording the end it never got: the time
+     * of its last captured line, and its line and screenshot counts. A journal that was closed
+     * properly, or is still recording, is left alone; returns whether anything changed.
+     */
+    public boolean finalizeAbandoned(Path journalDir) throws IOException {
+        if (isLive(journalDir)) {
+            return false;
+        }
+        List<SessionJournalLogEntry> log = readLogAfter(journalDir, 0);
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            SessionJournalMeta meta = document.getMeta();
+            if (meta.getEndedAt() != null) {
+                return false;
+            }
+            OffsetDateTime end = !log.isEmpty() ? log.get(log.size() - 1).timestamp() : meta.getStartedAt();
+            meta.setEndedAt(end != null ? end : OffsetDateTime.now());
+            meta.setLogEntryCount(log.size());
+            meta.setScreenshotCount(log.stream()
+                .filter(entry -> entry.kind() == SessionJournalLogEntry.Kind.SCREENSHOT)
+                .count());
+            refreshErrorCount(document);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+        return true;
     }
 
     /**

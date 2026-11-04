@@ -155,7 +155,7 @@ public class SessionJournalSession implements AutoCloseable {
         this.maxLogSizeBytes = maxLogSizeBytes;
         this.maxLogParts = Math.max(1, maxLogParts);
         this.redactor = redactor;
-        this.ansiProcessor = new SessionJournalAnsiProcessor(this::handleEmittedOutputLine);
+        this.ansiProcessor = new SessionJournalAnsiProcessor(this::handleEmittedOutputLine, this::handleShellMark);
         this.writerThread = new Thread(this::writerLoop, "SessionJournal-Writer");
         this.writerThread.setDaemon(true);
     }
@@ -198,6 +198,12 @@ public class SessionJournalSession implements AutoCloseable {
      */
     public void setAiSummariesEnabled(boolean aiSummariesEnabled) {
         this.aiSummariesEnabled = aiSummariesEnabled;
+        try {
+            // the closing pass may run after a restart, when only the journal itself remembers the choice
+            service.setAiSummariesOff(directory, !aiSummariesEnabled);
+        } catch (IOException e) {
+            logger.warn("Could not record the AI summary choice of {}: {}", directory.getFileName(), e.getMessage());
+        }
     }
 
     /** Per-connection interval override in minutes; 0 = use the global default. */
@@ -513,6 +519,27 @@ public class SessionJournalSession implements AutoCloseable {
         if (!decision.suppressed()) {
             enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.OUT, text, false, false, null));
         }
+    }
+
+    /**
+     * A shell integration mark in the output ({@code OSC 133}), on the reader thread in stream order:
+     * a finished command ({@code D}, with its exit status) becomes a note right after its last output
+     * line, which lets the summarizer end the command there without guessing from the prompt.
+     */
+    private void handleShellMark(String payload) {
+        if (!payload.startsWith("133;D") || outputCaptureStopped) {
+            return;
+        }
+        Integer exitStatus = null;
+        if (payload.startsWith("133;D;")) {
+            String status = payload.substring("133;D;".length()).split(";", 2)[0].strip();
+            if (status.matches("-?\\d{1,9}")) {
+                exitStatus = Integer.valueOf(status);
+            }
+        }
+        flushPendingRepeatBlocking();
+        enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.NOTE,
+            SessionJournalCommandBlocks.finishedNote(exitStatus), false, false, null));
     }
 
     /** The counted tail of a duplicate run as one entry; timestamped with the LAST occurrence. */

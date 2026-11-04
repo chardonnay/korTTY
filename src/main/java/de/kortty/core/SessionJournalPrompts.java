@@ -78,6 +78,26 @@ final class SessionJournalPrompts {
             int omittedInputLines,
             List<String> inputLines,
             List<String> outputLines) {
+        return summaryUserPrompt(username, host, fromTime, toTime, omittedOutputLines, omittedInputLines,
+            List.of(), null, inputLines, outputLines);
+    }
+
+    /**
+     * Like the plain window prompt, with {@code notes} on how the excerpt was cut — one command
+     * condensed, still running, ended with the session, read in parts — and, for a later part of
+     * a command read in parts, the entry the earlier parts produced.
+     */
+    static String summaryUserPrompt(
+            String username,
+            String host,
+            OffsetDateTime fromTime,
+            OffsetDateTime toTime,
+            int omittedOutputLines,
+            int omittedInputLines,
+            List<String> notes,
+            String earlierEntry,
+            List<String> inputLines,
+            List<String> outputLines) {
         StringBuilder sb = new StringBuilder(1024);
         sb.append("Session: ").append(nullSafe(username)).append('@').append(nullSafe(host)).append(".\n");
         sb.append("Login user: ").append(nullSafe(username))
@@ -90,6 +110,15 @@ final class SessionJournalPrompts {
         if (omittedInputLines > 0 || omittedOutputLines > 0) {
             sb.append("[Note: ").append(omittedInputLines).append(" earlier input lines and ")
                 .append(omittedOutputLines).append(" earlier output lines were omitted to fit the window.]\n");
+        }
+        for (String note : notes) {
+            sb.append("[Note: ").append(note).append("]\n");
+        }
+        if (earlierEntry != null && !earlierEntry.isBlank()) {
+            sb.append("\nJournal entry for the earlier parts (your own previous answer; its statements count"
+                + " as shown):\n");
+            sb.append(AiPromptBuilder.toSafeTextCodeBlock(earlierEntry));
+            sb.append('\n');
         }
         sb.append("\nUser input (").append(inputLines.size()).append(" lines):\n");
         sb.append(AiPromptBuilder.toSafeTextCodeBlock(String.join("\n", inputLines)));
