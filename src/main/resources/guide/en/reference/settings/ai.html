@@ -840,6 +840,14 @@
         <p><h1 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h1>
 <p>Every AI setting lives in one place: <strong>AI → AI Manager</strong>. Its first tab, <strong>General</strong>, holds the options that are not part of a profile (feature switches, the terminal agent, defaults for snippet actions, internet tools) on four section tabs; <strong>Profiles</strong> holds the AI profiles with their model, connection, limits and budget; <strong>Local Models</strong>, <strong>Knowledge Stores</strong>, <strong>AI Skills</strong> and <strong>Local AI</strong> the rest. The values are stored in <code>~/.kortty/global-settings.xml</code>. The Global Settings window has no AI tab any more.</p>
 <p><img alt="AI Manager, General tab" src="../../assets/screenshots/ai/ai-manager-general.png" /></p>
+<h2 id="searching-the-ai-manager">Searching the AI Manager<a class="headerlink" href="#searching-the-ai-manager" title="Permanent link">&para;</a></h2>
+<p>A search line sits at the top of the AI Manager, above its tabs, like the search of the settings dialog. Type a word and the matching options are listed; choosing one opens its page, scrolls to the option and highlights it. <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> on Windows and Linux) jumps to the line from the tabs and their pages.</p>
+<p><img alt="The AI Manager search line with the options that match Agent, listed by page" src="../../assets/screenshots/ai/ai-manager-search.png" /></p>
+<ul>
+<li><strong>General</strong>, <strong>Profiles</strong> and <strong>Local AI</strong> are searched by their own options, also before you open their tabs for the first time.</li>
+<li><strong>Local Models</strong>, <strong>Knowledge Stores</strong>, <strong>AI Skills</strong> and <strong>Memory</strong> are found by their names and by keywords, for example <em>GGUF</em> or <em>Hugging Face</em> for Local Models, <em>RAG</em> or <em>embeddings</em> for Knowledge Stores, <em>GitHub</em> or <em>import</em> for AI Skills, and <em>remember</em> or <em>MEMORY.md</em> for Memory.</li>
+<li>Inside the editors of the <strong>AI Skills</strong> and <strong>Memory</strong> pages, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> keep their own find in the editor; the search line is then reached with the mouse.</li>
+</ul>
 <h2 id="general-tab">General tab<a class="headerlink" href="#general-tab" title="Permanent link">&para;</a></h2>
 <p><strong>AI → AI Manager → General</strong> groups the global options on four section tabs. <strong>Save</strong> under the sections writes all of them; closing the AI Manager saves them as well.</p>
 <table>
@@ -1418,10 +1426,10 @@
 <li><strong>Local CLI</strong>: Execute a local command-line AI client (configure CLI provider, custom executable, arguments template, and custom model name).</li>
 <li><strong>Integrated llama.cpp</strong>: Choose the installed chat GGUF in <strong>Local GGUF model</strong>. korTTY acquires a private loopback <code>llama-server</code> lease for it; the API URL and profile API key are managed by korTTY and are not editable.</li>
 </ul>
-<p>An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the <strong>Default profile</strong>. Configure those roles and the local runtime under <strong>AI &gt; AI Manager &gt; Local AI</strong>; see <a href="../../features/local-models.html">Local models with llama.cpp</a>.</p>
+<p>An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the <strong>Default profile</strong>. Configure those roles and the local runtime under <strong>AI &gt; AI Manager &gt; Local AI</strong>; see <a href="../../features/local-models.html">Local models with llama.cpp</a>. Terminal agent runs follow their own order, which includes the AI agent profile; see <a href="#local-ai-manager-settings">Local AI manager settings</a>.</p>
 <p>The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.</p>
 <h3 id="local-ai-manager-settings">Local AI manager settings<a class="headerlink" href="#local-ai-manager-settings" title="Permanent link">&para;</a></h3>
-<p><strong>AI &gt; AI Manager &gt; Local AI</strong> groups these settings on three section tabs: <strong>Profile roles</strong> (the three profile selectors), <strong>Local runtime</strong> (runtime updates, preferred backend, RAG embedding model ID) and <strong>Hugging Face</strong> (the token). <strong>Save</strong> under the sections writes all of them.</p>
+<p><strong>AI &gt; AI Manager &gt; Local AI</strong> groups these settings on three section tabs: <strong>Profile roles</strong> (the four profile selectors), <strong>Local runtime</strong> (runtime updates, preferred backend, RAG embedding model ID) and <strong>Hugging Face</strong> (the token). <strong>Save</strong> under the sections writes all of them.</p>
 <table>
 <thead>
 <tr>
@@ -1443,6 +1451,12 @@
 <td>Configured AI profile, or use default</td>
 <td>Use default</td>
 <td><code>codingAiProfileId</code></td>
+</tr>
+<tr>
+<td>AI agent profile</td>
+<td>Configured AI profile, or empty (the Coding profile, then the default)</td>
+<td>Empty</td>
+<td><code>terminalAgentAiProfileId</code></td>
 </tr>
 <tr>
 <td>Session journal profile</td>
@@ -1476,6 +1490,7 @@
 </tr>
 </tbody>
 </table>
+<p>The <strong>AI agent profile</strong> is the role of the terminal <a href="../../features/ai-tools.html">AI agent</a>. The profile of a run is chosen in this order: first the profile picked in the run's setup or plan dialog, or named in the agent command; then the connection's own AI profile; then the AI agent profile; then the Coding profile; and finally the default profile. A profile that no longer exists is skipped and the next level applies. An empty AI agent profile keeps the previous behaviour, the Coding profile and then the default profile. Ask runs use the same order.</p>
 <p><strong>Automatic (keep active backend)</strong> retains the active runtime package backend for updates. With no installed package, Auto initially selects Metal on macOS and CPU elsewhere. Starting a model configured for another supported GPU backend offers to install the matching signed package.</p>
 <p>The <strong>Local Models &gt; Setup assistant</strong> exposes optional Text, Coding, and RAG-embedding slots. It verifies every selected fixed revision, quantization, license, and exact size before starting its asynchronous runtime/model installation, runs a real chat or embedding test for each installed GGUF, and saves the resulting role assignments only after all tests succeed. The Text and Coding slots may share one model. <strong>Configure</strong> refuses to replace a model's persisted runtime settings while that model is serving an active request.</p>
 <p>Knowledge stores assigned to the Text/Coding roles add only bounded, cited excerpts to matching normal terminal and snippet AI requests, never the complete knowledge store. A cloud Text/Coding profile receives those excerpts over its configured provider connection, so assigning the knowledge store to that role/profile is explicit permission for that disclosure. Agent, Planning, Swarm, and scheduled autonomous prompts remain a separate opt-in; see <a href="../../features/rag.html">RAG knowledge stores</a>.</p>

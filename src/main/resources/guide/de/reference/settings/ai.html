@@ -840,6 +840,14 @@
         <p><h1 id="ki">KI<a class="headerlink" href="#ki" title="Permanent link">&para;</a></h1>
 <p>Jede KI-Einstellung befindet sich an einem Ort: <strong>KI → KI-Manager</strong>. Ihr erster Tab, <strong>Allgemein</strong>, enthält die Optionen, die nicht Teil eines Profils sind (Funktionsschalter, der Terminal-Agent, Vorgaben für Snippet-Aktionen, Internet-Tools) auf vier Abschnitts-Tabs; <strong>Profile</strong> enthält die KI-Profile mit ihrem Modell, ihrer Verbindung, ihren Grenzen und Budget; <strong>Lokale Modelle</strong>, <strong>Wissensspeicher</strong>, <strong>KI-Skills</strong> und <strong>Lokale KI</strong> den Rest. Die Werte werden in <code>~/.kortty/global-settings.xml</code> gespeichert. Das Fenster Globale Einstellungen hat keinen KI-Tab mehr.</p>
 <p><img alt="KI-Manager, General tab" src="../../../en/assets/screenshots/ai/ai-manager-general.png" /></p>
+<h2 id="searching-the-ai-manager">Suche im KI-Manager<a class="headerlink" href="#searching-the-ai-manager" title="Permanent link">&para;</a></h2>
+<p>Oben im KI-Manager, über seinen Tabs, befindet sich eine Suchzeile, ähnlich der Suche im Einstellungsdialog. Geben Sie ein Wort ein, und die passenden Optionen werden aufgelistet; die Auswahl einer davon öffnet deren Seite, scrollt zur Option und hebt sie hervor. <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> unter Windows und Linux) springt von den Tabs und deren Seiten zur Suchzeile.</p>
+<p><img alt="The KI-Manager search line with the options that match Agent, listed by page" src="../../../en/assets/screenshots/ai/ai-manager-search.png" /></p>
+<ul>
+<li><strong>Allgemein</strong>, <strong>Profile</strong> und <strong>Lokale KI</strong> werden über ihre eigenen Optionen durchsucht, auch bevor Sie ihre Tabs zum ersten Mal öffnen.</li>
+<li><strong>Lokale Modelle</strong>, <strong>Wissensspeicher</strong>, <strong>KI-Skills</strong> und <strong>Memory</strong> werden über ihre Namen und über Schlüsselwörter gefunden, beispielsweise <em>GGUF</em> oder <em>Hugging Face</em> für Lokale Modelle, <em>RAG</em> oder <em>embeddings</em> für Wissensspeicher, <em>GitHub</em> oder <em>import</em> für KI-Skills sowie <em>remember</em> oder <em>MEMORY.md</em> für Memory.</li>
+<li>In den Editoren der Seiten <strong>KI-Skills</strong> und <strong>Memory</strong> behalten <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> ihre eigene Suche im Editor; die Suchzeile wird dann mit der Maus erreicht.</li>
+</ul>
 <h2 id="general-tab">Allgemeiner Tab<a class="headerlink" href="#general-tab" title="Permanent link">&para;</a></h2>
 <p><strong>KI → KI-Manager → Allgemein</strong> gruppiert die globalen Optionen auf vier Abschnittstabellen. <strong>Speichern</strong> unter den Abschnitten schreibt alle; das Schließen des KI-Managers speichert sie ebenfalls.</p>
 <table>
@@ -904,7 +912,7 @@
 </tr>
 </tbody>
 </table>
-<p>Wenn <strong>Bestätigungsdialog vor dem Senden an die KI anzeigen</strong> aktiviert ist, zeigen <strong>Zusammenfassen</strong>, <strong>Letzte Ausgabe zusammenfassen</strong> und <strong>Problem lösen</strong> im <strong>KI</strong>-Kontextmenü des Terminals an, was sie an die KI senden, und warten auf eine Bestätigung. <strong>Fragen</strong> öffnet immer seinen Dialog, da die Frage dort eingegeben wird. Der Terminal-Agent hat vor jedem Start einen eigenen Dialog; er wird unter <a href="#ki-agent-im-terminal">Terminal-KI-Agent</a> über <strong>Terminal-Agent-Abfrage vor jedem Start anzeigen</strong> deaktiviert.</p>
+<p>Wenn <strong>Bestätigungsdialog vor dem Senden an die KI anzeigen</strong> aktiviert ist, zeigen <strong>Zusammenfassen</strong>, <strong>Letzte Ausgabe zusammenfassen</strong> und <strong>Problem lösen</strong> im <strong>KI</strong>-Kontextmenü des Terminals an, was sie an die KI senden, und warten auf eine Bestätigung. <strong>Fragen</strong> öffnet immer seinen Dialog, da die Frage dort eingegeben wird. Der Terminal-Agent hat vor jedem Start einen eigenen Dialog; er wird unter <a href="#ki-agent-im-terminal">KI-Agent im Terminal</a> über <strong>Terminal-Agent-Abfrage vor jedem Start anzeigen</strong> deaktiviert.</p>
 <p><strong>KI-Chat-Codeblöcke im Terminal</strong> legt fest, welche Schaltflächen die Codeblöcke eines KI-Chats anbieten: <strong>Einfügen</strong> gibt einen Block an der Eingabeaufforderung eines Terminalbereichs ein, ohne Enter zu drücken, und <strong>Ausführen</strong> führt eine einzelne Shell-Befehlszeile nach einer Bestätigung aus. Die Unternehmensrichtlinie kann nur weitere Schaltflächen wegnehmen. Siehe <a href="../../features/ai-assistant.html#codeblocke-im-terminal">Codeblöcke im Terminal</a>.</p>
 <h2 id="ki-agent-im-terminal">KI-Agent im Terminal<a class="headerlink" href="#ki-agent-im-terminal" title="Permanent link">&para;</a></h2>
 <table>
@@ -1418,10 +1426,10 @@
 <li><strong>Lokale CLI</strong>: Ausführung eines lokalen Befehlszeilen-Tools für KI (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte Ausführbarkeit, die Argumentenvorlage und den benutzerdefinierten Modellnamen).</li>
 <li><strong>Integriertes llama.cpp</strong>: Wählen Sie den installierten Chat-GGUF im <strong>Lokalen GGUF-Modell</strong> aus. korTTY erhält einen privaten Loopback-<code>llama-server</code>-Zugriff (Lease) dafür; die API-URL und das Profil-API-Schlüssel werden von korTTY verwaltet und sind nicht bearbeitbar.</li>
 </ul>
-<p>Ein explizit ausgewählter oder sicherheitsgeprüfter Profil bleibt am spezifischsten. Andernfalls verwenden Aktionen im Terminal den konfigurierten Textprofil, Aktionen im Code das Coding-Profil, und ein nicht zugewiesenes Rolle fällt auf das <strong>Standardprofil</strong> zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter <strong>KI &gt; KI-Manager &gt; Lokale KI</strong>; siehe <a href="../../features/local-models.html">Lokale Modelle mit llama.cpp</a>.</p>
+<p>Ein explizit gewähltes oder für Sicherheitsprüfungen bestimmtes Profil hat die höchste Priorität. Andernfalls verwenden Terminal-Textaktionen das konfigurierte Text-Profil, Code-Aktionen das Coding-Profil, und eine nicht zugewiesene Rolle fällt auf das <strong>Standardprofil</strong> zurück. Konfigurieren Sie diese Rollen und die Lokale Laufzeit unter <strong>KI &gt; KI-Manager &gt; Lokale KI</strong>; siehe <a href="../../features/local-models.html">Lokale Modelle mit llama.cpp</a>. Ausführungen des Terminal-Agenten folgen ihrer eigenen Reihenfolge, die das Profil für den KI-Agenten umfasst; siehe <a href="#einstellungen-des-lokalen-ki-managers">Einstellungen des lokalen KI-Managers</a>.</p>
 <p>Der KI-Manager ist moduslos und kann während der Nutzung des Hauptfensters geöffnet bleiben. Ein erneutes Aufrufen des Managers führt dazu, dass der gleiche Manager für das Hauptfenster wiederhergestellt und gefokussiert wird, und der offene primäre Abschnitt bleibt bei Interaktion mit den Steuerelementen sichtbar mit einem fett unterstrichenen Akzent.</p>
 <h3 id="einstellungen-des-lokalen-ki-managers">Einstellungen des lokalen KI-Managers<a class="headerlink" href="#einstellungen-des-lokalen-ki-managers" title="Permanent link">&para;</a></h3>
-<p><strong>KI &gt; KI-Manager &gt; Lokale KI</strong> gruppiert diese Einstellungen in drei Abschnittstabs: <strong>Profil-Rollen</strong> (die drei Profil-Auswahlfelder), <strong>Lokale Laufzeit</strong> (Laufzeit-Updates, bevorzugtes Backend, RAG-Embedding-Modell-ID) und <strong>Hugging Face</strong> (der Token). <strong>Speichern</strong> unter den Abschnitten schreibt alle davon.</p>
+<p><strong>KI &gt; KI-Manager &gt; Lokale KI</strong> gruppiert diese Einstellungen in drei Tab-Abschnitten: <strong>Profil-Rollen</strong> (die vier Profil-Auswahlfelder), <strong>Lokale Laufzeit</strong> (Laufzeit-Updates, bevorzugtes Backend, RAG-Embedding-Modell-ID) und <strong>Hugging Face</strong> (der Token). Über <strong>Speichern</strong> unter den Abschnitten werden alle davon gespeichert.</p>
 <table>
 <thead>
 <tr>
@@ -1443,6 +1451,12 @@
 <td>konfiguriertes KI-Profil oder Standard verwenden</td>
 <td>Standard verwenden</td>
 <td><code>codingAiProfileId</code></td>
+</tr>
+<tr>
+<td>Profil für den KI-Agenten</td>
+<td>Konfiguriertes KI-Profil oder leer (dann das Coding-Profil, dann der Standard)</td>
+<td>Leer</td>
+<td><code>terminalAgentAiProfileId</code></td>
 </tr>
 <tr>
 <td>Sitzungsjournal-Profil</td>
@@ -1476,6 +1490,7 @@
 </tr>
 </tbody>
 </table>
+<p>Das <strong>Profil für den KI-Agenten</strong> ist die Rolle des <a href="../../features/ai-tools.html">KI-Agent</a> im Terminal. Das Profil eines Laufs wird in dieser Reihenfolge gewählt: zuerst das Profil, das im Setup- oder Plan-Dialog des Laufs ausgewählt wurde oder im Agenten-Befehl benannt ist; dann das eigene KI-Profil der Verbindung; dann das Profil für den KI-Agenten; dann das Coding-Profil; und schließlich das Standardprofil. Ein Profil, das nicht mehr existiert, wird übersprungen und das nächste Level gilt. Ein leeres Profil für den KI-Agenten behält das vorherige Verhalten bei, nämlich das Coding-Profil und dann das Standardprofil. Ask-Läufe verwenden dieselbe Reihenfolge.</p>
 <p><strong>Automatisch (aktives Backend beibehalten)</strong> behält das aktive Runtime-Paket-Backend für Updates. Bei fehlenden installierten Paketen wählt Auto standardmäßig Metal unter macOS und CPU an anderen Orten. Das Starten eines Modells, das für ein anderes unterstütztes GPU-Backend konfiguriert ist, bietet die Installation des entsprechenden signierten Pakets an.</p>
 <p>Der <strong>Local Models &gt; Einrichtungsassistent</strong> bietet optionale Text-, Coding- und RAG-Embedding-Slots an. Er überprüft jede ausgewählte feste Revision, Quantisierung, Lizenz und genaue Größe vor dem Start des asynchronen Runtime/Modell-Installationsprozesses, führt für jedes installierte GGUF ein echtes Chat- oder Embedding-Test durch und speichert die resultierenden Rolle-Zuweisungen erst dann, wenn alle Tests erfolgreich sind. Die Text- und Coding-Slots können ein gemeinsames Modell teilen. <strong>Konfigurieren</strong> weigert sich, die persistierten Runtime-Einstellungen eines Modells zu ersetzen, während dieses eine aktive Anfrage bearbeitet.</p>
 <p>Die Wissensspeicher, die der Text/Coding-Rolle zugewiesen sind, fügen lediglich begrenzte, zitierten Ausschnitte zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, nie den gesamten Wissensspeicher. Ein Cloud-Text/Coding-Profil erhält diese Ausschnitte über seine konfigurierte Verbindung mit dem Anbieter, weshalb die Zuweisung des Wissensspeichers an diese Rolle oder Profil explizite Genehmigung für diese Offenlegung darstellt. Agenten, Planung, Swarm und geplante autonome Prompts bleiben eine separate Option; siehe <a href="../../features/rag.html">Wissensspeicher für RAG</a>.</p>
