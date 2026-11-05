@@ -59,3 +59,7 @@ vendor/sithtermfx/
 
 # KorTTY user data (optional - uncomment to ignore)
 # .kortty/
+
+# JVM crash logs and JIT replay files
+hs_err_pid*.log
+replay_pid*.log
