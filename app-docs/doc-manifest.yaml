@@ -392,7 +392,7 @@ pages:
     owns_i18n: [isolation., connEdit.isolation., connManager.group.isolation, menu.file.newIncognitoSession, menu.tools.sessionProcesses, sessionProcesses.]
     owns_code: [src/main/java/de/kortty/isolation, src/main/java/de/kortty/ui/IsolationMarkers.java, src/main/java/de/kortty/ui/IsolationConnectionSupport.java, src/main/java/de/kortty/model/ConnectionGroupIsolationEntry.java, src/main/java/de/kortty/core/worker, src/main/java/de/kortty/ui/SessionProcessesDialog.java]
     screenshots: [main/session-isolation-tabs.png]
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "1ebbe724"
   - path: app-docs/site/docs/en/features/backup.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/BackupManager.java, src/main/java/de/kortty/core/BackupSecretReKeyer.java]
