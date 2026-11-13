@@ -43,6 +43,27 @@ public final class JournalingAgentCommandRunner implements AgentCommandRunner {
             boolean useTrackedWorkingDirectory) throws Exception {
         recorder.appendCommand(command);
         ExecResult result = delegate.exec(command, stdin, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+        recordResult(command, result);
+        return result;
+    }
+
+    @Override
+    public ExecResult execWithSudo(
+            String command,
+            AgentSudoAuthentication auth,
+            Consumer<String> outputConsumer,
+            BooleanSupplier cancellationSupplier,
+            boolean useTrackedWorkingDirectory) throws Exception {
+        recorder.appendCommand(auth.displayCommand());
+        ExecResult result = delegate.execWithSudo(command, auth, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+        if (result != null) {
+            recordResult(auth.displayCommand(), new ExecResult(auth.redact(result.stdout()), auth.redact(result.stderr()),
+                result.exitCode(), result.cancelled(), result.timedOut()));
+        }
+        return result;
+    }
+
+    private void recordResult(String command, ExecResult result) {
         if (result != null) {
             recorder.appendOutput(result.stdout(), result.stderr());
             if (result.cancelled()) {
@@ -53,7 +74,6 @@ public final class JournalingAgentCommandRunner implements AgentCommandRunner {
                 recorder.appendLogNote("exit " + result.exitCode() + ": " + command);
             }
         }
-        return result;
     }
 
     @Override

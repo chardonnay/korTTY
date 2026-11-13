@@ -31,6 +31,16 @@ public interface AgentCommandRunner {
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception;
 
+    /** Runs a POSIX command with a separate password exchange on the exec channel. */
+    default ExecResult execWithSudo(
+        String command,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
+        throw new UnsupportedOperationException("This command runner does not support sudo authentication.");
+    }
+
     /** Runs the environment probe and returns its raw {@code key=value} stdout in an {@link ExecResult}. */
     ExecResult runProbe(boolean useTrackedWorkingDirectory, BooleanSupplier cancellationSupplier) throws Exception;
 

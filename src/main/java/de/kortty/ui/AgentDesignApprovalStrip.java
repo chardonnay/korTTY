@@ -81,12 +81,13 @@ final class AgentDesignApprovalStrip extends HBox {
     }
 
     void showPassword(TerminalAgentModels.PasswordRequest request, Consumer<TerminalAgentModels.PasswordResponse> answer) {
-        String summary = request != null && request.summary() != null && !request.summary().isBlank()
-            ? request.summary().strip()
+        String text = request != null && request.userMessage() != null && !request.userMessage().isBlank()
+            ? request.userMessage().strip()
             : I18n.get("ai.agent.password.title");
         message.setText(request != null && request.command() != null && !request.command().isBlank()
-            ? summary + "  $ " + request.command().strip()
-            : summary);
+            ? text + "  $ " + request.command().strip()
+            : text);
+        message.setTooltip(new javafx.scene.control.Tooltip(message.getText()));
         PasswordField field = new PasswordField();
         field.getStyleClass().add("ai-agent-password-field");
         field.setPromptText(I18n.get("common.password"));

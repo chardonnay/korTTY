@@ -177,18 +177,16 @@ Für eine Verbindung, bei der der Agent niemals Befehle ausführen darf, etwa ei
 
 ### Privilegienbehandlung
 
-- **Sudo-Erkennung** – Der Agent erkennt, ob der aktuelle Benutzer Sudo-Zugriff hat und ob ein Passwort erforderlich ist.
-- **Passwortloses Sudo** – Wenn `sudo -n` (Sudo ohne Passwort) verfügbar ist, verwendet der Agent es ohne Aufforderung.
-- **Passwortabfragen** – Wenn ein Passwort erforderlich ist, fordert der Agent es über ein Passworteingabefeld im Aktivitätsbereich an (maskiert, nicht an das Terminal gesendet).
+- **Sudo-Authentifizierung** – korTTY validiert sudo, bevor der geplante Befehl ausgeführt wird. Wenn die Validierung ohne Passwort erfolgreich ist, überspringt das Aktivitätsfenster die Passwortabfrage. Der Befehl wird dann gemäß den sudo-Regeln des Servers ausgeführt.
+- **Passwortabfragen** – Wenn für die sudo-Validierung ein Passwort erforderlich ist, öffnet korTTY ein maskiertes Feld im Aktivitätsbereich. Nur der Validierungsprozess erhält das Passwort. korTTY schließt diese Eingabe, bevor der geplante Befehl ausgeführt wird.
 - **Wiederholungen mit Passwort** – Bis zu drei Wiederholungen mit falschem Passwort sind zulässig, bevor der Lauf abgebrochen wird.
-- **Kein `sudo -S`** – KorTTY lässt `sudo -S` (Standardkennwort) oder andere interaktive Kennwortmethoden in automatisierten Läufen nicht zu.
-- **Sitzungscaching** – Sudo-Passwörter können für die aktuelle Sitzung zwischengespeichert werden, sodass Sie sie nicht für jeden Befehl im selben Lauf erneut eingeben müssen.
+- **Session-Caching** – Wählen Sie **Für diese SSH-Sitzung verwenden**, um das Passwort nach einem erfolgreichen privilegierten Befehl zwischenzuspeichern. korTTY behält es für die Verbindung dieses Terminalfensters im Speicher, bis die Verbindung getrennt wird, und fragt erneut nach, wenn sudo es ablehnt.
+- **Befehlsaufbau** – Verwenden Sie pro Agentenschritt einen direkten sudo-Befehl. Mit einem Here-Dokument können Sie Eingaben an diesen Befehl übergeben. Pipelines und zusammengesetzte Befehle können sudo in einem anderen Prozess starten. Teilen Sie solche Befehle bei Bedarf auf mehrere Schritte auf. Die sudo-Option `-k` umgeht die zuvor bestätigte Authentifizierung. Bei Servern, die sudo-Anmeldedaten nicht zwischenspeichern oder die sudo-Validierung ablehnen, müssen Sie den Befehl möglicherweise im interaktiven Terminal ausführen.
 
 ### Genehmigungstore
 
-- **Mutierende Befehle** – Standardmäßig bittet der Agent um Genehmigung, bevor er Befehle ausführt, die das System ändern (es sei denn, die automatische Genehmigung ist in den Einstellungen aktiviert).
-- **Bestätigungsdialog** — Der Genehmigungsdialog (**KI-Agent-Bestätigung**) zeigt die geplanten Befehle und deren Zwecke. Sie können **Einmal erlauben**, **Immer erlauben** für die verbleibenden Befehle im Lauf wählen oder abbrechen.
-- **Sudo-Preflight** – Nach der Annahme eines Planungsberichts führt KorTTY die Preflight-Prüfung unmittelbar nach der Annahme durch, wenn der Plan Sudo erfordert und Ihre SSH-Sitzung ein Sudo-Passwort erfordert, damit die Ausführung später nicht unterbrochen wird.
+- **Privilegierte oder systemverändernde Befehle** – Standardmäßig fragt der Agent nach einer Genehmigung, bevor er Befehle ausführt, die sudo verwenden oder das System verändern.
+- **Bestätigungsdialog** – Der Genehmigungsdialog (**KI-Agent-Bestätigung**) zeigt die geplanten Befehle und deren Zweck an. Wählen Sie **Einmal erlauben** für die angezeigten Befehle oder **Immer erlauben** für die verbleibenden Befehle im Durchlauf. korTTY kann weiterhin nach einem sudo-Passwort fragen.
 
 ### Verzeichnisverfolgung
 
@@ -312,9 +310,9 @@ So starten Sie eine Agentenaufgabe:
    - Echtzeit-Befehlsausgabe während der Ausführung
    - Alle Genehmigungs- oder Passwortanfragen
 
-5. **Genehmigungen** — Wenn der Agent Genehmigung benötigt, um systemverändernde Befehle auszuführen, klicken Sie auf **Einmal erlauben** (nur dieses Set) oder **Immer erlauben** (alle verbleibenden Sets im Lauf), oder klicken Sie auf **Abbrechen**.
+5. **Genehmigungen** – Wenn der Agent darum bittet, Befehle auszuführen, die sudo verwenden oder das System ändern, wählen Sie **Einmal erlauben**, **Immer erlauben** oder **Abbrechen**.
 
-6. **Sudo-Passwort** – Geben Sie Ihr Sudo-Passwort ein, wenn Sie dazu aufgefordert werden. Es kann optional für die Sitzung zwischengespeichert werden.
+6. **Sudo-Passwort** – Geben Sie bei entsprechender Aufforderung Ihr sudo-Passwort ein. Wählen Sie **Für diese SSH-Sitzung verwenden** aus, um es bis zur Trennung der Verbindung erneut zu verwenden.
 
 7. **Die Ausführung wird abgeschlossen**, wenn die Aufgabe erfolgreich ist, durch einen Fehler blockiert oder vom Benutzer abgebrochen wird.
 
@@ -338,8 +336,7 @@ Der Planungsmodus (`agent-plan` oder `agent -plan`) bietet vor der Ausführung e
 1. **Klärende Fragen** – Der Agent stellt Folgefragen, um Ihre Anforderungen zu verstehen.
 2. **Optionen vorschlagen** – Basierend auf Ihren Antworten schlägt der Agent einen oder mehrere Ansätze mit Machbarkeit, Risiken und Voraussetzungen vor.
 3. **Endgültiger Plan** – Nachdem Sie einen Ansatz ausgewählt haben, erstellt der Agent einen detaillierten endgültigen Plan mit Schritten, Erfolgskriterien und Risiken.
-4. **Implementieren** – Erst nachdem Sie überprüft und auf **Implementieren** geklickt haben, beginnt die Ausführung.
-5. **Sudo-Preflight** – Wenn der Plan Sudo erfordert und ein Passwort benötigt wird, überprüft KorTTY das Passwort sofort, damit die Ausführung später nicht unterbrochen wird.
+4. **Umsetzen** – Überprüfen Sie den Plan und klicken Sie auf **Umsetzen**, um mit der Ausführung zu beginnen. Der Agent fordert ein sudo-Passwort an, wenn ein Befehl dies erfordert.
 
 ## Einstellungen und Konfiguration
 

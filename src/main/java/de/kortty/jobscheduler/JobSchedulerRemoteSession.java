@@ -3,6 +3,7 @@ package de.kortty.jobscheduler;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.TemporarySshKeyMaterial;
+import de.kortty.core.agent.AgentSudoAuthentication;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
@@ -279,17 +280,33 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
      */
     public CommandResult execute(String command, String stdin, java.util.function.BooleanSupplier cancelled)
         throws Exception {
+        return execute(command, stdin, null, cancelled);
+    }
+
+    CommandResult executeWithSudo(
+        String command, AgentSudoAuthentication auth, java.util.function.BooleanSupplier cancelled) throws Exception {
+        return execute(command, null, auth, cancelled);
+    }
+
+    private CommandResult execute(
+        String command, String stdin, AgentSudoAuthentication auth, java.util.function.BooleanSupplier cancelled)
+        throws Exception {
         String label = nextCommandLabel;
         nextCommandLabel = null;
         CommandResult result = null;
         try {
-            result = executeUnobserved(command, stdin, cancelled);
+            result = executeUnobserved(command, stdin, auth, cancelled);
             return result;
         } finally {
             CommandObserver observer = commandObserver;
             if (observer != null) {
                 try {
-                    observer.onCommand(label != null ? label : command, result);
+                    String displayCommand = auth != null ? auth.displayCommand() : command;
+                    CommandResult recorded = result;
+                    if (auth != null && result != null) {
+                        recorded = new CommandResult(result.exitCode(), auth.redact(result.stdout()), auth.redact(result.stderr()));
+                    }
+                    observer.onCommand(label != null ? label : displayCommand, recorded);
                 } catch (RuntimeException e) {
                     logger.debug("JobScheduler command observer failed: {}", e.getMessage());
                 }
@@ -317,14 +334,15 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         this.nextCommandLabel = label;
     }
 
-    private CommandResult executeUnobserved(String command, String stdin, java.util.function.BooleanSupplier cancelled)
+    private CommandResult executeUnobserved(
+        String command, String stdin, AgentSudoAuthentication auth, java.util.function.BooleanSupplier cancelled)
         throws Exception {
         ensureConnected();
         try (ChannelExec channel = session.createExecChannel(command)) {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
             ByteArrayOutputStream stderr = new ByteArrayOutputStream();
             channel.setOut(stdout);
-            channel.setErr(stderr);
+            channel.setErr(auth == null ? stderr : auth.monitor(channel::getInvertedIn, stderr));
             if (stdin != null) {
                 channel.setIn(new ByteArrayInputStream(stdin.getBytes(StandardCharsets.UTF_8)));
             }

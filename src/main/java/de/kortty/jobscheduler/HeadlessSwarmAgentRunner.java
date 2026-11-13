@@ -2,6 +2,7 @@ package de.kortty.jobscheduler;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.agent.AgentCommandRunner;
+import de.kortty.core.agent.AgentSudoAuthentication;
 import de.kortty.model.ServerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +91,16 @@ public final class HeadlessSwarmAgentRunner implements AgentCommandRunner, AutoC
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception {
         return ensureDelegate().exec(command, stdin, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
+
+    @Override
+    public ExecResult execWithSudo(
+        String command,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
+        return ensureDelegate().execWithSudo(command, auth, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
     }
 
     @Override

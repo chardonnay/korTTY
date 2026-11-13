@@ -1036,18 +1036,16 @@
 </ul>
 <h3 id="privilege-handling">Privilege handling<a class="headerlink" href="#privilege-handling" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Sudo detection</strong> — The agent detects whether the current user has sudo access and whether a password is required.</li>
-<li><strong>Passwordless sudo</strong> — When <code>sudo -n</code> (no-password sudo) is available, the agent uses it without prompting.</li>
-<li><strong>Password prompts</strong> — When a password is required, the agent requests it via an activity-panel password input field (masked, not echoed to the terminal).</li>
+<li><strong>Sudo authentication</strong> — korTTY validates sudo before launching the planned command. If validation succeeds without a password, the activity panel skips the password prompt. The command then runs under the server's sudo rules.</li>
+<li><strong>Password prompts</strong> — When sudo validation needs a password, korTTY opens a masked field in the activity panel. Only the validation process receives the password. korTTY closes that input before launching the planned command.</li>
 <li><strong>Password retries</strong> — Up to 3 wrong-password retries are allowed before the run cancels.</li>
-<li><strong>No <code>sudo -S</code></strong> — KorTTY does not allow <code>sudo -S</code> (stdin password) or other interactive password methods in automated runs.</li>
-<li><strong>Session caching</strong> — Sudo passwords can be cached for the current session so you don't re-enter them for every command in the same run.</li>
+<li><strong>Session caching</strong> — Select <strong>Use for this SSH session</strong> to cache the password after a successful privileged command. korTTY keeps it in memory for that terminal pane's connection until disconnect and asks again if sudo rejects it.</li>
+<li><strong>Command layout</strong> — Use one direct sudo command per agent step. A here-document on that command can supply its input. Pipelines and compound commands can start sudo in a different process, which may require splitting the work into steps. The sudo option <code>-k</code> bypasses the validated credentials. Servers that disable sudo credential caching or deny sudo validation may require running the command in the interactive terminal.</li>
 </ul>
 <h3 id="approval-gates">Approval gates<a class="headerlink" href="#approval-gates" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Mutating commands</strong> — By default, the agent asks for approval before running commands that modify the system (unless auto-approval is enabled in settings).</li>
-<li><strong>Confirmation dialog</strong> — The approval dialog (<strong>AI Agent Approval</strong>) shows the planned commands and their purposes. You can choose <strong>Allow Once</strong>, <strong>Allow Always</strong> for the remaining commands in the run, or cancel.</li>
-<li><strong>Sudo preflight</strong> — After accepting a planning report, if the plan requires sudo and your SSH session requires a sudo password, KorTTY performs the preflight check immediately after acceptance so execution is not interrupted later.</li>
+<li><strong>Privileged or system-changing commands</strong> — By default, the agent asks for approval before running commands that use sudo or modify the system.</li>
+<li><strong>Confirmation dialog</strong> — The approval dialog (<strong>AI Agent Approval</strong>) shows the planned commands and their purposes. Choose <strong>Allow Once</strong> for the displayed commands or <strong>Allow Always</strong> for the remaining commands in the run. korTTY can still ask for a sudo password.</li>
 </ul>
 <h3 id="directory-tracking">Directory tracking<a class="headerlink" href="#directory-tracking" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1184,10 +1182,10 @@
 <p>Any approval or password requests</p>
 </li>
 <li>
-<p><strong>Approvals</strong> — When the agent needs approval to run system-changing commands, click <strong>Allow Once</strong> (just this set) or <strong>Allow Always</strong> (all remaining sets in the run), or click <strong>Cancel</strong>.</p>
+<p><strong>Approvals</strong> — When the agent asks to run commands that use sudo or change the system, choose <strong>Allow Once</strong>, <strong>Allow Always</strong>, or <strong>Cancel</strong>.</p>
 </li>
 <li>
-<p><strong>Sudo password</strong> — When prompted, enter your sudo password. It can optionally be cached for the session.</p>
+<p><strong>Sudo password</strong> — When prompted, enter your sudo password. Select <strong>Use for this SSH session</strong> to reuse it until you disconnect.</p>
 </li>
 <li>
 <p><strong>The run completes</strong> when the task succeeds, is blocked by an error, or is cancelled by the user.</p>
@@ -1237,8 +1235,7 @@
 <li><strong>Clarifying questions</strong> — The agent asks follow-up questions to understand your requirements.</li>
 <li><strong>Propose options</strong> — Based on your answers, the agent suggests one or more approaches with feasibility, risks, and prerequisites.</li>
 <li><strong>Final plan</strong> — After you select an approach, the agent generates a detailed final plan with steps, success criteria, and risks.</li>
-<li><strong>Implement</strong> — Only after you review and click <strong>Implement</strong> does execution begin.</li>
-<li><strong>Sudo preflight</strong> — If the plan requires sudo and a password is needed, KorTTY checks the password immediately so execution is not interrupted later.</li>
+<li><strong>Implement</strong> — Review the plan and click <strong>Implement</strong> to start execution. The agent prompts for a sudo password when a command requires it.</li>
 </ol>
 <h2 id="settings-and-configuration">Settings and configuration<a class="headerlink" href="#settings-and-configuration" title="Permanent link">&para;</a></h2>
 <p>Configure the Terminal AI Agent in <strong>AI &gt; AI Manager &gt; General</strong>:</p>

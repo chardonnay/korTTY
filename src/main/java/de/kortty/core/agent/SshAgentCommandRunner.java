@@ -47,7 +47,26 @@ public final class SshAgentCommandRunner implements AgentCommandRunner {
         Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception {
+        return exec(command, stdin, null, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
 
+    @Override
+    public ExecResult execWithSudo(
+        String command,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
+        return exec(command, null, auth, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
+
+    private ExecResult exec(
+        String command,
+        byte[] stdin,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
         if (connector == null || connector.getSession() == null) {
             throw new IllegalStateException("The selected SSH session is not connected.");
         }
@@ -58,7 +77,7 @@ public final class SshAgentCommandRunner implements AgentCommandRunner {
             ByteArrayOutputStream stdout = new ByteArrayOutputStream();
             ByteArrayOutputStream stderr = new ByteArrayOutputStream();
             channel.setOut(stdout);
-            channel.setErr(stderr);
+            channel.setErr(auth == null ? stderr : auth.monitor(channel::getInvertedIn, stderr));
             if (stdin != null && stdin.length > 0) {
                 channel.setIn(new ByteArrayInputStream(stdin));
             }

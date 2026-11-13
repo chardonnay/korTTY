@@ -664,6 +664,12 @@ public class AiAgentActivityPanel extends VBox {
             return null;
         } catch (ExecutionException e) {
             return null;
+        } finally {
+            runOnFx(() -> {
+                if (pendingPassword == future) {
+                    completePassword(null);
+                }
+            });
         }
     }
 

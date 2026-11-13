@@ -177,18 +177,16 @@ For a connection where the agent must never run commands, such as a production s
 
 ### Privilege handling
 
-- **Sudo detection** — The agent detects whether the current user has sudo access and whether a password is required.
-- **Passwordless sudo** — When `sudo -n` (no-password sudo) is available, the agent uses it without prompting.
-- **Password prompts** — When a password is required, the agent requests it via an activity-panel password input field (masked, not echoed to the terminal).
+- **Sudo authentication** — korTTY validates sudo before launching the planned command. If validation succeeds without a password, the activity panel skips the password prompt. The command then runs under the server's sudo rules.
+- **Password prompts** — When sudo validation needs a password, korTTY opens a masked field in the activity panel. Only the validation process receives the password. korTTY closes that input before launching the planned command.
 - **Password retries** — Up to 3 wrong-password retries are allowed before the run cancels.
-- **No `sudo -S`** — KorTTY does not allow `sudo -S` (stdin password) or other interactive password methods in automated runs.
-- **Session caching** — Sudo passwords can be cached for the current session so you don't re-enter them for every command in the same run.
+- **Session caching** — Select **Use for this SSH session** to cache the password after a successful privileged command. korTTY keeps it in memory for that terminal pane's connection until disconnect and asks again if sudo rejects it.
+- **Command layout** — Use one direct sudo command per agent step. A here-document on that command can supply its input. Pipelines and compound commands can start sudo in a different process, which may require splitting the work into steps. The sudo option `-k` bypasses the validated credentials. Servers that disable sudo credential caching or deny sudo validation may require running the command in the interactive terminal.
 
 ### Approval gates
 
-- **Mutating commands** — By default, the agent asks for approval before running commands that modify the system (unless auto-approval is enabled in settings).
-- **Confirmation dialog** — The approval dialog (**AI Agent Approval**) shows the planned commands and their purposes. You can choose **Allow Once**, **Allow Always** for the remaining commands in the run, or cancel.
-- **Sudo preflight** — After accepting a planning report, if the plan requires sudo and your SSH session requires a sudo password, KorTTY performs the preflight check immediately after acceptance so execution is not interrupted later.
+- **Privileged or system-changing commands** — By default, the agent asks for approval before running commands that use sudo or modify the system.
+- **Confirmation dialog** — The approval dialog (**AI Agent Approval**) shows the planned commands and their purposes. Choose **Allow Once** for the displayed commands or **Allow Always** for the remaining commands in the run. korTTY can still ask for a sudo password.
 
 ### Directory tracking
 
@@ -312,9 +310,9 @@ To start an agent task:
    - Real-time command output as it runs
    - Any approval or password requests
 
-5. **Approvals** — When the agent needs approval to run system-changing commands, click **Allow Once** (just this set) or **Allow Always** (all remaining sets in the run), or click **Cancel**.
+5. **Approvals** — When the agent asks to run commands that use sudo or change the system, choose **Allow Once**, **Allow Always**, or **Cancel**.
 
-6. **Sudo password** — When prompted, enter your sudo password. It can optionally be cached for the session.
+6. **Sudo password** — When prompted, enter your sudo password. Select **Use for this SSH session** to reuse it until you disconnect.
 
 7. **The run completes** when the task succeeds, is blocked by an error, or is cancelled by the user.
 
@@ -338,8 +336,7 @@ Planning mode (`agent-plan` or `agent -plan`) offers an advisory workflow before
 1. **Clarifying questions** — The agent asks follow-up questions to understand your requirements.
 2. **Propose options** — Based on your answers, the agent suggests one or more approaches with feasibility, risks, and prerequisites.
 3. **Final plan** — After you select an approach, the agent generates a detailed final plan with steps, success criteria, and risks.
-4. **Implement** — Only after you review and click **Implement** does execution begin.
-5. **Sudo preflight** — If the plan requires sudo and a password is needed, KorTTY checks the password immediately so execution is not interrupted later.
+4. **Implement** — Review the plan and click **Implement** to start execution. The agent prompts for a sudo password when a command requires it.
 
 ## Settings and configuration
 

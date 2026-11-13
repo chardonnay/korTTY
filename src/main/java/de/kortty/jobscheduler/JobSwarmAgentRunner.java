@@ -3,6 +3,7 @@ package de.kortty.jobscheduler;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentProbeScripts;
+import de.kortty.core.agent.AgentSudoAuthentication;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.BooleanSupplier;
@@ -34,7 +35,26 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
         Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception {
+        return exec(command, stdin, null, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
 
+    @Override
+    public ExecResult execWithSudo(
+        String command,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
+        return exec(command, null, auth, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
+
+    private ExecResult exec(
+        String command,
+        byte[] stdin,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
         ensureConnected();
         String commandToExecute = useTrackedWorkingDirectory
             ? TerminalAgentService.wrapCommandForWorkingDirectory(command, currentDirectory)
@@ -42,7 +62,9 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
         String stdinText = stdin != null && stdin.length > 0 ? new String(stdin, StandardCharsets.UTF_8) : null;
         JobSchedulerRemoteSession.CommandResult result;
         try {
-            result = session.execute(commandToExecute, stdinText, cancellationSupplier);
+            result = auth == null
+                ? session.execute(commandToExecute, stdinText, cancellationSupplier)
+                : session.executeWithSudo(commandToExecute, auth, cancellationSupplier);
         } catch (java.io.IOException e) {
             if ((cancellationSupplier != null && cancellationSupplier.getAsBoolean())
                 || Thread.currentThread().isInterrupted()) {

@@ -285,6 +285,10 @@ public class AiAgentRunTab extends Tab {
 
         @Override
         public TerminalAgentService.ApprovalDecision requestApproval(TerminalAgentModels.Approval approval) {
+            return showPrompt(() -> approvalDialog(approval), TerminalAgentService.ApprovalDecision.CANCEL);
+        }
+
+        private Dialog<TerminalAgentService.ApprovalDecision> approvalDialog(TerminalAgentModels.Approval approval) {
             Dialog<TerminalAgentService.ApprovalDecision> dialog = new Dialog<>();
             DialogThemeHelper.applyTheme(dialog);
             dialog.initOwner(ownerWindow.getStage());
@@ -314,12 +318,16 @@ public class AiAgentRunTab extends Tab {
                 }
                 return TerminalAgentService.ApprovalDecision.CANCEL;
             });
-            return dialog.showAndWait().orElse(TerminalAgentService.ApprovalDecision.CANCEL);
+            return dialog;
         }
 
         @Override
         public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest request) {
-            Dialog<String> dialog = new Dialog<>();
+            return showPrompt(() -> passwordDialog(request), null);
+        }
+
+        private Dialog<TerminalAgentModels.PasswordResponse> passwordDialog(TerminalAgentModels.PasswordRequest request) {
+            Dialog<TerminalAgentModels.PasswordResponse> dialog = new Dialog<>();
             DialogThemeHelper.applyTheme(dialog);
             dialog.initOwner(ownerWindow.getStage());
             dialog.setTitle(I18n.get("ai.agent.password.title"));
@@ -345,11 +353,39 @@ public class AiAgentRunTab extends Tab {
                     event.consume();
                 }
             });
-            dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK ? passwordField.getText() : null);
+            dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK
+                ? new TerminalAgentModels.PasswordResponse(passwordField.getText(), cacheForSessionCheckBox.isSelected())
+                : null);
             Platform.runLater(passwordField::requestFocus);
-            return dialog.showAndWait()
-                .map(password -> new TerminalAgentModels.PasswordResponse(password, cacheForSessionCheckBox.isSelected()))
-                .orElse(null);
+            return dialog;
+        }
+
+        private <T> T showPrompt(java.util.function.Supplier<Dialog<T>> factory, T cancelledResult) {
+            CompletableFuture<T> answer = new CompletableFuture<>();
+            Platform.runLater(() -> {
+                if (answer.isDone()) {
+                    return;
+                }
+                try {
+                    Dialog<T> dialog = factory.get();
+                    dialog.setOnHidden(event -> answer.complete(dialog.getResult()));
+                    answer.whenComplete((value, failure) -> Platform.runLater(dialog::close));
+                    dialog.show();
+                } catch (RuntimeException e) {
+                    answer.completeExceptionally(e);
+                }
+            });
+            try {
+                T result = answer.get();
+                return result != null ? result : cancelledResult;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return cancelledResult;
+            } catch (ExecutionException e) {
+                throw new IllegalStateException("Could not show the AI agent prompt.", e.getCause());
+            } finally {
+                answer.complete(cancelledResult);
+            }
         }
 
         @Override
