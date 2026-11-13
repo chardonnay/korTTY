@@ -11,6 +11,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -25,7 +26,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -111,11 +114,12 @@ class SshAgentSudoPtyIntegrationTest {
     @Test(timeOut = 20000)
     void reusesOneTerminalAndIgnoresPasswordPromptsFromPlannedCommands() throws Exception {
         AtomicInteger passwordRequests = new AtomicInteger();
+        AtomicReference<String> workingDirectory = new AtomicReference<>(directory.toString());
         String replay;
         AgentSudoPty opened;
         try (AgentSudoAuthentication auth = authentication(passwordRequests)) {
             replay = AgentSudoTestSupport.promptMarker(auth);
-            opened = open(auth);
+            opened = open(auth, workingDirectory::get);
             auth.checkFailure();
         }
         try (AgentSudoPty pty = opened) {
@@ -149,6 +153,12 @@ class SshAgentSudoPtyIntegrationTest {
             assertThat(passwordRequests.get()).isEqualTo(1);
             assertThat(server.ptyChannels()).isEqualTo(1);
 
+            workingDirectory.set(directory.resolve("missing").toString());
+            ExecResult missingDirectory = pty.exec("sudo -n true\nprintf 'unexpected command execution'", null, null);
+            assertThat(missingDirectory.exitCode()).isNotEqualTo(0);
+            assertThat(missingDirectory.stdout() + missingDirectory.stderr()).doesNotContain("unexpected command execution");
+
+            workingDirectory.set(directory.toString());
             ExecResult third = pty.exec("pwd -P; printf '%s\\n' 'quoted ä path'; exit 23", null, null);
             assertThat(third.exitCode()).isEqualTo(23);
             assertThat(third.stdout()).contains(directory.toRealPath().toString() + "\n");
@@ -176,6 +186,13 @@ class SshAgentSudoPtyIntegrationTest {
             assertThat(failure).hasCauseThat().isInstanceOf(AgentCancelledException.class);
             await(() -> server.closedChannels() == 1);
             assertThat(session.isOpen()).isTrue();
+            try (var ordinary = session.createExecChannel("printf alive")) {
+                ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+                ordinary.setOut(stdout);
+                ordinary.open().verify(Duration.ofSeconds(5));
+                await(ordinary::isClosed);
+                assertThat(stdout.toString(StandardCharsets.UTF_8)).isEqualTo("alive");
+            }
         }
     }
 
@@ -195,7 +212,11 @@ class SshAgentSudoPtyIntegrationTest {
     }
 
     private AgentSudoPty open(AgentSudoAuthentication auth) throws Exception {
-        return AgentSudoTestSupport.openPty(session, directory::toString, auth, () -> false, sudo.toString());
+        return open(auth, directory::toString);
+    }
+
+    private AgentSudoPty open(AgentSudoAuthentication auth, Supplier<String> workingDirectory) throws Exception {
+        return AgentSudoTestSupport.openPty(session, workingDirectory, auth, () -> false, sudo.toString());
     }
 
     private static AgentSudoAuthentication authentication(AtomicInteger requests) {

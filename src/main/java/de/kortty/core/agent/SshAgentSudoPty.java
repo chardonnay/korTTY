@@ -154,7 +154,8 @@ public final class SshAgentSudoPty implements AgentSudoPty {
                 throw new IOException("The agent's SSH terminal is closed.");
             }
             String request = UUID.randomUUID().toString();
-            String wrapped = TerminalAgentService.wrapCommandForWorkingDirectory(command, workingDirectory.get());
+            String wrapped = TerminalAgentService.wrapCommandForWorkingDirectory(
+                "{\n" + command + "\n}", workingDirectory.get());
             byte[] frame = encode(request, wrapped);
             Response response = terminalOutput.begin(request, true);
             OutputStream input = channel.getInvertedIn();
