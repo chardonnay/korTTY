@@ -9,12 +9,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.sshd.client.SshClient;
+import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.channel.ChannelShell;
+import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.keyverifier.AcceptAllServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.testng.annotations.AfterMethod;
@@ -55,14 +59,7 @@ class RelayCommandPixelSizeTest {
         try (PtySizeRecordingServer upstreamServer = new PtySizeRecordingServer(tmp.resolve("upstream.ser"), PASSWORD)) {
             ClientSession upstream = login(client, upstreamServer.port());
 
-            endpoint = SshServer.setUpDefaultServer();
-            endpoint.setHost("127.0.0.1");
-            endpoint.setPort(0);
-            endpoint.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(tmp.resolve("endpoint.ser")));
-            endpoint.setPasswordAuthenticator((username, given, session) -> PASSWORD.equals(given));
-            endpoint.setShellFactory(channel -> new RelayCommand(upstream, RelayCommand.Kind.SHELL, null));
-            endpoint.setChannelFactories(List.of(PixelSizeChannelSession.FACTORY));
-            endpoint.start();
+            endpoint = startEndpoint(upstream);
 
             try (ClientSession korTTY = login(client, endpoint.getPort());
                  ChannelShell shell = korTTY.createShellChannel()) {
@@ -83,6 +80,64 @@ class RelayCommandPixelSizeTest {
             }
             client.stop();
         }
+    }
+
+    @Test(timeOut = 30_000)
+    void theExecPtyIsRelayedOnlyWhenRequested() throws Exception {
+        tmp = Files.createTempDirectory("kortty-relay-exec-pty-");
+        SshClient client = SshClient.setUpDefaultClient();
+        client.setServerKeyVerifier(AcceptAllServerKeyVerifier.INSTANCE);
+        client.start();
+        SshServer endpoint = null;
+        try (PtySizeRecordingServer upstreamServer = new PtySizeRecordingServer(tmp.resolve("upstream.ser"), PASSWORD)) {
+            ClientSession upstream = login(client, upstreamServer.port());
+            endpoint = startEndpoint(upstream);
+
+            try (ClientSession korTTY = login(client, endpoint.getPort())) {
+                try (ChannelExec exec = korTTY.createExecChannel("pty-test")) {
+                    exec.setUsePty(true);
+                    exec.setPtyType("xterm-256color");
+                    exec.setPtyColumns(120);
+                    exec.setPtyLines(40);
+                    SshPtyPixels.setPtyPixels(exec, 1080, 720);
+                    assertCommandReachedUpstream(exec);
+                    assertThat(upstreamServer.pollPtyRequest()).isEqualTo("120x40@1080x720px");
+                }
+
+                try (ChannelExec exec = korTTY.createExecChannel("non-pty-test")) {
+                    exec.setUsePty(false);
+                    exec.setEnv(Environment.ENV_TERM, "xterm-256color");
+                    assertCommandReachedUpstream(exec);
+                    assertThat(upstreamServer.pollPtyRequest()).isNull();
+                }
+            }
+        } finally {
+            if (endpoint != null) {
+                endpoint.stop(true);
+            }
+            client.stop();
+        }
+    }
+
+    private static void assertCommandReachedUpstream(ChannelExec exec) throws IOException {
+        exec.open().verify(TIMEOUT);
+        assertThat(exec.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), TIMEOUT.toMillis()))
+            .contains(ClientChannelEvent.CLOSED);
+        // The recording server answers every exec with UnknownCommand's exit status.
+        assertThat(exec.getExitStatus()).isEqualTo(1);
+    }
+
+    private SshServer startEndpoint(ClientSession upstream) throws IOException {
+        SshServer endpoint = SshServer.setUpDefaultServer();
+        endpoint.setHost("127.0.0.1");
+        endpoint.setPort(0);
+        endpoint.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(tmp.resolve("endpoint.ser")));
+        endpoint.setPasswordAuthenticator((username, given, session) -> PASSWORD.equals(given));
+        endpoint.setShellFactory(channel -> new RelayCommand(upstream, RelayCommand.Kind.SHELL, null));
+        endpoint.setCommandFactory((channel, command) -> new RelayCommand(upstream, RelayCommand.Kind.EXEC, command));
+        endpoint.setChannelFactories(List.of(PixelSizeChannelSession.FACTORY));
+        endpoint.start();
+        return endpoint;
     }
 
     private static ClientSession login(SshClient client, int port) throws IOException {

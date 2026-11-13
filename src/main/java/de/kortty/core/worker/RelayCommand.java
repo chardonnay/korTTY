@@ -89,10 +89,10 @@ final class RelayCommand implements Command {
             }
             case EXEC -> {
                 ChannelExec exec = upstream.createExecChannel(argument);
-                if (term != null) {
+                boolean usePty = channel instanceof PixelSizeChannelSession pixels && pixels.ptyRequested();
+                exec.setUsePty(usePty);
+                if (usePty) {
                     configurePty(exec, channel, env, term);
-                } else {
-                    exec.setUsePty(false);
                 }
                 yield exec;
             }

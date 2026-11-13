@@ -20,6 +20,7 @@ import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.channel.ChannelSession;
 import org.apache.sshd.server.command.Command;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
+import org.apache.sshd.server.shell.UnknownCommand;
 
 /**
  * A loopback SSH server whose shell does nothing but record the terminal sizes it is told: the
@@ -39,6 +40,7 @@ public final class PtySizeRecordingServer implements AutoCloseable {
         server.setPasswordAuthenticator((username, given, session) -> password.equals(given));
         server.setKeyboardInteractiveAuthenticator(null);
         server.setShellFactory(channel -> new IdleShell());
+        server.setCommandFactory((channel, command) -> new UnknownCommand(command));
         server.setChannelFactories(List.of(new ChannelFactory() {
             @Override
             public String getName() {
@@ -59,6 +61,10 @@ public final class PtySizeRecordingServer implements AutoCloseable {
 
     public String awaitPtyRequest() throws InterruptedException {
         return ptyRequests.poll(10, TimeUnit.SECONDS);
+    }
+
+    public String pollPtyRequest() {
+        return ptyRequests.poll();
     }
 
     public String awaitWindowChange() throws InterruptedException {
