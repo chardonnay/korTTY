@@ -58,6 +58,10 @@ public final class AgentSudoAuthentication implements AutoCloseable {
     }
 
     public OutputStream monitor(Supplier<OutputStream> commandInput, OutputStream commandError) {
+        return monitor(commandInput, commandError, true);
+    }
+
+    public OutputStream monitor(Supplier<OutputStream> commandInput, OutputStream commandError, boolean closeInputWhenReady) {
         String[] markers = {promptMarker(), armedMarker(), readyMarker()};
         return new OutputStream() {
             private final ByteArrayOutputStream pending = new ByteArrayOutputStream();
@@ -102,7 +106,9 @@ public final class AgentSudoAuthentication implements AutoCloseable {
                 if (marker == 2) {
                     // Disarm on the I/O thread, before processing any of the planned command's output.
                     ready = true;
-                    schedule(() -> closeInput(commandInput));
+                    if (closeInputWhenReady) {
+                        schedule(() -> closeInput(commandInput));
+                    }
                     return;
                 }
                 if (marker == 1) {

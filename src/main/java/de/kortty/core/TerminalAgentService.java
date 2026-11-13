@@ -22,6 +22,7 @@ import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentOutboundContext;
 import de.kortty.core.agent.AgentSudoAuthentication;
 import de.kortty.core.agent.AgentSudoCommand;
+import de.kortty.core.agent.AgentSudoPty;
 import de.kortty.core.agent.AgentCommandRunner.ExecResult;
 import de.kortty.core.agent.AgentCommandRunner.ShellKind;
 import de.kortty.policy.ManagedSetting;
@@ -634,7 +635,11 @@ public class TerminalAgentService {
         boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets()
             || agentPolicy.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM;
         boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
-        rememberSudoPassword(outbound, cachedSudoPasswordBySessionId.get(sessionId));
+        AgentCommandRunner commandRunner = requireRunner(terminalTab, runner);
+        boolean useSudoPty = commandRunner.supportsSudoPty();
+        if (!useSudoPty) {
+            rememberSudoPassword(outbound, cachedSudoPasswordBySessionId.get(sessionId));
+        }
         ui.publishRunSecrets(runId, outbound.knownSecrets());
 
         if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
@@ -649,150 +654,152 @@ public class TerminalAgentService {
         request = chosenRequest.get();
         int questionsAsked = 0;
 
-        for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
-            ensureNotCancelled(ui);
-            // Cooperative pause: park between turns while the user holds the run paused. A command
-            // already executing finishes first; we only block here at a safe turn boundary.
-            try {
-                ui.awaitIfPaused();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        try (RunSudoPty sudoPty = new RunSudoPty()) {
+            for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
+                ensureNotCancelled(ui);
+                // Cooperative pause: park between turns while the user holds the run paused. A command
+                // already executing finishes first; we only block here at a safe turn boundary.
+                try {
+                    ui.awaitIfPaused();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                // Cancellation may have fired while parked, so re-check before planning the next turn.
+                ensureNotCancelled(ui);
+                ui.updateState(new TerminalAgentModels.RunState(
+                    runId,
+                    request.sessionId(),
+                    request.executionTarget(),
+                    TerminalAgentModels.Phase.PLANNING,
+                    "Waiting for the AI planner response.",
+                    "The AI agent is deciding on the next safe step.",
+                    null,
+                    null,
+                    null,
+                    turn));
+
+                CachedSudoPassword cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
+                AgentDecision decision = requestAgentDecision(
+                    aiService,
+                    outbound,
+                    request,
+                    probe,
+                    history,
+                    turn,
+                    !useSudoPty && cachedPassword != null && !cachedPassword.isBlank(),
+                    ui,
+                    runId);
+                if (decision.status() == AgentDecisionStatus.done) {
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.DONE,
+                        decision.summary(), decision.userMessage(), null, null, null, turn));
+                    publishMessage(ui, runId, "done-" + turn, decision.userMessage(), decision.summary());
+                    return;
+                }
+                if (decision.status() == AgentDecisionStatus.blocked) {
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.BLOCKED,
+                        decision.summary(), decision.userMessage(), null, null, null, turn));
+                    publishMessage(ui, runId, "blocked-" + turn, decision.userMessage(), decision.summary());
+                    return;
+                }
+                if (decision.status() == AgentDecisionStatus.needs_input) {
+                    boolean canAsk = ui.supportsChoices() && questionsAsked < MAX_USER_QUESTIONS;
+                    Optional<TerminalAgentModels.Request> answered = askUser(
+                        terminalTab, request, decision, agentConnectionId, canAsk, ui, runId, turn);
+                    if (answered.isEmpty()) {
+                        return;
+                    }
+                    request = answered.get();
+                    if (canAsk) {
+                        // A question the user answered is not a planning turn: the run keeps its turns for the work.
+                        questionsAsked++;
+                        turn--;
+                    }
+                    continue;
+                }
+
+                List<TerminalAgentModels.PlannedCommand> commands = validateCommands(decision.commands(), probe, request.queryOnly());
+                if (refuseMaskedPlaceholderCommands(outbound, commands, history, ui, runId, turn)) {
+                    continue;
+                }
+                if (!approvalBypass && shouldRequestApproval(
+                    decision.status(),
+                    commands,
+                    request.askConfirmationBeforeEveryCommand())) {
+                    TerminalAgentModels.Approval approval = new TerminalAgentModels.Approval(
+                        runId,
+                        request.sessionId(),
+                        request.executionTarget(),
+                        decision.summary(),
+                        decision.userMessage(),
+                        commands,
+                        !confirmMutatingCommandSets);
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.AWAITING_APPROVAL,
+                        decision.summary(), decision.userMessage(), approval, null, null, turn));
+                    publishQuestion(ui, runId, "approval-" + turn, decision.summary(), decision.userMessage());
+                    ApprovalDecision approvalDecision = ui.requestApproval(approval);
+                    if (approvalDecision == ApprovalDecision.CANCEL) {
+                        ui.updateState(new TerminalAgentModels.RunState(
+                            runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
+                            "The terminal agent run was cancelled.", "The run was cancelled before the command set started.", null, null, null, turn));
+                        publishCancelled(ui, runId, "cancelled-approval-" + turn, "The run was cancelled before the command set started.");
+                        return;
+                    }
+                    approvalBypass = approvalBypass
+                        || (approval.allowAlways() && approvalDecision == ApprovalDecision.APPROVE_ALWAYS);
+                }
+
+                for (TerminalAgentModels.PlannedCommand planned : commands) {
+                    ensureNotCancelled(ui);
+                    String commandActivityId = runId + ":command:" + turn + ":" + history.size();
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
+                        planned.purpose(), planned.command(), null, null, planned.command(), turn));
+                    long commandStartedAtNanos = System.nanoTime();
+                    publishCommandActivity(ui, commandActivityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
+                    ui.appendTranscript("\n$ " + planned.command() + "\n");
+
+                    ExecResult execResult;
+                    try {
+                        execResult = executeAgentCommand(commandRunner, sudoPty, request, probe, outbound, ui, runId, turn, planned);
+                    } catch (AgentCancelledException e) {
+                        publishCommandActivity(ui, commandActivityId, planned,
+                            TerminalAgentModels.AgentActivityStatus.CANCELLED, null,
+                            elapsedSecondsSince(commandStartedAtNanos));
+                        throw e;
+                    }
+                    history.add(toCommandResult(planned, execResult));
+                    publishCommandActivity(ui, commandActivityId, planned,
+                        TerminalAgentModels.AgentActivityStatus.COMPLETED, execResult,
+                        elapsedSecondsSince(commandStartedAtNanos));
+                    if (decision.needsReprobe()) {
+                        String reprobeId = runId + ":reprobe:" + turn;
+                        publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Refreshing server state.", null, 0L);
+                        probe = probeTerminalSession(terminalTab, runner, ui::isCancelled);
+                        publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Server state refreshed.", summarizeProbe(probe), 0L);
+                    }
+                }
             }
-            // Cancellation may have fired while parked, so re-check before planning the next turn.
-            ensureNotCancelled(ui);
+
+            if (!history.isEmpty() && tryFinalizeAtTurnLimit(aiService, outbound, request, probe, history, ui, runId)) {
+                return;
+            }
+
             ui.updateState(new TerminalAgentModels.RunState(
                 runId,
                 request.sessionId(),
                 request.executionTarget(),
-                TerminalAgentModels.Phase.PLANNING,
-                "Waiting for the AI planner response.",
-                "The AI agent is deciding on the next safe step.",
+                TerminalAgentModels.Phase.BLOCKED,
+                "The AI agent reached its turn limit.",
+                "The task needs more manual guidance before the next step is safe.",
                 null,
                 null,
                 null,
-                turn));
-
-            CachedSudoPassword cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
-            AgentDecision decision = requestAgentDecision(
-                aiService,
-                outbound,
-                request,
-                probe,
-                history,
-                turn,
-                cachedPassword != null && !cachedPassword.isBlank(),
-                ui,
-                runId);
-            if (decision.status() == AgentDecisionStatus.done) {
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.DONE,
-                    decision.summary(), decision.userMessage(), null, null, null, turn));
-                publishMessage(ui, runId, "done-" + turn, decision.userMessage(), decision.summary());
-                return;
-            }
-            if (decision.status() == AgentDecisionStatus.blocked) {
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.BLOCKED,
-                    decision.summary(), decision.userMessage(), null, null, null, turn));
-                publishMessage(ui, runId, "blocked-" + turn, decision.userMessage(), decision.summary());
-                return;
-            }
-            if (decision.status() == AgentDecisionStatus.needs_input) {
-                boolean canAsk = ui.supportsChoices() && questionsAsked < MAX_USER_QUESTIONS;
-                Optional<TerminalAgentModels.Request> answered = askUser(
-                    terminalTab, request, decision, agentConnectionId, canAsk, ui, runId, turn);
-                if (answered.isEmpty()) {
-                    return;
-                }
-                request = answered.get();
-                if (canAsk) {
-                    // A question the user answered is not a planning turn: the run keeps its turns for the work.
-                    questionsAsked++;
-                    turn--;
-                }
-                continue;
-            }
-
-            List<TerminalAgentModels.PlannedCommand> commands = validateCommands(decision.commands(), probe, request.queryOnly());
-            if (refuseMaskedPlaceholderCommands(outbound, commands, history, ui, runId, turn)) {
-                continue;
-            }
-            if (!approvalBypass && shouldRequestApproval(
-                decision.status(),
-                commands,
-                request.askConfirmationBeforeEveryCommand())) {
-                TerminalAgentModels.Approval approval = new TerminalAgentModels.Approval(
-                    runId,
-                    request.sessionId(),
-                    request.executionTarget(),
-                    decision.summary(),
-                    decision.userMessage(),
-                    commands,
-                    !confirmMutatingCommandSets);
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.AWAITING_APPROVAL,
-                    decision.summary(), decision.userMessage(), approval, null, null, turn));
-                publishQuestion(ui, runId, "approval-" + turn, decision.summary(), decision.userMessage());
-                ApprovalDecision approvalDecision = ui.requestApproval(approval);
-                if (approvalDecision == ApprovalDecision.CANCEL) {
-                    ui.updateState(new TerminalAgentModels.RunState(
-                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.CANCELLED,
-                        "The terminal agent run was cancelled.", "The run was cancelled before the command set started.", null, null, null, turn));
-                    publishCancelled(ui, runId, "cancelled-approval-" + turn, "The run was cancelled before the command set started.");
-                    return;
-                }
-                approvalBypass = approvalBypass
-                    || (approval.allowAlways() && approvalDecision == ApprovalDecision.APPROVE_ALWAYS);
-            }
-
-            for (TerminalAgentModels.PlannedCommand planned : commands) {
-                ensureNotCancelled(ui);
-                String commandActivityId = runId + ":command:" + turn + ":" + history.size();
-                ui.updateState(new TerminalAgentModels.RunState(
-                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
-                    planned.purpose(), planned.command(), null, null, planned.command(), turn));
-                long commandStartedAtNanos = System.nanoTime();
-                publishCommandActivity(ui, commandActivityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
-                ui.appendTranscript("\n$ " + planned.command() + "\n");
-
-                ExecResult execResult;
-                try {
-                    execResult = executeAgentCommand(terminalTab, runner, request, probe, outbound, ui, runId, turn, planned);
-                } catch (AgentCancelledException e) {
-                    publishCommandActivity(ui, commandActivityId, planned,
-                        TerminalAgentModels.AgentActivityStatus.CANCELLED, null,
-                        elapsedSecondsSince(commandStartedAtNanos));
-                    throw e;
-                }
-                history.add(toCommandResult(planned, execResult));
-                publishCommandActivity(ui, commandActivityId, planned,
-                    TerminalAgentModels.AgentActivityStatus.COMPLETED, execResult,
-                    elapsedSecondsSince(commandStartedAtNanos));
-                if (decision.needsReprobe()) {
-                    String reprobeId = runId + ":reprobe:" + turn;
-                    publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Refreshing server state.", null, 0L);
-                    probe = probeTerminalSession(terminalTab, runner, ui::isCancelled);
-                    publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.COMPLETED, "Inspect(SSH session)", "Server state refreshed.", summarizeProbe(probe), 0L);
-                }
-            }
+                MAX_AGENT_TURNS));
+            publishMessage(ui, runId, "turn-limit", "The task needs more manual guidance before the next step is safe.", "The AI agent reached its turn limit.");
         }
-
-        if (!history.isEmpty() && tryFinalizeAtTurnLimit(aiService, outbound, request, probe, history, ui, runId)) {
-            return;
-        }
-
-        ui.updateState(new TerminalAgentModels.RunState(
-            runId,
-            request.sessionId(),
-            request.executionTarget(),
-            TerminalAgentModels.Phase.BLOCKED,
-            "The AI agent reached its turn limit.",
-            "The task needs more manual guidance before the next step is safe.",
-            null,
-            null,
-            null,
-            MAX_AGENT_TURNS));
-        publishMessage(ui, runId, "turn-limit", "The task needs more manual guidance before the next step is safe.", "The AI agent reached its turn limit.");
     }
 
     /**
@@ -1459,14 +1466,16 @@ public class TerminalAgentService {
         int turn,
         String summary,
         String userMessage,
-        String command) throws Exception {
+        String command,
+        boolean allowSessionCache) throws Exception {
         TerminalAgentModels.PasswordRequest passwordRequest = new TerminalAgentModels.PasswordRequest(
             runId,
             request.sessionId(),
             request.executionTarget(),
             nonBlank(summary, "Sudo password required."),
-            nonBlank(userMessage, "Enter the sudo password to continue this SSH session."),
-            command);
+            nonBlank(userMessage, "Enter the sudo password to continue."),
+            command,
+            allowSessionCache);
         ui.updateState(new TerminalAgentModels.RunState(
             runId,
             request.sessionId(),
@@ -1499,18 +1508,19 @@ public class TerminalAgentService {
         char[] passwordChars = password.toCharArray();
         CachedSudoPassword cachedPassword;
         try {
-            cachedPassword = new CachedSudoPassword(passwordChars, passwordResponse != null && passwordResponse.cacheForSession());
+            cachedPassword = new CachedSudoPassword(passwordChars, allowSessionCache && passwordResponse.cacheForSession());
         } finally {
             Arrays.fill(passwordChars, '\0');
         }
         return cachedPassword;
     }
 
-    private String buildSudoPasswordPromptMessage(int failedAttempts) {
+    private String buildSudoPasswordPromptMessage(int failedAttempts, boolean useSudoPty) {
+        String scope = useSudoPty ? "this agent run" : "this SSH session";
         if (failedAttempts <= 0) {
-            return "Waiting for the sudo password to continue this SSH session.";
+            return "Waiting for the sudo password to continue " + scope + ".";
         }
-        return "The sudo password was not accepted. Enter it again to continue this SSH session. Retry "
+        return "The sudo password was not accepted. Enter it again to continue " + scope + ". Retry "
             + failedAttempts + " of " + MAX_SUDO_PASSWORD_RETRIES + ".";
     }
 
@@ -2968,8 +2978,8 @@ public class TerminalAgentService {
     }
 
     private ExecResult executeAgentCommand(
-        TerminalTab terminalTab,
-        AgentCommandRunner runner,
+        AgentCommandRunner target,
+        RunSudoPty sudoPty,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         AgentOutboundContext outbound,
@@ -2977,13 +2987,18 @@ public class TerminalAgentService {
         String runId,
         int turn,
         TerminalAgentModels.PlannedCommand planned) throws Exception {
-        AgentCommandRunner target = requireRunner(terminalTab, runner);
         String command = planned.command();
         java.util.function.Consumer<String> output = ui::appendTranscript;
         if (!target.isPosix() || probe.alreadyRoot() || !hasAgentSudo(command)) {
             return target.exec(command, null, output, ui::isCancelled, true);
         }
 
+        boolean useSudoPty = target.supportsSudoPty();
+        SessionJournalRedactor redactor = outbound.knownSecrets();
+        if (useSudoPty && sudoPty.isOpen()) {
+            return redactSudoResult(sudoPty.terminal.exec(command, chunk -> output.accept(redactor.redact(chunk)), ui::isCancelled),
+                redactor);
+        }
         String sessionId = request.sessionId();
         class PasswordExchange implements AgentSudoAuthentication.PasswordSource {
             private CachedSudoPassword attempted;
@@ -2999,13 +3014,13 @@ public class TerminalAgentService {
                         return null;
                     }
                 }
-                if (attempted == null || attempted.isBlank()) {
+                if (!useSudoPty && (attempted == null || attempted.isBlank())) {
                     attempted = cachedSudoPasswordBySessionId.get(sessionId);
                     enteredHere = false;
                 }
                 if (attempted == null || attempted.isBlank()) {
                     attempted = requestSudoPassword(ui, runId, request, turn, planned.purpose(),
-                        buildSudoPasswordPromptMessage(failures), command);
+                        buildSudoPasswordPromptMessage(failures, useSudoPty), command, !useSudoPty);
                     enteredHere = true;
                     if (attempted == null) {
                         throw new AgentCancelledException("No sudo password was provided.");
@@ -3015,8 +3030,15 @@ public class TerminalAgentService {
                         runId, sessionId, request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
                         planned.purpose(), command, null, null, command, turn));
                 }
-                rememberSudoPassword(outbound, attempted);
-                return attempted.toUtf8Line();
+                if (!useSudoPty) {
+                    rememberSudoPassword(outbound, attempted);
+                    return attempted.toUtf8Line();
+                }
+                try {
+                    return attempted.toUtf8Line();
+                } finally {
+                    discardAttempt();
+                }
             }
 
             private void discardAttempt() {
@@ -3043,26 +3065,50 @@ public class TerminalAgentService {
 
         PasswordExchange exchange = new PasswordExchange();
         boolean succeeded = false;
-        SessionJournalRedactor redactor = outbound.knownSecrets();
         try (AgentSudoAuthentication authentication = new AgentSudoAuthentication(command, exchange, redactor::redact)) {
-            String wrapped = AgentSudoCommand.wrap(command, authentication);
             ExecResult result;
             try {
-                result = target.execWithSudo(wrapped, authentication, chunk ->
-                    output.accept(redactor.redact(chunk)), () -> ui.isCancelled() || authentication.failed(), true);
+                BooleanSupplier cancelled = () -> ui.isCancelled() || authentication.failed();
+                if (useSudoPty) {
+                    sudoPty.terminal = target.openSudoPty(authentication, cancelled);
+                    authentication.checkFailure();
+                } else {
+                    String wrapped = AgentSudoCommand.wrap(command, authentication);
+                    result = target.execWithSudo(wrapped, authentication, chunk ->
+                        output.accept(redactor.redact(chunk)), cancelled, true);
+                    authentication.checkFailure();
+                    succeeded = result.exitCode() == 0 && !result.timedOut() && !result.cancelled()
+                        && !ui.isCancelled() && target.isConnected();
+                    return redactSudoResult(result, redactor);
+                }
             } catch (AgentCancelledException e) {
                 authentication.checkFailure();
                 throw e;
             }
-            authentication.checkFailure();
-            succeeded = result.exitCode() == 0 && !result.timedOut() && !result.cancelled()
-                && !ui.isCancelled() && target.isConnected();
-            return new ExecResult(
-                redactor.redact(result.stdout()),
-                redactor.redact(result.stderr()),
-                result.exitCode(), result.cancelled(), result.timedOut());
         } finally {
             exchange.finish(succeeded);
+        }
+        return redactSudoResult(sudoPty.terminal.exec(command, chunk -> output.accept(redactor.redact(chunk)), ui::isCancelled),
+            redactor);
+    }
+
+    private static ExecResult redactSudoResult(ExecResult result, SessionJournalRedactor redactor) {
+        return new ExecResult(redactor.redact(result.stdout()), redactor.redact(result.stderr()),
+            result.exitCode(), result.cancelled(), result.timedOut());
+    }
+
+    private static final class RunSudoPty implements AutoCloseable {
+        private AgentSudoPty terminal;
+
+        private boolean isOpen() {
+            return terminal != null;
+        }
+
+        @Override
+        public void close() {
+            if (terminal != null) {
+                terminal.close();
+            }
         }
     }
 
@@ -3593,7 +3639,8 @@ public class TerminalAgentService {
             "To read, inspect, translate, convert, migrate, or otherwise use a file whose contents are NOT already in the probe or previous command results, FIRST plan a read-only command to read it (e.g. `cat 'path'`, or `head -c 200000 'path'` for a possibly large file), risk `read_only`, in `commands` with status `run_commands`. The probe never contains file contents. Never answer `blocked` merely because a file's contents are not in the probe — read the file first; only block if the read command itself shows the file is missing or unreadable.",
             "To create, rewrite or migrate a file — especially structured files such as YAML, JSON, INI, or scripts — write the COMPLETE intended file contents in one command using a quoted here-document (`cat > 'path' <<'EOF'` ... newline ... `EOF`). Do NOT edit such files in place with `sed`/`awk` regex substitutions; in-place regex edits are fragile and easily corrupt indentation or structure. Use `sed`/`awk` only for reading or extracting text, never for rewriting structured files.",
             "NEVER claim that a file was created, written, saved, or modified unless you actually issued the command that does so in THIS response. To create or modify a file you MUST put the writing command (e.g. the `cat > 'path' <<'EOF'` here-document) in `commands` with status `run_commands` or `needs_confirmation`. Do NOT set status `done` while only describing the intended file contents — that would report work that never happened.",
-            "If sudo is needed, use one direct `sudo -n ...` invocation per command so korTTY can validate sudo before execution. A direct sudo command can have its own redirections and here-document. Avoid placing it inside pipelines or subshells, and do not use `-k` with the command because it ignores the validated sudo ticket. Never use `su`, `sudo su`, `sudo -S`, or commands that wait for a password.",
+            "If sudo is needed, use an explicit `sudo -n ...` invocation so korTTY can validate sudo before execution. Prefer a separate command for each privileged step. A sudo command can have its own redirections and here-document. Do not use `-k` with the command because it ignores the validated sudo ticket. Never use `su`, `sudo su`, `sudo -S`, or commands that wait for a password.",
+            "If `sudo -n` fails because the sudo ticket is unavailable or has expired, report the failure and do not replay the command.",
             "If the probe says `sudoAvailable` is true but `passwordlessSudo` is false, you may still plan `sudo -n ...` commands.",
             "Plan the actual sudo commands and let korTTY handle any password prompt. Do not ask the user for a password yourself.",
             "If the task is complete, set `status` to `done`.",

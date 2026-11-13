@@ -41,6 +41,20 @@ public final class SshAgentCommandRunner implements AgentCommandRunner {
     }
 
     @Override
+    public boolean supportsSudoPty() {
+        return true;
+    }
+
+    @Override
+    public AgentSudoPty openSudoPty(AgentSudoAuthentication auth, BooleanSupplier cancelled) throws Exception {
+        var session = connector != null ? connector.getSession() : null;
+        if (session == null) {
+            throw new IllegalStateException("The selected SSH session is not connected.");
+        }
+        return SshAgentSudoPty.open(session, connector::getCurrentRemoteDirectory, auth, cancelled);
+    }
+
+    @Override
     public ExecResult exec(
         String command,
         byte[] stdin,

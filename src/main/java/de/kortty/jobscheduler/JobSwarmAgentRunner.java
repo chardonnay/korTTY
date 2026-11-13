@@ -4,6 +4,7 @@ import de.kortty.core.TerminalAgentService;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentProbeScripts;
 import de.kortty.core.agent.AgentSudoAuthentication;
+import de.kortty.core.agent.AgentSudoPty;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.BooleanSupplier;
@@ -46,6 +47,17 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception {
         return exec(command, null, auth, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
+
+    @Override
+    public boolean supportsSudoPty() {
+        return true;
+    }
+
+    @Override
+    public AgentSudoPty openSudoPty(AgentSudoAuthentication auth, BooleanSupplier cancelled) throws Exception {
+        ensureConnected();
+        return session.openSudoPty(() -> currentDirectory, auth, cancelled);
     }
 
     private ExecResult exec(

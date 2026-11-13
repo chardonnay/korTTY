@@ -3,6 +3,8 @@ package de.kortty.core;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentOutboundContext;
 import de.kortty.core.agent.AgentSudoAuthentication;
+import de.kortty.core.agent.AgentSudoPty;
+import de.kortty.core.agent.AgentSudoTestSupport;
 import de.kortty.core.agent.JournalingAgentCommandRunner;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
@@ -32,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -41,6 +44,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 /**
  * The terminal agent masks every prompt it sends to a cloud AI profile at its single AI choke
@@ -288,7 +292,7 @@ class TerminalAgentServiceOutboundRedactionTest {
         }
     }
 
-    private static final class SudoRunner implements AgentCommandRunner {
+    private static class SudoRunner implements AgentCommandRunner {
         final List<String> commands = new ArrayList<>();
         final List<String> credentials = new ArrayList<>();
         private final List<Integer> promptCounts;
@@ -382,6 +386,69 @@ class TerminalAgentServiceOutboundRedactionTest {
         }
     }
 
+    private static final class PtySudoRunner extends SudoRunner {
+        final List<List<String>> ptyCommands = new ArrayList<>();
+        final List<String> ordinaryCommands = new ArrayList<>();
+        final AtomicBoolean cancelCommand = new AtomicBoolean();
+        int closed;
+
+        PtySudoRunner() {
+            super(List.of(), null);
+        }
+
+        @Override
+        public boolean supportsSudoPty() {
+            return true;
+        }
+
+        @Override
+        public AgentSudoPty openSudoPty(AgentSudoAuthentication auth, BooleanSupplier cancelled) throws Exception {
+            LinkedBlockingQueue<String> replies = new LinkedBlockingQueue<>();
+            ByteArrayOutputStream stdin = new ByteArrayOutputStream() {
+                @Override
+                public synchronized void flush() {
+                    replies.add(toString(StandardCharsets.UTF_8));
+                    reset();
+                }
+            };
+            try (OutputStream monitor = auth.monitor(() -> stdin, OutputStream.nullOutputStream(), false)) {
+                AgentSudoTestSupport.writeArmedMarker(auth, monitor);
+                monitor.write(AgentSudoTestSupport.promptMarker(auth).getBytes(StandardCharsets.US_ASCII));
+                String response = replies.poll(5, TimeUnit.SECONDS);
+                assertThat(response).isEqualTo(SUDO_PASSWORD + "\n");
+                credentials.add(response);
+                AgentSudoTestSupport.writeReadyMarker(auth, monitor);
+            }
+
+            List<String> steps = new ArrayList<>();
+            ptyCommands.add(steps);
+            return new AgentSudoPty() {
+                @Override
+                public ExecResult exec(String command, Consumer<String> output, BooleanSupplier cancelled) {
+                    steps.add(command);
+                    if (cancelCommand.get()) {
+                        throw new TerminalAgentService.AgentCancelledException("cancelled on PTY");
+                    }
+                    String result = "step completed: " + steps.size() + "\n";
+                    output.accept(result);
+                    return new ExecResult(result, "", steps.size() == 2 ? 17 : 0, false, false);
+                }
+
+                @Override
+                public void close() {
+                    closed++;
+                }
+            };
+        }
+
+        @Override
+        public ExecResult exec(String command, byte[] stdin, Consumer<String> output,
+                               BooleanSupplier cancelled, boolean useTrackedWorkingDirectory) {
+            ordinaryCommands.add(command);
+            return new ExecResult("ordinary output", "", 0, false, false);
+        }
+    }
+
     private static String commandOutput() {
         // The AWS key starts a line: in the JSON history it follows an escaped "\n", which the
         // token pattern's word-boundary check would miss if the JSON were masked as a whole.
@@ -397,6 +464,75 @@ class TerminalAgentServiceOutboundRedactionTest {
     }
 
     // ---------------------------------------------------------------- tests
+    @Test
+    void sshSudoPtyUsesOnePasswordPerRunAndPreservesTheNormalCommandRunner() throws Exception {
+        String first = "sudo -n growpart /dev/sda 3";
+        String second = "sudo -n btrfs filesystem resize max /";
+        CapturingAiService ai = new CapturingAiService(call -> switch (call) {
+            case 1 -> sudoDecision(first);
+            case 2 -> RUN_COMMAND;
+            case 3 -> sudoDecision(second);
+            default -> DONE;
+        });
+        CapturingAiService nextAi = new CapturingAiService(call -> call == 1 ? sudoDecision(first) : DONE);
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(SUDO_PASSWORD, true));
+        RecordingUi nextUi = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(SUDO_PASSWORD, true));
+        PtySudoRunner runner = new PtySudoRunner();
+        TerminalAgentService service = new TerminalAgentService();
+
+        service.runAgent(null, runner, cloud(), ai, request(), "pty-run", ui);
+        service.runAgent(null, runner, cloud(), nextAi, request(), "next-pty-run", nextUi);
+
+        assertThat(runner.ptyCommands).containsExactly(List.of(first, second), List.of(first)).inOrder();
+        assertThat(runner.closed).isEqualTo(2);
+        assertThat(runner.ordinaryCommands).containsExactly("cat /etc/app.conf");
+        assertThat(runner.credentials).containsExactly(SUDO_PASSWORD + "\n", SUDO_PASSWORD + "\n");
+        assertThat(ui.approvals).hasSize(1);
+        assertThat(ui.passwordRequests).hasSize(1);
+        assertThat(nextUi.passwordRequests).hasSize(1);
+        assertThat(ui.passwordRequests.getFirst().allowSessionCache()).isFalse();
+        assertThat(nextUi.passwordRequests.getFirst().allowSessionCache()).isFalse();
+        assertThat(ai.userPrompts.getLast()).contains("step completed: 2");
+        assertThat(ai.userPrompts.getLast()).contains("\"exitStatus\":17");
+        assertThat(ui.transcript.toString()).doesNotContain(SUDO_PASSWORD);
+        for (String prompt : ai.allPrompts()) {
+            assertThat(prompt).doesNotContain(SUDO_PASSWORD);
+        }
+    }
+
+    @Test
+    void cancelledSudoCommandClosesPtyWithoutReplaying() {
+        String first = "sudo -n growpart /dev/sda 3";
+        CapturingAiService ai = new CapturingAiService(call -> sudoDecision(first));
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(SUDO_PASSWORD, false));
+        PtySudoRunner runner = new PtySudoRunner();
+        runner.cancelCommand.set(true);
+
+        expectThrows(TerminalAgentService.AgentCancelledException.class,
+            () -> new TerminalAgentService().runAgent(null, runner, cloud(), ai, request(), "cancelled-pty-run", ui));
+
+        assertThat(runner.ptyCommands).containsExactly(List.of(first));
+        assertThat(runner.closed).isEqualTo(1);
+        assertThat(ai.userPrompts).hasSize(1);
+    }
+
+    @Test
+    void decliningFirstSudoCommandDoesNotOpenThePtyOrRequestAPassword() throws Exception {
+        CapturingAiService ai = new CapturingAiService(call -> sudoDecision("sudo -n growpart /dev/sda 3"));
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.CANCEL, prompt -> null);
+        PtySudoRunner runner = new PtySudoRunner();
+
+        new TerminalAgentService().runAgent(null, runner, cloud(), ai, request(), "declined-pty-run", ui);
+
+        assertThat(ui.passwordRequests).isEmpty();
+        assertThat(runner.ptyCommands).isEmpty();
+        assertThat(runner.credentials).isEmpty();
+        assertThat(runner.closed).isEqualTo(0);
+    }
+
     @Test
     void alwaysApproveStillPromptsWhenSudoNeedsPasswordAndReusesItForTheNextCommand() throws Exception {
         CapturingAiService ai = new CapturingAiService(call -> switch (call) {

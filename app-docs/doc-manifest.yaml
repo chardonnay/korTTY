@@ -585,7 +585,7 @@ pages:
       - src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java
       - src/main/java/de/kortty/ui/AgentTerminalSurface.java
     screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png, plugins/ai-agent-status-designs.png, plugins/ai-agent-history-panels.png, plugins/ai-agent-floating-designs.png, plugins/ai-agent-terminal-designs.png, plugins/ai-agent-arrangements.png, plugins/ai-agent-continue-in-chat.png]
-    last_synced_ref: "0a5ea066"
+    last_synced_ref: "1ebbe724"
   - path: app-docs/site/docs/en/features/coding-agents.md
     owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]
     owns_code:

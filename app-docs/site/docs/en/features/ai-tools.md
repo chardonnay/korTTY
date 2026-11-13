@@ -71,7 +71,7 @@ The Terminal AI Agent follows a strict, safe execution loop:
 2. **Send context to the model** — KorTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.
 3. **Model returns a JSON decision** — The model must return a strict JSON response: run commands, ask for confirmation, finish, or block.
 4. **Validate the decision** — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.
-5. **Execute approved commands** — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory captured for this run. A `cd` inside a one-shot command does not persist to the next command, while an interactive `cd` completed before the run is included in the captured directory.
+5. **Execute approved commands** — korTTY uses SSH exec channels for regular SSH commands and a private pseudoterminal for sudo commands in the run. Local commands use fresh processes. Each command starts in the tracked terminal directory. A `cd` inside an agent command applies only to that command.
 6. **Iterate or conclude** — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).
 
 ### What the agent can call
@@ -177,11 +177,10 @@ For a connection where the agent must never run commands, such as a production s
 
 ### Privilege handling
 
-- **Sudo authentication** — korTTY validates sudo before launching the planned command. If validation succeeds without a password, the activity panel skips the password prompt. The command then runs under the server's sudo rules.
-- **Password prompts** — When sudo validation needs a password, korTTY opens a masked field in the activity panel. Only the validation process receives the password. korTTY closes that input before launching the planned command.
-- **Password retries** — Up to 3 wrong-password retries are allowed before the run cancels.
-- **Session caching** — Select **Use for this SSH session** to cache the password after a successful privileged command. korTTY keeps it in memory for that terminal pane's connection until disconnect and asks again if sudo rejects it.
-- **Command layout** — Use one direct sudo command per agent step. A here-document on that command can supply its input. Pipelines and compound commands can start sudo in a different process, which may require splitting the work into steps. The sudo option `-k` bypasses the validated credentials. Servers that disable sudo credential caching or deny sudo validation may require running the command in the interactive terminal.
+- **SSH sudo ticket** — After you approve the first sudo command, korTTY opens a private SSH pseudoterminal for the run and validates sudo there. Later sudo commands use that same pseudoterminal and the server's sudo ticket. korTTY closes the pseudoterminal when the run ends or is cancelled.
+- **Password prompt** — When validation needs a password, korTTY opens a masked field in the activity panel. The initial validation receives the password. For SSH pseudoterminal runs, korTTY reuses the server's ticket and does not retain the password for reuse.
+- **Server policy** — Each command runs under the server's sudo rules. If the ticket expires, caching is disabled, or an invocation uses `-k` to bypass cached credentials, sudo can refuse the command. Start a fresh run for a new ticket or use the interactive terminal if the server requires authentication for each command.
+- **Local shells** — Local POSIX runs validate sudo separately for each command. A direct sudo command can take input from a here-document. Depending on the server or local sudo policy, pipelines and compound commands may need to be split into separate steps.
 
 ### Approval gates
 
@@ -212,7 +211,7 @@ For a connection where the agent must never run commands, such as a production s
 
 ### Masking what the agent sends
 
-- **Everything that leaves is masked** — Before the agent sends a prompt to a profile other than an integrated model (llama.cpp, MLX) or a trusted local endpoint, korTTY replaces the secrets it recognizes with `***`: the connection's password, a sudo password typed during the run, your organization's replacement rules and well-known token formats (see [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending)). This covers the environment probe, the output of every command, the planning questions, options and report, the repair retries and the final answer at the turn limit.
+- **Everything that leaves is masked** — Before the agent sends a prompt to a profile other than an integrated model (llama.cpp, MLX) or a trusted local endpoint, korTTY masks recognized secrets such as the connection password and well-known token formats. It also applies your organization's replacement rules. This covers the environment probe, command output, planning questions, options and reports, repair retries and the final answer at the turn limit. See [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending).
 - **The run keeps the original** — Only what goes to the model is masked. The terminal, the activity panel, the approval dialog and the session journal show the real commands and their real output.
 - **Count in the activity panel** — A **Masked before sending** entry says how many different values were masked in the run. A value that comes back every turn, because the agent resends its command history, counts once.
 - **No commands with the placeholder** — The model is told that `***` stands for a masked secret. If it still plans a command that contains `***`, korTTY does not run it, notes this in the transcript and tells the model in the next turn, because the command would run with the three literal characters instead of the secret.
@@ -312,7 +311,7 @@ To start an agent task:
 
 5. **Approvals** — When the agent asks to run commands that use sudo or change the system, choose **Allow Once**, **Allow Always**, or **Cancel**.
 
-6. **Sudo password** — When prompted, enter your sudo password. Select **Use for this SSH session** to reuse it until you disconnect.
+6. **Sudo password** — When prompted, enter your sudo password. An SSH agent run validates sudo in its private pseudoterminal and uses the resulting sudo ticket for later commands.
 
 7. **The run completes** when the task succeeds, is blocked by an error, or is cancelled by the user.
 

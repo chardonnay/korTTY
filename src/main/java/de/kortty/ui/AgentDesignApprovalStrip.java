@@ -99,7 +99,9 @@ final class AgentDesignApprovalStrip extends HBox {
         ok.disableProperty().bind(field.textProperty().isEmpty());
         Runnable submit = () -> {
             if (!field.getText().isEmpty()) {
-                answer.accept(new TerminalAgentModels.PasswordResponse(field.getText(), cache.isSelected()));
+                answer.accept(new TerminalAgentModels.PasswordResponse(
+                    field.getText(), request != null && request.allowSessionCache() && cache.isSelected()));
+                field.clear();
             }
         };
         ok.setOnAction(event -> submit.run());
@@ -115,7 +117,10 @@ final class AgentDesignApprovalStrip extends HBox {
         Button cancel = button(I18n.get("dialog.cancel"), false);
         cancel.setOnAction(event -> answer.accept(null));
         showRow();
-        controls.getChildren().setAll(field, cache, ok, cancel);
+        controls.getChildren().setAll(field, ok, cancel);
+        if (request != null && request.allowSessionCache()) {
+            controls.getChildren().add(1, cache);
+        }
         showStrip();
         javafx.application.Platform.runLater(field::requestFocus);
     }

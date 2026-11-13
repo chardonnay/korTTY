@@ -172,7 +172,13 @@ public final class TerminalAgentModels {
         TerminalAgentExecutionTarget executionTarget,
         String summary,
         String userMessage,
-        String command) {
+        String command,
+        boolean allowSessionCache) {
+
+        public PasswordRequest(String runId, String sessionId, TerminalAgentExecutionTarget executionTarget,
+                               String summary, String userMessage, String command) {
+            this(runId, sessionId, executionTarget, summary, userMessage, command, true);
+        }
     }
 
     public record PasswordResponse(

@@ -4,6 +4,8 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.TemporarySshKeyMaterial;
 import de.kortty.core.agent.AgentSudoAuthentication;
+import de.kortty.core.agent.AgentSudoPty;
+import de.kortty.core.agent.SshAgentSudoPty;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
@@ -288,6 +290,32 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         return execute(command, null, auth, cancelled);
     }
 
+    AgentSudoPty openSudoPty(java.util.function.Supplier<String> directory, AgentSudoAuthentication auth,
+                             java.util.function.BooleanSupplier cancelled) throws Exception {
+        ensureConnected();
+        AgentSudoPty terminal = SshAgentSudoPty.open(session, directory, auth, cancelled);
+        return new AgentSudoPty() {
+            @Override
+            public de.kortty.core.agent.AgentCommandRunner.ExecResult exec(
+                String command, java.util.function.Consumer<String> output, java.util.function.BooleanSupplier stop)
+                throws Exception {
+                CommandResult recorded = null;
+                try {
+                    var result = terminal.exec(command, output, stop);
+                    recorded = new CommandResult(result.exitCode(), auth.redact(result.stdout()), auth.redact(result.stderr()));
+                    return result;
+                } finally {
+                    notifyCommandObserver(command, recorded);
+                }
+            }
+
+            @Override
+            public void close() {
+                terminal.close();
+            }
+        };
+    }
+
     private CommandResult execute(
         String command, String stdin, AgentSudoAuthentication auth, java.util.function.BooleanSupplier cancelled)
         throws Exception {
@@ -298,18 +326,21 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
             result = executeUnobserved(command, stdin, auth, cancelled);
             return result;
         } finally {
-            CommandObserver observer = commandObserver;
-            if (observer != null) {
-                try {
-                    String displayCommand = auth != null ? auth.displayCommand() : command;
-                    CommandResult recorded = result;
-                    if (auth != null && result != null) {
-                        recorded = new CommandResult(result.exitCode(), auth.redact(result.stdout()), auth.redact(result.stderr()));
-                    }
-                    observer.onCommand(label != null ? label : displayCommand, recorded);
-                } catch (RuntimeException e) {
-                    logger.debug("JobScheduler command observer failed: {}", e.getMessage());
-                }
+            String displayCommand = auth != null ? auth.displayCommand() : command;
+            if (auth != null && result != null) {
+                result = new CommandResult(result.exitCode(), auth.redact(result.stdout()), auth.redact(result.stderr()));
+            }
+            notifyCommandObserver(label != null ? label : displayCommand, result);
+        }
+    }
+
+    private void notifyCommandObserver(String command, CommandResult result) {
+        CommandObserver observer = commandObserver;
+        if (observer != null) {
+            try {
+                observer.onCommand(command, result);
+            } catch (RuntimeException e) {
+                logger.debug("JobScheduler command observer failed: {}", e.getMessage());
             }
         }
     }

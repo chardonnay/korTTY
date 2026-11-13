@@ -337,7 +337,11 @@ public class AiAgentRunTab extends Tab {
             passwordField.setPromptText(I18n.get("common.password"));
             CheckBox cacheForSessionCheckBox = new CheckBox(I18n.get("ai.agent.password.cacheForSession"));
             cacheForSessionCheckBox.setSelected(true);
-            dialog.getDialogPane().setContent(new VBox(8, new Label(request.userMessage()), passwordField, cacheForSessionCheckBox));
+            VBox content = new VBox(8, new Label(request.userMessage()), passwordField);
+            if (request.allowSessionCache()) {
+                content.getChildren().add(cacheForSessionCheckBox);
+            }
+            dialog.getDialogPane().setContent(content);
             Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
             okButton.setDefaultButton(true);
             okButton.disableProperty().bind(Bindings.createBooleanBinding(
@@ -353,9 +357,14 @@ public class AiAgentRunTab extends Tab {
                     event.consume();
                 }
             });
-            dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK
-                ? new TerminalAgentModels.PasswordResponse(passwordField.getText(), cacheForSessionCheckBox.isSelected())
-                : null);
+            dialog.setResultConverter(buttonType -> {
+                TerminalAgentModels.PasswordResponse response = buttonType == ButtonType.OK
+                    ? new TerminalAgentModels.PasswordResponse(
+                        passwordField.getText(), request.allowSessionCache() && cacheForSessionCheckBox.isSelected())
+                    : null;
+                passwordField.clear();
+                return response;
+            });
             Platform.runLater(passwordField::requestFocus);
             return dialog;
         }

@@ -1551,11 +1551,13 @@ public class AiAgentActivityPanel extends VBox {
         pendingPasswordField = passwordField;
         promptBox.getChildren().add(passwordField);
 
-        CheckBox cacheForSessionCheckBox = new CheckBox(I18n.get("ai.agent.password.cacheForSession"));
-        cacheForSessionCheckBox.getStyleClass().add("ai-agent-option-check");
-        cacheForSessionCheckBox.setSelected(true);
-        pendingPasswordCacheCheckBox = cacheForSessionCheckBox;
-        promptBox.getChildren().add(cacheForSessionCheckBox);
+        if (request != null && request.allowSessionCache()) {
+            CheckBox cacheForSessionCheckBox = new CheckBox(I18n.get("ai.agent.password.cacheForSession"));
+            cacheForSessionCheckBox.getStyleClass().add("ai-agent-option-check");
+            cacheForSessionCheckBox.setSelected(true);
+            pendingPasswordCacheCheckBox = cacheForSessionCheckBox;
+            promptBox.getChildren().add(cacheForSessionCheckBox);
+        }
 
         Button submitButton = new Button(I18n.get("dialog.ok"));
         submitButton.setDefaultButton(true);
@@ -1643,7 +1645,7 @@ public class AiAgentActivityPanel extends VBox {
 
     private void submitPassword() {
         String password = pendingPasswordField != null ? pendingPasswordField.getText() : null;
-        boolean cacheForSession = pendingPasswordCacheCheckBox == null || pendingPasswordCacheCheckBox.isSelected();
+        boolean cacheForSession = pendingPasswordCacheCheckBox != null && pendingPasswordCacheCheckBox.isSelected();
         completePassword(new TerminalAgentModels.PasswordResponse(password, cacheForSession));
     }
 
@@ -1666,6 +1668,9 @@ public class AiAgentActivityPanel extends VBox {
     private void completePassword(TerminalAgentModels.PasswordResponse passwordResponse) {
         CompletableFuture<TerminalAgentModels.PasswordResponse> future = pendingPassword;
         pendingPassword = null;
+        if (pendingPasswordField != null) {
+            pendingPasswordField.clear();
+        }
         pendingPasswordField = null;
         pendingPasswordCacheCheckBox = null;
         pendingInputStatusText = null;

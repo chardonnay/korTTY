@@ -63,6 +63,31 @@ public final class JournalingAgentCommandRunner implements AgentCommandRunner {
         return result;
     }
 
+    @Override
+    public boolean supportsSudoPty() {
+        return delegate.supportsSudoPty();
+    }
+
+    @Override
+    public AgentSudoPty openSudoPty(AgentSudoAuthentication auth, BooleanSupplier cancelled) throws Exception {
+        AgentSudoPty terminal = delegate.openSudoPty(auth, cancelled);
+        return new AgentSudoPty() {
+            @Override
+            public ExecResult exec(String command, Consumer<String> output, BooleanSupplier stop) throws Exception {
+                recorder.appendCommand(command);
+                ExecResult result = terminal.exec(command, output, stop);
+                recordResult(command, new ExecResult(auth.redact(result.stdout()), auth.redact(result.stderr()),
+                    result.exitCode(), result.cancelled(), result.timedOut()));
+                return result;
+            }
+
+            @Override
+            public void close() {
+                terminal.close();
+            }
+        };
+    }
+
     private void recordResult(String command, ExecResult result) {
         if (result != null) {
             recorder.appendOutput(result.stdout(), result.stderr());

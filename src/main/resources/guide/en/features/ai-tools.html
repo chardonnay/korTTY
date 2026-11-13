@@ -895,7 +895,7 @@
 <li><strong>Send context to the model</strong> — KorTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.</li>
 <li><strong>Model returns a JSON decision</strong> — The model must return a strict JSON response: run commands, ask for confirmation, finish, or block.</li>
 <li><strong>Validate the decision</strong> — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.</li>
-<li><strong>Execute approved commands</strong> — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory captured for this run. A <code>cd</code> inside a one-shot command does not persist to the next command, while an interactive <code>cd</code> completed before the run is included in the captured directory.</li>
+<li><strong>Execute approved commands</strong> — korTTY uses SSH exec channels for regular SSH commands and a private pseudoterminal for sudo commands in the run. Local commands use fresh processes. Each command starts in the tracked terminal directory. A <code>cd</code> inside an agent command applies only to that command.</li>
 <li><strong>Iterate or conclude</strong> — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).</li>
 </ol>
 <h3 id="what-the-agent-can-call">What the agent can call<a class="headerlink" href="#what-the-agent-can-call" title="Permanent link">&para;</a></h3>
@@ -1036,11 +1036,10 @@
 </ul>
 <h3 id="privilege-handling">Privilege handling<a class="headerlink" href="#privilege-handling" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Sudo authentication</strong> — korTTY validates sudo before launching the planned command. If validation succeeds without a password, the activity panel skips the password prompt. The command then runs under the server's sudo rules.</li>
-<li><strong>Password prompts</strong> — When sudo validation needs a password, korTTY opens a masked field in the activity panel. Only the validation process receives the password. korTTY closes that input before launching the planned command.</li>
-<li><strong>Password retries</strong> — Up to 3 wrong-password retries are allowed before the run cancels.</li>
-<li><strong>Session caching</strong> — Select <strong>Use for this SSH session</strong> to cache the password after a successful privileged command. korTTY keeps it in memory for that terminal pane's connection until disconnect and asks again if sudo rejects it.</li>
-<li><strong>Command layout</strong> — Use one direct sudo command per agent step. A here-document on that command can supply its input. Pipelines and compound commands can start sudo in a different process, which may require splitting the work into steps. The sudo option <code>-k</code> bypasses the validated credentials. Servers that disable sudo credential caching or deny sudo validation may require running the command in the interactive terminal.</li>
+<li><strong>SSH sudo ticket</strong> — After you approve the first sudo command, korTTY opens a private SSH pseudoterminal for the run and validates sudo there. Later sudo commands use that same pseudoterminal and the server's sudo ticket. korTTY closes the pseudoterminal when the run ends or is cancelled.</li>
+<li><strong>Password prompt</strong> — When validation needs a password, korTTY opens a masked field in the activity panel. The initial validation receives the password. For SSH pseudoterminal runs, korTTY reuses the server's ticket and does not retain the password for reuse.</li>
+<li><strong>Server policy</strong> — Each command runs under the server's sudo rules. If the ticket expires, caching is disabled, or an invocation uses <code>-k</code> to bypass cached credentials, sudo can refuse the command. Start a fresh run for a new ticket or use the interactive terminal if the server requires authentication for each command.</li>
+<li><strong>Local shells</strong> — Local POSIX runs validate sudo separately for each command. A direct sudo command can take input from a here-document. Depending on the server or local sudo policy, pipelines and compound commands may need to be split into separate steps.</li>
 </ul>
 <h3 id="approval-gates">Approval gates<a class="headerlink" href="#approval-gates" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1071,7 +1070,7 @@
 </ul>
 <h3 id="masking-what-the-agent-sends">Masking what the agent sends<a class="headerlink" href="#masking-what-the-agent-sends" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Everything that leaves is masked</strong> — Before the agent sends a prompt to a profile other than an integrated model (llama.cpp, MLX) or a trusted local endpoint, korTTY replaces the secrets it recognizes with <code>***</code>: the connection's password, a sudo password typed during the run, your organization's replacement rules and well-known token formats (see <a href="ai-assistant.html#masking-secrets-before-sending">Masking secrets before sending</a>). This covers the environment probe, the output of every command, the planning questions, options and report, the repair retries and the final answer at the turn limit.</li>
+<li><strong>Everything that leaves is masked</strong> — Before the agent sends a prompt to a profile other than an integrated model (llama.cpp, MLX) or a trusted local endpoint, korTTY masks recognized secrets such as the connection password and well-known token formats. It also applies your organization's replacement rules. This covers the environment probe, command output, planning questions, options and reports, repair retries and the final answer at the turn limit. See <a href="ai-assistant.html#masking-secrets-before-sending">Masking secrets before sending</a>.</li>
 <li><strong>The run keeps the original</strong> — Only what goes to the model is masked. The terminal, the activity panel, the approval dialog and the session journal show the real commands and their real output.</li>
 <li><strong>Count in the activity panel</strong> — A <strong>Masked before sending</strong> entry says how many different values were masked in the run. A value that comes back every turn, because the agent resends its command history, counts once.</li>
 <li><strong>No commands with the placeholder</strong> — The model is told that <code>***</code> stands for a masked secret. If it still plans a command that contains <code>***</code>, korTTY does not run it, notes this in the transcript and tells the model in the next turn, because the command would run with the three literal characters instead of the secret.</li>
@@ -1185,7 +1184,7 @@
 <p><strong>Approvals</strong> — When the agent asks to run commands that use sudo or change the system, choose <strong>Allow Once</strong>, <strong>Allow Always</strong>, or <strong>Cancel</strong>.</p>
 </li>
 <li>
-<p><strong>Sudo password</strong> — When prompted, enter your sudo password. Select <strong>Use for this SSH session</strong> to reuse it until you disconnect.</p>
+<p><strong>Sudo password</strong> — When prompted, enter your sudo password. An SSH agent run validates sudo in its private pseudoterminal and uses the resulting sudo ticket for later commands.</p>
 </li>
 <li>
 <p><strong>The run completes</strong> when the task succeeds, is blocked by an error, or is cancelled by the user.</p>
