@@ -773,11 +773,9 @@ public class MainWindow {
                         if (removedTab == lastSelectedFileEditorTab) {
                             lastSelectedFileEditorTab = null;
                         }
-                        if (removedTab instanceof TerminalTab terminalTab) {
-                            terminalAgentService.clearCachedSudoPassword(terminalTab.getAiSessionId());
-                            if (journalLivePanel != null && journalLivePanel.getBoundTab() == terminalTab) {
-                                journalLivePanel.notifyBoundTabClosed();
-                            }
+                        if (removedTab instanceof TerminalTab terminalTab
+                            && journalLivePanel != null && journalLivePanel.getBoundTab() == terminalTab) {
+                            journalLivePanel.notifyBoundTabClosed();
                         }
                     }
                     Platform.runLater(() -> {
@@ -860,6 +858,9 @@ public class MainWindow {
                 tabPane.getSelectionModel().select(tab);
             });
             if (tab instanceof TerminalTab tt) {
+                if (sourceWindow != this) {
+                    sourceWindow.terminalAgentService.clearCachedSudoPasswordsForTab(tt.getAiSessionId());
+                }
                 installAiSelectionHandler(tt);
                 // Re-bind the per-tab hooks to this window (the creation-time lambdas captured the source).
                 registerTerminalTabForAiAgentDock(tt);
@@ -908,6 +909,9 @@ public class MainWindow {
                 tabPane.getSelectionModel().select(tab);
             });
             if (tab instanceof TerminalTab tt) {
+                if (sourceWindow != this) {
+                    sourceWindow.terminalAgentService.clearCachedSudoPasswordsForTab(tt.getAiSessionId());
+                }
                 installAiSelectionHandler(tt);
                 // Re-bind the per-tab hooks to this window (the creation-time lambdas captured the source).
                 registerTerminalTabForAiAgentDock(tt);
@@ -6764,6 +6768,11 @@ public class MainWindow {
             return;
         }
         terminalTab.getTerminalView().setOnWidgetSetChanged(() -> onTerminalWidgetSetChanged(terminalTab));
+        terminalTab.getTerminalView().setOnAgentTabClosed(() ->
+            terminalAgentService.clearCachedSudoPasswordsForTab(terminalTab.getAiSessionId()));
+        terminalTab.getTerminalView().setOnAgentConnectorDisconnected(connector ->
+            terminalAgentService.clearCachedSudoPassword(
+                TerminalView.buildTerminalAgentScopedSessionId(terminalTab.getAiSessionId(), connector)));
         // A local shell's cd: the session snapshot keeps the directory it restarts in.
         terminalTab.getTerminalView().setOnSessionStateChanged(MainWindow::markSessionDirty);
         terminalTab.setJournalStateListener(() -> onTabJournalStateChanged(terminalTab));
@@ -12237,9 +12246,12 @@ public class MainWindow {
             return true;
         }
 
-        TerminalView.TerminalAgentRunContext resolvedRunContext =
-            resolveTerminalAgentRunContext(terminalTab, targetRunContext);
-        applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
+        AgentCommandRunner runner = agentRunnerFor(targetRunContext);
+        if (runner == null || !runner.isConnected()) {
+            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
+            return false;
+        }
+        applyTerminalAgentWorkingDirectoryHint(targetRunContext);
 
         if (request.executionTarget() == TerminalAgentExecutionTarget.CHAT_WINDOW) {
             AiAgentRunTab runTab = new AiAgentRunTab(this, I18n.get("ai.agent.run.tabTitle"));
@@ -12249,13 +12261,14 @@ public class MainWindow {
                 terminalTab,
                 profile,
                 aiService,
-                agentRunnerFor(resolvedRunContext),
-                request);
+                runner,
+                withTerminalAgentSessionId(request,
+                    TerminalView.buildTerminalAgentScopedSessionId(request.sessionId(), targetRunContext.connector())));
             return true;
         }
 
         runTerminalAgentInTerminalWindow(
-            terminalTab, profile, aiService, request, resolvedRunContext, foreignSessionAcknowledgedFor);
+            terminalTab, profile, aiService, request, targetRunContext, runner, foreignSessionAcknowledgedFor);
         return true;
     }
 
@@ -12579,18 +12592,13 @@ public class MainWindow {
         AiProfile profile,
         AiPromptService aiService,
         TerminalAgentModels.Request request,
-        TerminalView.TerminalAgentRunContext runContext,
+        TerminalView.TerminalAgentRunContext resolvedRunContext,
+        AgentCommandRunner runner,
         @Nullable ObservableTtyConnector foreignSessionAcknowledgedFor) {
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
         java.util.concurrent.atomic.AtomicBoolean paused = new java.util.concurrent.atomic.AtomicBoolean(false);
         java.util.concurrent.atomic.AtomicReference<Thread> workerRef = new java.util.concurrent.atomic.AtomicReference<>();
         final Object pauseLock = new Object();
-        TerminalView.TerminalAgentRunContext resolvedRunContext = resolveTerminalAgentRunContext(terminalTab, runContext);
-        applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
-        if (resolvedRunContext == null || resolvedRunContext.connector() == null) {
-            showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
-            return;
-        }
         AgentDesignHost activityPanel = terminalTab.getTerminalView().getTerminalAgentActivityPanel(resolvedRunContext);
         if (activityPanel == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
@@ -12617,7 +12625,7 @@ public class MainWindow {
         final String runId = java.util.UUID.randomUUID().toString();
         TerminalAgentModels.Request scopedRequest = withTerminalAgentSessionId(
             request,
-            terminalTab.getTerminalView().buildTerminalAgentScopedSessionId(request.sessionId(), resolvedRunContext));
+            TerminalView.buildTerminalAgentScopedSessionId(request.sessionId(), resolvedRunContext.connector()));
         Runnable cancelRun = () -> {
             cancelled.set(true);
             Thread workerThread = workerRef.get();
@@ -12697,7 +12705,7 @@ public class MainWindow {
         java.time.Instant agentStartedAt = java.time.Instant.now();
         Thread worker = new Thread(() -> {
             try {
-                terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), agentConnectionId,
+                terminalAgentService.runAgent(terminalTab, runner, agentConnectionId,
                     profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
@@ -13151,18 +13159,10 @@ public class MainWindow {
         // asks like the agent does. The acknowledgement is handed to the accepted plan's
         // execution, which checks again on its own when it starts (a su typed while planning is
         // caught there) but does not repeat a warning the user already accepted here.
-        // The terminal-window pane is captured before the check, so the pane whose identity the
-        // user confirms is the pane the planning probes then use.
-        TerminalAgentExecutionTarget executionTarget = getTerminalAgentExecutionTarget();
-        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext;
-        if (executionTarget == TerminalAgentExecutionTarget.TERMINAL_WINDOW
-            && resolvedRunContext == null
-            && terminalTab != null
-            && terminalTab.getTerminalView() != null) {
-            resolvedRunContext = terminalTab.getTerminalView().captureTerminalAgentRunContext();
-        }
+        // Capture the pane before the check, so the same pane is used for the probes and execution.
+        TerminalView.TerminalAgentRunContext planRunContext = resolveTerminalAgentRunContext(terminalTab, runContext);
         AgentTargetConfirmation confirmation =
-            confirmAgentTargetInForeignSession(terminalTab, resolvedRunContext, null);
+            confirmAgentTargetInForeignSession(terminalTab, planRunContext, null);
         if (!confirmation.proceed()) {
             updateStatus(I18n.get("ai.agent.foreignSession.cancelled"));
             return;
@@ -13176,34 +13176,24 @@ public class MainWindow {
             return;
         }
 
-        applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
-        TerminalView.TerminalAgentRunContext planRunContext = resolvedRunContext;
+        AgentCommandRunner runner = agentRunnerFor(planRunContext);
+        if (runner == null || !runner.isConnected()) {
+            showError(I18n.get("ai.plan.title"), I18n.get("ai.agent.error.noTerminal"));
+            return;
+        }
+        applyTerminalAgentWorkingDirectoryHint(planRunContext);
         AiAgentPlanTab planTab = new AiAgentPlanTab(
-            this,
             terminalAgentService,
             terminalTab,
             profile,
             aiService,
             request,
-            agentRunnerFor(planRunContext),
-            planRunContext != null && planRunContext.connector() != null ? planRunContext.connector().getConnection() : null,
-            () -> resolveTerminalAgentPreflightSessionId(terminalTab, request.sessionId(), planRunContext),
+            runner,
+            planRunContext.connector().getConnection(),
             (planRequest, report) -> startAcceptedPlanExecution(
                 terminalTab, profile, planRequest, report, planRunContext, foreignSessionAcknowledgedFor));
         insertTemporaryTab(planTab);
         planTab.start();
-    }
-
-    private String resolveTerminalAgentPreflightSessionId(
-        TerminalTab terminalTab,
-        String sessionId,
-        TerminalView.TerminalAgentRunContext runContext) {
-        if (getTerminalAgentExecutionTarget() == TerminalAgentExecutionTarget.TERMINAL_WINDOW
-            && runContext != null
-            && terminalTab.getTerminalView() != null) {
-            return terminalTab.getTerminalView().buildTerminalAgentScopedSessionId(sessionId, runContext);
-        }
-        return sessionId;
     }
 
     private boolean startAcceptedPlanExecution(

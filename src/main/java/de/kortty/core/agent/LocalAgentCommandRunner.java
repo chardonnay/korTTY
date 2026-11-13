@@ -116,11 +116,31 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
         Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception {
+        return exec(command, stdin, null, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
+
+    @Override
+    public ExecResult execWithSudo(
+        String command,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
+        return exec(command, null, auth, outputConsumer, cancellationSupplier, useTrackedWorkingDirectory);
+    }
+
+    private ExecResult exec(
+        String command,
+        byte[] stdin,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
         ensureConnected();
         String directory = useTrackedWorkingDirectory
             ? resolveWorkingDirectorySnapshot()
             : startDirectory;
-        return runProcess(wrap(command), stdin, outputConsumer, cancellationSupplier, directory);
+        return runProcess(wrap(command), stdin, auth, outputConsumer, cancellationSupplier, directory);
     }
 
     @Override
@@ -134,6 +154,7 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
                 LocalShellArgv.argv(ShellKind.POSIX, AgentProbeScripts.POSIX),
                 null,
                 null,
+                null,
                 cancellationSupplier,
                 directory);
         }
@@ -142,7 +163,7 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
         String shellLabel = shellKind == ShellKind.WINDOWS_CMD ? "cmd.exe" : "powershell.exe";
         List<String> argv = LocalShellArgv.argv(
             ShellKind.WINDOWS_POWERSHELL, AgentProbeScripts.windowsPowerShell(shellLabel));
-        return runProcess(argv, null, null, cancellationSupplier, directory);
+        return runProcess(argv, null, null, null, cancellationSupplier, directory);
     }
 
     private void ensureConnected() {
@@ -203,6 +224,7 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
     private ExecResult runProcess(
         List<String> argv,
         byte[] stdin,
+        AgentSudoAuthentication auth,
         Consumer<String> outputConsumer,
         BooleanSupplier cancellationSupplier,
         String workingDirectory) throws Exception {
@@ -217,54 +239,98 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
         }
         Process process = builder.start();
 
-        if (stdin != null && stdin.length > 0) {
-            try (OutputStream os = process.getOutputStream()) {
-                os.write(stdin);
-                os.flush();
-            } catch (Exception ignored) {
-                // The process may not read stdin; ignore broken-pipe style failures.
+        OutputStream commandInput = process.getOutputStream();
+        try {
+            if (auth == null) {
+                writeAndCloseInput(commandInput, stdin);
             }
-        } else {
-            try {
-                process.getOutputStream().close();
-            } catch (Exception ignored) {
+
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            OutputStream commandError = auth != null ? auth.monitor(() -> commandInput, stderr) : stderr;
+            Thread outThread = startCollector(process.getInputStream(), stdout, "local-agent-stdout");
+            Thread errThread = startCollector(process.getErrorStream(), commandError, "local-agent-stderr");
+
+            boolean timedOut = waitForProcess(process, cancellationSupplier);
+            if (timedOut) {
+                stopProcess(process, auth != null);
             }
+            outThread.join(2000);
+            errThread.join(2000);
+            String stdoutText = stdout.toString(StandardCharsets.UTF_8);
+            String stderrText = stderr.toString(StandardCharsets.UTF_8);
+            emit(outputConsumer, stdoutText);
+            emit(outputConsumer, stderrText);
+            int exitCode = timedOut ? -1 : safeExitValue(process);
+            return new ExecResult(stdoutText, stderrText, exitCode, false, timedOut);
+        } finally {
+            if (auth != null) {
+                writeAndCloseInput(commandInput, null);
+            }
+            stopProcess(process, auth != null);
         }
+    }
 
-        StreamCollector outCollector = new StreamCollector(process.getInputStream());
-        StreamCollector errCollector = new StreamCollector(process.getErrorStream());
-        Thread outThread = new Thread(outCollector, "local-agent-stdout");
-        Thread errThread = new Thread(errCollector, "local-agent-stderr");
-        outThread.setDaemon(true);
-        errThread.setDaemon(true);
-        outThread.start();
-        errThread.start();
+    private static void writeAndCloseInput(OutputStream commandInput, byte[] stdin) {
+        try (commandInput) {
+            if (stdin != null && stdin.length > 0) {
+                commandInput.write(stdin);
+                commandInput.flush();
+            }
+        } catch (Exception ignored) {
+            // The process may have closed stdin already.
+        }
+    }
 
+    private static Thread startCollector(InputStream source, OutputStream target, String name) {
+        Thread thread = new Thread(() -> {
+            try (source; target) {
+                source.transferTo(target);
+            } catch (Exception ignored) {
+                // The process or a closed channel can end the stream before EOF.
+            }
+        }, name);
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    private static boolean waitForProcess(Process process, BooleanSupplier cancellationSupplier) throws InterruptedException {
         long deadlineNanos = System.nanoTime() + COMMAND_WAIT_TIMEOUT.toNanos();
-        boolean timedOut = false;
         while (true) {
             if ((cancellationSupplier != null && cancellationSupplier.getAsBoolean()) || Thread.currentThread().isInterrupted()) {
-                process.destroyForcibly();
                 throw new TerminalAgentService.AgentCancelledException("Terminal agent run cancelled");
             }
             if (process.waitFor(200, TimeUnit.MILLISECONDS)) {
-                break;
+                return false;
             }
             if (System.nanoTime() >= deadlineNanos) {
-                process.destroyForcibly();
-                timedOut = true;
-                break;
+                return true;
             }
         }
+    }
 
-        outThread.join(2000);
-        errThread.join(2000);
-        String stdoutText = outCollector.text();
-        String stderrText = errCollector.text();
-        emit(outputConsumer, stdoutText);
-        emit(outputConsumer, stderrText);
-        int exitCode = timedOut ? -1 : safeExitValue(process);
-        return new ExecResult(stdoutText, stderrText, exitCode, false, timedOut);
+    private static void stopProcess(Process process, boolean sudo) {
+        if (!process.isAlive()) {
+            return;
+        }
+        if (sudo) {
+            // The shell's TERM trap releases the per-command authentication helper.
+            process.destroy();
+            boolean interrupted = Thread.interrupted();
+            try {
+                if (process.waitFor(250, TimeUnit.MILLISECONDS)) {
+                    return;
+                }
+            } catch (InterruptedException e) {
+                interrupted = true;
+            } finally {
+                if (interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+        process.destroyForcibly();
     }
 
     private static int safeExitValue(Process process) {
@@ -366,31 +432,5 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
             message += " (" + directory.trim() + ")";
         }
         return new IllegalStateException(message);
-    }
-
-    private static final class StreamCollector implements Runnable {
-        private final InputStream stream;
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-        private StreamCollector(InputStream stream) {
-            this.stream = stream;
-        }
-
-        @Override
-        public void run() {
-            byte[] chunk = new byte[8192];
-            try {
-                int read;
-                while ((read = stream.read(chunk)) >= 0) {
-                    buffer.write(chunk, 0, read);
-                }
-            } catch (Exception ignored) {
-                // Process ended / stream closed.
-            }
-        }
-
-        private String text() {
-            return buffer.toString(StandardCharsets.UTF_8);
-        }
     }
 }

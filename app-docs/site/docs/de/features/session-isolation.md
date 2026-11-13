@@ -30,6 +30,8 @@ Eine isolierte Sitzung des eingebauten Mosh-Clients läuft ebenfalls in einem Se
 
 Eine isolierte SSH-Sitzung läuft in einem **Session-Worker**, einem kleinen eigenen Prozess, den korTTY für genau diese Verbindung startet. Der Worker verbindet sich mit dem Server (über den Jump-Server, falls es einen gibt), authentifiziert sich und hält die verschlüsselte Verbindung; korTTY spricht mit ihm über eine Verbindung auf diesem Computer (`127.0.0.1`), die nur ein einmaliges Token annimmt, das korTTY dafür erzeugt hat, und deren Schlüssel korTTY festhält. Der Worker reicht jeden Kanal, den korTTY öffnet, an den Server weiter, sodass das Terminal, SFTP auf der Sitzung des Terminals, abgelegte Dateien, die Befehle des KI-Agenten sowie `-L`-, `-D`- und `-R`-Tunnel wie bei einer direkten Sitzung funktionieren.
 
+Für sudo-Befehle öffnet der Agent sein [privates SSH-Pseudoterminal](ai-tools.md#privilegienbehandlung) über den Session-Worker auf dem Server. Das gilt für **Eigener Prozess** und **Eigener Prozess + Sandbox**.
+
 - **Ihr privater Schlüssel bleibt in korTTY.** Der Worker bekommt nie einen Schlüssel: Wenn der Server eine Signatur verlangt, fragt der Worker korTTY, das mit dem wie gewohnt geladenen Schlüssel signiert. Der Worker bekommt das Passwort eines Passwort-Logins und das des Jump-Servers, aber nie den Tresor oder das Master-Passwort.
 - **Host-Keys und Abfragen wie bisher.** korTTY prüft den Host-Key des Servers mit den gewohnten Dialogen gegen seine bekannten Hosts und beantwortet Keyboard-Interactive-Abfragen, auch den Zugriffsgrund, mit den gewohnten Dialogen.
 - **Mit einer Sandbox** kann der Worker `~/.kortty`, `~/.ssh`, `~/.gnupg` und die Schlüsselbunde weder lesen noch schreiben und schreibt nur in einen eigenen Ordner. Auf macOS darf er sich außerdem nur mit diesem Computer und mit dem Port des Servers und des Jump-Servers verbinden. Auf Linux hat er gar kein eigenes Netzwerk: korTTY stellt seine Verbindungen für ihn her, und zwar nur zu Host und Port des Servers und des Jump-Servers; ein Mosh-Worker erreicht ebenso nur den UDP-Port seiner Sitzung.
@@ -75,6 +77,8 @@ Bei geteilten Bereichen zeigt das Schild den am wenigsten isolierten Bereich, nu
 ## Inkognito-Sitzungen
 
 Eine Inkognito-Sitzung hinterlässt keine Spur in korTTY: kein Terminal-Log, kein Session-Journal, keine Aufzeichnung, keinen Eintrag unter **Datei → Zuletzt geschlossen**, nichts von ihrem Bildschirm in einem gespeicherten Projekt und keinen Platz in der Sitzung, die korTTY nach einem Neustart wiederherstellt. Ihr Tab zeigt einen Spion. Inkognito funktioniert mit jeder Isolationsstufe, mit oder ohne Sandbox.
+
+Ein SSH-Agentenlauf in einem Inkognito-Tab verwendet dasselbe sudo-Pseudoterminal und die sudo-Regeln des Servers.
 
 - **Jede Sitzung einer Verbindung:** Haken Sie **Inkognito-Sitzung** im Abschnitt **Sitzungs-Isolation** des Verbindungseditors an. Eine Verbindung aus einer geteilten Teamwork-Datei kann nicht inkognito gemacht werden.
 - **Eine Sitzung:** **Datei → Neue Inkognito-Sitzung…** öffnet die Schnellverbindung; der Tab, den sie öffnet, ist inkognito, egal was die Verbindung festlegt.

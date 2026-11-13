@@ -318,7 +318,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiProfileWizardDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalAction.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalButtons.java, src/main/java/de/kortty/ui/TerminalPaneRef.java, src/main/java/de/kortty/ui/TerminalRecentOutputSource.java, src/main/java/de/kortty/ui/AiTextActionInput.java, src/main/java/de/kortty/ui/AiStreamCoalescer.java, src/main/java/de/kortty/ui/AiChatStreamingView.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java, src/main/java/de/kortty/ui/ChatMarkdownView.java, src/main/java/de/kortty/ui/ChatAutoScrollSupport.java, src/main/java/de/kortty/ui/AiChatRenderSupport.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-sequence.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-state.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-class.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-er.md, src/main/java/de/kortty/core/AgentRunChatSeeder.java, src/main/java/de/kortty/core/AgentChatTranscriptFormatter.java, src/main/java/de/kortty/model/SavedAgentStep.java]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/chat-code-block-actions.png, ai/chat-from-agent-run.png]
-    last_synced_ref: "0a5ea066"
+    last_synced_ref: "1ebbe724"
   - path: app-docs/site/docs/en/features/local-models.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts, src/main/java/de/kortty/core/AiProfileSelectionSupport.java]
@@ -335,7 +335,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java, src/main/java/de/kortty/platform/FlatpakSupport.java, src/main/java/de/kortty/ui/AiAgentPlanTab.java, src/main/java/de/kortty/core/AgentRunChatSource.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "0a5ea066"
+    last_synced_ref: "1ebbe724"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]
@@ -392,7 +392,7 @@ pages:
     owns_i18n: [isolation., connEdit.isolation., connManager.group.isolation, menu.file.newIncognitoSession, menu.tools.sessionProcesses, sessionProcesses.]
     owns_code: [src/main/java/de/kortty/isolation, src/main/java/de/kortty/ui/IsolationMarkers.java, src/main/java/de/kortty/ui/IsolationConnectionSupport.java, src/main/java/de/kortty/model/ConnectionGroupIsolationEntry.java, src/main/java/de/kortty/core/worker, src/main/java/de/kortty/ui/SessionProcessesDialog.java]
     screenshots: [main/session-isolation-tabs.png]
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "1ebbe724"
   - path: app-docs/site/docs/en/features/backup.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/BackupManager.java, src/main/java/de/kortty/core/BackupSecretReKeyer.java]
@@ -585,7 +585,7 @@ pages:
       - src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java
       - src/main/java/de/kortty/ui/AgentTerminalSurface.java
     screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png, plugins/ai-agent-status-designs.png, plugins/ai-agent-history-panels.png, plugins/ai-agent-floating-designs.png, plugins/ai-agent-terminal-designs.png, plugins/ai-agent-arrangements.png, plugins/ai-agent-continue-in-chat.png]
-    last_synced_ref: "0a5ea066"
+    last_synced_ref: "1ebbe724"
   - path: app-docs/site/docs/en/features/coding-agents.md
     owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]
     owns_code:

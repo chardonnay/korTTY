@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * A session channel of the worker's loopback endpoint that remembers the terminal's size in pixels.
+ * A session channel of the worker's loopback endpoint that records PTY requests and pixel sizes.
  * Apache SSHD parses the pixel width and height of {@code pty-req} and {@code window-change} but
  * keeps only columns and lines in the {@link org.apache.sshd.server.Environment}, so without this
  * {@link RelayCommand} would forward 0×0 upstream and image tools (kitty graphics protocol) on the
@@ -32,8 +32,13 @@ final class PixelSizeChannelSession extends ChannelSession {
         }
     };
 
+    private volatile boolean ptyRequested;
     private volatile int pixelWidth;
     private volatile int pixelHeight;
+
+    boolean ptyRequested() {
+        return ptyRequested;
+    }
 
     int pixelWidth() {
         return pixelWidth;
@@ -46,6 +51,7 @@ final class PixelSizeChannelSession extends ChannelSession {
     @Override
     protected RequestHandler.Result handlePtyReqParsed(String term, int tColumns, int tRows, int tWidth, int tHeight,
             Map<PtyMode, Integer> ptyModes) throws IOException {
+        ptyRequested = true;
         recordPixels(tWidth, tHeight);
         return super.handlePtyReqParsed(term, tColumns, tRows, tWidth, tHeight, ptyModes);
     }

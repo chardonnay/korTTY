@@ -105,7 +105,7 @@ These status designs float over the terminal, which keeps its full size. They st
 
 ## Approvals and passwords
 
-An approval is answered with the keys **1** (allow once), **2** (allow always) and **3** (cancel) in the terminal, or with buttons. Designs with buttons of their own show them: the history panels, the toasts and the picture-in-picture window. With blocks in the terminal, focus mode or the classic panel's history, an approval opens a row below the terminal with the commands and the buttons **1 Allow Once**, **2 Allow Always** and **3 Cancel**. A password request always opens that row, with a masked field, **Use for this SSH session** and **OK**; ++enter++ submits and ++esc++ cancels. The classic panel keeps its own prompts.
+An approval is answered with the keys **1** (allow once), **2** (allow always) and **3** (cancel) in the terminal, or with buttons. Designs with buttons of their own show them: the history panels, the toasts and the picture-in-picture window. With blocks in the terminal, focus mode or the classic panel's history, an approval opens a row below the terminal with the commands and the buttons **1 Allow Once**, **2 Allow Always** and **3 Cancel**. A password request opens that row with a masked field and **OK**. Use ++enter++ to submit or ++esc++ to cancel. The classic panel keeps its own prompts.
 
 ## Solution options and memory in designs
 
