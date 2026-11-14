@@ -20,7 +20,10 @@ class AiRunConnectionWiringSourceScanTest {
 
     @Test
     void theAgentRunTakesTheMemoryOfTheConnectionItDrives() throws IOException {
-        assertThat(read("MainWindow")).contains("terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), agentConnectionId,");
+        String window = read("MainWindow");
+        assertThat(window).contains("AgentCommandRunner runner = agentRunnerFor(targetRunContext);");
+        assertThat(window).contains("terminalTab, profile, aiService, request, targetRunContext, runner, foreignSessionAcknowledgedFor);");
+        assertThat(window).contains("terminalAgentService.runAgent(terminalTab, runner, agentConnectionId,");
     }
 
     @Test

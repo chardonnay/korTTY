@@ -20,6 +20,9 @@ import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentOutboundContext;
+import de.kortty.core.agent.AgentSudoAuthentication;
+import de.kortty.core.agent.AgentSudoCommand;
+import de.kortty.core.agent.AgentSudoPty;
 import de.kortty.core.agent.AgentCommandRunner.ExecResult;
 import de.kortty.core.agent.AgentCommandRunner.ShellKind;
 import de.kortty.policy.ManagedSetting;
@@ -93,10 +96,14 @@ public class TerminalAgentService {
     private static final Duration COMMAND_WAIT_TIMEOUT = Duration.ofMinutes(15);
     private static final List<String> INTERACTIVE_COMMAND_TOKENS = List.of(
         "vi", "vim", "nano", "less", "more", "man", "top", "htop", "su");
-    private static final Pattern SUDO_INVOCATION_PATTERN = Pattern.compile("(?i)(^|[;&|()]\\s*)sudo\\s+");
-    private static final Pattern SUDO_NON_INTERACTIVE_INVOCATION_PATTERN = Pattern.compile("(?i)(^|[;&|()]\\s*)sudo\\s+-n\\s+");
+    private static final String SUDO_COMMAND_PREFIX =
+        "(^|[;&|(){}\\n])([ \\t]*(?:(?:if|elif|then|else|while|until|do|!)[ \\t]+)*)";
+    private static final Pattern SUDO_INVOCATION_PATTERN =
+        Pattern.compile(SUDO_COMMAND_PREFIX + "((?:/usr/bin/|/bin/)?sudo)[ \\t]+");
+    private static final Pattern SUDO_NON_INTERACTIVE_INVOCATION_PATTERN =
+        Pattern.compile(SUDO_COMMAND_PREFIX + "((?:/usr/bin/|/bin/)?sudo)[ \\t]+-n[ \\t]+");
     private static final Pattern SUDO_STDIN_OPTION_AFTER_NON_INTERACTIVE_PATTERN =
-        Pattern.compile("(^|[;&|()]\\s*)sudo\\s+-n\\s+(?:(?:-S|--stdin)\\s+)+");
+        Pattern.compile(SUDO_COMMAND_PREFIX + "((?:/usr/bin/|/bin/)?sudo)[ \\t]+-n[ \\t]+(?:(?:-S|--stdin)[ \\t]+)+");
     private static final Pattern FILE_TYPE_COUNT_PATH_PATTERN =
         Pattern.compile("(?i)\\b(?:directory|dir|folder)\\s+(['\"]?)(/[^\\s?'\";:,]+)\\1");
     private static final Pattern COUNT_OUTPUT_PATTERN = Pattern.compile("(?m)^(total|plain_text|binary_or_non_text)=(\\d+)\\s*$");
@@ -612,40 +619,42 @@ public class TerminalAgentService {
             ? connectionId
             : connectionIdOf(terminalTab);
         String sessionId = request.sessionId();
-        CachedSudoPassword cachedPassword = null;
-        try {
-            publishAgentProfile(ui, runId, profile);
-            TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
-            // Created after the probe: a lazily connected swarm runner knows its password only then.
-            // Per run, never a field — one service instance runs parallel swarm agents. The memory is read
-            // once here and sent unchanged in every turn of the run.
-            AgentOutboundContext outbound = AgentOutboundContext.forRun(
-                profile,
-                memoryFor(agentConnectionId, profile),
-                count -> publishOutboundMasking(ui, runId, count),
-                knownSecretsFor(terminalTab, runner));
-            List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
-            // Policy mode CONFIRM overrides any request-level opt-out and defeats the
-            // auto-approve bypass — every mutating command set must be approved interactively.
-            boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets()
-                || agentPolicy.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM;
-            boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
-            cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
-            rememberSudoPassword(outbound, cachedPassword);
-            ui.publishRunSecrets(runId, outbound.knownSecrets());
+        publishAgentProfile(ui, runId, profile);
+        TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
+        // Created after the probe: a lazily connected swarm runner knows its password only then.
+        // Per run, never a field — one service instance runs parallel swarm agents. The memory is read
+        // once here and sent unchanged in every turn of the run.
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(
+            profile,
+            memoryFor(agentConnectionId, profile),
+            count -> publishOutboundMasking(ui, runId, count),
+            knownSecretsFor(terminalTab, runner));
+        List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
+        // Policy mode CONFIRM overrides any request-level opt-out and defeats the
+        // auto-approve bypass — every mutating command set must be approved interactively.
+        boolean confirmMutatingCommandSets = request.confirmMutatingCommandSets()
+            || agentPolicy.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM;
+        boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
+        AgentCommandRunner commandRunner = requireRunner(terminalTab, runner);
+        boolean useSudoPty = commandRunner.supportsSudoPty();
+        if (!useSudoPty) {
+            rememberSudoPassword(outbound, cachedSudoPasswordBySessionId.get(sessionId));
+        }
+        ui.publishRunSecrets(runId, outbound.knownSecrets());
 
-            if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
-                return;
-            }
-            Optional<TerminalAgentModels.Request> chosenRequest = offerSolutionChoice(
-                terminalTab, aiService, outbound, request, probe, agentConnectionId,
-                triageModeFor(agentPolicy), agentPolicy, ui, runId);
-            if (chosenRequest.isEmpty()) {
-                return;
-            }
-            request = chosenRequest.get();
-            int questionsAsked = 0;
+        if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
+            return;
+        }
+        Optional<TerminalAgentModels.Request> chosenRequest = offerSolutionChoice(
+            terminalTab, aiService, outbound, request, probe, agentConnectionId,
+            triageModeFor(agentPolicy), agentPolicy, ui, runId);
+        if (chosenRequest.isEmpty()) {
+            return;
+        }
+        request = chosenRequest.get();
+        int questionsAsked = 0;
 
+        try (RunSudoPty sudoPty = new RunSudoPty()) {
             for (int turn = 1; turn <= MAX_AGENT_TURNS; turn++) {
                 ensureNotCancelled(ui);
                 // Cooperative pause: park between turns while the user holds the run paused. A command
@@ -669,6 +678,7 @@ public class TerminalAgentService {
                     null,
                     turn));
 
+                CachedSudoPassword cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
                 AgentDecision decision = requestAgentDecision(
                     aiService,
                     outbound,
@@ -676,7 +686,7 @@ public class TerminalAgentService {
                     probe,
                     history,
                     turn,
-                    cachedPassword != null && !cachedPassword.isBlank(),
+                    !useSudoPty && cachedPassword != null && !cachedPassword.isBlank(),
                     ui,
                     runId);
                 if (decision.status() == AgentDecisionStatus.done) {
@@ -687,25 +697,6 @@ public class TerminalAgentService {
                     return;
                 }
                 if (decision.status() == AgentDecisionStatus.blocked) {
-                    if (shouldPromptForSudoPasswordAfterBlockedDecision(
-                        decision.summary(),
-                        decision.userMessage(),
-                        probe,
-                        cachedPassword)) {
-                        cachedPassword = requestSudoPassword(
-                            ui,
-                            runId,
-                            request,
-                            turn,
-                            nonBlank(decision.summary(), "Sudo password required."),
-                            "Enter the sudo password to continue this SSH session.",
-                            null);
-                        if (cachedPassword == null || cachedPassword.isBlank()) {
-                            return;
-                        }
-                        rememberSudoPassword(outbound, cachedPassword);
-                        continue;
-                    }
                     ui.updateState(new TerminalAgentModels.RunState(
                         runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.BLOCKED,
                         decision.summary(), decision.userMessage(), null, null, null, turn));
@@ -762,94 +753,27 @@ public class TerminalAgentService {
 
                 for (TerminalAgentModels.PlannedCommand planned : commands) {
                     ensureNotCancelled(ui);
-                    boolean sudoPasswordRequired = requiresSudoPassword(probe, planned.command());
-                    int sudoPasswordFailures = 0;
                     String commandActivityId = runId + ":command:" + turn + ":" + history.size();
-                    long commandStartedAtNanos = 0L;
-                    boolean commandActivityStarted = false;
-                    while (true) {
-                        String commandToRun = planned.command();
-                        byte[] stdin = null;
-                        ExecResult execResult;
-                        try {
-                            if (sudoPasswordRequired) {
-                                if (cachedPassword == null || cachedPassword.isBlank()) {
-                                    cachedPassword = requestSudoPassword(
-                                        ui,
-                                        runId,
-                                        request,
-                                        turn,
-                                        planned.purpose(),
-                                        buildSudoPasswordPromptMessage(sudoPasswordFailures),
-                                        planned.command());
-                                    rememberSudoPassword(outbound, cachedPassword);
-                                    if (cachedPassword == null || cachedPassword.isBlank()) {
-                                        if (commandActivityStarted) {
-                                            publishCommandActivity(
-                                                ui,
-                                                commandActivityId,
-                                                planned,
-                                                TerminalAgentModels.AgentActivityStatus.CANCELLED,
-                                                null,
-                                                elapsedSecondsSince(commandStartedAtNanos));
-                                        }
-                                        return;
-                                    }
-                                }
-                                commandToRun = rewriteSudoCommandForPassword(commandToRun);
-                                stdin = cachedPassword.toUtf8Line();
-                            }
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
+                        planned.purpose(), planned.command(), null, null, planned.command(), turn));
+                    long commandStartedAtNanos = System.nanoTime();
+                    publishCommandActivity(ui, commandActivityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
+                    ui.appendTranscript("\n$ " + planned.command() + "\n");
 
-                            if (!commandActivityStarted) {
-                                ui.updateState(new TerminalAgentModels.RunState(
-                                    runId, request.sessionId(), request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
-                                    planned.purpose(), planned.command(), null, null, planned.command(), turn));
-                                commandStartedAtNanos = System.nanoTime();
-                                publishCommandActivity(ui, commandActivityId, planned, TerminalAgentModels.AgentActivityStatus.RUNNING, null, 0L);
-                                ui.appendTranscript("\n$ " + planned.command() + "\n");
-                                commandActivityStarted = true;
-                            }
-
-                            execResult = exec(terminalTab, runner, commandToRun, stdin, chunk -> {
-                                if (chunk == null || chunk.isEmpty()) {
-                                    return;
-                                }
-                                ui.appendTranscript(chunk);
-                            }, ui::isCancelled);
-                        } finally {
-                            if (stdin != null) {
-                                Arrays.fill(stdin, (byte) 0);
-                            }
-                        }
-
-                        boolean sudoPasswordRejected = sudoPasswordRequired && shouldClearCachedSudoPassword(execResult);
-                        if (sudoPasswordRejected) {
-                            sudoPasswordFailures++;
-                            if (cachedPassword != null && !cachedPassword.isSessionScoped()) {
-                                cachedPassword.clear();
-                            }
-                            clearCachedSudoPassword(sessionId);
-                            cachedPassword = null;
-                            if (sudoPasswordFailures <= MAX_SUDO_PASSWORD_RETRIES) {
-                                continue;
-                            }
-                        }
-
-                        TerminalAgentModels.CommandResult commandResult = toCommandResult(planned, execResult);
-                        history.add(commandResult);
-                        publishCommandActivity(
-                            ui,
-                            commandActivityId,
-                            planned,
-                            TerminalAgentModels.AgentActivityStatus.COMPLETED,
-                            execResult,
+                    ExecResult execResult;
+                    try {
+                        execResult = executeAgentCommand(commandRunner, sudoPty, request, probe, outbound, ui, runId, turn, planned);
+                    } catch (AgentCancelledException e) {
+                        publishCommandActivity(ui, commandActivityId, planned,
+                            TerminalAgentModels.AgentActivityStatus.CANCELLED, null,
                             elapsedSecondsSince(commandStartedAtNanos));
-                        if (!sudoPasswordRejected && cachedPassword != null && !cachedPassword.isSessionScoped()) {
-                            cachedPassword.clear();
-                            cachedPassword = null;
-                        }
-                        break;
+                        throw e;
                     }
+                    history.add(toCommandResult(planned, execResult));
+                    publishCommandActivity(ui, commandActivityId, planned,
+                        TerminalAgentModels.AgentActivityStatus.COMPLETED, execResult,
+                        elapsedSecondsSince(commandStartedAtNanos));
                     if (decision.needsReprobe()) {
                         String reprobeId = runId + ":reprobe:" + turn;
                         publishAction(ui, reprobeId, TerminalAgentModels.AgentActivityStatus.RUNNING, "Inspect(SSH session)", "Refreshing server state.", null, 0L);
@@ -875,10 +799,6 @@ public class TerminalAgentService {
                 null,
                 MAX_AGENT_TURNS));
             publishMessage(ui, runId, "turn-limit", "The task needs more manual guidance before the next step is safe.", "The AI agent reached its turn limit.");
-        } finally {
-            if (cachedPassword != null && !cachedPassword.isSessionScoped()) {
-                cachedPassword.clear();
-            }
         }
     }
 
@@ -1546,14 +1466,16 @@ public class TerminalAgentService {
         int turn,
         String summary,
         String userMessage,
-        String command) throws Exception {
+        String command,
+        boolean allowSessionCache) throws Exception {
         TerminalAgentModels.PasswordRequest passwordRequest = new TerminalAgentModels.PasswordRequest(
             runId,
             request.sessionId(),
             request.executionTarget(),
             nonBlank(summary, "Sudo password required."),
-            nonBlank(userMessage, "Enter the sudo password to continue this SSH session."),
-            command);
+            nonBlank(userMessage, "Enter the sudo password to continue."),
+            command,
+            allowSessionCache);
         ui.updateState(new TerminalAgentModels.RunState(
             runId,
             request.sessionId(),
@@ -1586,24 +1508,19 @@ public class TerminalAgentService {
         char[] passwordChars = password.toCharArray();
         CachedSudoPassword cachedPassword;
         try {
-            cachedPassword = new CachedSudoPassword(passwordChars, passwordResponse != null && passwordResponse.cacheForSession());
+            cachedPassword = new CachedSudoPassword(passwordChars, allowSessionCache && passwordResponse.cacheForSession());
         } finally {
             Arrays.fill(passwordChars, '\0');
-        }
-        if (cachedPassword.isSessionScoped()) {
-            CachedSudoPassword previous = cachedSudoPasswordBySessionId.put(request.sessionId(), cachedPassword);
-            if (previous != null) {
-                previous.clear();
-            }
         }
         return cachedPassword;
     }
 
-    private String buildSudoPasswordPromptMessage(int failedAttempts) {
+    private String buildSudoPasswordPromptMessage(int failedAttempts, boolean useSudoPty) {
+        String scope = useSudoPty ? "this agent run" : "this SSH session";
         if (failedAttempts <= 0) {
-            return "Waiting for the sudo password to continue this SSH session.";
+            return "Waiting for the sudo password to continue " + scope + ".";
         }
-        return "The sudo password was not accepted. Enter it again to continue this SSH session. Retry "
+        return "The sudo password was not accepted. Enter it again to continue " + scope + ". Retry "
             + failedAttempts + " of " + MAX_SUDO_PASSWORD_RETRIES + ".";
     }
 
@@ -1617,68 +1534,16 @@ public class TerminalAgentService {
         }
     }
 
-    public static boolean needsSudoPasswordPreflight(TerminalAgentModels.ProbeSnapshot probe) {
-        return probe != null
-            && !probe.alreadyRoot()
-            && probe.sudoAvailable()
-            && !probe.passwordlessSudo();
-    }
-
-    public boolean verifyAndCacheSudoPassword(
-        TerminalTab terminalTab,
-        AgentCommandRunner runner,
-        String sessionId,
-        TerminalAgentModels.PasswordResponse passwordResponse,
-        BooleanSupplier cancellationSupplier) throws Exception {
-        if (sessionId == null || sessionId.isBlank()
-            || passwordResponse == null
-            || passwordResponse.password() == null
-            || passwordResponse.password().isBlank()) {
-            return false;
+    /** Drops credentials for the tab and every connector scoped to that tab. */
+    public void clearCachedSudoPasswordsForTab(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return;
         }
-        char[] passwordChars = passwordResponse.password().toCharArray();
-        CachedSudoPassword cachedPassword;
-        try {
-            cachedPassword = new CachedSudoPassword(passwordChars, true);
-        } finally {
-            Arrays.fill(passwordChars, '\0');
-        }
-        byte[] stdin = cachedPassword.toUtf8Line();
-        boolean stored = false;
-        try {
-            ExecResult result = exec(terminalTab, runner, "sudo -S -p '' -v", stdin, null, cancellationSupplier);
-            if (result.exitCode() == 0) {
-                CachedSudoPassword previous = cachedSudoPasswordBySessionId.put(sessionId, cachedPassword);
-                stored = true;
-                if (previous != null) {
-                    previous.clear();
-                }
-                return true;
+        cachedSudoPasswordBySessionId.keySet().forEach(key -> {
+            if (key.equals(sessionId) || key.startsWith(sessionId + ":")) {
+                clearCachedSudoPassword(key);
             }
-            clearCachedSudoPassword(sessionId);
-            return false;
-        } finally {
-            Arrays.fill(stdin, (byte) 0);
-            if (!stored) {
-                cachedPassword.clear();
-            }
-        }
-    }
-
-    static boolean shouldClearCachedSudoPassword(String stdout, String stderr) {
-        String combined = ((stdout != null ? stdout : "") + "\n" + (stderr != null ? stderr : ""))
-            .toLowerCase(Locale.ROOT);
-        return combined.contains("sorry, try again")
-            || combined.contains("incorrect password")
-            || combined.contains("authentication failure")
-            || combined.contains("a password is required")
-            || combined.contains("no password was provided");
-    }
-
-    private static boolean shouldClearCachedSudoPassword(ExecResult execResult) {
-        return execResult != null
-            && execResult.exitCode() != 0
-            && shouldClearCachedSudoPassword(execResult.stdout(), execResult.stderr());
+        });
     }
 
     private TerminalAgentModels.ProbeSnapshot updateAndProbe(
@@ -2056,8 +1921,8 @@ public class TerminalAgentService {
     }
 
     private static void rememberSudoPassword(AgentOutboundContext outbound, CachedSudoPassword password) {
-        if (outbound != null && password != null && !password.isBlank()) {
-            outbound.addSecret(password.value);
+        if (outbound != null && password != null) {
+            password.addTo(outbound);
         }
     }
 
@@ -2796,7 +2661,8 @@ public class TerminalAgentService {
         return status == AgentDecisionStatus.needs_confirmation
             || askConfirmationBeforeEveryCommand
             || safeList(commands).stream()
-                .anyMatch(command -> command.risk() == TerminalAgentModels.Risk.REQUIRES_CONFIRMATION);
+                .anyMatch(command -> command.risk() == TerminalAgentModels.Risk.REQUIRES_CONFIRMATION
+                    || hasAgentSudo(command.command()));
     }
 
     public static boolean requiresConfirmationByCommandShape(String command) {
@@ -2895,6 +2761,10 @@ public class TerminalAgentService {
 
     /** Blanks out single- and double-quoted regions so a command-word scan ignores quoted text. */
     static String stripQuotedSegmentsForCommandCheck(String command) {
+        return maskQuotedSegments(command, ' ');
+    }
+
+    private static String maskQuotedSegments(String command, char mask) {
         if (command == null || command.isEmpty()) {
             return command != null ? command : "";
         }
@@ -2907,27 +2777,27 @@ public class TerminalAgentService {
                 if (c == '\'') {
                     inSingle = false;
                 }
-                out.append(' ');
+                out.append(mask);
                 continue;
             }
             if (inDouble) {
                 if (c == '\\' && i + 1 < command.length()) {
-                    out.append("  ");
+                    out.append(mask).append(mask);
                     i++;
                     continue;
                 }
                 if (c == '"') {
                     inDouble = false;
                 }
-                out.append(' ');
+                out.append(mask);
                 continue;
             }
             if (c == '\'') {
                 inSingle = true;
-                out.append(' ');
+                out.append(mask);
             } else if (c == '"') {
                 inDouble = true;
-                out.append(' ');
+                out.append(mask);
             } else {
                 out.append(c);
             }
@@ -2936,23 +2806,41 @@ public class TerminalAgentService {
     }
 
     static String stripHereDocumentBodiesForCommandCheck(String command) {
+        return filterHereDocumentBodies(command, false);
+    }
+
+    private static String filterHereDocumentBodies(String command, boolean preserveOffsets) {
         if (command == null || command.isBlank() || !command.contains("<<")) {
             return command != null ? command : "";
         }
 
         StringBuilder sanitized = new StringBuilder(command.length());
         List<String> pendingDelimiters = new ArrayList<>();
-        String[] lines = command.split("\\R", -1);
-        for (String line : lines) {
+        String[] lines = command.split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
             if (!pendingDelimiters.isEmpty()) {
                 if (matchesHereDocumentDelimiter(line, pendingDelimiters.getFirst())) {
                     pendingDelimiters.removeFirst();
                 }
+                if (preserveOffsets) {
+                    sanitized.append("\u0001".repeat(line.length()));
+                    if (i < lines.length - 1) {
+                        sanitized.append('\n');
+                    }
+                }
                 continue;
             }
-            sanitized.append(line).append('\n');
+            sanitized.append(line);
+            if (i < lines.length - 1) {
+                sanitized.append('\n');
+            }
             Matcher matcher = HERE_DOCUMENT_OPERATOR_PATTERN.matcher(line);
+            String unquotedLine = maskQuotedSegments(line, '\u0001');
             while (matcher.find()) {
+                if (unquotedLine.charAt(matcher.start()) != '<') {
+                    continue;
+                }
                 String delimiter = firstNonNull(matcher.group(1), matcher.group(2), matcher.group(3));
                 if (delimiter != null && !delimiter.isBlank()) {
                     pendingDelimiters.add(delimiter);
@@ -2987,30 +2875,34 @@ public class TerminalAgentService {
             throw new IllegalArgumentException("Unsupported sudo mode: " + command);
         }
 
-        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(command);
-        StringBuffer normalized = new StringBuffer();
+        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(sudoCommandCheck(command));
+        StringBuilder normalized = new StringBuilder(command.length());
+        int cursor = 0;
         while (matcher.find()) {
-            String rest = command.substring(matcher.end());
-            if (startsWithNonInteractiveSudoFlag(rest)) {
-                matcher.appendReplacement(normalized, Matcher.quoteReplacement(matcher.group()));
-            } else {
-                matcher.appendReplacement(normalized, Matcher.quoteReplacement(matcher.group(1) + "sudo -n "));
+            if (!startsWithNonInteractiveSudoFlag(command.substring(matcher.end()))) {
+                normalized.append(command, cursor, matcher.end()).append("-n ");
+                cursor = matcher.end();
             }
         }
-        matcher.appendTail(normalized);
-        return stripPlannerSudoStdinOptions(normalized.toString());
+        return stripPlannerSudoStdinOptions(normalized.append(command, cursor, command.length()).toString());
     }
 
     private static String stripPlannerSudoStdinOptions(String command) {
-        Matcher matcher = SUDO_STDIN_OPTION_AFTER_NON_INTERACTIVE_PATTERN.matcher(command);
-        return matcher.replaceAll("$1sudo -n ");
+        Matcher matcher = SUDO_STDIN_OPTION_AFTER_NON_INTERACTIVE_PATTERN.matcher(sudoCommandCheck(command));
+        StringBuilder normalized = new StringBuilder(command.length());
+        int cursor = 0;
+        while (matcher.find()) {
+            normalized.append(command, cursor, matcher.end(3)).append(" -n ");
+            cursor = matcher.end();
+        }
+        return normalized.append(command, cursor, command.length()).toString();
     }
 
     private static boolean containsSudoWithoutNonInteractiveFlag(String command) {
         if (command == null || command.isBlank()) {
             return false;
         }
-        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(command);
+        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(sudoCommandCheck(command));
         while (matcher.find()) {
             if (!startsWithNonInteractiveSudoFlag(command.substring(matcher.end()))) {
                 return true;
@@ -3020,7 +2912,7 @@ public class TerminalAgentService {
     }
 
     private static boolean containsForbiddenSudoMode(String command) {
-        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(command);
+        Matcher matcher = SUDO_INVOCATION_PATTERN.matcher(sudoCommandCheck(command));
         while (matcher.find()) {
             String rest = command.substring(matcher.end()).stripLeading();
             if (rest.isBlank()) {
@@ -3040,7 +2932,10 @@ public class TerminalAgentService {
                     }
                     continue;
                 }
-                return "su".equalsIgnoreCase(token);
+                if ("su".equalsIgnoreCase(token)) {
+                    return true;
+                }
+                break;
             }
         }
         return false;
@@ -3048,13 +2943,17 @@ public class TerminalAgentService {
 
     private static boolean isForbiddenSudoOption(String token) {
         String lowerToken = token.toLowerCase(Locale.ROOT);
-        if ("--shell".equals(lowerToken) || "--login".equals(lowerToken)) {
+        if ("--shell".equals(lowerToken) || "--login".equals(lowerToken)
+            || "--askpass".equals(lowerToken)
+            || "--non-interactive".equals(lowerToken)) {
             return true;
         }
         if (lowerToken.startsWith("--")) {
             return false;
         }
-        return token.indexOf('s') >= 0 || token.indexOf('i') >= 0;
+        return token.indexOf('s') >= 0 || token.indexOf('i') >= 0
+            || token.indexOf('A') >= 0
+            || (token.indexOf('n') >= 0 && !"-n".equals(token));
     }
 
     private static boolean startsWithNonInteractiveSudoFlag(String rest) {
@@ -3064,47 +2963,6 @@ public class TerminalAgentService {
         String stripped = rest.stripLeading();
         return stripped.startsWith("-n")
             && (stripped.length() == 2 || Character.isWhitespace(stripped.charAt(2)));
-    }
-
-    static boolean shouldPromptForSudoPasswordAfterBlockedDecision(
-        String summary,
-        String userMessage,
-        TerminalAgentModels.ProbeSnapshot probe,
-        String cachedPassword) {
-        return shouldPromptForSudoPasswordAfterBlockedDecision(
-            summary,
-            userMessage,
-            probe,
-            cachedPassword != null && !cachedPassword.isBlank());
-    }
-
-    private static boolean shouldPromptForSudoPasswordAfterBlockedDecision(
-        String summary,
-        String userMessage,
-        TerminalAgentModels.ProbeSnapshot probe,
-        CachedSudoPassword cachedPassword) {
-        return shouldPromptForSudoPasswordAfterBlockedDecision(
-            summary,
-            userMessage,
-            probe,
-            cachedPassword != null && !cachedPassword.isBlank());
-    }
-
-    private static boolean shouldPromptForSudoPasswordAfterBlockedDecision(
-        String summary,
-        String userMessage,
-        TerminalAgentModels.ProbeSnapshot probe,
-        boolean cachedPasswordPresent) {
-        if (probe == null
-            || probe.alreadyRoot()
-            || !probe.sudoAvailable()
-            || probe.passwordlessSudo()
-            || cachedPasswordPresent) {
-            return false;
-        }
-        String text = ((summary != null ? summary : "") + " " + (userMessage != null ? userMessage : ""))
-            .toLowerCase(Locale.ROOT);
-        return text.contains("sudo") && (text.contains("password") || text.contains("passwort"));
     }
 
     private boolean usesUnknownPackageManager(String command, List<String> availablePackageManagers) {
@@ -3119,26 +2977,147 @@ public class TerminalAgentService {
         return managers.contains(firstToken) && !safeList(availableServiceManagers).contains(firstToken);
     }
 
-    private String rewriteSudoCommandForPassword(String command) {
-        if (command == null || command.isBlank()) {
-            return command;
+    private ExecResult executeAgentCommand(
+        AgentCommandRunner target,
+        RunSudoPty sudoPty,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        AgentOutboundContext outbound,
+        RunUi ui,
+        String runId,
+        int turn,
+        TerminalAgentModels.PlannedCommand planned) throws Exception {
+        String command = planned.command();
+        java.util.function.Consumer<String> output = ui::appendTranscript;
+        if (!target.isPosix() || probe.alreadyRoot() || !hasAgentSudo(command)) {
+            return target.exec(command, null, output, ui::isCancelled, true);
         }
-        Matcher matcher = SUDO_NON_INTERACTIVE_INVOCATION_PATTERN.matcher(command);
-        StringBuffer rewritten = new StringBuffer();
-        while (matcher.find()) {
-            matcher.appendReplacement(rewritten, Matcher.quoteReplacement(matcher.group(1) + "sudo -S -p '' "));
+
+        boolean useSudoPty = target.supportsSudoPty();
+        SessionJournalRedactor redactor = outbound.knownSecrets();
+        if (useSudoPty && sudoPty.isOpen()) {
+            return redactSudoResult(sudoPty.terminal.exec(command, chunk -> output.accept(redactor.redact(chunk)), ui::isCancelled),
+                redactor);
         }
-        matcher.appendTail(rewritten);
-        return rewritten.toString();
+        String sessionId = request.sessionId();
+        class PasswordExchange implements AgentSudoAuthentication.PasswordSource {
+            private CachedSudoPassword attempted;
+            private boolean enteredHere;
+            private int failures;
+
+            @Override
+            public byte[] password(boolean retry) throws Exception {
+                ensureNotCancelled(ui);
+                if (retry) {
+                    discardAttempt();
+                    if (++failures > MAX_SUDO_PASSWORD_RETRIES) {
+                        return null;
+                    }
+                }
+                if (!useSudoPty && (attempted == null || attempted.isBlank())) {
+                    attempted = cachedSudoPasswordBySessionId.get(sessionId);
+                    enteredHere = false;
+                }
+                if (attempted == null || attempted.isBlank()) {
+                    attempted = requestSudoPassword(ui, runId, request, turn, planned.purpose(),
+                        buildSudoPasswordPromptMessage(failures, useSudoPty), command, !useSudoPty);
+                    enteredHere = true;
+                    if (attempted == null) {
+                        throw new AgentCancelledException("No sudo password was provided.");
+                    }
+                    ensureNotCancelled(ui);
+                    ui.updateState(new TerminalAgentModels.RunState(
+                        runId, sessionId, request.executionTarget(), TerminalAgentModels.Phase.RUNNING_COMMANDS,
+                        planned.purpose(), command, null, null, command, turn));
+                }
+                if (!useSudoPty) {
+                    rememberSudoPassword(outbound, attempted);
+                    return attempted.toUtf8Line();
+                }
+                try {
+                    return attempted.toUtf8Line();
+                } finally {
+                    discardAttempt();
+                }
+            }
+
+            private void discardAttempt() {
+                if (attempted != null && (enteredHere || cachedSudoPasswordBySessionId.remove(sessionId, attempted))) {
+                    attempted.clear();
+                }
+                attempted = null;
+                enteredHere = false;
+            }
+
+            private void finish(boolean succeeded) {
+                if (!enteredHere || attempted == null) {
+                    return;
+                }
+                if (succeeded && attempted.isSessionScoped()) {
+                    CachedSudoPassword previous = cachedSudoPasswordBySessionId.putIfAbsent(sessionId, attempted);
+                    if (previous == null) {
+                        return;
+                    }
+                }
+                attempted.clear();
+            }
+        }
+
+        PasswordExchange exchange = new PasswordExchange();
+        boolean succeeded = false;
+        try (AgentSudoAuthentication authentication = new AgentSudoAuthentication(command, exchange, redactor::redact)) {
+            ExecResult result;
+            try {
+                BooleanSupplier cancelled = () -> ui.isCancelled() || authentication.failed();
+                if (useSudoPty) {
+                    sudoPty.terminal = target.openSudoPty(authentication, cancelled);
+                    authentication.checkFailure();
+                } else {
+                    String wrapped = AgentSudoCommand.wrap(command, authentication);
+                    result = target.execWithSudo(wrapped, authentication, chunk ->
+                        output.accept(redactor.redact(chunk)), cancelled, true);
+                    authentication.checkFailure();
+                    succeeded = result.exitCode() == 0 && !result.timedOut() && !result.cancelled()
+                        && !ui.isCancelled() && target.isConnected();
+                    return redactSudoResult(result, redactor);
+                }
+            } catch (AgentCancelledException e) {
+                authentication.checkFailure();
+                throw e;
+            }
+        } finally {
+            exchange.finish(succeeded);
+        }
+        return redactSudoResult(sudoPty.terminal.exec(command, chunk -> output.accept(redactor.redact(chunk)), ui::isCancelled),
+            redactor);
     }
 
-    private boolean requiresSudoPassword(TerminalAgentModels.ProbeSnapshot probe, String command) {
-        return probe != null
-            && !probe.alreadyRoot()
-            && probe.sudoAvailable()
-            && !probe.passwordlessSudo()
-            && command != null
-            && SUDO_NON_INTERACTIVE_INVOCATION_PATTERN.matcher(command).find();
+    private static ExecResult redactSudoResult(ExecResult result, SessionJournalRedactor redactor) {
+        return new ExecResult(redactor.redact(result.stdout()), redactor.redact(result.stderr()),
+            result.exitCode(), result.cancelled(), result.timedOut());
+    }
+
+    private static final class RunSudoPty implements AutoCloseable {
+        private AgentSudoPty terminal;
+
+        private boolean isOpen() {
+            return terminal != null;
+        }
+
+        @Override
+        public void close() {
+            if (terminal != null) {
+                terminal.close();
+            }
+        }
+    }
+
+    private static boolean hasAgentSudo(String command) {
+        return SUDO_NON_INTERACTIVE_INVOCATION_PATTERN.matcher(sudoCommandCheck(command)).find();
+    }
+
+    private static String sudoCommandCheck(String command) {
+        return maskQuotedSegments(filterHereDocumentBodies(command, true), '\u0001');
     }
 
     private void ensureNotCancelled(RunUi ui) {
@@ -3660,9 +3639,10 @@ public class TerminalAgentService {
             "To read, inspect, translate, convert, migrate, or otherwise use a file whose contents are NOT already in the probe or previous command results, FIRST plan a read-only command to read it (e.g. `cat 'path'`, or `head -c 200000 'path'` for a possibly large file), risk `read_only`, in `commands` with status `run_commands`. The probe never contains file contents. Never answer `blocked` merely because a file's contents are not in the probe — read the file first; only block if the read command itself shows the file is missing or unreadable.",
             "To create, rewrite or migrate a file — especially structured files such as YAML, JSON, INI, or scripts — write the COMPLETE intended file contents in one command using a quoted here-document (`cat > 'path' <<'EOF'` ... newline ... `EOF`). Do NOT edit such files in place with `sed`/`awk` regex substitutions; in-place regex edits are fragile and easily corrupt indentation or structure. Use `sed`/`awk` only for reading or extracting text, never for rewriting structured files.",
             "NEVER claim that a file was created, written, saved, or modified unless you actually issued the command that does so in THIS response. To create or modify a file you MUST put the writing command (e.g. the `cat > 'path' <<'EOF'` here-document) in `commands` with status `run_commands` or `needs_confirmation`. Do NOT set status `done` while only describing the intended file contents — that would report work that never happened.",
-            "If sudo is needed, use `sudo -n ...` only. Never use `su`, `sudo su`, `sudo -S`, or commands that wait for a password.",
+            "If sudo is needed, use an explicit `sudo -n ...` invocation so korTTY can validate sudo before execution. Prefer a separate command for each privileged step. A sudo command can have its own redirections and here-document. Do not use `-k` with the command because it ignores the validated sudo ticket. Never use `su`, `sudo su`, `sudo -S`, or commands that wait for a password.",
+            "If `sudo -n` fails because the sudo ticket is unavailable or has expired, report the failure and do not replay the command.",
             "If the probe says `sudoAvailable` is true but `passwordlessSudo` is false, you may still plan `sudo -n ...` commands.",
-            "If the runtime state says `sudoPasswordCached` is true, do not ask for the sudo password again.",
+            "Plan the actual sudo commands and let korTTY handle any password prompt. Do not ask the user for a password yourself.",
             "If the task is complete, set `status` to `done`.",
             "If previous command results already answer the user task, set `status` to `done` instead of planning more commands.",
             "For read-only inventory, counting, or classification tasks, prefer one aggregate shell command and finish once its output contains the requested counts.",
@@ -4009,7 +3989,7 @@ public class TerminalAgentService {
             return sessionScoped;
         }
 
-        private boolean isBlank() {
+        private synchronized boolean isBlank() {
             char[] current = value;
             if (current == null || current.length == 0) {
                 return true;
@@ -4022,10 +4002,21 @@ public class TerminalAgentService {
             return true;
         }
 
-        private byte[] toUtf8Line() {
+        private synchronized void addTo(AgentOutboundContext outbound) {
+            if (value != null) {
+                outbound.addSecret(value);
+            }
+        }
+
+        private synchronized byte[] toUtf8Line() {
             char[] current = value;
             if (current == null || current.length == 0) {
                 return new byte[0];
+            }
+            for (char ch : current) {
+                if (ch == '\n' || ch == '\r' || ch == '\0') {
+                    throw new IllegalArgumentException("The sudo password cannot contain line breaks or NUL.");
+                }
             }
             char[] charsWithNewline = Arrays.copyOf(current, current.length + 1);
             charsWithNewline[charsWithNewline.length - 1] = '\n';
@@ -4043,7 +4034,7 @@ public class TerminalAgentService {
             }
         }
 
-        private void clear() {
+        private synchronized void clear() {
             if (value != null) {
                 Arrays.fill(value, '\0');
                 value = null;

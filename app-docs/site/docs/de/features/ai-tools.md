@@ -71,7 +71,7 @@ Das Terminal AI Agent folgt einer strengen, sicheren Ausführungsschleife:
 2. **Kontext an das Modell senden** – KorTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Skills und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.
 3. **Modell gibt eine JSON-Entscheidung zurück** – Das Modell muss eine strikte JSON-Antwort zurückgeben: Befehle ausführen, um Bestätigung bitten, beenden oder blockieren.
 4. **Entscheidung validieren** – KorTTY validiert das JSON-Schema und die Befehlseinschränkungen. Ungültige Antworten werden einmalig repariert; unsichere oder nicht unterstützte Entscheidungen werden abgelehnt.
-5. **Genehmigte Befehle ausführen** – KorTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Ausführungskanäle für SSH-Sitzungen oder einen neuen lokalen Prozess für lokale Shells. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis, das für diese Ausführung erfasst wurde. Ein `cd` innerhalb eines einmaligen Befehls bleibt nicht bis zum nächsten Befehl bestehen, während ein interaktiver `cd`, der vor der Ausführung abgeschlossen wurde, im erfassten Verzeichnis enthalten ist.
+5. **Genehmigte Befehle ausführen** – korTTY verwendet SSH-Exec-Kanäle für reguläre SSH-Befehle und ein privates Pseudoterminal für sudo-Befehle des Laufs. Lokale Befehle verwenden jeweils einen neuen Prozess. Jeder Befehl beginnt im erfassten Terminalverzeichnis. Ein `cd` innerhalb eines Agentenbefehls gilt nur für diesen Befehl.
 6. **Iterieren oder abschließen** – Die Befehlsausgabe wird dem Aktivitätsbereich und der nächsten Modellrunde hinzugefügt, bis die Aufgabe abgeschlossen, blockiert, abgebrochen oder das Rundenlimit erreicht ist (maximal 8 Runden).
 
 ### Was der Agent aufrufen kann
@@ -177,18 +177,15 @@ Für eine Verbindung, bei der der Agent niemals Befehle ausführen darf, etwa ei
 
 ### Privilegienbehandlung
 
-- **Sudo-Erkennung** – Der Agent erkennt, ob der aktuelle Benutzer Sudo-Zugriff hat und ob ein Passwort erforderlich ist.
-- **Passwortloses Sudo** – Wenn `sudo -n` (Sudo ohne Passwort) verfügbar ist, verwendet der Agent es ohne Aufforderung.
-- **Passwortabfragen** – Wenn ein Passwort erforderlich ist, fordert der Agent es über ein Passworteingabefeld im Aktivitätsbereich an (maskiert, nicht an das Terminal gesendet).
-- **Wiederholungen mit Passwort** – Bis zu drei Wiederholungen mit falschem Passwort sind zulässig, bevor der Lauf abgebrochen wird.
-- **Kein `sudo -S`** – KorTTY lässt `sudo -S` (Standardkennwort) oder andere interaktive Kennwortmethoden in automatisierten Läufen nicht zu.
-- **Sitzungscaching** – Sudo-Passwörter können für die aktuelle Sitzung zwischengespeichert werden, sodass Sie sie nicht für jeden Befehl im selben Lauf erneut eingeben müssen.
+- **SSH-sudo-Ticket** – Sobald Sie den ersten sudo-Befehl genehmigen, öffnet korTTY ein privates SSH-Pseudoterminal für den Lauf und validiert dort sudo. Spätere sudo-Befehle verwenden dasselbe Pseudoterminal und das sudo-Ticket des Servers. korTTY schließt das Pseudoterminal am Ende des Laufs oder beim Abbruch.
+- **Passwortabfrage** – Wenn die Validierung ein Passwort verlangt, öffnet korTTY ein maskiertes Feld im Aktivitäts-Panel. Die anfängliche Validierung erhält das Passwort. Bei SSH-Läufen im Pseudoterminal verwendet korTTY das Ticket des Servers erneut und behält das Passwort nicht zur Wiederverwendung.
+- **Serverrichtlinie** – Jeder Befehl unterliegt den sudo-Regeln des Servers. sudo kann einen Befehl ablehnen, wenn das Ticket abgelaufen ist, das Zwischenspeichern deaktiviert ist oder der Aufruf mit `-k` die zwischengespeicherten Anmeldedaten umgeht. Starten Sie einen neuen Lauf für ein neues Ticket oder verwenden Sie das interaktive Terminal, wenn der Server eine Authentifizierung für jeden Befehl verlangt.
+- **Lokale Shells** – Lokale POSIX-Läufe validieren sudo für jeden Befehl separat. Ein direkter sudo-Befehl kann Eingaben aus einem Here-Dokument lesen. Je nach sudo-Richtlinie des Servers oder lokalen Systems müssen Pipelines und zusammengesetzte Befehle auf mehrere Schritte verteilt werden.
 
 ### Genehmigungstore
 
-- **Mutierende Befehle** – Standardmäßig bittet der Agent um Genehmigung, bevor er Befehle ausführt, die das System ändern (es sei denn, die automatische Genehmigung ist in den Einstellungen aktiviert).
-- **Bestätigungsdialog** — Der Genehmigungsdialog (**KI-Agent-Bestätigung**) zeigt die geplanten Befehle und deren Zwecke. Sie können **Einmal erlauben**, **Immer erlauben** für die verbleibenden Befehle im Lauf wählen oder abbrechen.
-- **Sudo-Preflight** – Nach der Annahme eines Planungsberichts führt KorTTY die Preflight-Prüfung unmittelbar nach der Annahme durch, wenn der Plan Sudo erfordert und Ihre SSH-Sitzung ein Sudo-Passwort erfordert, damit die Ausführung später nicht unterbrochen wird.
+- **Privilegierte oder systemverändernde Befehle** – Standardmäßig fragt der Agent nach einer Genehmigung, bevor er Befehle ausführt, die sudo verwenden oder das System verändern.
+- **Bestätigungsdialog** – Der Genehmigungsdialog (**KI-Agent-Bestätigung**) zeigt die geplanten Befehle und deren Zweck an. Wählen Sie **Einmal erlauben** für die angezeigten Befehle oder **Immer erlauben** für die verbleibenden Befehle im Durchlauf. korTTY kann weiterhin nach einem sudo-Passwort fragen.
 
 ### Verzeichnisverfolgung
 
@@ -214,7 +211,7 @@ Für eine Verbindung, bei der der Agent niemals Befehle ausführen darf, etwa ei
 
 ### Maskieren dessen, was der Agent sendet
 
-- **Alles, was hinausgeht, wird maskiert** — Bevor der Agent einen Prompt an ein Profil sendet, das kein integriertes Modell (llama.cpp, MLX) und kein vertrauenswürdiger lokaler Endpunkt ist, ersetzt korTTY die erkannten Geheimnisse durch `***`: das Passwort der Verbindung, ein während des Laufs eingegebenes sudo-Passwort, die Ersetzungsregeln Ihrer Organisation und bekannte Tokenformate (siehe [Geheimnisse vor dem Senden maskieren](ai-assistant.md#geheimnisse-vor-dem-senden-maskieren)). Das umfasst die Umgebungsprobe, die Ausgabe jedes Befehls, die Planungsfragen, die Optionen und den Bericht, die Reparaturversuche und die abschließende Antwort beim Rundenlimit.
+- **Maskierung vor dem Senden** – Bevor der Agent eine Anfrage an ein Profil außerhalb der integrierten Modelle (llama.cpp, MLX) oder eines vertrauenswürdigen lokalen Endpunkts sendet, maskiert korTTY erkannte Geheimnisse wie das Verbindungspasswort und gängige Tokenformate. Dabei wendet korTTY auch die Ersetzungsregeln Ihrer Organisation an. Die Maskierung umfasst die Umgebungsprüfung, Befehlsausgaben, Planungsfragen, Optionen und Berichte, Korrekturversuche und die abschließende Antwort bei Erreichen des Schrittlimits. Siehe [Maskierung von Geheimnissen vor dem Senden](ai-assistant.md#geheimnisse-vor-dem-senden-maskieren).
 - **Der Lauf behält das Original** — Maskiert wird nur, was an das Modell geht. Das Terminal, das Aktivitätspanel, der Genehmigungsdialog und das Sitzungsjournal zeigen die echten Befehle und ihre echte Ausgabe.
 - **Zähler im Aktivitätspanel** — Ein Eintrag **Vor dem Senden maskiert** gibt an, wie viele verschiedene Werte im Lauf maskiert wurden. Ein Wert, der in jeder Runde wiederkommt, weil der Agent seinen Befehlsverlauf erneut sendet, zählt einmal.
 - **Keine Befehle mit dem Platzhalter** — Das Modell erfährt, dass `***` für ein maskiertes Geheimnis steht. Plant es trotzdem einen Befehl, der `***` enthält, führt korTTY ihn nicht aus, vermerkt dies im Transkript und teilt es dem Modell in der nächsten Runde mit, weil der Befehl sonst mit den drei wörtlichen Zeichen statt des Geheimnisses liefe.
@@ -312,9 +309,9 @@ So starten Sie eine Agentenaufgabe:
    - Echtzeit-Befehlsausgabe während der Ausführung
    - Alle Genehmigungs- oder Passwortanfragen
 
-5. **Genehmigungen** — Wenn der Agent Genehmigung benötigt, um systemverändernde Befehle auszuführen, klicken Sie auf **Einmal erlauben** (nur dieses Set) oder **Immer erlauben** (alle verbleibenden Sets im Lauf), oder klicken Sie auf **Abbrechen**.
+5. **Genehmigungen** – Wenn der Agent darum bittet, Befehle auszuführen, die sudo verwenden oder das System ändern, wählen Sie **Einmal erlauben**, **Immer erlauben** oder **Abbrechen**.
 
-6. **Sudo-Passwort** – Geben Sie Ihr Sudo-Passwort ein, wenn Sie dazu aufgefordert werden. Es kann optional für die Sitzung zwischengespeichert werden.
+6. **Sudo-Passwort** – Geben Sie auf Aufforderung Ihr sudo-Passwort ein. Ein SSH-Agentenlauf validiert sudo in seinem privaten Pseudoterminal und verwendet das daraus resultierende sudo-Ticket für spätere Befehle.
 
 7. **Die Ausführung wird abgeschlossen**, wenn die Aufgabe erfolgreich ist, durch einen Fehler blockiert oder vom Benutzer abgebrochen wird.
 
@@ -338,8 +335,7 @@ Der Planungsmodus (`agent-plan` oder `agent -plan`) bietet vor der Ausführung e
 1. **Klärende Fragen** – Der Agent stellt Folgefragen, um Ihre Anforderungen zu verstehen.
 2. **Optionen vorschlagen** – Basierend auf Ihren Antworten schlägt der Agent einen oder mehrere Ansätze mit Machbarkeit, Risiken und Voraussetzungen vor.
 3. **Endgültiger Plan** – Nachdem Sie einen Ansatz ausgewählt haben, erstellt der Agent einen detaillierten endgültigen Plan mit Schritten, Erfolgskriterien und Risiken.
-4. **Implementieren** – Erst nachdem Sie überprüft und auf **Implementieren** geklickt haben, beginnt die Ausführung.
-5. **Sudo-Preflight** – Wenn der Plan Sudo erfordert und ein Passwort benötigt wird, überprüft KorTTY das Passwort sofort, damit die Ausführung später nicht unterbrochen wird.
+4. **Umsetzen** – Überprüfen Sie den Plan und klicken Sie auf **Umsetzen**, um mit der Ausführung zu beginnen. Der Agent fordert ein sudo-Passwort an, wenn ein Befehl dies erfordert.
 
 ## Einstellungen und Konfiguration
 

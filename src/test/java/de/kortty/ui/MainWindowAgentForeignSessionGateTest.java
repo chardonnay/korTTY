@@ -97,6 +97,23 @@ class MainWindowAgentForeignSessionGateTest {
             .contains("launchTerminalAgent(");
     }
 
+    @Test
+    void sudoCacheUsesTheSelectedConnectorForBothExecutionModes() throws IOException {
+        String source = source();
+        String launch = methodBodies(source, "private boolean launchTerminalAgent(").stream()
+            .filter(body -> body.contains(GATE))
+            .findFirst().orElseThrow();
+        assertThat(launch).contains("agentRunnerFor(targetRunContext)");
+        assertThat(launch).contains("buildTerminalAgentScopedSessionId(request.sessionId(), targetRunContext.connector())");
+        String terminalRun = methodBodies(source, "private void runTerminalAgentInTerminalWindow(").getFirst();
+        assertThat(terminalRun).contains("buildTerminalAgentScopedSessionId(request.sessionId(), resolvedRunContext.connector())");
+        assertThat(terminalRun).contains("terminalAgentService.runAgent(terminalTab, runner,");
+        String plan = methodBodies(source, "private void launchTerminalAgentPlan(").stream()
+            .filter(body -> body.contains(GATE))
+            .findFirst().orElseThrow();
+        assertThat(plan).contains("agentRunnerFor(planRunContext)");
+    }
+
     private static String source() throws IOException {
         return Files.readString(SOURCE, StandardCharsets.UTF_8);
     }

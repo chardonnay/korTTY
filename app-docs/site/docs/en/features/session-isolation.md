@@ -30,6 +30,8 @@ An isolated session of the built-in Mosh client runs in a session worker too: th
 
 An isolated SSH session runs in a **session worker**, a small process of its own that korTTY starts for this one connection. The worker connects to the server (through the jump server, if there is one), authenticates and keeps the encrypted connection; korTTY talks to it over a connection on this computer (`127.0.0.1`) that only accepts a one-time token korTTY created for it and whose key korTTY pins. The worker passes every channel korTTY opens on to the server, so the terminal, SFTP on the terminal's session, file drops, the AI agent's commands and `-L`, `-D` and `-R` tunnels work as with a direct session.
 
+For sudo commands, the agent opens its [private SSH pseudoterminal](ai-tools.md#privilege-handling) on the server through the worker. This applies to **Own process** and **Own process + sandbox**.
+
 - **Your private key stays in korTTY.** The worker never receives a key: when the server asks for a signature, the worker asks korTTY, which signs with the key it loaded as usual. The worker gets the password of a password login and of the jump server, but never the vault or the master password.
 - **Host keys and prompts as before.** korTTY checks the server's host key against its known hosts with the usual dialogs and answers keyboard-interactive prompts, including the access reason, with the usual dialogs.
 - **With a sandbox** the worker can neither read nor write `~/.kortty`, `~/.ssh`, `~/.gnupg` or the keychains, and writes only to a folder of its own. On macOS it may also connect only to this computer and to the port of the server and of the jump server. On Linux it has no network of its own at all: korTTY makes its connections for it, and only to the host and port of the server and of the jump server; a Mosh worker likewise reaches only the UDP port of its session.
@@ -75,6 +77,8 @@ With split panes the shield shows the least isolated pane, except that a missing
 ## Incognito sessions
 
 An incognito session leaves no trace in korTTY: no terminal log, no session journal, no recording, no entry in **File → Recently Closed**, nothing of its screen in a saved project, and no place in the session that korTTY restores after a restart. Its tab shows a spy. Incognito works with every isolation level, with or without a sandbox.
+
+An SSH agent run in an incognito tab uses the same sudo pseudoterminal and the server's sudo rules.
 
 - **Every session of a connection:** tick **Incognito session** in the **Session isolation** section of the connection editor. A connection from a shared teamwork file cannot be made incognito.
 - **One session:** **File → New Incognito Session…** opens Quick Connect; the tab it opens is incognito whatever the connection says.

@@ -81,12 +81,13 @@ final class AgentDesignApprovalStrip extends HBox {
     }
 
     void showPassword(TerminalAgentModels.PasswordRequest request, Consumer<TerminalAgentModels.PasswordResponse> answer) {
-        String summary = request != null && request.summary() != null && !request.summary().isBlank()
-            ? request.summary().strip()
+        String text = request != null && request.userMessage() != null && !request.userMessage().isBlank()
+            ? request.userMessage().strip()
             : I18n.get("ai.agent.password.title");
         message.setText(request != null && request.command() != null && !request.command().isBlank()
-            ? summary + "  $ " + request.command().strip()
-            : summary);
+            ? text + "  $ " + request.command().strip()
+            : text);
+        message.setTooltip(new javafx.scene.control.Tooltip(message.getText()));
         PasswordField field = new PasswordField();
         field.getStyleClass().add("ai-agent-password-field");
         field.setPromptText(I18n.get("common.password"));
@@ -98,7 +99,9 @@ final class AgentDesignApprovalStrip extends HBox {
         ok.disableProperty().bind(field.textProperty().isEmpty());
         Runnable submit = () -> {
             if (!field.getText().isEmpty()) {
-                answer.accept(new TerminalAgentModels.PasswordResponse(field.getText(), cache.isSelected()));
+                answer.accept(new TerminalAgentModels.PasswordResponse(
+                    field.getText(), request != null && request.allowSessionCache() && cache.isSelected()));
+                field.clear();
             }
         };
         ok.setOnAction(event -> submit.run());
@@ -114,7 +117,10 @@ final class AgentDesignApprovalStrip extends HBox {
         Button cancel = button(I18n.get("dialog.cancel"), false);
         cancel.setOnAction(event -> answer.accept(null));
         showRow();
-        controls.getChildren().setAll(field, cache, ok, cancel);
+        controls.getChildren().setAll(field, ok, cancel);
+        if (request != null && request.allowSessionCache()) {
+            controls.getChildren().add(1, cache);
+        }
         showStrip();
         javafx.application.Platform.runLater(field::requestFocus);
     }

@@ -9,18 +9,12 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalAgentModels;
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
-import javafx.scene.control.PasswordField;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
@@ -42,9 +36,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
 
 /**
  * Dedicated tab for the interactive terminal-agent planning flow.
@@ -66,7 +58,6 @@ public class AiAgentPlanTab extends Tab {
         boolean startAcceptedPlan(TerminalAgentModels.PlanRequest request, TerminalAgentModels.PlanReport report);
     }
 
-    private final MainWindow ownerWindow;
     private final TerminalAgentService service;
     private final TerminalAgentModels.PlanRequest request;
     private final AiProfile profile;
@@ -75,7 +66,6 @@ public class AiAgentPlanTab extends Tab {
     private final AgentCommandRunner runConnector;
     // The connection the planning probes and runs on, which may be a split pane's rather than the tab's; null if unknown.
     private final @Nullable ServerConnection runConnection;
-    private final Supplier<String> sudoCacheSessionIdSupplier;
     private final ExecutionStarter executionStarter;
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
@@ -108,7 +98,6 @@ public class AiAgentPlanTab extends Tab {
     private boolean startAfterReport;
 
     public AiAgentPlanTab(
-        MainWindow ownerWindow,
         TerminalAgentService service,
         TerminalTab terminalTab,
         AiProfile profile,
@@ -116,9 +105,7 @@ public class AiAgentPlanTab extends Tab {
         TerminalAgentModels.PlanRequest request,
         AgentCommandRunner runConnector,
         @Nullable ServerConnection runConnection,
-        Supplier<String> sudoCacheSessionIdSupplier,
         ExecutionStarter executionStarter) {
-        this.ownerWindow = ownerWindow;
         this.service = service;
         this.terminalTab = terminalTab;
         this.profile = profile;
@@ -126,7 +113,6 @@ public class AiAgentPlanTab extends Tab {
         this.request = request;
         this.runConnector = runConnector;
         this.runConnection = runConnection;
-        this.sudoCacheSessionIdSupplier = sudoCacheSessionIdSupplier;
         this.executionStarter = executionStarter;
         loadPersistedPlanFontSize();
 
@@ -547,7 +533,7 @@ public class AiAgentPlanTab extends Tab {
             report != null ? report.summary() : null,
             I18n.get("ai.plan.status.ready")));
         if (shouldStartAfterReport) {
-            startAcceptedFinalPlan();
+            executeAcceptedPlan();
         }
     }
 
@@ -565,118 +551,7 @@ public class AiAgentPlanTab extends Tab {
             }
             return;
         }
-        startAcceptedFinalPlan();
-    }
-
-    private void startAcceptedFinalPlan() {
-        if (!TerminalAgentService.needsSudoPasswordPreflight(probeSnapshot)) {
-            executeAcceptedPlan();
-            return;
-        }
-        attemptSudoPreflight(0);
-    }
-
-    private void attemptSudoPreflight(int failedAttempts) {
-        if (cancelled.get()) {
-            return;
-        }
-        if (failedAttempts > TerminalAgentService.MAX_SUDO_PASSWORD_RETRIES) {
-            setBusy(false);
-            startAcceptedPlanButton.setDisable(false);
-            statusLabel.setText(I18n.get("ai.plan.sudo.failed"));
-            return;
-        }
-
-        Optional<TerminalAgentModels.PasswordResponse> response = requestSudoPassword(failedAttempts);
-        if (response.isEmpty()) {
-            setBusy(false);
-            startAcceptedPlanButton.setDisable(false);
-            statusLabel.setText(I18n.get("ai.plan.status.cancelled"));
-            return;
-        }
-
-        setBusy(true);
-        startAcceptedPlanButton.setDisable(true);
-        statusLabel.setText(I18n.get("ai.plan.status.sudo"));
-        Task<Boolean> task = new Task<>() {
-            @Override
-            protected Boolean call() throws Exception {
-                String sessionId = sudoCacheSessionIdSupplier != null ? sudoCacheSessionIdSupplier.get() : request.sessionId();
-                return service.verifyAndCacheSudoPassword(
-                    terminalTab,
-                    runConnector,
-                    sessionId,
-                    response.get(),
-                    cancelled::get);
-            }
-        };
-        task.setOnSucceeded(event -> {
-            if (Boolean.TRUE.equals(task.getValue())) {
-                executeAcceptedPlan();
-            } else {
-                setBusy(false);
-                attemptSudoPreflight(failedAttempts + 1);
-            }
-        });
-        task.setOnFailed(event -> {
-            setBusy(false);
-            startAcceptedPlanButton.setDisable(false);
-            showFailure(task.getException());
-        });
-        Thread thread = new Thread(task, "ai-agent-plan-sudo-preflight");
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-    private Optional<TerminalAgentModels.PasswordResponse> requestSudoPassword(int failedAttempts) {
-        Dialog<TerminalAgentModels.PasswordResponse> dialog = new Dialog<>();
-        DialogThemeHelper.applyTheme(dialog);
-        dialog.initOwner(ownerWindow.getStage());
-        dialog.setTitle(I18n.get("ai.plan.sudo.title"));
-        dialog.setHeaderText(failedAttempts > 0
-            ? I18n.get("ai.plan.sudo.retry", failedAttempts, TerminalAgentService.MAX_SUDO_PASSWORD_RETRIES)
-            : I18n.get("ai.plan.sudo.title"));
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText(I18n.get("common.password"));
-        CheckBox cacheForSessionCheckBox = new CheckBox(I18n.get("ai.agent.password.cacheForSession"));
-        cacheForSessionCheckBox.setSelected(true);
-        cacheForSessionCheckBox.setDisable(true);
-
-        VBox content = new VBox(8, wrappedLabel(I18n.get("ai.plan.sudo.message")), passwordField, cacheForSessionCheckBox);
-        dialog.getDialogPane().setContent(content);
-        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
-        okButton.setDefaultButton(true);
-        okButton.disableProperty().bind(Bindings.createBooleanBinding(
-            () -> !hasPasswordText(passwordField),
-            passwordField.textProperty()));
-        passwordField.setOnAction(event -> {
-            fireOkIfPasswordPresent(passwordField, okButton);
-            event.consume();
-        });
-        dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                fireOkIfPasswordPresent(passwordField, okButton);
-                event.consume();
-            }
-        });
-        dialog.setResultConverter(buttonType -> buttonType == ButtonType.OK
-            ? new TerminalAgentModels.PasswordResponse(passwordField.getText(), true)
-            : null);
-        Platform.runLater(passwordField::requestFocus);
-        return dialog.showAndWait();
-    }
-
-    private boolean hasPasswordText(PasswordField passwordField) {
-        String password = passwordField != null ? passwordField.getText() : null;
-        return password != null && !password.isBlank();
-    }
-
-    private void fireOkIfPasswordPresent(PasswordField passwordField, Button okButton) {
-        if (hasPasswordText(passwordField)) {
-            okButton.fire();
-        }
+        executeAcceptedPlan();
     }
 
     private void executeAcceptedPlan() {

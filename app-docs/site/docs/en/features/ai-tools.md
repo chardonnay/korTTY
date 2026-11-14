@@ -71,7 +71,7 @@ The Terminal AI Agent follows a strict, safe execution loop:
 2. **Send context to the model** — KorTTY sends the user task, probe snapshot, previous command results, active AI Skills, and optionally web-tool availability to the selected AI profile.
 3. **Model returns a JSON decision** — The model must return a strict JSON response: run commands, ask for confirmation, finish, or block.
 4. **Validate the decision** — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.
-5. **Execute approved commands** — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory captured for this run. A `cd` inside a one-shot command does not persist to the next command, while an interactive `cd` completed before the run is included in the captured directory.
+5. **Execute approved commands** — korTTY uses SSH exec channels for regular SSH commands and a private pseudoterminal for sudo commands in the run. Local commands use fresh processes. Each command starts in the tracked terminal directory. A `cd` inside an agent command applies only to that command.
 6. **Iterate or conclude** — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).
 
 ### What the agent can call
@@ -177,18 +177,15 @@ For a connection where the agent must never run commands, such as a production s
 
 ### Privilege handling
 
-- **Sudo detection** — The agent detects whether the current user has sudo access and whether a password is required.
-- **Passwordless sudo** — When `sudo -n` (no-password sudo) is available, the agent uses it without prompting.
-- **Password prompts** — When a password is required, the agent requests it via an activity-panel password input field (masked, not echoed to the terminal).
-- **Password retries** — Up to 3 wrong-password retries are allowed before the run cancels.
-- **No `sudo -S`** — KorTTY does not allow `sudo -S` (stdin password) or other interactive password methods in automated runs.
-- **Session caching** — Sudo passwords can be cached for the current session so you don't re-enter them for every command in the same run.
+- **SSH sudo ticket** — After you approve the first sudo command, korTTY opens a private SSH pseudoterminal for the run and validates sudo there. Later sudo commands use that same pseudoterminal and the server's sudo ticket. korTTY closes the pseudoterminal when the run ends or is cancelled.
+- **Password prompt** — When validation needs a password, korTTY opens a masked field in the activity panel. The initial validation receives the password. For SSH pseudoterminal runs, korTTY reuses the server's ticket and does not retain the password for reuse.
+- **Server policy** — Each command runs under the server's sudo rules. If the ticket expires, caching is disabled, or an invocation uses `-k` to bypass cached credentials, sudo can refuse the command. Start a fresh run for a new ticket or use the interactive terminal if the server requires authentication for each command.
+- **Local shells** — Local POSIX runs validate sudo separately for each command. A direct sudo command can take input from a here-document. Depending on the server or local sudo policy, pipelines and compound commands may need to be split into separate steps.
 
 ### Approval gates
 
-- **Mutating commands** — By default, the agent asks for approval before running commands that modify the system (unless auto-approval is enabled in settings).
-- **Confirmation dialog** — The approval dialog (**AI Agent Approval**) shows the planned commands and their purposes. You can choose **Allow Once**, **Allow Always** for the remaining commands in the run, or cancel.
-- **Sudo preflight** — After accepting a planning report, if the plan requires sudo and your SSH session requires a sudo password, KorTTY performs the preflight check immediately after acceptance so execution is not interrupted later.
+- **Privileged or system-changing commands** — By default, the agent asks for approval before running commands that use sudo or modify the system.
+- **Confirmation dialog** — The approval dialog (**AI Agent Approval**) shows the planned commands and their purposes. Choose **Allow Once** for the displayed commands or **Allow Always** for the remaining commands in the run. korTTY can still ask for a sudo password.
 
 ### Directory tracking
 
@@ -214,7 +211,7 @@ For a connection where the agent must never run commands, such as a production s
 
 ### Masking what the agent sends
 
-- **Everything that leaves is masked** — Before the agent sends a prompt to a profile other than an integrated model (llama.cpp, MLX) or a trusted local endpoint, korTTY replaces the secrets it recognizes with `***`: the connection's password, a sudo password typed during the run, your organization's replacement rules and well-known token formats (see [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending)). This covers the environment probe, the output of every command, the planning questions, options and report, the repair retries and the final answer at the turn limit.
+- **Everything that leaves is masked** — Before the agent sends a prompt to a profile other than an integrated model (llama.cpp, MLX) or a trusted local endpoint, korTTY masks recognized secrets such as the connection password and well-known token formats. It also applies your organization's replacement rules. This covers the environment probe, command output, planning questions, options and reports, repair retries and the final answer at the turn limit. See [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending).
 - **The run keeps the original** — Only what goes to the model is masked. The terminal, the activity panel, the approval dialog and the session journal show the real commands and their real output.
 - **Count in the activity panel** — A **Masked before sending** entry says how many different values were masked in the run. A value that comes back every turn, because the agent resends its command history, counts once.
 - **No commands with the placeholder** — The model is told that `***` stands for a masked secret. If it still plans a command that contains `***`, korTTY does not run it, notes this in the transcript and tells the model in the next turn, because the command would run with the three literal characters instead of the secret.
@@ -312,9 +309,9 @@ To start an agent task:
    - Real-time command output as it runs
    - Any approval or password requests
 
-5. **Approvals** — When the agent needs approval to run system-changing commands, click **Allow Once** (just this set) or **Allow Always** (all remaining sets in the run), or click **Cancel**.
+5. **Approvals** — When the agent asks to run commands that use sudo or change the system, choose **Allow Once**, **Allow Always**, or **Cancel**.
 
-6. **Sudo password** — When prompted, enter your sudo password. It can optionally be cached for the session.
+6. **Sudo password** — When prompted, enter your sudo password. An SSH agent run validates sudo in its private pseudoterminal and uses the resulting sudo ticket for later commands.
 
 7. **The run completes** when the task succeeds, is blocked by an error, or is cancelled by the user.
 
@@ -338,8 +335,7 @@ Planning mode (`agent-plan` or `agent -plan`) offers an advisory workflow before
 1. **Clarifying questions** — The agent asks follow-up questions to understand your requirements.
 2. **Propose options** — Based on your answers, the agent suggests one or more approaches with feasibility, risks, and prerequisites.
 3. **Final plan** — After you select an approach, the agent generates a detailed final plan with steps, success criteria, and risks.
-4. **Implement** — Only after you review and click **Implement** does execution begin.
-5. **Sudo preflight** — If the plan requires sudo and a password is needed, KorTTY checks the password immediately so execution is not interrupted later.
+4. **Implement** — Review the plan and click **Implement** to start execution. The agent prompts for a sudo password when a command requires it.
 
 ## Settings and configuration
 

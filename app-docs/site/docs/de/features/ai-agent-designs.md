@@ -105,7 +105,7 @@ Diese Status-Designs schweben über dem Terminal, das seine volle Größe beibeh
 
 ## Genehmigungen und Passwörter
 
-Eine Genehmigung wird im Terminal mit den Tasten **1** (einmal erlauben), **2** (immer erlauben) und **3** (abbrechen) oder mit Buttons beantwortet. Designs mit eigenen Buttons zeigen diese an: die Verlaufs-Panels, die Meldungen am Rand und das Bild-im-Bild-Fenster. Bei Blöcken im Terminal, im Fokus-Modus oder im Verlauf des klassischen Panels öffnet eine Genehmigung eine Zeile unter dem Terminal mit den Befehlen und den Buttons **1 Einmal erlauben**, **2 Immer erlauben** und **3 Abbrechen**. Eine Passwortanfrage öffnet diese Zeile immer, mit einem maskierten Feld, **Für diese SSH-Sitzung verwenden** und **OK**; ++enter++ sendet ab und ++esc++ bricht ab. Das klassische Panel behält seine eigenen Prompts bei.
+Eine Genehmigung beantworten Sie im Terminal mit den Tasten **1** (einmal erlauben), **2** (immer erlauben) und **3** (abbrechen) oder mit den entsprechenden Schaltflächen. Die Verlaufs-Panels, die Meldungen am Rand und das Bild-im-Bild-Fenster zeigen eigene Schaltflächen. Bei Blöcken im Terminal, im Fokus-Modus oder im Verlauf des klassischen Panels öffnet eine Genehmigung eine Zeile unter dem Terminal mit den Befehlen und den Schaltflächen **1 Einmal erlauben**, **2 Immer erlauben** und **3 Abbrechen**. Eine Passwortanfrage öffnet diese Zeile mit einem maskierten Feld und **OK**. Drücken Sie ++enter++ zum Absenden oder ++esc++ zum Abbrechen. Das klassische Panel verwendet seine eigenen Eingabefelder.
 
 ## Lösungsoptionen und Speicher in Designs
 
