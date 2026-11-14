@@ -1236,8 +1236,8 @@ tasks.named<ProcessResources>("processResources") {
 // Monaco Node/esbuild workspace because JavaFX 21 WebKit cannot parse the upstream target. Node
 // remains a build-only tool. Mermaid and MathJax stay separate runtime resources so each hidden
 // WebView extracts only the library it needs.
-val mermaidVersion = "12.2.0"
-val mermaidSha256 = "071914164d0f6d53e5c26a10a220230d4ae8d37ed0f2263fbf072266f0af3a0a"
+val mermaidVersion = "12.3.0"
+val mermaidSha256 = "be0684e8d20bfc874df12c0f04927a5c482f57f2200eec54cca52a4583fd4040"
 val chatRenderMathJaxVersion = "3.2.2"
 val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
 
