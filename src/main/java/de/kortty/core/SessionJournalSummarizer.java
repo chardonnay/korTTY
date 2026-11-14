@@ -356,6 +356,17 @@ public class SessionJournalSummarizer {
         aiCallExecutor.shutdown();
     }
 
+    /** Waits for in-flight journal writes after stop() has shut down the executors. */
+    boolean awaitStopped(long timeout, TimeUnit unit) throws InterruptedException {
+        long deadline = System.nanoTime() + unit.toNanos(timeout);
+        for (ExecutorService executor : List.of(workExecutor, automationExecutor, aiCallExecutor)) {
+            if (!executor.awaitTermination(deadline - System.nanoTime(), TimeUnit.NANOSECONDS)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private synchronized void ensureSchedulerStarted() {
         if (scheduler != null) {
             return;

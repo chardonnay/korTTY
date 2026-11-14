@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -79,8 +80,9 @@ class SessionJournalSummarizerTest {
     }
 
     @AfterMethod
-    void tearDown() throws IOException {
+    void tearDown() throws IOException, InterruptedException {
         summarizer.stop();
+        assertThat(summarizer.awaitStopped(10, TimeUnit.SECONDS)).isTrue();
         if (tempDir == null || !Files.exists(tempDir)) {
             return;
         }
