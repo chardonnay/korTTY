@@ -50,4 +50,4 @@ six==1.17.0
 soupsieve==4.1
 typing_extensions==4.16.0
 urllib3==2.8.0
-watchdog==6.0.0
+watchdog==7.1.0
