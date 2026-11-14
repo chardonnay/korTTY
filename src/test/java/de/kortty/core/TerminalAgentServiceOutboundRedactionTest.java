@@ -2,6 +2,9 @@ package de.kortty.core;
 
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentOutboundContext;
+import de.kortty.core.agent.AgentSudoAuthentication;
+import de.kortty.core.agent.AgentSudoPty;
+import de.kortty.core.agent.AgentSudoTestSupport;
 import de.kortty.core.agent.JournalingAgentCommandRunner;
 import de.kortty.model.AiConnectionMode;
 import de.kortty.model.AiProfile;
@@ -14,7 +17,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,14 +32,19 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 /**
  * The terminal agent masks every prompt it sends to a cloud AI profile at its single AI choke
@@ -64,6 +75,9 @@ class TerminalAgentServiceOutboundRedactionTest {
     }
 
     private static final String PASSWORD = "Conn-Passw0rd-4711";
+    private static final String SUDO_PASSWORD = java.util.UUID.randomUUID() + " ä'\"$";
+    private static final String WRONG_SUDO_PASSWORD = java.util.UUID.randomUUID().toString();
+    private static final Pattern SUDO_MARKER = Pattern.compile("KORTTY_SUDO_(?:PROMPT|ARMED|READY)_[a-f0-9-]{36}");
     // Split so secret scanners do not flag the fixtures.
     private static final String AWS_KEY_ID = "AKIA" + "QWERTYUIOPASDFGH";
     private static final String GITHUB_TOKEN = "ghp" + "_" + "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -76,6 +90,14 @@ class TerminalAgentServiceOutboundRedactionTest {
     private static final String DONE = """
         {"status":"done","summary":"Done","userMessage":"Finished.","commands":[],"needsReprobe":false}
         """;
+
+    private static String sudoDecision(String command) {
+        return """
+            {"status":"run_commands","summary":"Update the system","userMessage":"Updating.",
+             "commands":[{"command":"%s","purpose":"Update the system","risk":"requires_confirmation"}],
+             "needsReprobe":false}
+            """.formatted(command);
+    }
 
     // ---------------------------------------------------------------- fixtures
 
@@ -218,6 +240,20 @@ class TerminalAgentServiceOutboundRedactionTest {
         final StringBuilder transcript = new StringBuilder();
         final List<TerminalAgentModels.AgentActivity> activities = new CopyOnWriteArrayList<>();
         final List<TerminalAgentModels.RunState> states = new CopyOnWriteArrayList<>();
+        final List<TerminalAgentModels.Approval> approvals = new ArrayList<>();
+        final List<TerminalAgentModels.PasswordRequest> passwordRequests = new ArrayList<>();
+        private final TerminalAgentService.ApprovalDecision approvalDecision;
+        private final IntFunction<TerminalAgentModels.PasswordResponse> passwordResponses;
+
+        RecordingUi() {
+            this(TerminalAgentService.ApprovalDecision.APPROVE_ONCE, prompt -> null);
+        }
+
+        RecordingUi(TerminalAgentService.ApprovalDecision approvalDecision,
+                    IntFunction<TerminalAgentModels.PasswordResponse> passwordResponses) {
+            this.approvalDecision = approvalDecision;
+            this.passwordResponses = passwordResponses;
+        }
 
         @Override
         public void updateState(TerminalAgentModels.RunState state) {
@@ -231,12 +267,14 @@ class TerminalAgentServiceOutboundRedactionTest {
 
         @Override
         public TerminalAgentService.ApprovalDecision requestApproval(TerminalAgentModels.Approval approval) {
-            return TerminalAgentService.ApprovalDecision.APPROVE_ONCE;
+            approvals.add(approval);
+            return approvalDecision;
         }
 
         @Override
         public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest request) {
-            return null;
+            passwordRequests.add(request);
+            return passwordResponses.apply(passwordRequests.size());
         }
 
         @Override
@@ -251,6 +289,163 @@ class TerminalAgentServiceOutboundRedactionTest {
 
         List<TerminalAgentModels.AgentActivity> maskedActivities() {
             return activities.stream().filter(activity -> activity.id().endsWith(":outbound-masked")).toList();
+        }
+    }
+
+    private static class SudoRunner implements AgentCommandRunner {
+        final List<String> commands = new ArrayList<>();
+        final List<String> credentials = new ArrayList<>();
+        private final List<Integer> promptCounts;
+        private final String commandError;
+
+        SudoRunner(List<Integer> promptCounts, String commandError) {
+            this.promptCounts = promptCounts;
+            this.commandError = commandError;
+        }
+
+        @Override
+        public ExecResult exec(String command, byte[] stdin, Consumer<String> outputConsumer,
+                               BooleanSupplier cancellationSupplier, boolean useTrackedWorkingDirectory) {
+            throw new AssertionError("Expected sudo authentication for command " + command);
+        }
+
+        @Override
+        public ExecResult execWithSudo(String command, AgentSudoAuthentication auth, Consumer<String> outputConsumer,
+                                       BooleanSupplier cancellationSupplier, boolean useTrackedWorkingDirectory) throws Exception {
+            assertThat(command).doesNotContain(SUDO_PASSWORD);
+            assertThat(command).doesNotContain(WRONG_SUDO_PASSWORD);
+            int promptCount = promptCounts.get(commands.size());
+            commands.add(command);
+            Matcher marker = SUDO_MARKER.matcher(command);
+            assertThat(marker.find()).isTrue();
+            String promptMarker = marker.group();
+            assertThat(marker.find()).isTrue();
+            String armedMarker = marker.group();
+            assertThat(marker.find()).isTrue();
+            String readyMarker = marker.group();
+            LinkedBlockingQueue<String> replies = new LinkedBlockingQueue<>();
+            ByteArrayOutputStream stdin = new ByteArrayOutputStream() {
+                @Override
+                public synchronized void flush() {
+                    replies.add(toString(StandardCharsets.UTF_8));
+                    reset();
+                }
+            };
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            StringBuilder credentialsForCommand = new StringBuilder();
+            try (OutputStream monitored = auth.monitor(() -> stdin, stderr)) {
+                monitored.write(armedMarker.getBytes(StandardCharsets.US_ASCII));
+                for (int i = 0; i < promptCount; i++) {
+                    byte[] prompt = promptMarker.getBytes(StandardCharsets.US_ASCII);
+                    int split = prompt.length / 2;
+                    monitored.write(prompt, 0, split);
+                    monitored.write(prompt, split, prompt.length - split);
+                    monitored.flush();
+                    String response = replies.poll(5, TimeUnit.SECONDS);
+                    assertThat(response).isNotNull();
+                    credentialsForCommand.append(response);
+                }
+                monitored.write(readyMarker.getBytes(StandardCharsets.US_ASCII));
+                if (commandError != null) {
+                    monitored.write((commandError + "\n").getBytes(StandardCharsets.UTF_8));
+                }
+            }
+            credentials.add(credentialsForCommand.toString());
+            return new ExecResult("", stderr.toString(StandardCharsets.UTF_8), commandError == null ? 0 : 1,
+                false, false);
+        }
+
+        @Override
+        public ExecResult runProbe(boolean useTrackedWorkingDirectory, BooleanSupplier cancellationSupplier) {
+            return new ExecResult("""
+                osRelease=Fedora Linux
+                shell=/bin/bash
+                currentUser=deploy
+                homeDir=/home/deploy
+                currentDir=/home/deploy
+                sudoAvailable=true
+                passwordlessSudo=true
+                sudoNonInteractive=true
+                rootEscalationMode=passwordless_sudo
+                """, "", 0, false, false);
+        }
+
+        @Override
+        public ShellKind shellKind() {
+            return ShellKind.POSIX;
+        }
+
+        @Override
+        public String currentWorkingDirectory() {
+            return "/home/deploy";
+        }
+
+        @Override
+        public boolean isConnected() {
+            return true;
+        }
+    }
+
+    private static final class PtySudoRunner extends SudoRunner {
+        final List<List<String>> ptyCommands = new ArrayList<>();
+        final List<String> ordinaryCommands = new ArrayList<>();
+        final AtomicBoolean cancelCommand = new AtomicBoolean();
+        int closed;
+
+        PtySudoRunner() {
+            super(List.of(), null);
+        }
+
+        @Override
+        public boolean supportsSudoPty() {
+            return true;
+        }
+
+        @Override
+        public AgentSudoPty openSudoPty(AgentSudoAuthentication auth, BooleanSupplier cancelled) throws Exception {
+            LinkedBlockingQueue<String> replies = new LinkedBlockingQueue<>();
+            ByteArrayOutputStream stdin = new ByteArrayOutputStream() {
+                @Override
+                public synchronized void flush() {
+                    replies.add(toString(StandardCharsets.UTF_8));
+                    reset();
+                }
+            };
+            try (OutputStream monitor = auth.monitor(() -> stdin, OutputStream.nullOutputStream(), false)) {
+                AgentSudoTestSupport.writeArmedMarker(auth, monitor);
+                monitor.write(AgentSudoTestSupport.promptMarker(auth).getBytes(StandardCharsets.US_ASCII));
+                String response = replies.poll(5, TimeUnit.SECONDS);
+                assertThat(response).isEqualTo(SUDO_PASSWORD + "\n");
+                credentials.add(response);
+                AgentSudoTestSupport.writeReadyMarker(auth, monitor);
+            }
+
+            List<String> steps = new ArrayList<>();
+            ptyCommands.add(steps);
+            return new AgentSudoPty() {
+                @Override
+                public ExecResult exec(String command, Consumer<String> output, BooleanSupplier cancelled) {
+                    steps.add(command);
+                    if (cancelCommand.get()) {
+                        throw new TerminalAgentService.AgentCancelledException("cancelled on PTY");
+                    }
+                    String result = "step completed: " + steps.size() + "\n";
+                    output.accept(result);
+                    return new ExecResult(result, "", steps.size() == 2 ? 17 : 0, false, false);
+                }
+
+                @Override
+                public void close() {
+                    closed++;
+                }
+            };
+        }
+
+        @Override
+        public ExecResult exec(String command, byte[] stdin, Consumer<String> output,
+                               BooleanSupplier cancelled, boolean useTrackedWorkingDirectory) {
+            ordinaryCommands.add(command);
+            return new ExecResult("ordinary output", "", 0, false, false);
         }
     }
 
@@ -269,6 +464,157 @@ class TerminalAgentServiceOutboundRedactionTest {
     }
 
     // ---------------------------------------------------------------- tests
+    @Test
+    void sshSudoPtyUsesOnePasswordPerRunAndPreservesTheNormalCommandRunner() throws Exception {
+        String first = "sudo -n growpart /dev/sda 3";
+        String second = "sudo -n btrfs filesystem resize max /";
+        CapturingAiService ai = new CapturingAiService(call -> switch (call) {
+            case 1 -> sudoDecision(first);
+            case 2 -> RUN_COMMAND;
+            case 3 -> sudoDecision(second);
+            default -> DONE;
+        });
+        CapturingAiService nextAi = new CapturingAiService(call -> call == 1 ? sudoDecision(first) : DONE);
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(SUDO_PASSWORD, true));
+        RecordingUi nextUi = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(SUDO_PASSWORD, true));
+        PtySudoRunner runner = new PtySudoRunner();
+        TerminalAgentService service = new TerminalAgentService();
+
+        service.runAgent(null, runner, cloud(), ai, request(), "pty-run", ui);
+        service.runAgent(null, runner, cloud(), nextAi, request(), "next-pty-run", nextUi);
+
+        assertThat(runner.ptyCommands).containsExactly(List.of(first, second), List.of(first)).inOrder();
+        assertThat(runner.closed).isEqualTo(2);
+        assertThat(runner.ordinaryCommands).containsExactly("cat /etc/app.conf");
+        assertThat(runner.credentials).containsExactly(SUDO_PASSWORD + "\n", SUDO_PASSWORD + "\n");
+        assertThat(ui.approvals).hasSize(1);
+        assertThat(ui.passwordRequests).hasSize(1);
+        assertThat(nextUi.passwordRequests).hasSize(1);
+        assertThat(ui.passwordRequests.getFirst().allowSessionCache()).isFalse();
+        assertThat(nextUi.passwordRequests.getFirst().allowSessionCache()).isFalse();
+        assertThat(ai.userPrompts.getLast()).contains("step completed: 2");
+        assertThat(ai.userPrompts.getLast()).contains("\"exitStatus\":17");
+        assertThat(ui.transcript.toString()).doesNotContain(SUDO_PASSWORD);
+        for (String prompt : ai.allPrompts()) {
+            assertThat(prompt).doesNotContain(SUDO_PASSWORD);
+        }
+    }
+
+    @Test
+    void cancelledSudoCommandClosesPtyWithoutReplaying() {
+        String first = "sudo -n growpart /dev/sda 3";
+        CapturingAiService ai = new CapturingAiService(call -> sudoDecision(first));
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(SUDO_PASSWORD, false));
+        PtySudoRunner runner = new PtySudoRunner();
+        runner.cancelCommand.set(true);
+
+        expectThrows(TerminalAgentService.AgentCancelledException.class,
+            () -> new TerminalAgentService().runAgent(null, runner, cloud(), ai, request(), "cancelled-pty-run", ui));
+
+        assertThat(runner.ptyCommands).containsExactly(List.of(first));
+        assertThat(runner.closed).isEqualTo(1);
+        assertThat(ai.userPrompts).hasSize(1);
+    }
+
+    @Test
+    void decliningFirstSudoCommandDoesNotOpenThePtyOrRequestAPassword() throws Exception {
+        CapturingAiService ai = new CapturingAiService(call -> sudoDecision("sudo -n growpart /dev/sda 3"));
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.CANCEL, prompt -> null);
+        PtySudoRunner runner = new PtySudoRunner();
+
+        new TerminalAgentService().runAgent(null, runner, cloud(), ai, request(), "declined-pty-run", ui);
+
+        assertThat(ui.passwordRequests).isEmpty();
+        assertThat(runner.ptyCommands).isEmpty();
+        assertThat(runner.credentials).isEmpty();
+        assertThat(runner.closed).isEqualTo(0);
+    }
+
+    @Test
+    void alwaysApproveStillPromptsWhenSudoNeedsPasswordAndReusesItForTheNextCommand() throws Exception {
+        CapturingAiService ai = new CapturingAiService(call -> switch (call) {
+            case 1 -> sudoDecision("sudo -n growpart /dev/sda 3");
+            case 2 -> sudoDecision("sudo -n btrfs filesystem resize max /");
+            default -> DONE;
+        });
+        SudoRunner runner = new SudoRunner(List.of(1, 1, 1), null);
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(SUDO_PASSWORD, true));
+        RecordingUi nextUi = new RecordingUi();
+        CapturingAiService nextAi = new CapturingAiService(call -> call == 1
+            ? sudoDecision("sudo -n btrfs filesystem show /") : DONE);
+
+        TerminalAgentService service = new TerminalAgentService();
+        try {
+            service.runAgent(null, runner, cloud(), ai, request(), "run-sudo-cached", ui);
+            service.runAgent(null, runner, cloud(), nextAi, request(), "run-sudo-same-session", nextUi);
+        } finally {
+            service.clearCachedSudoPassword(request().sessionId());
+        }
+
+        assertThat(ui.approvals).hasSize(1);
+        assertThat(ui.approvals.getFirst().allowAlways()).isTrue();
+        assertThat(ui.passwordRequests).hasSize(1);
+        assertThat(ui.passwordRequests.getFirst().command()).isEqualTo("sudo -n growpart /dev/sda 3");
+        assertThat(nextUi.passwordRequests).isEmpty();
+        assertThat(runner.credentials).containsExactly(SUDO_PASSWORD + "\n", SUDO_PASSWORD + "\n",
+            SUDO_PASSWORD + "\n").inOrder();
+        assertThat(runner.commands.get(0)).endsWith("'sudo -n growpart /dev/sda 3'");
+        assertThat(runner.commands.get(1)).endsWith("'sudo -n btrfs filesystem resize max /'");
+        assertThat(runner.commands.get(2)).endsWith("'sudo -n btrfs filesystem show /'");
+        assertThat(ui.states.getLast().phase()).isEqualTo(TerminalAgentModels.Phase.DONE);
+        assertThat(nextUi.states.getLast().phase()).isEqualTo(TerminalAgentModels.Phase.DONE);
+        assertThat(ui.transcript.toString()).doesNotContain(SUDO_PASSWORD);
+        assertThat(ui.transcript.toString()).doesNotContain("KORTTY_SUDO_");
+        for (String prompt : ai.allPrompts()) {
+            assertThat(prompt).doesNotContain(SUDO_PASSWORD);
+            assertThat(prompt).doesNotContain("KORTTY_SUDO_");
+        }
+    }
+
+    @Test
+    void sudoCommandFailureWithAnApplicationPasswordMessageDoesNotPromptOrReplay() throws Exception {
+        CapturingAiService ai = new CapturingAiService(call -> call == 1
+            ? sudoDecision("sudo -n btrfs filesystem resize max /") : DONE);
+        String commandError = "btrfs: authentication failure while opening a device";
+        SudoRunner runner = new SudoRunner(List.of(0), commandError);
+        RecordingUi ui = new RecordingUi();
+
+        new TerminalAgentService().runAgent(null, runner, cloud(), ai, request(), "run-sudo-command-failure", ui);
+
+        assertThat(ui.passwordRequests).isEmpty();
+        assertThat(runner.credentials).containsExactly("");
+        assertThat(ai.userPrompts.getLast()).contains(commandError);
+    }
+
+    @Test
+    void rejectedSudoPasswordIsReplacedBeforeRunningTheNextCommand() throws Exception {
+        CapturingAiService ai = new CapturingAiService(call -> switch (call) {
+            case 1 -> sudoDecision("sudo -n growpart /dev/sda 3");
+            case 2 -> sudoDecision("sudo -n btrfs filesystem resize max /");
+            default -> DONE;
+        });
+        SudoRunner runner = new SudoRunner(List.of(2, 1), null);
+        RecordingUi ui = new RecordingUi(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS,
+            prompt -> new TerminalAgentModels.PasswordResponse(prompt == 1 ? WRONG_SUDO_PASSWORD : SUDO_PASSWORD, true));
+
+        TerminalAgentService service = new TerminalAgentService();
+        try {
+            service.runAgent(null, runner, cloud(), ai, request(), "run-sudo-rejected", ui);
+        } finally {
+            service.clearCachedSudoPassword(request().sessionId());
+        }
+
+        assertThat(ui.passwordRequests).hasSize(2);
+        assertThat(ui.passwordRequests.get(1).command()).isEqualTo(ui.passwordRequests.getFirst().command());
+        assertThat(runner.credentials).containsExactly(WRONG_SUDO_PASSWORD + "\n" + SUDO_PASSWORD + "\n",
+            SUDO_PASSWORD + "\n").inOrder();
+        assertThat(ui.states.getLast().phase()).isEqualTo(TerminalAgentModels.Phase.DONE);
+    }
+
 
     @Test
     void cloudProfileMasksProbeHistoryRepairAndTurnLimitPrompts() throws Exception {

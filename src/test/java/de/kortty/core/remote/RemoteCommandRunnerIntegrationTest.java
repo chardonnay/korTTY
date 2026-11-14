@@ -5,6 +5,12 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.core.read.ListAppender;
+import de.kortty.core.SshTtyConnector;
+import de.kortty.core.agent.AgentCommandRunner.ExecResult;
+import de.kortty.core.agent.AgentSudoAuthentication;
+import de.kortty.core.agent.AgentSudoTestSupport;
+import de.kortty.core.agent.SshAgentCommandRunner;
+import de.kortty.model.ServerConnection;
 import org.apache.sshd.client.session.ClientSession;
 import org.slf4j.LoggerFactory;
 import org.testng.SkipException;
@@ -42,21 +48,34 @@ public class RemoteCommandRunnerIntegrationTest {
         #!/bin/sh
         prompt="Password:"
         nonint=0
+        validate=0
         while [ $# -gt 0 ]; do
           case "$1" in
             -S) shift ;;
             -n) nonint=1; shift ;;
             -p) prompt="$2"; shift 2 ;;
+            -v) validate=1; shift ;;
             --) shift; break ;;
             -*) shift ;;
             *) break ;;
           esac
         done
         log="${FAKE_SUDO_LOG:-/dev/null}"
+        ticket="${FAKE_SUDO_TICKET:-}"
+        parent=$(LC_ALL=C ps -f -p "$$" | awk 'NR == 2 { print $3 }')
         case "${FAKE_SUDO_MODE:-password}" in
           requiretty) echo "sudo: sorry, you must have a tty to run sudo" >&2; exit 1 ;;
-          nopasswd) echo "nopasswd-run" >> "$log"; exec "$@" ;;
+          nopasswd)
+            if [ "$validate" = 1 ]; then
+              echo "nopasswd-validate" >> "$log"
+              exit 0
+            fi
+            echo "nopasswd-run" >> "$log"; exec "$@" ;;
         esac
+        if [ "$nonint" = 1 ] && [ -n "$parent" ] && [ -n "$ticket" ] && [ -f "$ticket" ] && [ "$(cat "$ticket")" = "$parent" ]; then
+          echo "validated-run" >> "$log"
+          exec "$@"
+        fi
         if [ "$nonint" = 1 ]; then echo "sudo: a password is required" >&2; exit 1; fi
         sleep 0.6
         attempt=0
@@ -65,7 +84,14 @@ public class RemoteCommandRunnerIntegrationTest {
           printf '%s' "$prompt" >&2
           IFS= read -r line || { echo "sudo: no password was provided" >&2; exit 1; }
           echo "got:$line" >> "$log"
-          if [ "$line" = "$FAKE_SUDO_PASSWORD" ]; then exec "$@"; fi
+          if [ "$line" = "$FAKE_SUDO_PASSWORD" ]; then
+            if [ "$validate" = 1 ]; then
+              [ -n "$ticket" ] && [ -n "$parent" ] || exit 1
+              printf '%s\\n' "$parent" > "$ticket"
+              exit 0
+            fi
+            exec "$@"
+          fi
           echo "Sorry, try again." >&2
         done
         echo "sudo: 3 incorrect password attempts" >&2
@@ -98,6 +124,7 @@ public class RemoteCommandRunnerIntegrationTest {
         server = new ExecLoopbackServer(dir.resolve("host.ser"), bin);
         server.environment().put("FAKE_SUDO_LOG", sudoLog.toString());
         server.environment().put("FAKE_SUDO_PASSWORD", SECRET);
+        server.environment().put("FAKE_SUDO_TICKET", dir.resolve("sudo.ticket").toString());
         session = server.connect();
         runner = new RemoteCommandRunner(() -> session);
     }
@@ -115,6 +142,7 @@ public class RemoteCommandRunnerIntegrationTest {
     @BeforeMethod
     public void reset() throws IOException {
         Files.deleteIfExists(sudoLog);
+        Files.deleteIfExists(dir.resolve("sudo.ticket"));
         server.environment().put("FAKE_SUDO_MODE", "password");
         root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
         remoteLogger = (Logger) LoggerFactory.getLogger("de.kortty.core.remote");
@@ -190,6 +218,89 @@ public class RemoteCommandRunnerIntegrationTest {
         // the fake sudo waits 0.6 s before it prompts; a blind send would arrive at once
         assertThat(server.lastFirstStdinDelayMillis()).isAtLeast(500L);
         assertThat(result.stderr()).doesNotContain("KORTTY");
+    }
+
+    @Test(timeOut = 20000)
+    public void agentSudoPromptOverSshPreservesPipesAndHereDocuments() throws Exception {
+        List<Boolean> retries = new ArrayList<>();
+        try (AgentSudoAuthentication auth = new AgentSudoAuthentication("sudo cat", retry -> {
+            retries.add(retry);
+            String password = retries.size() == 1 ? "wrong" : SECRET;
+            return (password + "\n").getBytes(StandardCharsets.UTF_8);
+        }, text -> text)) {
+            String command = """
+                printf 'pipeline\\n' | sudo -n cat
+                sudo -n cat <<'EOF'
+                heredoc
+                EOF
+                printf '%%s' %s >&2
+                cat
+                """.formatted(RemoteShell.quote(AgentSudoTestSupport.promptMarker(auth)));
+            var result = runAgentSudo(command, auth);
+            auth.checkFailure();
+
+            assertThat(result.exitCode()).isEqualTo(0);
+            assertThat(result.stdout()).isEqualTo("pipeline\nheredoc\n");
+            assertThat(result.stderr()).isEqualTo("Sorry, try again.\n");
+            assertThat(retries).containsExactly(false, true).inOrder();
+            assertThat(sudoLog()).containsExactly("got:wrong", "got:" + SECRET, "validated-run", "validated-run").inOrder();
+            assertThat(server.lastFirstStdinDelayMillis()).isAtLeast(500L);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void agentCommandCannotTriggerPasswordDeliveryAfterPasswordlessValidation() throws Exception {
+        server.environment().put("FAKE_SUDO_MODE", "nopasswd");
+        List<Boolean> passwordRequests = new ArrayList<>();
+        try (AgentSudoAuthentication auth = new AgentSudoAuthentication("sudo true", retry -> {
+            passwordRequests.add(retry);
+            return (SECRET + "\n").getBytes(StandardCharsets.UTF_8);
+        }, text -> text)) {
+            String command = """
+                sudo -n true
+                test ! -e "${kortty_sudo_dir:-/nonexistent}/askpass" || exit 17
+                if ( : <&4 ) 2>/dev/null; then exit 18; fi
+                printf '%%s' %s >&2
+                cat
+                printf 'command executed\\n'
+                """.formatted(RemoteShell.quote(AgentSudoTestSupport.promptMarker(auth)));
+            var result = runAgentSudo(command, auth);
+            auth.checkFailure();
+
+            assertThat(result.exitCode()).isEqualTo(0);
+            assertThat(result.stdout()).isEqualTo("command executed\n");
+            assertThat(passwordRequests).isEmpty();
+            assertThat(sudoLog()).containsExactly("nopasswd-validate", "nopasswd-run").inOrder();
+            assertThat(server.lastFirstStdinDelayMillis()).isEqualTo(-1L);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void agentCommandDoesNotRunAfterSudoValidationFails() throws Exception {
+        List<Boolean> retries = new ArrayList<>();
+        try (AgentSudoAuthentication auth = new AgentSudoAuthentication("sudo true", retry -> {
+            retries.add(retry);
+            return "wrong\n".getBytes(StandardCharsets.UTF_8);
+        }, text -> text)) {
+            var result = runAgentSudo("sudo -n true; printf 'command executed\\n'", auth);
+            auth.checkFailure();
+
+            assertThat(result.exitCode()).isNotEqualTo(0);
+            assertThat(result.stdout()).isEmpty();
+            assertThat(retries).containsExactly(false, true, true).inOrder();
+            assertThat(sudoLog()).containsExactly("got:wrong", "got:wrong", "got:wrong");
+        }
+    }
+
+    private ExecResult runAgentSudo(String command, AgentSudoAuthentication auth) throws Exception {
+        SshAgentCommandRunner agent = new SshAgentCommandRunner(new SshTtyConnector(new ServerConnection(), null) {
+            @Override
+            public ClientSession getSession() {
+                return session;
+            }
+        });
+        return agent.execWithSudo(AgentSudoTestSupport.wrap(command, auth, dir.resolve("bin/sudo").toString()),
+            auth, null, null, false);
     }
 
     @Test

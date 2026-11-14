@@ -406,6 +406,8 @@ public class TerminalView extends BorderPane {
         new PaneWorkingDirectoryTracker<>(TerminalView::scheduleWorkingDirectoryRead, this::fireSessionStateChanged);
     /** Told on the FX thread when something only the session snapshot keeps changed (a pane's directory). */
     private volatile Runnable onSessionStateChanged;
+    private Runnable onAgentTabClosed;
+    private volatile Consumer<ObservableTtyConnector> onAgentConnectorDisconnected;
     // Single tab-wide font-size source. Every per-pane provider delegates its font-size reads/writes
     // here, so Cmd/Ctrl +/- zoom and reset stay global across all splits.
     private DynamicFontSizeSettingsProvider sharedFontSource;
@@ -1450,12 +1452,17 @@ public class TerminalView extends BorderPane {
         return max > 0 && active < max;
     }
 
-    public String buildTerminalAgentScopedSessionId(String sessionId, @Nullable TerminalAgentRunContext runContext) {
-        String baseSessionId = sessionId != null && !sessionId.isBlank() ? sessionId : "terminal-agent";
-        ObservableTtyConnector connector = runContext != null ? runContext.connector() : null;
-        return connector != null
-            ? baseSessionId + ":" + Integer.toHexString(System.identityHashCode(connector))
-            : baseSessionId;
+    static String buildTerminalAgentScopedSessionId(String sessionId, ObservableTtyConnector connector) {
+        return sessionId + ":" + Integer.toHexString(System.identityHashCode(connector));
+    }
+
+    void setOnAgentTabClosed(Runnable listener) {
+        onAgentTabClosed = listener;
+    }
+
+    /** The callback can run on the connector's reader thread. */
+    void setOnAgentConnectorDisconnected(Consumer<ObservableTtyConnector> listener) {
+        onAgentConnectorDisconnected = listener;
     }
 
     /** The theme picked from the context menu for this tab, or null while it follows its connection. */
@@ -4130,6 +4137,10 @@ public class TerminalView extends BorderPane {
     }
 
     private void reportTerminalDisconnected(TtyConnector connector) {
+        Consumer<ObservableTtyConnector> listener = onAgentConnectorDisconnected;
+        if (listener != null && connector instanceof ObservableTtyConnector agentConnector) {
+            listener.accept(agentConnector);
+        }
         firePaneSessionChanged();
         ActiveConnectionRegistry.shared().terminalDisconnected(connector);
         var app = KorTTYApplication.getInstance();
@@ -9384,6 +9395,12 @@ public class TerminalView extends BorderPane {
                 logger.debug("Ignoring split pane cleanup exception: {}", e.getMessage());
             }
             splitPane = null;
+        }
+        onAgentConnectorDisconnected = null;
+        Runnable agentTabClosed = onAgentTabClosed;
+        onAgentTabClosed = null;
+        if (agentTabClosed != null) {
+            agentTabClosed.run();
         }
         releaseAllAgentShortcutInputInterceptors();
         terminalContainer = null;

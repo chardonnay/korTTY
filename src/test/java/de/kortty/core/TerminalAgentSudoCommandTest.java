@@ -26,6 +26,27 @@ class TerminalAgentSudoCommandTest {
     }
 
     @Test
+    void normalizesSudoInAnIfAndAfterNewlinesWhilePreservingHereDocumentText() {
+        String command = """
+            if sudo true; then
+                cat <<'EOF'
+            sudo -i
+            EOF
+                sudo id
+            fi
+            """;
+
+        assertThat(TerminalAgentService.normalizeSudoForAgentExecution(command)).isEqualTo("""
+            if sudo -n true; then
+                cat <<'EOF'
+            sudo -i
+            EOF
+                sudo -n id
+            fi
+            """);
+    }
+
+    @Test
     void normalizesPlannerSudoStdinModeToRuntimeControlledNonInteractiveSudo() {
         assertThat(TerminalAgentService.normalizeSudoForAgentExecution("sudo -S dnf install -y tomcat")).isEqualTo("sudo -n dnf install -y tomcat");
     }
@@ -45,6 +66,12 @@ class TerminalAgentSudoCommandTest {
     void rejectsLowercaseSudoShellModeFromPlanner() {
         expectThrows(IllegalArgumentException.class, () ->
             TerminalAgentService.normalizeSudoForAgentExecution("sudo -s"));
+    }
+
+    @Test
+    void rejectsSudoShellModeAfterAnotherSudoCommand() {
+        expectThrows(IllegalArgumentException.class, () ->
+            TerminalAgentService.normalizeSudoForAgentExecution("sudo true && sudo -i"));
     }
 
     @Test
@@ -135,105 +162,5 @@ class TerminalAgentSudoCommandTest {
             TerminalAgentService.AgentDecisionStatus.run_commands,
             commands,
             false)).isTrue();
-    }
-
-    @Test
-    void promptsForPasswordWhenPlannerBlocksOnSudoPassword() {
-        assertThat(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
-            "Need sudo password to proceed with installation",
-            "Cannot install Tomcat without sudo password",
-            sudoPasswordProbe(),
-            null)).isTrue();
-    }
-
-    @Test
-    void doesNotPromptForPasswordWhenPasswordAlreadyCached() {
-        assertThat(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
-            "Need sudo password",
-            "Cannot continue without sudo password",
-            sudoPasswordProbe(),
-            "secret")).isFalse();
-    }
-
-    @Test
-    void doesNotPromptForPasswordWhenSudoIsUnavailable() {
-        TerminalAgentModels.ProbeSnapshot probe = new TerminalAgentModels.ProbeSnapshot(
-            "Fedora Linux 43",
-            "kernel",
-            "x86_64",
-            "bash",
-            "daniel",
-            "1000",
-            "1000",
-            List.of("wheel"),
-            "/home/daniel",
-            "/home/daniel",
-            null,
-            "",
-            List.of("dnf"),
-            List.of("systemctl"),
-            false,
-            false,
-            false,
-            false,
-            "",
-            "none");
-
-        assertThat(TerminalAgentService.shouldPromptForSudoPasswordAfterBlockedDecision(
-            "Need sudo password",
-            "Cannot continue without sudo password",
-            probe,
-            null)).isFalse();
-    }
-
-    @Test
-    void clearsCachedSudoPasswordOnlyForAuthenticationFailures() {
-        assertThat(TerminalAgentService.shouldClearCachedSudoPassword(
-            "",
-            "[sudo] password for daniel: Sorry, try again.")).isTrue();
-
-        assertThat(TerminalAgentService.shouldClearCachedSudoPassword(
-            "",
-            "dnf: no package matches not-a-real-package")).isFalse();
-    }
-
-    @Test
-    void sudoPreflightIsNeededOnlyForPasswordProtectedSudo() {
-        assertThat(TerminalAgentService.needsSudoPasswordPreflight(sudoPasswordProbe())).isTrue();
-        assertThat(TerminalAgentService.needsSudoPasswordPreflight(probe(true, true, false, "already_root"))).isFalse();
-        assertThat(TerminalAgentService.needsSudoPasswordPreflight(probe(false, false, false, "none"))).isFalse();
-        assertThat(TerminalAgentService.needsSudoPasswordPreflight(probe(false, true, true, "passwordless_sudo"))).isFalse();
-    }
-
-    private TerminalAgentModels.ProbeSnapshot sudoPasswordProbe() {
-        return probe(false, true, false, "sudo_password");
-    }
-
-    private TerminalAgentModels.ProbeSnapshot probe(
-        boolean alreadyRoot,
-        boolean sudoAvailable,
-        boolean passwordlessSudo,
-        String rootEscalationMode) {
-        return new TerminalAgentModels.ProbeSnapshot(
-            "Fedora Linux 43",
-            "kernel",
-            "x86_64",
-            "bash",
-            "daniel",
-            "1000",
-            "1000",
-            List.of("wheel"),
-            "/home/daniel",
-            "/home/daniel",
-            null,
-            "",
-            List.of("dnf"),
-            List.of("systemctl"),
-            alreadyRoot,
-            sudoAvailable,
-            passwordlessSudo,
-            false,
-            "",
-            rootEscalationMode);
     }
 }

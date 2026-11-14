@@ -1,5 +1,6 @@
 package de.kortty.core.remote;
 
+import com.pty4j.PtyProcessBuilder;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.channel.Channel;
@@ -16,6 +17,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +33,8 @@ final class ExecLoopbackServer implements AutoCloseable {
     private final SshClient client;
     private final Map<String, String> environment = new ConcurrentHashMap<>();
     private final AtomicInteger closedChannels = new AtomicInteger();
+    private final AtomicInteger ptyChannels = new AtomicInteger();
+    private final boolean allocatePty;
     private volatile long lastStartMillis;
     private volatile long lastFirstStdinMillis;
 
@@ -43,6 +47,12 @@ final class ExecLoopbackServer implements AutoCloseable {
      * @param sftp whether the server also offers the SFTP subsystem over the local file system
      */
     ExecLoopbackServer(Path hostKey, Path pathPrefix, boolean exec, boolean sftp) throws IOException {
+        this(hostKey, pathPrefix, exec, sftp, false);
+    }
+
+    /** Optionally back an exec channel's PTY request with a real controlling terminal. */
+    ExecLoopbackServer(Path hostKey, Path pathPrefix, boolean exec, boolean sftp, boolean allocatePty) throws IOException {
+        this.allocatePty = allocatePty;
         server = SshServer.setUpDefaultServer();
         server.setHost("127.0.0.1");
         server.setPort(0);
@@ -74,6 +84,10 @@ final class ExecLoopbackServer implements AutoCloseable {
     /** How many channels the server has seen closed. */
     int closedChannels() {
         return closedChannels.get();
+    }
+
+    int ptyChannels() {
+        return ptyChannels.get();
     }
 
     /** Milliseconds between the start of the last command and the first stdin byte it got, or -1. */
@@ -133,13 +147,26 @@ final class ExecLoopbackServer implements AutoCloseable {
 
         @Override
         public void start(ChannelSession channel, Environment env) throws IOException {
-            ProcessBuilder builder = new ProcessBuilder("/bin/sh", "-c", command);
-            Map<String, String> processEnv = builder.environment();
+            String[] argv = {"/bin/sh", "-c", command};
+            Map<String, String> processEnv = new HashMap<>(System.getenv());
             processEnv.putAll(environment);
             processEnv.put("PATH", pathPrefix + ":" + System.getenv().getOrDefault("PATH", "/usr/bin:/bin"));
             lastFirstStdinMillis = 0;
             lastStartMillis = System.currentTimeMillis();
-            Process started = builder.start();
+            Process started;
+            if (allocatePty && env.getEnv().containsKey(Environment.ENV_TERM)) {
+                processEnv.put("TERM", env.getEnv().get(Environment.ENV_TERM));
+                started = new PtyProcessBuilder(argv)
+                    .setEnvironment(processEnv)
+                    .setConsole(false)
+                    .setRedirectErrorStream(true)
+                    .start();
+                ptyChannels.incrementAndGet();
+            } else {
+                ProcessBuilder builder = new ProcessBuilder(argv);
+                builder.environment().putAll(processEnv);
+                started = builder.start();
+            }
             process = started;
             daemon("exec-fixture-in", () -> {
                 try (OutputStream processIn = started.getOutputStream()) {

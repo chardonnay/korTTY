@@ -31,6 +31,26 @@ public interface AgentCommandRunner {
         BooleanSupplier cancellationSupplier,
         boolean useTrackedWorkingDirectory) throws Exception;
 
+    /** Runs a POSIX command with a separate password exchange on the exec channel. */
+    default ExecResult execWithSudo(
+        String command,
+        AgentSudoAuthentication auth,
+        Consumer<String> outputConsumer,
+        BooleanSupplier cancellationSupplier,
+        boolean useTrackedWorkingDirectory) throws Exception {
+        throw new UnsupportedOperationException("This command runner does not support sudo authentication.");
+    }
+
+    /** Whether this backend can allocate a dedicated sudo terminal for a run. */
+    default boolean supportsSudoPty() {
+        return false;
+    }
+
+    /** Opens and validates a terminal before any planned command has run on it. */
+    default AgentSudoPty openSudoPty(AgentSudoAuthentication auth, BooleanSupplier cancelled) throws Exception {
+        throw new UnsupportedOperationException("This command runner cannot open a sudo pseudoterminal.");
+    }
+
     /** Runs the environment probe and returns its raw {@code key=value} stdout in an {@link ExecResult}. */
     ExecResult runProbe(boolean useTrackedWorkingDirectory, BooleanSupplier cancellationSupplier) throws Exception;
 
