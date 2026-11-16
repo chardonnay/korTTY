@@ -365,10 +365,10 @@ dependencies {
     implementation("org.apache.sshd:sshd-core:2.20.1")
     implementation("org.apache.sshd:sshd-common:2.20.1")
     implementation("org.apache.sshd:sshd-sftp:2.20.1")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.87")
     // 1.86 is the first release since 1.85 that ships both artifacts, so the version skew the
     // 1.85.2 bcprov-only patch forced is gone; keep them on the same version from here.
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.87")
 
     // ED25519 (EdDSA) key support for SSH is supplied by BouncyCastle above, via MINA SSHD's
     // BouncyCastleEdDSASupport backend. Do NOT add net.i2p.crypto:eddsa back: MINA prefers the
