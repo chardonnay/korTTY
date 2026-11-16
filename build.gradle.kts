@@ -792,7 +792,7 @@ val bundledFormatterDir = layout.buildDirectory.dir("bundled-formatters")
 val bundledMosh4jDir = layout.buildDirectory.dir("bundled-mosh4j")
 val slimRuntimeJarDir = layout.buildDirectory.dir("slim-runtime-jars")
 val monacoBuildNodeDir = layout.buildDirectory.dir("monaco-node")
-val formatterNodeVersion = "24.22.2"
+val formatterNodeVersion = "24.22.3"
 val formatterShfmtVersion = "3.13.1"
 val formatterPrettierVersion = "3.6.2"
 val formatterPrettierSha256 = "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf3415831ff13a875bdf"
@@ -821,14 +821,14 @@ fun shfmtAsset(): Pair<String, String>? {
     }
 }
 
-fun nodeArchiveName(): String? {
+fun nodeArchive(): Pair<String, String>? {
     val arch = formatterArch()
     return when {
-        isMac && arch == "x64" -> "node-v${formatterNodeVersion}-darwin-x64.tar.gz"
-        isMac && arch == "arm64" -> "node-v${formatterNodeVersion}-darwin-arm64.tar.gz"
-        isLinux && arch == "x64" -> "node-v${formatterNodeVersion}-linux-x64.tar.gz"
-        isLinux && arch == "arm64" -> "node-v${formatterNodeVersion}-linux-arm64.tar.gz"
-        isWindows && arch == "x64" -> "node-v${formatterNodeVersion}-win-x64.zip"
+        isMac && arch == "x64" -> "node-v${formatterNodeVersion}-darwin-x64.tar.gz" to "977614af0504c81045e7fd85596dbca0e5f951b96681516dadafedcca8c447f7"
+        isMac && arch == "arm64" -> "node-v${formatterNodeVersion}-darwin-arm64.tar.gz" to "ff6e17d4874b76d272212b908cc020d6e815fba5a6c7eaaa06add725840307fd"
+        isLinux && arch == "x64" -> "node-v${formatterNodeVersion}-linux-x64.tar.gz" to "061ec3e3062115705b56b51fa9cc330ab50d34b6969387d4e4b1a50c6809acc2"
+        isLinux && arch == "arm64" -> "node-v${formatterNodeVersion}-linux-arm64.tar.gz" to "261af2af250dfd7e9f25cf151d1b2713a0adf8f10a9ad116c4947f68627affe8"
+        isWindows && arch == "x64" -> "node-v${formatterNodeVersion}-win-x64.zip" to "e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f"
         else -> null
     }
 }
@@ -993,21 +993,16 @@ val formatterWebGeneratedResourceDir = layout.buildDirectory.dir("generated-form
 tasks.register("copyMonacoBuildNode") {
     group = "build"
     description = "Downloads pinned Node.js LTS for the Monaco build workspace without touching jpackage inputs."
+    val asset = nodeArchive()
+    inputs.property("nodeArchiveName", asset?.first.orEmpty())
+    inputs.property("nodeArchiveSha256", asset?.second.orEmpty())
     outputs.dir(monacoBuildNodeDir)
     doLast {
-        val archiveName = nodeArchiveName()
-        if (archiveName == null) {
-            throw GradleException("No bundled Node.js archive configured for ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
-        }
+        val (archiveName, expectedSha256) = asset
+            ?: throw GradleException("No bundled Node.js archive configured for ${System.getProperty("os.name")} ${System.getProperty("os.arch")}")
         val downloadBase = "https://nodejs.org/dist/v$formatterNodeVersion"
-        val shasumsFile = formatterDownloadDir.get().asFile.resolve("node-v$formatterNodeVersion-SHASUMS256.txt")
-        download("$downloadBase/SHASUMS256.txt", shasumsFile)
-        val expected = shasumsFile.readLines()
-            .firstOrNull { it.endsWith("  $archiveName") || it.endsWith(" *$archiveName") }
-            ?.substringBefore(" ")
-            ?: throw GradleException("No Node.js checksum found for $archiveName")
         val archive = formatterDownloadDir.get().asFile.resolve(archiveName)
-        downloadPinned("$downloadBase/$archiveName", archive, expected)
+        downloadPinned("$downloadBase/$archiveName", archive, expectedSha256)
 
         val unpackDir = layout.buildDirectory.get().asFile.resolve("monaco-node-unpack")
         delete(unpackDir)
