@@ -77,7 +77,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java, src/main/java/de/kortty/ui/IconToolbar.java, src/main/java/de/kortty/ui/ToolbarCatalog.java, src/main/java/de/kortty/ui/ToolbarEditorModel.java, src/main/java/de/kortty/ui/ToolbarIcons.java, src/main/java/de/kortty/ui/SettingsSection.java, src/main/java/de/kortty/model/IconToolbarSettings.java, src/main/resources/styles/icon-toolbar.css]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png, main/icon-toolbar.png, main/icon-toolbar-customize.png, main/icon-toolbar-context-menu.png]
-    last_synced_ref: "3d540d7aa"
+    last_synced_ref: "4493348a"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md

@@ -4,6 +4,10 @@ What changed in the current release. The version this guide was built for is sho
 
 ## v2.26.0
 
+### Terminal
+
+- **Connection duration** — the terminal status bar shows hours and minutes, with a day count starting at 24 hours.
+
 ### AI agent and AI chat
 
 - **Continue a run in an AI chat** — when a terminal run has finished, a bar under the terminal offers **Continue in AI chat** and a field for a follow-up question; the run menu of every agent design has the same entry. The chat starts with the task and the final answer, and lists the steps of the run (commands, exit codes, shortened output) in a collapsed **Steps** list. Everything stored is masked, including a sudo password typed during the run. See [Continue a run in an AI chat](../features/ai-agent-designs.md#continue-a-run-in-an-ai-chat).

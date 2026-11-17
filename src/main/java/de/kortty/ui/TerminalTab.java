@@ -1244,12 +1244,11 @@ public class TerminalTab extends Tab {
         
         // Show connection duration
         if (connectionStartTime != null) {
-            long durationSeconds = Instant.now().getEpochSecond() - connectionStartTime.getEpochSecond();
+            var elapsed = java.time.Duration.between(connectionStartTime, Instant.now());
             if (status.length() > 0) {
                 status.append(" | ");
             }
-            String durationStr = formatDuration(durationSeconds);
-            status.append(I18n.get("statusBar.connectionDuration", durationStr));
+            status.append(I18n.get("statusBar.connectionDuration", formatConnectionDuration(elapsed)));
         }
 
         if (interrupted && interruptedSinceMs > 0) {
@@ -1306,6 +1305,15 @@ public class TerminalTab extends Tab {
                 }
             }
         });
+    }
+
+    private static String formatConnectionDuration(java.time.Duration elapsed) {
+        if (elapsed.isNegative()) {
+            return "00:00";
+        }
+        String hoursAndMinutes = String.format("%02d:%02d", elapsed.toHoursPart(), elapsed.toMinutesPart());
+        long days = elapsed.toDays();
+        return days > 0 ? String.format("%dd %s", days, hoursAndMinutes) : hoursAndMinutes;
     }
 
     private static String formatDuration(long durationSeconds) {
