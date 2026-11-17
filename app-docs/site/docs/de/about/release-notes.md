@@ -4,6 +4,10 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ## v2.26.0
 
+### Terminal
+
+- **Verbindungsdauer** — Die Terminal-Statusleiste zeigt Stunden und Minuten an. Ab 24 Stunden kommt die Anzahl der Tage hinzu.
+
 ### KI-Agent und KI-Chat
 
 - **Im KI-Chat fortsetzen** — Wenn ein Terminal-Lauf abgeschlossen ist, bietet eine Leiste unter dem Terminal die Option **Im KI-Chat fortsetzen** und ein Feld für eine Anschlussfrage an; das Laufmenü jedes Agent-Designs enthält denselben Eintrag. Der Chat beginnt mit der Aufgabe und der finalen Antwort und listet die Schritte des Laufs (Befehle, Exit-Codes, gekürzte Ausgabe) in einer eingeklappten **Schritte**-Liste auf. Alles Gespeicherte wird maskiert, einschließlich eines während des Laufs eingegebenen sudo-Passworts. Siehe [Im KI-Chat fortsetzen](../features/ai-agent-designs.md#im-ki-chat-fortsetzen).
