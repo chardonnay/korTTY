@@ -7071,7 +7071,8 @@ public class MainWindow {
      * Writes a terminal-agent run (prompt as title, final answer as text) into the tab's active
      * session journal as an AGENT timeline card. Returns the card, or {@code null} without a running journal.
      */
-    private @Nullable AgentJournalCard appendAgentJournalEntry(TerminalTab terminalTab, String prompt, String answer,
+    private @Nullable AgentJournalCard appendAgentJournalEntry(TerminalTab terminalTab,
+                                         TerminalView.TerminalAgentRunContext runContext, String prompt, String answer,
                                          String modelText, long durationMillis, long totalTokens,
                                          @Nullable SessionJournalRedactor runSecrets) {
         if (terminalTab == null || terminalTab.getTerminalView() == null
@@ -7079,7 +7080,7 @@ public class MainWindow {
             return null;
         }
         de.kortty.core.SessionJournalSession session =
-            terminalTab.getTerminalView().getSessionJournalSession();
+            terminalTab.getTerminalView().getSessionJournalSession(runContext.widget());
         if (session == null || !session.isActive()) {
             return null;
         }
@@ -7092,8 +7093,9 @@ public class MainWindow {
         String maskedPrompt = prompt != null && !prompt.isBlank()
             ? AiOutboundRedaction.redact(prompt.strip(), redactor).text() : null;
         String title = maskedPrompt != null ? maskedPrompt : I18n.get("ai.agent.title");
+        title = session.redact(title);
         entry.setTitle(title.length() > 140 ? title.substring(0, 140) + "…" : title);
-        entry.setText(AiOutboundRedaction.redact(answer.strip(), redactor).text());
+        entry.setText(session.redact(AiOutboundRedaction.redact(answer.strip(), redactor).text()));
         if (modelText != null && !modelText.isBlank()) {
             entry.setAgentModel(modelText.strip());
         }
@@ -7155,11 +7157,12 @@ public class MainWindow {
         }
         boolean active = tab.getTerminalView() != null
             && tab.getTerminalView().isSessionJournalActive();
-        if (active && tab == activeTerminalTab()) {
+        if (active && (tab == activeTerminalTab() || tab == journalLivePanel.getBoundTab())) {
             // Covers manual start, auto-start on connect and a restart in the bound tab
             // (bindToTab sees a new session object and restarts the feed).
             journalLivePanel.bindToTab(tab);
-        } else if (!active && tab == journalLivePanel.getBoundTab()) {
+        } else if (tab == journalLivePanel.getBoundTab()
+                && tab.getTerminalView().tabJournal() != journalLivePanel.getBoundSession()) {
             journalLivePanel.notifyBoundJournalStopped();
         }
     }
@@ -8165,13 +8168,14 @@ public class MainWindow {
             return;
         }
         for (TerminalView view : openTerminalViews()) {
-            ServerConnection viewConnection = view != null ? view.getConnection() : null;
-            if (viewConnection == null || !connectionId.equals(viewConnection.getId())) {
-                continue;
-            }
-            de.kortty.core.SessionJournalSession journal = view.getSessionJournalSession();
-            if (journal != null && journal.isActive()) {
-                journal.appendUserNote(text);
+            if (view != null) {
+                for (var pane : view.getOrderedWidgets()) {
+                    var journal = view.getSessionJournalSession(pane);
+                    if (journal != null && connectionId.equals(view.paneConnection(pane).getId())) {
+                        journal.appendUserNote(text);
+                        break;
+                    }
+                }
             }
         }
     }
@@ -12416,7 +12420,7 @@ public class MainWindow {
         if (!agentRunChatsInProgress.add(source.runId())) {
             return false;
         }
-        de.kortty.core.SessionJournalSession liveJournal = activeJournalSession(terminalTab);
+        de.kortty.core.SessionJournalSession liveJournal = activeJournalSession(bound.pane());
         Task<SavedAiChat> task = new Task<>() {
             @Override
             protected SavedAiChat call() throws Exception {
@@ -12472,13 +12476,13 @@ public class MainWindow {
         }
     }
 
-    /** The session journal of the tab's pane when it is recording now, otherwise {@code null}. */
-    private static @Nullable de.kortty.core.SessionJournalSession activeJournalSession(@Nullable TerminalTab terminalTab) {
-        if (terminalTab == null || terminalTab.getTerminalView() == null) {
+    /** The run's source pane journal, if it is still recording. */
+    private static @Nullable de.kortty.core.SessionJournalSession activeJournalSession(@Nullable TerminalPaneRef source) {
+        if (source == null || !source.isOpen()) {
             return null;
         }
-        de.kortty.core.SessionJournalSession session = terminalTab.getTerminalView().getSessionJournalSession();
-        return session != null && session.isActive() ? session : null;
+        TerminalTab tab = source.tab();
+        return tab != null ? tab.getTerminalView().getSessionJournalSession(source.pane()) : null;
     }
 
     /**
@@ -12729,7 +12733,7 @@ public class MainWindow {
                                 // the run happened either way, and the summarizer deliberately
                                 // ignores agent text it finds inline in the capture log.
                                 if (agentResultJournaled.compareAndSet(false, true)) {
-                                    agentJournalCard.set(appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
+                                    agentJournalCard.set(appendAgentJournalEntry(terminalTab, resolvedRunContext, scopedRequest.userPrompt(),
                                         message,
                                         agentModelText,
                                         (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
@@ -12857,7 +12861,7 @@ public class MainWindow {
                     agentFinalPhase.set(TerminalAgentModels.Phase.CANCELLED);
                     agentFinalAnswer.compareAndSet(null, I18n.get("ai.agent.activity.cancelled"));
                     if (agentResultJournaled.compareAndSet(false, true)) {
-                        agentJournalCard.set(appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
+                        agentJournalCard.set(appendAgentJournalEntry(terminalTab, resolvedRunContext, scopedRequest.userPrompt(),
                             I18n.get("ai.agent.activity.cancelled"),
                             agentModelText,
                             (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
@@ -16030,9 +16034,7 @@ public class MainWindow {
 
         if (de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
             Menu journalMenu = new Menu(I18n.get("tab.contextMenu.journal"));
-            MenuItem journalToggleItem = new MenuItem(I18n.get(terminalTab.isJournalActive()
-                ? "tab.contextMenu.journal.stop"
-                : "tab.contextMenu.journal.start"));
+            MenuItem journalToggleItem = new MenuItem(I18n.get(terminalTab.journalActionKey()));
             journalToggleItem.setOnAction(e -> {
                 terminalTab.toggleJournalFromMenuOrShortcut();
                 updateAllTabContextMenus();
@@ -16043,6 +16045,11 @@ public class MainWindow {
             MenuItem journalNoteItem = new MenuItem(I18n.get("tab.contextMenu.journal.note"));
             journalNoteItem.setDisable(!terminalTab.isJournalActive());
             journalNoteItem.setOnAction(e -> terminalTab.addJournalNote());
+            journalMenu.setOnShowing(event -> {
+                journalToggleItem.setText(I18n.get(terminalTab.journalActionKey()));
+                journalShotItem.setDisable(!terminalTab.isJournalActive());
+                journalNoteItem.setDisable(!terminalTab.isJournalActive());
+            });
             journalMenu.getItems().addAll(journalToggleItem, journalShotItem, journalNoteItem);
             contextMenu.getItems().add(journalMenu);
         }

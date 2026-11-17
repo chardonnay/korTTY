@@ -17,6 +17,7 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ### Session-Journal
 
+- **Journal-Terminals** ermöglicht es Ihnen, ein, mehrere oder alle Terminals eines geteilten Tabs auszuwählen und gemeinsam in einem Sitzungsjournal aufzuzeichnen. **Alle Terminals in diesem Tab** bezieht auch neue Split-Terminals ein. Das Aufzeichnungsprotokoll kennzeichnet bei jedem Eintrag das Terminal, aus dem er stammt. Siehe [Journal aktivieren](../features/session-journal.md#das-journal-wird-aktiviert).
 - **Journale zusammenführen** – Wählen Sie mehrere geschlossene Journale im [Journal-Manager](../features/session-journal.md#journale-verwalten) aus, um ein Journal mit einer gemeinsamen Zeitleiste, gekennzeichneten Terminalabschnitten und einer optionalen KI-gestützten Übersicht zu erstellen.
 - Nach dem Beenden eines Sitzungsjournals können Sie die Leiste in diesem Tab per Rechtsklick mit **Journalleiste ausblenden** ausblenden.
 

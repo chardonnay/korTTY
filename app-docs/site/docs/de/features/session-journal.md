@@ -34,11 +34,15 @@ Die Rotation kann pro Verbindung auf der Registerkarte **Journal** konfiguriert 
 2. Aktivieren Sie auf der Registerkarte **Journal** die Option **Sitzungsjournal für diese Verbindung aktivieren**
 3. Passen Sie optional **Typisierte Eingabezeilen erfassen**, **KI-Zusammenfassungen generieren**, das **Zusammenfassungsintervall pro Verbindung** und das Rotationspaar **Maximale Größe pro Log-Teil (MB)** und **Maximale Anzahl rotierter Log-Teile** an.
 
-Jede zukünftige Verbindung dieses Servers startet dann automatisch sein Journal. Das Journal übersteht erneute Verbindungen – ein Journal pro Tab-Lebensdauer, mit einer Wiederverbindungsmarkierung im Protokoll.
+Jede zukünftige Verbindung mit diesem Server startet dann automatisch ihr Journal. Das Journal bleibt bei erneuten Verbindungen bestehen und hält jede Wiederverbindung mit einer Markierung im Protokoll fest.
 
 ### Rückwirkend für eine laufende Sitzung
 
 Verwenden Sie **Extras > Sitzungsjournal starten/stoppen** (++ctrl+alt+t++), das Tab-Kontextmenü (**Sitzungsjournal > Journal starten**) oder die Schaltfläche **Journal starten** in der Journalleiste. Der vorhandene Scrollback wird zunächst als Starteinträge in das Journal importiert, sodass die Zeitleiste abdeckt, was bereits passiert ist. Anschließend wird eine Live-Aufnahme angehängt.
+
+Diese Bedienelemente öffnen **Journal-Terminals…**. Markieren Sie die gewünschten geöffneten Terminals oder wählen Sie **Alle Terminals in diesem Tab**, um die aktuellen Terminals und später geöffnete Split-Terminals einzubeziehen. Wählen Sie **Übernehmen**, um für die Auswahl ein gemeinsames Journal zu starten. Öffnen Sie den Dialog erneut, um die Auswahl zu ändern. Ein aus der Auswahl entferntes Terminal wird ab diesem Zeitpunkt nicht mehr aufgezeichnet. Sein bisheriger Verlauf bleibt im Journal erhalten. Wenn Sie die gesamte Auswahl aufheben, endet das Journal. Auch das Schließen des letzten aufgezeichneten Terminals oder des Tabs beendet das Journal.
+
+Das gemeinsame Journal fasst den Scrollback, die Eingaben und die Ausgaben jedes Terminals in einem Aufzeichnungsprotokoll zusammen und kennzeichnet jeweils das Herkunftsterminal. Für die Rotation und die KI-Zusammenfassungen verwendet das Journal die Verbindungseinstellungen des zuerst ausgewählten Terminals. Jedes Terminal verwendet seine eigene Einstellung **Eingegebene Befehlszeilen erfassen**. Wenn mehrere Terminals aufgezeichnet werden, verwenden die Zusammenfassungen zeitlich geordnete Auszüge mit begrenztem Umfang und Terminalkennzeichnungen.
 
 ### KI-Verbindungsprüfung vor dem Start des Journals
 
@@ -50,9 +54,9 @@ Ein Journal, dessen Zusammenfassungen niemals geschrieben werden können, ist we
 
 ### Die Journalleiste
 
-Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen Status an (**Journal aktiv seit HH:MM**) und bietet **Journal stoppen**, **Screenshot** und **Notiz**:
+Die Leiste unter dem Terminal zeigt den Aufzeichnungsstatus des fokussierten Terminals an und bietet **Journal stoppen** oder bei einem geteilten Tab **Journal-Terminals…**. Während das fokussierte Terminal aufgezeichnet wird, bietet die Leiste außerdem **Screenshot** und **Notiz**.
 
-- **Screenshot** (++ctrl+alt+c++, also **Werkzeuge > Journal-Screenshot hinzufügen** und das Rechtsklickmenü des Terminals) nimmt ein Bild des Terminals auf — in einem geteilten Layout erfasst das Rechtsklickmenü genau die unter dem Cursor befindliche Pane — und speichert es in der Zeitleiste des Journals.
+- **Screenshot** (++ctrl+alt+c++, auch **Werkzeuge > Journal-Screenshot hinzufügen** und das Kontextmenü des Terminals) erfasst das fokussierte Terminal und fügt das Bild der Zeitleiste des Journals hinzu. Beim Aufruf über das Kontextmenü des Terminals wird der Bereich unter dem Mauszeiger erfasst.
 - **Notiz** öffnet den [Notiz-Editor](#notizen-schreiben) für einen freitextlichen Kommentar, der als eigener Zeitstrahl-Eintrag an der aktuellen Position erscheint.
 
 Klicken Sie nach dem Beenden eines Journals mit der rechten Maustaste auf **Journal starten** oder auf die Leiste und wählen Sie **Journalleiste ausblenden**. Die Leiste wird in diesem Tab ausgeblendet. Sobald Sie über das Tab-Kontextmenü oder mit ++ctrl+alt+t++ ein Journal starten, erscheint die Leiste wieder.

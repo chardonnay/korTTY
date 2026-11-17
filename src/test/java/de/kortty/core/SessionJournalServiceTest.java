@@ -69,6 +69,9 @@ class SessionJournalServiceTest {
         second.start();
         SessionJournalEntry firstImage = first.attachScreenshot(new byte[] {1}, "First image");
         SessionJournalEntry secondImage = second.attachScreenshot(new byte[] {2}, "Second image");
+        for (SessionJournalSession session : List.of(first, second)) {
+            session.addTerminalCapture("Split terminal", true).appendOutputChunk("from split\r\n");
+        }
         first.close();
         second.close();
         assertThat(firstImage.getScreenshotFile()).isEqualTo(secondImage.getScreenshotFile());
@@ -90,6 +93,12 @@ class SessionJournalServiceTest {
         assertThat(merged.getMeta().isMerged()).isTrue();
         assertThat(merged.getMeta().getTitle()).isEqualTo("Together");
         assertThat(service.listJournals(settings)).hasSize(3);
+        var mergedSplitLines = service.readLogAfter(mergedPath, 0).stream()
+            .filter(line -> "from split".equals(line.text())).toList();
+        assertThat(mergedSplitLines).hasSize(2);
+        assertThat(mergedSplitLines.get(0).source()).endsWith(" / Split terminal");
+        assertThat(mergedSplitLines.get(1).source()).endsWith(" / Split terminal");
+        assertThat(mergedSplitLines.get(0).source()).isNotEqualTo(mergedSplitLines.get(1).source());
         assertThat(merged.getEntries().getLast().getText()).contains("First summary");
         assertThat(merged.getEntries().getLast().getText()).contains("Second summary");
         var images = merged.getEntries().stream()

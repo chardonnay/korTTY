@@ -348,6 +348,18 @@ class HeadingAliasTest(unittest.TestCase):
     def test_misaligned_base_gives_no_keep(self):
         self.assertIsNone(td.changed_line_keep("a\nb", "a", "a\nb"))
 
+    def test_rewritten_anchor_does_not_hide_an_english_fallback(self):
+        english = "# Title\n\nSee [the journal](journal.md#enabling) for this feature."
+        fallback = "# Titel\n\nSee [the journal](journal.md#aktivieren) for this feature."
+        self.assertNotIn(2, td.changed_line_keep(english, fallback, english))
+        masked = td.translatable_lines(english)[1][1][1]
+        self.assertNotIn(masked, td.build_page_memory(english, fallback))
+
+    def test_german_prose_with_a_rewritten_anchor_is_kept(self):
+        english = "# Title\n\nSee [the journal](journal.md#enabling) for this feature."
+        german = "# Titel\n\nLesen Sie [das Journal](journal.md#aktivieren) zu dieser Funktion."
+        self.assertEqual(german.splitlines()[2], td.changed_line_keep(english, german, english)[2])
+
 
 if __name__ == "__main__":
     unittest.main()

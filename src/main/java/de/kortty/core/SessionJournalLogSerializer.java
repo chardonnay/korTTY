@@ -81,6 +81,9 @@ public interface SessionJournalLogSerializer {
             if (entry.repeat() > 1) {
                 sb.append(" repeat=\"").append(entry.repeat()).append('"');
             }
+            if (entry.source() != null) {
+                sb.append(" source=\"").append(escapeAttr(entry.source())).append('"');
+            }
             String text = entry.text();
             if (text == null || text.isEmpty()) {
                 sb.append("/>\n");
@@ -187,6 +190,9 @@ public interface SessionJournalLogSerializer {
             }
             if (entry.repeat() > 1) {
                 json.addProperty("repeat", entry.repeat());
+            }
+            if (entry.source() != null) {
+                json.addProperty("source", entry.source());
             }
             return json;
         }

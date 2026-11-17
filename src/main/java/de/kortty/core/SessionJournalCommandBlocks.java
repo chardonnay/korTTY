@@ -86,8 +86,24 @@ final class SessionJournalCommandBlocks {
         return matcher.matches() && matcher.group(1) != null ? Integer.valueOf(matcher.group(1)) : null;
     }
 
-    /** The commands in {@code entries}, in order; only the last one can be incomplete. */
+    /** Cut each terminal independently, then order the blocks by their first entry. */
     static List<Block> cut(List<SessionJournalLogEntry> entries) {
+        if (entries.stream().filter(entry -> entry.source() != null).map(SessionJournalLogEntry::source)
+                .distinct().limit(2).count() < 2) {
+            return cutTerminal(entries);
+        }
+        var bySource = new java.util.LinkedHashMap<String, List<SessionJournalLogEntry>>();
+        for (SessionJournalLogEntry entry : entries) {
+            bySource.computeIfAbsent(entry.source(), key -> new ArrayList<>()).add(entry);
+        }
+        return bySource.values().stream()
+            .flatMap(source -> cutTerminal(source).stream())
+            .sorted(java.util.Comparator.comparingLong(Block::startSeq))
+            .toList();
+    }
+
+    /** The commands of one terminal, in order; only its last block can be incomplete. */
+    private static List<Block> cutTerminal(List<SessionJournalLogEntry> entries) {
         List<Block> blocks = new ArrayList<>();
         Set<String> prompts = new LinkedHashSet<>();
         List<SessionJournalLogEntry> current = new ArrayList<>();

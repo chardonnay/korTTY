@@ -333,11 +333,12 @@ public final class SessionJournalLogReader {
                 boolean redacted = "true".equals(reader.getAttributeValue(null, "redacted"));
                 boolean partial = "true".equals(reader.getAttributeValue(null, "partial"));
                 String file = reader.getAttributeValue(null, "file");
+                String source = reader.getAttributeValue(null, "source");
                 int repeat = (int) Math.max(1, parseLong(reader.getAttributeValue(null, "repeat")));
                 String text = reader.getElementText();
                 if (seq >= 0 && timestamp != null) {
                     entries.add(new SessionJournalLogEntry(
-                        seq, timestamp, kind, text, redacted, partial, file, repeat));
+                        seq, timestamp, kind, text, redacted, partial, file, repeat, source));
                 }
             }
         } finally {
@@ -390,7 +391,8 @@ public final class SessionJournalLogReader {
                 json.has("redacted") && json.get("redacted").getAsBoolean(),
                 json.has("partial") && json.get("partial").getAsBoolean(),
                 json.has("file") ? json.get("file").getAsString() : null,
-                json.has("repeat") ? json.get("repeat").getAsInt() : 1);
+                json.has("repeat") ? json.get("repeat").getAsInt() : 1,
+                json.has("source") && !json.get("source").isJsonNull() ? json.get("source").getAsString() : null);
         } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
             // torn or foreign line — recovery contract is to skip it
             return null;
