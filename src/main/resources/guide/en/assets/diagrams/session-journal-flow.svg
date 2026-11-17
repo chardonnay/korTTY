@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Session journal flow</title>
-  <desc id="desc">Terminal output and typed input pass a redaction layer into the append-only capture log; the AI summarizer condenses log windows into journal entries; the journal document with markers, notes and screenshots renders as the self-contained timeline page and feeds the PDF, Markdown and HTML-bundle exports.</desc>
+  <desc id="desc">Output and typed input from the selected terminals pass a redaction layer into one append-only capture log; the AI summarizer condenses log windows into journal entries; the journal document with markers, notes and screenshots renders as the self-contained timeline page and feeds the PDF, Markdown and HTML-bundle exports.</desc>
   <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:16}.guard{stroke:#f59e0b}.ai{stroke:#8b5cf6}.out{stroke:#34d399}.title{font-size:28px;font-weight:700;fill:#f8fafc}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
   <rect class="bg" width="1280" height="720"/>
   <text class="title" x="40" y="54">Session Journal Flow</text>
   <text class="small" x="40" y="82">Capture, redaction, AI summarization, timeline rendering and export of one terminal session.</text>
 
   <rect class="box" x="50" y="140" width="200" height="96"/>
-  <text x="78" y="176">Terminal tab</text>
+  <text x="78" y="176">Selected terminals</text>
   <text class="small" x="78" y="200">server output stream</text>
   <text class="small" x="78" y="220">typed input lines</text>
 

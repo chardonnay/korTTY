@@ -24,6 +24,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Live capture session of a session journal for one terminal tab: receives raw output chunks and
@@ -94,19 +96,18 @@ public class SessionJournalSession implements AutoCloseable {
     private final SessionJournalLogSerializer serializer;
     private final SessionJournalMeta metaSnapshot;
     private final String tabSessionId;
-    private final boolean captureInput;
+    private final TerminalCapture defaultCapture;
+    private final CopyOnWriteArrayList<TerminalCapture> captures = new CopyOnWriteArrayList<>();
     private volatile boolean aiSummariesEnabled;
     private final int summaryIntervalMinutesOverride;
     private final long maxLogSizeBytes;
     private final int maxLogParts;
     private final SessionJournalRedactor redactor;
-    private final SessionJournalAnsiProcessor ansiProcessor;
     private final BlockingQueue<SessionJournalLogEntry> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
-    /** Non-blocking emitter runs inside the coalescer monitor — see its class javadoc. */
-    private final SessionJournalOutputCoalescer coalescer = new SessionJournalOutputCoalescer(
-        REPEAT_FLUSH_CAP, pending -> queue.offer(newRepeatEntry(pending)));
     private final Thread writerThread;
 
+    // Reserve sequence ids in queue order across independently producing terminal streams.
+    private final ReentrantLock enqueueLock = new ReentrantLock();
     private final AtomicLong sequence = new AtomicLong();
     private final AtomicLong writtenEntryCount = new AtomicLong();
     private final AtomicLong commandCount = new AtomicLong();
@@ -115,10 +116,6 @@ public class SessionJournalSession implements AutoCloseable {
     private volatile boolean running;
     private volatile boolean closed;
     private volatile boolean outputCaptureStopped;
-    private volatile boolean inputSuppressed;
-    private volatile long suppressionStartMillis;
-    private volatile String promptCandidateText;
-    private volatile long promptCandidateSinceMillis;
     private volatile long lastActivityMillis = System.currentTimeMillis();
     private volatile int currentPart = 1;
     private volatile Consumer<String> warningListener;
@@ -149,13 +146,12 @@ public class SessionJournalSession implements AutoCloseable {
         this.serializer = SessionJournalLogSerializer.forFormat(format);
         this.metaSnapshot = metaSnapshot;
         this.tabSessionId = tabSessionId;
-        this.captureInput = captureInput;
+        this.defaultCapture = addTerminalCapture(null, captureInput);
         this.aiSummariesEnabled = aiSummariesEnabled;
         this.summaryIntervalMinutesOverride = summaryIntervalMinutesOverride;
         this.maxLogSizeBytes = maxLogSizeBytes;
         this.maxLogParts = Math.max(1, maxLogParts);
         this.redactor = redactor;
-        this.ansiProcessor = new SessionJournalAnsiProcessor(this::handleEmittedOutputLine, this::handleShellMark);
         this.writerThread = new Thread(this::writerLoop, "SessionJournal-Writer");
         this.writerThread.setDaemon(true);
     }
@@ -185,7 +181,7 @@ public class SessionJournalSession implements AutoCloseable {
     }
 
     public boolean isInputSuppressed() {
-        return inputSuppressed;
+        return captures.stream().anyMatch(capture -> capture.inputSuppressed);
     }
 
     public boolean isAiSummariesEnabled() {
@@ -241,16 +237,7 @@ public class SessionJournalSession implements AutoCloseable {
         running = true;
         writerThread.start();
         idleFlushTask = IDLE_FLUSHER.scheduleWithFixedDelay(
-            () -> {
-                ansiProcessor.flushIdle(IDLE_FLUSH_MILLIS);
-                // An idle duplicate run flushes its counter non-blocking (this thread is shared
-                // by all sessions and must never wait on one session's queue).
-                coalescer.flushIfIdle(IDLE_FLUSH_MILLIS, System.currentTimeMillis());
-                // A genuine prompt that arrived as the very last output (nothing further comes,
-                // ever, until the user replies) can only be confirmed by time passing — there is
-                // no "next chunk" to re-check it against.
-                updatePromptCandidate();
-            },
+            () -> captures.forEach(TerminalCapture::flushIdle),
             IDLE_FLUSH_TICK_MILLIS, IDLE_FLUSH_TICK_MILLIS, TimeUnit.MILLISECONDS);
         logger.info("Session journal started in {} (format={})", directory.getFileName(), format);
     }
@@ -270,101 +257,27 @@ public class SessionJournalSession implements AutoCloseable {
 
     /** Raw decoded output from the connector reader thread (ANSI still present). */
     public void appendOutputChunk(String data) {
-        if (!running || closed || outputCaptureStopped || data == null || data.isEmpty()) {
-            return;
-        }
-        lastActivityMillis = System.currentTimeMillis();
-        ansiProcessor.accept(data);
-        updatePromptCandidate();
+        defaultCapture.appendOutputChunk(data);
     }
 
-    /**
-     * Re-evaluates whether the pending (not yet emitted) output line is a password prompt, and
-     * arms suppression once that candidate has held for {@link #PROMPT_CONFIRM_MILLIS}. Called on
-     * every new output chunk (most candidates change or get confirmed this way) and on the idle
-     * timer tick (the only way to confirm a candidate that the remote never adds to again).
-     */
-    private void updatePromptCandidate() {
-        if (inputSuppressed) {
-            return;
-        }
-        String pending = ansiProcessor.pendingLine().strip();
-        if (!PasswordPromptDetector.isPasswordPromptLine(pending)) {
-            promptCandidateText = null;
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (!pending.equals(promptCandidateText)) {
-            promptCandidateText = pending;
-            promptCandidateSinceMillis = now;
-            return;
-        }
-        if (now - promptCandidateSinceMillis >= PROMPT_CONFIRM_MILLIS) {
-            inputSuppressed = true;
-            suppressionStartMillis = now;
-            promptCandidateText = null;
-        }
-    }
-
-    /** One assembled input line (from the terminal input filter's journal sink). */
     public void appendInputLine(String line) {
-        if (!running || closed || !captureInput || line == null) {
-            return;
-        }
-        lastActivityMillis = System.currentTimeMillis();
-        releaseSuppressionIfExpired();
-        if (inputSuppressed) {
-            // One prompt swallows exactly one submission; the text is never touched or buffered.
-            inputSuppressed = false;
-            commandCount.incrementAndGet();
-            flushPendingRepeatBlocking();
-            enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.IN, "", true, false, null));
-            return;
-        }
-        if (line.isBlank()) {
-            return; // an empty Enter at the prompt is noise, not a command
-        }
-        commandCount.incrementAndGet();
-        // Break any open duplicate run first, so a command typed between duplicates appears
-        // after the repeat entry that closes the run — the log keeps its causal order.
-        flushPendingRepeatBlocking();
-        enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.IN, redactor.redact(line), false, false, null));
+        defaultCapture.appendInputLine(line);
     }
 
     /** Cap so a retroactive seed can never wedge the queue or balloon the first log part. */
     static final int MAX_SEED_LINES = 8000;
 
-    /** Scrollback lines imported by a retroactive enable; written before any live entries. */
-    public void appendSeedLines(List<String> screenLines) {
-        if (!running || closed || screenLines == null || screenLines.isEmpty()) {
-            return;
+    public void appendSeedLines(List<String> lines) {
+        defaultCapture.appendSeedLines(lines);
+    }
+
+    /** Adds a source to the same log and timeline with independent terminal parsing state. */
+    public synchronized TerminalCapture addTerminalCapture(String source, boolean captureInput) {
+        TerminalCapture capture = new TerminalCapture(source, captureInput);
+        if (!closed) {
+            captures.add(capture);
         }
-        flushPendingRepeatBlocking();
-        int skipped = Math.max(0, screenLines.size() - MAX_SEED_LINES);
-        List<String> capped = skipped > 0
-            ? screenLines.subList(skipped, screenLines.size())
-            : screenLines;
-        for (String line : capped) {
-            SessionJournalLogEntry entry = new SessionJournalLogEntry(
-                sequence.incrementAndGet(), OffsetDateTime.now(), SessionJournalLogEntry.Kind.SEED,
-                redactor.redact(line != null ? line : ""), false, false, null);
-            try {
-                // Seeding runs on a background thread and may outpace the writer briefly; a
-                // bounded wait keeps ordering without dropping scrollback lines.
-                if (!queue.offer(entry, 500, TimeUnit.MILLISECONDS)) {
-                    logger.warn("Session journal seed queue congested for {}, dropping remaining seed lines",
-                        directory.getFileName());
-                    break;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        String noteText = skipped > 0
-            ? "journal enabled retroactively; " + capped.size() + " seed lines above (" + skipped + " older lines omitted)"
-            : "journal enabled retroactively; " + capped.size() + " seed lines above";
-        enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.NOTE, noteText, false, false, null));
+        return capture;
     }
 
     /**
@@ -373,12 +286,17 @@ public class SessionJournalSession implements AutoCloseable {
      * timeline twin. Known secrets are redacted like every other captured line.
      */
     public void appendUserNote(String text) {
+        appendUserNote(text, null);
+    }
+
+    public void appendUserNote(String text, String source) {
         if (!running || closed || text == null || text.isBlank()) {
             return;
         }
         lastActivityMillis = System.currentTimeMillis();
-        coalescer.tryFlushPending();
-        enqueueBounded(newEntry(SessionJournalLogEntry.Kind.NOTE, redactor.redact(text.strip()), false, false, null));
+        captures.forEach(capture -> capture.coalescer.tryFlushPending());
+        enqueueBounded(() -> new SessionJournalLogEntry(sequence.incrementAndGet(), OffsetDateTime.now(),
+            SessionJournalLogEntry.Kind.NOTE, redactor.redact(text.strip()), false, false, null, 1, source));
     }
 
     /** Marks a reconnect of the tab's connection in the log. */
@@ -386,8 +304,8 @@ public class SessionJournalSession implements AutoCloseable {
         if (!running || closed) {
             return;
         }
-        coalescer.tryFlushPending();
-        enqueueBounded(newEntry(SessionJournalLogEntry.Kind.NOTE, "session reconnected", false, false, null));
+        captures.forEach(capture -> capture.coalescer.tryFlushPending());
+        enqueueBounded(() -> newEntry(SessionJournalLogEntry.Kind.NOTE, "session reconnected", false, false, null));
     }
 
     /**
@@ -398,8 +316,8 @@ public class SessionJournalSession implements AutoCloseable {
         if (!running || closed || description == null || description.isBlank()) {
             return;
         }
-        coalescer.tryFlushPending();
-        enqueueBounded(newEntry(SessionJournalLogEntry.Kind.NOTE, "isolation: " + description, false, false, null));
+        captures.forEach(capture -> capture.coalescer.tryFlushPending());
+        enqueueBounded(() -> newEntry(SessionJournalLogEntry.Kind.NOTE, "isolation: " + description, false, false, null));
     }
 
     /**
@@ -410,19 +328,32 @@ public class SessionJournalSession implements AutoCloseable {
      * @return the appended SCREENSHOT entry; its log sequence is {@code getLogStartSeq()}
      */
     public SessionJournalEntry attachScreenshot(byte[] pngBytes, String caption) throws IOException {
+        return attachScreenshot(pngBytes, caption, null);
+    }
+
+    public SessionJournalEntry attachScreenshot(byte[] pngBytes, String caption, String source) throws IOException {
         if (!running || closed) {
             throw new IOException("Session journal is not active");
         }
-        coalescer.tryFlushPending();
-        long seq = sequence.incrementAndGet();
-        String relativePath = String.format("%s/shot-%06d.png", SessionJournalService.SCREENSHOTS_DIR_NAME, seq);
-        Path target = directory.resolve(relativePath);
-        Files.createDirectories(target.getParent());
-        Files.write(target, pngBytes);
-        screenshotCount.incrementAndGet();
-        if (!enqueueBounded(new SessionJournalLogEntry(
-            seq, OffsetDateTime.now(), SessionJournalLogEntry.Kind.SCREENSHOT, "", false, false, relativePath))) {
-            throw new IOException("Session journal queue congested; screenshot entry not recorded");
+        captures.forEach(capture -> capture.coalescer.tryFlushPending());
+        long seq;
+        String relativePath;
+        enqueueLock.lock();
+        try {
+            seq = sequence.incrementAndGet();
+            relativePath = String.format("%s/shot-%06d.png", SessionJournalService.SCREENSHOTS_DIR_NAME, seq);
+            Path target = directory.resolve(relativePath);
+            Files.createDirectories(target.getParent());
+            Files.write(target, pngBytes);
+            if (!enqueueBounded(() -> new SessionJournalLogEntry(
+                    seq, OffsetDateTime.now(), SessionJournalLogEntry.Kind.SCREENSHOT,
+                    "", false, false, relativePath, 1, source))) {
+                Files.deleteIfExists(target);
+                throw new IOException("Session journal queue congested; screenshot entry not recorded");
+            }
+            screenshotCount.incrementAndGet();
+        } finally {
+            enqueueLock.unlock();
         }
 
         SessionJournalEntry entry = new SessionJournalEntry();
@@ -450,10 +381,7 @@ public class SessionJournalSession implements AutoCloseable {
             service.finalizeSession(directory, OffsetDateTime.now(), 0, currentPart, 0, 0);
             return;
         }
-        ansiProcessor.flushRemaining();
-        // Flush the counted tail of an open duplicate run before the writer drains: blocking is
-        // safe here, the writer thread is still running.
-        flushPendingRepeatBlocking();
+        captures.forEach(TerminalCapture::close);
         running = false;
         if (idleFlushTask != null) {
             idleFlushTask.cancel(false);
@@ -494,72 +422,216 @@ public class SessionJournalSession implements AutoCloseable {
 
     // --- capture internals ---
 
-    private void handleEmittedOutputLine(SessionJournalAnsiProcessor.EmittedLine emitted) {
-        if (inputSuppressed && !emitted.partial()) {
-            // The server sent a full line after the prompt — the echo-less input was submitted
-            // (or the prompt was abandoned); either way the suppression window is over.
-            inputSuppressed = false;
-        }
-        releaseSuppressionIfExpired();
-        String text = redactor.redact(emitted.text());
-        if (emitted.partial()) {
-            // Partial lines originate on the shared idle-flush thread, which must never block on
-            // one session's queue; dropping one is harmless — it re-emits as a full line later.
-            // They bypass the coalescer entirely: the completed full line decides the run.
-            enqueueNonBlocking(newEntry(SessionJournalLogEntry.Kind.OUT, text, false, true, null));
-            return;
-        }
-        // Coalescing runs on the already-redacted text and BEFORE sequence assignment, so
-        // suppressed duplicates neither reach the queue nor burn sequence numbers.
-        SessionJournalOutputCoalescer.OnLine decision =
-            coalescer.onOutputLine(text, OffsetDateTime.now(), System.currentTimeMillis());
-        if (decision.flush() != null) {
-            enqueueBlocking(newRepeatEntry(decision.flush()));
-        }
-        if (!decision.suppressed()) {
-            enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.OUT, text, false, false, null));
-        }
-    }
+    public final class TerminalCapture implements AutoCloseable {
+        private final String source;
+        private final boolean captureInput;
+        private final SessionJournalAnsiProcessor ansiProcessor =
+            new SessionJournalAnsiProcessor(this::handleEmittedOutputLine, this::handleShellMark);
+        private volatile boolean detached;
+        /** Non-blocking emitter runs inside the coalescer monitor — see its class javadoc. */
+        private final SessionJournalOutputCoalescer coalescer = new SessionJournalOutputCoalescer(
+            REPEAT_FLUSH_CAP, pending -> enqueueNonBlocking(() -> newRepeatEntry(pending)));
+        private volatile boolean inputSuppressed;
+        private volatile long suppressionStartMillis;
+        private volatile String promptCandidateText;
+        private volatile long promptCandidateSinceMillis;
 
-    /**
-     * A shell integration mark in the output ({@code OSC 133}), on the reader thread in stream order:
-     * a finished command ({@code D}, with its exit status) becomes a note right after its last output
-     * line, which lets the summarizer end the command there without guessing from the prompt.
-     */
-    private void handleShellMark(String payload) {
-        if (!payload.startsWith("133;D") || outputCaptureStopped) {
-            return;
+        private TerminalCapture(String source, boolean captureInput) {
+            this.source = source;
+            this.captureInput = captureInput;
         }
-        Integer exitStatus = null;
-        if (payload.startsWith("133;D;")) {
-            String status = payload.substring("133;D;".length()).split(";", 2)[0].strip();
-            if (status.matches("-?\\d{1,9}")) {
-                exitStatus = Integer.valueOf(status);
+
+        public String source() {
+            return source;
+        }
+
+        private void flushIdle() {
+            if (detached) {
+                return;
+            }
+            ansiProcessor.flushIdle(IDLE_FLUSH_MILLIS);
+            // An idle duplicate run flushes its counter non-blocking (this thread is shared
+            // by all sessions and must never wait on one session's queue).
+            coalescer.flushIfIdle(IDLE_FLUSH_MILLIS, System.currentTimeMillis());
+            // A genuine prompt that arrived as the very last output (nothing further comes,
+            // ever, until the user replies) can only be confirmed by time passing — there is
+            // no "next chunk" to re-check it against.
+            updatePromptCandidate();
+        }
+
+        @Override
+        public synchronized void close() {
+            if (!detached) {
+                detached = true;
+                ansiProcessor.flushRemaining();
+                flushPendingRepeatBlocking();
+                captures.remove(this);
             }
         }
-        flushPendingRepeatBlocking();
-        enqueueBlocking(newEntry(SessionJournalLogEntry.Kind.NOTE,
-            SessionJournalCommandBlocks.finishedNote(exitStatus), false, false, null));
-    }
 
-    /** The counted tail of a duplicate run as one entry; timestamped with the LAST occurrence. */
-    private SessionJournalLogEntry newRepeatEntry(SessionJournalOutputCoalescer.PendingRepeat pending) {
-        return new SessionJournalLogEntry(
-            sequence.incrementAndGet(), pending.lastOccurrence(), SessionJournalLogEntry.Kind.OUT,
-            pending.text(), false, false, null, pending.count());
-    }
-
-    /** Run break by a lossless path (input, seed, close): flush the counted tail blocking. */
-    private void flushPendingRepeatBlocking() {
-        SessionJournalOutputCoalescer.PendingRepeat pending = coalescer.takePending();
-        if (pending != null) {
-            enqueueBlocking(newRepeatEntry(pending));
+        /** Raw decoded output from the connector reader thread (ANSI still present). */
+        public synchronized void appendOutputChunk(String data) {
+            if (detached || !running || closed || outputCaptureStopped || data == null || data.isEmpty()) {
+                return;
+            }
+            lastActivityMillis = System.currentTimeMillis();
+            ansiProcessor.accept(data);
+            updatePromptCandidate();
         }
-    }
 
-    private void releaseSuppressionIfExpired() {
-        if (inputSuppressed && System.currentTimeMillis() - suppressionStartMillis > SUPPRESSION_TIMEOUT_MILLIS) {
-            inputSuppressed = false;
+        /**
+         * Re-evaluates whether the pending (not yet emitted) output line is a password prompt, and
+         * arms suppression once that candidate has held for {@link #PROMPT_CONFIRM_MILLIS}. Called on
+         * every new output chunk (most candidates change or get confirmed this way) and on the idle
+         * timer tick (the only way to confirm a candidate that the remote never adds to again).
+         */
+        private void updatePromptCandidate() {
+            if (inputSuppressed) {
+                return;
+            }
+            String pending = ansiProcessor.pendingLine().strip();
+            if (!PasswordPromptDetector.isPasswordPromptLine(pending)) {
+                promptCandidateText = null;
+                return;
+            }
+            long now = System.currentTimeMillis();
+            if (!pending.equals(promptCandidateText)) {
+                promptCandidateText = pending;
+                promptCandidateSinceMillis = now;
+                return;
+            }
+            if (now - promptCandidateSinceMillis >= PROMPT_CONFIRM_MILLIS) {
+                inputSuppressed = true;
+                suppressionStartMillis = now;
+                promptCandidateText = null;
+            }
+        }
+
+        /** One assembled input line (from the terminal input filter's journal sink). */
+        public synchronized void appendInputLine(String line) {
+            if (detached || !running || closed || !captureInput || line == null) {
+                return;
+            }
+            lastActivityMillis = System.currentTimeMillis();
+            releaseSuppressionIfExpired();
+            if (inputSuppressed) {
+                // One prompt swallows exactly one submission; the text is never touched or buffered.
+                inputSuppressed = false;
+                commandCount.incrementAndGet();
+                flushPendingRepeatBlocking();
+                enqueueBlocking(() -> newEntry(SessionJournalLogEntry.Kind.IN, "", true, false, null));
+                return;
+            }
+            if (line.isBlank()) {
+                return; // an empty Enter at the prompt is noise, not a command
+            }
+            commandCount.incrementAndGet();
+            // Break any open duplicate run first, so a command typed between duplicates appears
+            // after the repeat entry that closes the run — the log keeps its causal order.
+            flushPendingRepeatBlocking();
+            enqueueBlocking(() -> newEntry(SessionJournalLogEntry.Kind.IN, redactor.redact(line), false, false, null));
+        }
+
+        /** Scrollback lines imported by a retroactive enable; written before any live entries. */
+        public synchronized void appendSeedLines(List<String> screenLines) {
+            if (detached || !running || closed || screenLines == null || screenLines.isEmpty()) {
+                return;
+            }
+            flushPendingRepeatBlocking();
+            int skipped = Math.max(0, screenLines.size() - MAX_SEED_LINES);
+            List<String> capped = skipped > 0
+                ? screenLines.subList(skipped, screenLines.size())
+                : screenLines;
+            for (String line : capped) {
+                if (detached || closed) {
+                    return;
+                }
+                String text = redactor.redact(line != null ? line : "");
+                if (!enqueueBounded(() -> newEntry(SessionJournalLogEntry.Kind.SEED, text, false, false, null))) {
+                    logger.warn("Session journal seed queue congested for {}, dropping remaining seed lines",
+                        directory.getFileName());
+                    break;
+                }
+            }
+            String noteText = skipped > 0
+                ? "journal enabled retroactively; " + capped.size() + " seed lines above (" + skipped + " older lines omitted)"
+                : "journal enabled retroactively; " + capped.size() + " seed lines above";
+            enqueueBlocking(() -> newEntry(SessionJournalLogEntry.Kind.NOTE, noteText, false, false, null));
+        }
+
+        private void handleEmittedOutputLine(SessionJournalAnsiProcessor.EmittedLine emitted) {
+            if (inputSuppressed && !emitted.partial()) {
+                // The server sent a full line after the prompt — the echo-less input was submitted
+                // (or the prompt was abandoned); either way the suppression window is over.
+                inputSuppressed = false;
+            }
+            releaseSuppressionIfExpired();
+            String text = redactor.redact(emitted.text());
+            if (emitted.partial()) {
+                // Partial lines originate on the shared idle-flush thread, which must never block on
+                // one session's queue; dropping one is harmless — it re-emits as a full line later.
+                // They bypass the coalescer entirely: the completed full line decides the run.
+                enqueueNonBlocking(() -> newEntry(SessionJournalLogEntry.Kind.OUT, text, false, true, null));
+                return;
+            }
+            // Coalescing runs on the already-redacted text and BEFORE sequence assignment, so
+            // suppressed duplicates neither reach the queue nor burn sequence numbers.
+            SessionJournalOutputCoalescer.OnLine decision =
+                coalescer.onOutputLine(text, OffsetDateTime.now(), System.currentTimeMillis());
+            if (decision.flush() != null) {
+                enqueueBlocking(() -> newRepeatEntry(decision.flush()));
+            }
+            if (!decision.suppressed()) {
+                enqueueBlocking(() -> newEntry(SessionJournalLogEntry.Kind.OUT, text, false, false, null));
+            }
+        }
+
+        /**
+         * A shell integration mark in the output ({@code OSC 133}), on the reader thread in stream order:
+         * a finished command ({@code D}, with its exit status) becomes a note right after its last output
+         * line, which lets the summarizer end the command there without guessing from the prompt.
+         */
+        private void handleShellMark(String payload) {
+            if (!payload.startsWith("133;D") || outputCaptureStopped) {
+                return;
+            }
+            Integer exitStatus = null;
+            if (payload.startsWith("133;D;")) {
+                String status = payload.substring("133;D;".length()).split(";", 2)[0].strip();
+                if (status.matches("-?\\d{1,9}")) {
+                    exitStatus = Integer.valueOf(status);
+                }
+            }
+            flushPendingRepeatBlocking();
+            String note = SessionJournalCommandBlocks.finishedNote(exitStatus);
+            enqueueBlocking(() -> newEntry(SessionJournalLogEntry.Kind.NOTE, note, false, false, null));
+        }
+
+        /** The counted tail of a duplicate run as one entry; timestamped with the LAST occurrence. */
+        private SessionJournalLogEntry newRepeatEntry(SessionJournalOutputCoalescer.PendingRepeat pending) {
+            return new SessionJournalLogEntry(
+                sequence.incrementAndGet(), pending.lastOccurrence(), SessionJournalLogEntry.Kind.OUT,
+                pending.text(), false, false, null, pending.count(), source);
+        }
+
+        /** Run break by a lossless path (input, seed, close): flush the counted tail blocking. */
+        private void flushPendingRepeatBlocking() {
+            SessionJournalOutputCoalescer.PendingRepeat pending = coalescer.takePending();
+            if (pending != null) {
+                enqueueBlocking(() -> newRepeatEntry(pending));
+            }
+        }
+
+        private void releaseSuppressionIfExpired() {
+            if (inputSuppressed && System.currentTimeMillis() - suppressionStartMillis > SUPPRESSION_TIMEOUT_MILLIS) {
+                inputSuppressed = false;
+            }
+        }
+
+        private SessionJournalLogEntry newEntry(SessionJournalLogEntry.Kind kind, String text,
+                boolean redacted, boolean partial, String file) {
+            return new SessionJournalLogEntry(sequence.incrementAndGet(), OffsetDateTime.now(), kind,
+                text, redacted, partial, file, 1, source);
         }
     }
 
@@ -576,8 +648,10 @@ public class SessionJournalSession implements AutoCloseable {
      * re-checks writer liveness per slice so a dead writer degrades to drop-and-warn instead of
      * wedging the reader forever.
      */
-    private void enqueueBlocking(SessionJournalLogEntry entry) {
+    private void enqueueBlocking(Supplier<SessionJournalLogEntry> createEntry) {
+        enqueueLock.lock();
         try {
+            SessionJournalLogEntry entry = createEntry.get();
             while (!queue.offer(entry, BLOCKING_ENQUEUE_SLICE_MILLIS, TimeUnit.MILLISECONDS)) {
                 if (!writerThread.isAlive()) {
                     logger.warn("Session journal writer dead for {}, dropping entry seq {}",
@@ -587,30 +661,44 @@ public class SessionJournalSession implements AutoCloseable {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            logger.warn("Session journal enqueue interrupted for {}, dropping entry seq {}",
-                directory.getFileName(), entry.seq());
+        } finally {
+            enqueueLock.unlock();
         }
     }
 
     /** Bounded wait for FX-origin entries; returns whether the entry was accepted. */
-    private boolean enqueueBounded(SessionJournalLogEntry entry) {
+    private boolean enqueueBounded(Supplier<SessionJournalLogEntry> createEntry) {
+        return enqueueWithSequence(createEntry) != null;
+    }
+
+    private SessionJournalLogEntry enqueueWithSequence(Supplier<SessionJournalLogEntry> createEntry) {
         try {
-            if (queue.offer(entry, BOUNDED_ENQUEUE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
-                return true;
+            if (enqueueLock.tryLock(BOUNDED_ENQUEUE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+                try {
+                    SessionJournalLogEntry entry = createEntry.get();
+                    if (queue.offer(entry, BOUNDED_ENQUEUE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+                        return entry;
+                    }
+                } finally {
+                    enqueueLock.unlock();
+                }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        logger.warn("Session journal queue congested for {}, dropping entry seq {}",
-            directory.getFileName(), entry.seq());
-        return false;
+        logger.warn("Session journal queue congested for {}, dropping entry", directory.getFileName());
+        return null;
     }
 
-    /** Non-blocking enqueue for the shared idle-flush thread; a drop is logged, never waited out. */
-    private void enqueueNonBlocking(SessionJournalLogEntry entry) {
-        if (!queue.offer(entry)) {
-            logger.warn("Session journal queue full for {}, dropping entry seq {}",
-                directory.getFileName(), entry.seq());
+    /** Non-blocking enqueue for the shared idle-flush thread. */
+    private boolean enqueueNonBlocking(Supplier<SessionJournalLogEntry> createEntry) {
+        if (!enqueueLock.tryLock()) {
+            return false;
+        }
+        try {
+            return queue.offer(createEntry.get());
+        } finally {
+            enqueueLock.unlock();
         }
     }
 

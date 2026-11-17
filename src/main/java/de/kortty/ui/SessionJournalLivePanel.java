@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.core.SessionJournalSession;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -46,6 +47,7 @@ public class SessionJournalLivePanel extends BorderPane {
 
     private SessionJournalViewerPane viewerPane;
     private TerminalTab boundTab;
+    private SithTermFxWidget boundPane;
     private SessionJournalSession boundSession;
     private PanelState state = PanelState.EMPTY;
     private String pendingThemeBg;
@@ -71,14 +73,14 @@ public class SessionJournalLivePanel extends BorderPane {
 
         noteButton.setTooltip(new Tooltip(I18n.get("terminal.journal.note")));
         noteButton.setOnAction(event -> {
-            if (boundTab != null) {
-                boundTab.addJournalNote();
+            if (boundTab != null && boundPane != null) {
+                boundTab.addJournalNote(boundPane, null);
             }
         });
         screenshotButton.setTooltip(new Tooltip(I18n.get("terminal.journal.screenshot")));
         screenshotButton.setOnAction(event -> {
-            if (boundTab != null) {
-                boundTab.takeJournalScreenshot(null);
+            if (boundTab != null && boundPane != null) {
+                boundTab.takeJournalScreenshot(boundPane);
             }
         });
         openViewerButton.setTooltip(new Tooltip(I18n.get("journal.live.openViewer")));
@@ -141,10 +143,13 @@ public class SessionJournalLivePanel extends BorderPane {
         if (tab == null || tab.getTerminalView() == null) {
             return;
         }
-        SessionJournalSession session = tab.getTerminalView().getSessionJournalSession();
+        var view = tab.getTerminalView();
+        var pane = view.journalPane();
+        SessionJournalSession session = view.getSessionJournalSession(pane);
         if (session == null || !session.isActive()) {
             return;
         }
+        boundPane = pane;
         if (session == boundSession && state == PanelState.LIVE) {
             boundTab = tab;
             return;
@@ -181,6 +186,7 @@ public class SessionJournalLivePanel extends BorderPane {
         if (viewerPane != null) {
             viewerPane.detachLiveSession();
         }
+        boundPane = null;
         applyState(PanelState.STOPPED);
     }
 
@@ -190,6 +196,7 @@ public class SessionJournalLivePanel extends BorderPane {
             viewerPane.detachLiveSession();
         }
         boundTab = null;
+        boundPane = null;
         applyState(PanelState.TAB_CLOSED);
     }
 
@@ -211,6 +218,7 @@ public class SessionJournalLivePanel extends BorderPane {
         }
         centerHost.getChildren().setAll(placeholder);
         boundTab = null;
+        boundPane = null;
         boundSession = null;
         titleLabel.setText("");
         applyState(PanelState.EMPTY);

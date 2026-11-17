@@ -93,7 +93,7 @@ final class SessionJournalMerge {
                     long seq = offset + line.seq();
                     writer.write(SERIALIZER.entryLine(new SessionJournalLogEntry(seq, line.timestamp(), line.kind(),
                         line.text(), line.redacted(), line.partial(), copyImage(directory, line.file(), images),
-                        line.repeat())));
+                        line.repeat(), line.source() != null ? label + " / " + line.source() : null)));
                     sequence = Math.max(sequence, seq);
                     logEntryCount++;
                     start = earliest(start, line.timestamp());

@@ -978,7 +978,7 @@ public final class SessionJournalHtmlRenderer {
             + ",t:" + AiChatRenderPageSupport.toJsStringLiteral(
                 entry.timestamp().atZoneSameInstant(zone).format(TIME_HMS))
             + ",k:\"" + kind + '"'
-            + ",x:" + AiChatRenderPageSupport.toJsStringLiteral(text)
+            + ",x:" + AiChatRenderPageSupport.toJsStringLiteral(entry.labelledText(text))
             + (entry.repeat() > 1 ? ",r:" + entry.repeat() : "")
             + '}';
     }

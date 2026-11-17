@@ -78,7 +78,7 @@ class AgentChatHandoffWiringSourceScanTest {
         assertThat(save).doesNotContain("source.prompt().strip()");
         String card = methodBody(window, "private @Nullable AgentJournalCard appendAgentJournalEntry(");
         assertThat(card).contains("AiOutboundRedaction.redact(prompt.strip(), redactor).text()");
-        assertThat(card).contains("entry.setText(AiOutboundRedaction.redact(answer.strip(), redactor).text());");
+        assertThat(card).contains("entry.setText(session.redact(AiOutboundRedaction.redact(answer.strip(), redactor).text()));");
     }
 
     @Test
@@ -190,7 +190,7 @@ class AgentChatHandoffWiringSourceScanTest {
     @Test
     void theJournalStopFreezesTheChatsBeforeTheSummaryCanFail() throws IOException {
         String view = source("TerminalView");
-        String stop = methodBody(view, "public void stopSessionJournal()");
+        String stop = methodBody(view, "private void finishJournal(");
         assertThat(stop.indexOf("journalStopped(session.getDirectory())"))
             .isLessThan(stop.indexOf("onSessionClosing(session)"));
         assertThat(stop.indexOf("journalStopped(session.getDirectory())"))
