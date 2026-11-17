@@ -57,6 +57,7 @@ class SessionJournalI18nCoverageTest {
         "connEdit.journal.maxParts.hint",
         "connEdit.journal.info",
         "terminal.journal.start",
+        "terminal.journal.hideBar",
         "terminal.journal.stop",
         "terminal.journal.off",
         "terminal.journal.activeSince",
