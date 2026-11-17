@@ -72,6 +72,10 @@ public class SessionJournalEntry {
     @XmlElement
     private String title;
 
+    /** Terminal and source journal label on entries copied into a merged journal. */
+    @XmlElement
+    private String terminalSource;
+
     @XmlElement
     private String text;
 
@@ -177,6 +181,7 @@ public class SessionJournalEntry {
         this.createdAt = other.createdAt;
         this.editedAt = other.editedAt;
         this.title = other.title;
+        this.terminalSource = other.terminalSource;
         this.text = other.text;
         this.userNote = other.userNote;
         this.screenshotFile = other.screenshotFile;
@@ -366,6 +371,14 @@ public class SessionJournalEntry {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getTerminalSource() {
+        return terminalSource;
+    }
+
+    public void setTerminalSource(String terminalSource) {
+        this.terminalSource = terminalSource;
     }
 
     public String getText() {

@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -56,6 +57,96 @@ class SessionJournalServiceTest {
         ServerConnection connection = new ServerConnection("Test Server", "192.168.1.9", 22, "daniel");
         connection.getSessionJournalConfig().setEnabled(true);
         return connection;
+    }
+
+    @Test
+    void mergeKeepsTerminalProvenanceAndRemapsLogAnchorsAndScreenshots() throws IOException {
+        SessionJournalSession first = service.createSession(
+            sampleConnection(), "first", settings, List.of(), false);
+        SessionJournalSession second = service.createSession(
+            sampleConnection(), "second", settings, List.of(), false);
+        first.start();
+        second.start();
+        SessionJournalEntry firstImage = first.attachScreenshot(new byte[] {1}, "First image");
+        SessionJournalEntry secondImage = second.attachScreenshot(new byte[] {2}, "Second image");
+        first.close();
+        second.close();
+        assertThat(firstImage.getScreenshotFile()).isEqualTo(secondImage.getScreenshotFile());
+        Path source = first.getDirectory();
+        Files.write(source.resolve(SessionJournalScreenshotAnnotator.originalPathOf(firstImage.getScreenshotFile())),
+            new byte[] {3});
+        for (Path dir : List.of(source, second.getDirectory())) {
+            service.setFinishPending(dir, false);
+            SessionJournalEntry summary = new SessionJournalEntry();
+            summary.setKind(SessionJournalEntryKind.SESSION_SUMMARY);
+            summary.setCreatedAt(OffsetDateTime.now());
+            summary.setText(dir.equals(source) ? "First summary" : "Second summary");
+            service.appendEntry(dir, summary);
+        }
+
+        var result = service.mergeJournals(settings, List.of(source, second.getDirectory()), "Together", null);
+        Path mergedPath = result.meta().getDirectory();
+        var merged = service.loadDocument(mergedPath);
+        assertThat(merged.getMeta().isMerged()).isTrue();
+        assertThat(merged.getMeta().getTitle()).isEqualTo("Together");
+        assertThat(service.listJournals(settings)).hasSize(3);
+        assertThat(merged.getEntries().getLast().getText()).contains("First summary");
+        assertThat(merged.getEntries().getLast().getText()).contains("Second summary");
+        var images = merged.getEntries().stream()
+            .filter(e -> e.getKind() == SessionJournalEntryKind.SCREENSHOT).toList();
+        assertThat(images).hasSize(2);
+        assertThat(images.get(0).getTerminalSource()).isNotEqualTo(images.get(1).getTerminalSource());
+        assertThat(images.get(0).getScreenshotFile()).isNotEqualTo(images.get(1).getScreenshotFile());
+        assertThat(Files.readAllBytes(mergedPath.resolve(images.get(0).getScreenshotFile())))
+            .isEqualTo(new byte[] {1});
+        assertThat(Files.readAllBytes(mergedPath.resolve(images.get(1).getScreenshotFile())))
+            .isEqualTo(new byte[] {2});
+        assertThat(Files.readAllBytes(mergedPath.resolve(
+            SessionJournalScreenshotAnnotator.originalPathOf(images.get(0).getScreenshotFile()))))
+            .isEqualTo(new byte[] {3});
+        for (SessionJournalEntry image : images) {
+            assertThat(service.readLogRange(mergedPath, image.getLogStartSeq(), image.getLogEndSeq())
+                .stream().map(SessionJournalLogEntry::file).toList()).containsExactly(image.getScreenshotFile());
+        }
+        assertThat(service.loadDocument(source).getEntries().getFirst().getTerminalSource()).isNull();
+
+        var refined = service.mergeJournals(settings, List.of(source, second.getDirectory()), "Refined",
+            new SessionJournalAiSupport.AiInvoker() {
+                @Override
+                public boolean isAvailable() {
+                    return true;
+                }
+
+                @Override
+                public AiExecutionResult execute(String systemPrompt, String userPrompt) {
+                    assertThat(userPrompt).contains("First summary");
+                    assertThat(userPrompt).contains("Second summary");
+                    assertThat(userPrompt).doesNotContain("First image");
+                    return new AiExecutionResult("{\"summary\":\"One coherent overview\"}", null);
+                }
+            });
+        assertThat(refined.aiRefined()).isTrue();
+        var refinedDocument = service.loadDocument(refined.meta().getDirectory());
+        assertThat(refinedDocument.getEntries().getLast().getText()).isEqualTo("One coherent overview");
+        assertThat(refinedDocument.getEntries().stream().map(SessionJournalEntry::getText).toList())
+            .containsAtLeast("First summary", "Second summary");
+    }
+
+    @Test
+    void mergeRefusesLiveJournalsWithoutPublishingAnIncompleteResult() throws IOException {
+        try (SessionJournalSession live = service.createSession(
+                sampleConnection(), "live", settings, List.of(), false)) {
+            SessionJournalSession closed = service.createSession(
+                sampleConnection(), "closed", settings, List.of(), false);
+            closed.close();
+            service.setFinishPending(closed.getDirectory(), false);
+            assertThrows(IOException.class, () -> service.mergeJournals(settings,
+                List.of(closed.getDirectory(), live.getDirectory()), "Together", null));
+            assertThat(service.listJournals(settings)).hasSize(2);
+            try (var directories = Files.list(closed.getDirectory().getParent())) {
+                assertThat(directories.toList()).containsExactly(closed.getDirectory(), live.getDirectory());
+            }
+        }
     }
 
     @Test

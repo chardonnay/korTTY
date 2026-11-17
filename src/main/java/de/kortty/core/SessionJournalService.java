@@ -250,6 +250,78 @@ public class SessionJournalService {
         notifyChanged(journalDir);
     }
 
+    public record MergeResult(SessionJournalMeta meta, boolean aiRefined) {}
+
+    /** Creates a merged copy of closed journals and publishes it only after all files are ready. */
+    public MergeResult mergeJournals(GlobalSettings settings, List<Path> directories, String title,
+                                     SessionJournalAiSupport.AiInvoker invoker) throws IOException {
+        List<Path> sources = directories.stream().map(SessionJournalService::normalize).distinct().toList();
+        if (sources.size() < 2 || title == null || title.isBlank()) {
+            throw new IllegalArgumentException("A merge needs a title and at least two journals");
+        }
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
+            throw new IOException("Session journals are disabled by policy");
+        }
+        Path root = resolveJournalsDirectory(settings);
+        Path realRoot = root.toRealPath();
+        Path staging = Files.createTempDirectory(root, ".merge-");
+        Path stagedJournal = staging.resolve("journal");
+        try {
+            Files.createDirectory(stagedJournal);
+            SessionJournalMerge merge = new SessionJournalMerge(stagedJournal, title.strip());
+            for (Path source : sources) {
+                if (!root.equals(source.getParent()) || !realRoot.equals(source.toRealPath().getParent())) {
+                    throw new IOException("Invalid session journal directory");
+                }
+                synchronized (lockFor(source)) {
+                    SessionJournalDocument original = loadDocumentInternal(source);
+                    if (original.getMeta().isLive() || original.getMeta().isFinishPending()) {
+                        throw new IOException("The session journal is still being written: " + source.getFileName());
+                    }
+                    merge.add(source, original);
+                }
+            }
+            SessionJournalDocument document = merge.finish();
+            SessionJournalMeta meta = document.getMeta();
+            boolean refined = false;
+            SessionJournalEntry overview = merge.overview();
+            if (overview != null) {
+                applyPolicyReplacements(overview);
+                if (invoker != null && !meta.isAiSummariesOff()
+                        && de.kortty.policy.PolicyManager.effective().sessionJournalAiSummariesAllowed()) {
+                    try {
+                        var result = SessionJournalMerge.refine(overview, invoker);
+                        if (result != null) {
+                            refined = true;
+                            applyPolicyReplacements(overview);
+                            if (result.usage() != null) {
+                                recordAiUsage(meta, result.usage(), invoker.profile());
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.debug("Could not refine merged journal summary", e);
+                    }
+                }
+            }
+            refreshErrorCount(document);
+            saveDocumentInternal(stagedJournal, document);
+            Path destination = root.resolve("merged-" + document.getId());
+            Files.move(stagedJournal, destination);
+            meta.setDirectory(destination);
+            meta.setJournalId(document.getId());
+            notifyChanged(destination);
+            return new MergeResult(meta, refined);
+        } finally {
+            try (var files = Files.walk(staging)) {
+                for (Path file : files.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.deleteIfExists(file);
+                }
+            } catch (IOException e) {
+                logger.warn("Could not clean up journal merge directory {}", staging, e);
+            }
+        }
+    }
+
     /** Appends a copy of the entry to the journal document and returns the stored copy. */
     public SessionJournalEntry appendEntry(Path journalDir, SessionJournalEntry entry) throws IOException {
         SessionJournalEntry stored = new SessionJournalEntry(entry);
@@ -592,6 +664,13 @@ public class SessionJournalService {
                 entry.setTitle(title);
             }
         }
+        String terminalSource = replacer.apply(entry.getTerminalSource());
+        if (changed(entry.getTerminalSource(), terminalSource)) {
+            hits++;
+            if (!dryRun) {
+                entry.setTerminalSource(terminalSource);
+            }
+        }
         String text = replacer.apply(entry.getText());
         if (changed(entry.getText(), text)) {
             hits++;
@@ -828,23 +907,26 @@ public class SessionJournalService {
         }
         synchronized (lockFor(journalDir)) {
             SessionJournalDocument document = loadDocumentInternal(journalDir);
-            SessionJournalMeta meta = document.getMeta();
-            meta.setAiPromptTokens(meta.getAiPromptTokens() + usage.promptTokens());
-            meta.setAiCompletionTokens(meta.getAiCompletionTokens() + usage.completionTokens());
-            meta.setAiTotalTokens(meta.getAiTotalTokens() + usage.totalTokens());
-            meta.setAiCallCount(meta.getAiCallCount() + 1);
-            if (profile != null) {
-                meta.setAiProfileId(profile.getId());
-                meta.setAiProfileName(profile.getName());
-                meta.setAiProfileLocal(AiCostCalculator.isLocal(profile));
-                if (AiCostCalculator.hasPrice(profile)) {
-                    meta.setAiCost(meta.getAiCost() + AiCostCalculator.cost(profile, usage));
-                    meta.setAiCostCurrency(AiCostCalculator.currency(profile));
-                }
-            }
+            recordAiUsage(document.getMeta(), usage, profile);
             saveDocumentInternal(journalDir, document);
         }
         notifyChanged(journalDir);
+    }
+
+    private static void recordAiUsage(SessionJournalMeta meta, AiTokenUsage usage, de.kortty.model.AiProfile profile) {
+        meta.setAiPromptTokens(meta.getAiPromptTokens() + usage.promptTokens());
+        meta.setAiCompletionTokens(meta.getAiCompletionTokens() + usage.completionTokens());
+        meta.setAiTotalTokens(meta.getAiTotalTokens() + usage.totalTokens());
+        meta.setAiCallCount(meta.getAiCallCount() + 1);
+        if (profile != null) {
+            meta.setAiProfileId(profile.getId());
+            meta.setAiProfileName(profile.getName());
+            meta.setAiProfileLocal(AiCostCalculator.isLocal(profile));
+            if (AiCostCalculator.hasPrice(profile)) {
+                meta.setAiCost(meta.getAiCost() + AiCostCalculator.cost(profile, usage));
+                meta.setAiCostCurrency(AiCostCalculator.currency(profile));
+            }
+        }
     }
 
     /**
@@ -862,6 +944,9 @@ public class SessionJournalService {
         int removed;
         synchronized (lockFor(journalDir)) {
             SessionJournalDocument document = loadDocumentInternal(journalDir);
+            if (document.getMeta().isMerged()) {
+                throw new IOException("Re-evaluate the original session journals instead of the merged journal");
+            }
             int before = document.getEntries().size();
             document.getEntries().removeIf(entry -> entry.getKind() == SessionJournalEntryKind.AI_SUMMARY
                 || entry.getKind() == SessionJournalEntryKind.SESSION_SUMMARY);
@@ -1112,16 +1197,18 @@ public class SessionJournalService {
         if (!normalized.startsWith(baseDir) || normalized.equals(baseDir)) {
             throw new IOException("Refusing to delete a directory outside the journals root: " + normalized);
         }
-        if (!Files.exists(normalized)) {
-            return;
-        }
-        try (var walk = Files.walk(normalized)) {
-            List<Path> paths = walk.sorted(Comparator.reverseOrder()).toList();
-            for (Path path : paths) {
-                Files.deleteIfExists(path);
+        synchronized (lockFor(normalized)) {
+            if (!Files.exists(normalized)) {
+                return;
             }
+            try (var walk = Files.walk(normalized)) {
+                List<Path> paths = walk.sorted(Comparator.reverseOrder()).toList();
+                for (Path path : paths) {
+                    Files.deleteIfExists(path);
+                }
+            }
+            metaCache.remove(normalized);
         }
-        metaCache.remove(normalized);
         notifyChanged(normalized);
     }
 

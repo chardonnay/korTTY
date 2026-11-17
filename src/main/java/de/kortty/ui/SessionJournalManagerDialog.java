@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.SessionJournalAiSupport;
 import de.kortty.core.SessionJournalExportService;
 import de.kortty.core.SessionJournalHeaderSupport;
 import de.kortty.core.SessionJournalService;
@@ -103,6 +104,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     private final javafx.beans.property.IntegerProperty reevaluationRevision =
         new javafx.beans.property.SimpleIntegerProperty();
     private final SessionJournalReevaluationBar reevaluationBar;
+    private final javafx.beans.property.BooleanProperty merging = new javafx.beans.property.SimpleBooleanProperty();
 
     public SessionJournalManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
@@ -181,6 +183,12 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         Button reevaluateButton = new Button(I18n.get("journal.reevaluate.button"));
         reevaluateButton.setTooltip(new Tooltip(I18n.get("journal.reevaluate.tooltip")));
         reevaluateButton.setOnAction(event -> reevaluateSelected());
+        Button mergeButton = new Button(I18n.get("journal.merge.button"));
+        mergeButton.textProperty().bind(javafx.beans.binding.Bindings.when(merging)
+            .then(I18n.get("journal.merge.running")).otherwise(I18n.get("journal.merge.button")));
+        mergeButton.setOnAction(event -> mergeSelected());
+        mergeButton.disableProperty().bind(merging.or(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> !canMerge(selectedJournals()), table.getSelectionModel().getSelectedItems(), reevaluationRevision)));
         Button refreshButton = new Button(I18n.get("journal.manager.refresh"));
         ButtonIcons.apply(refreshButton, ButtonIcons.REFRESH);
         refreshButton.setOnAction(event -> refresh());
@@ -222,8 +230,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                 selectedItems, reevaluationRevision));
         }
 
-        HBox buttonBar = new HBox(8, openButton, renameButton, exportButton, deleteButton, reevaluateButton,
-            optionsButton, refreshButton);
+        var buttonBar = new javafx.scene.layout.FlowPane(8, 6, openButton, renameButton, exportButton, deleteButton,
+            mergeButton, reevaluateButton, optionsButton, refreshButton);
 
         descriptionArea.setPromptText(I18n.get("journal.manager.description"));
         descriptionArea.setPrefRowCount(3);
@@ -921,6 +929,77 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
 
     private void reevaluateSelected() {
         reevaluate(selectedJournals());
+    }
+
+    private boolean canMerge(List<SessionJournalMeta> selected) {
+        return service() != null && selected.size() >= 2
+            && de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()
+            && selected.stream().allMatch(meta -> meta.getDirectory() != null && !meta.isLive()
+                && !meta.isFinishPending() && !isBeingReevaluated(meta));
+    }
+
+    private void mergeSelected() {
+        List<SessionJournalMeta> selected = selectedJournals();
+        if (merging.get() || !canMerge(selected)) {
+            return;
+        }
+        List<Path> sources = selected.stream().sorted(java.util.Comparator.comparing(SessionJournalMeta::getStartedAt,
+                java.util.Comparator.nullsLast(java.util.Comparator.comparing(OffsetDateTime::toInstant))))
+            .map(SessionJournalMeta::getDirectory).toList();
+        SessionJournalAiSupport.AiInvoker invoker = SessionJournalAiSupport.applicationInvoker();
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.initOwner(getDialogPane().getScene().getWindow());
+        dialog.setTitle(I18n.get("journal.merge.title"));
+        dialog.setHeaderText(I18n.get("journal.merge.header", sources.size()));
+        TextField title = new TextField(I18n.get("journal.merge.title"));
+        Label titleLabel = new Label(I18n.get("journal.merge.name"));
+        titleLabel.setLabelFor(title);
+        Label hint = new Label(I18n.get("journal.merge.keep"));
+        hint.setWrapText(true);
+        VBox content = new VBox(8, titleLabel, title, hint);
+        CheckBox refine = new CheckBox(I18n.get("journal.merge.ai"));
+        if (de.kortty.policy.PolicyManager.effective().sessionJournalAiSummariesAllowed()
+                && selected.stream().noneMatch(SessionJournalMeta::isAiSummariesOff) && invoker.isAvailable()) {
+            content.getChildren().add(refine);
+        }
+        ButtonType confirm = new ButtonType(I18n.get("journal.merge.confirm"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().setAll(confirm, ButtonType.CANCEL);
+        dialog.getDialogPane().lookupButton(confirm).disableProperty()
+            .bind(title.textProperty().map(String::isBlank));
+        dialog.getDialogPane().setContent(content);
+        DialogThemeHelper.applyTheme(dialog);
+        if (dialog.showAndWait().orElse(ButtonType.CANCEL) != confirm || !canMerge(selected)) {
+            return;
+        }
+        String mergedTitle = title.getText();
+        boolean useAi = refine.isSelected();
+        GlobalSettings settings = settings();
+        merging.set(true);
+        javafx.concurrent.Task<SessionJournalService.MergeResult> task = new javafx.concurrent.Task<>() {
+            @Override
+            protected SessionJournalService.MergeResult call() throws Exception {
+                return service().mergeJournals(settings, sources, mergedTitle, useAi ? invoker : null);
+            }
+        };
+        task.setOnSucceeded(event -> {
+            merging.set(false);
+            refresh();
+            if (isShowing()) {
+                var result = task.getValue();
+                if (useAi && !result.aiRefined()) {
+                    showInfo(I18n.get("journal.merge.aiFallback"));
+                }
+                ownerWindow.openSessionJournal(result.meta());
+            }
+        });
+        task.setOnFailed(event -> {
+            merging.set(false);
+            logger.warn("Could not merge session journals", task.getException());
+            if (isShowing()) {
+                showError(I18n.get("journal.merge.failed", task.getException().getMessage()));
+            }
+        });
+        Thread.ofVirtual().name("journal-merge").start(task);
     }
 
     private void reevaluate(List<SessionJournalMeta> journals) {
