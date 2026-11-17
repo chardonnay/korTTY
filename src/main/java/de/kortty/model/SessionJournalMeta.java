@@ -162,6 +162,9 @@ public class SessionJournalMeta {
     @XmlElement
     private boolean pinned;
 
+    @XmlElement
+    private Boolean merged;
+
     /** When retention deletes the journal automatically; null = never. */
     @XmlElement
     @XmlJavaTypeAdapter(IsoOffsetDateTimeAdapter.class)
@@ -259,6 +262,7 @@ public class SessionJournalMeta {
         this.lastDuplicateAt = other.lastDuplicateAt;
         this.finishPending = other.finishPending;
         this.aiSummariesOff = other.aiSummariesOff;
+        this.merged = other.merged;
         this.directory = other.directory;
         this.live = other.live;
         this.journalId = other.journalId;
@@ -576,6 +580,14 @@ public class SessionJournalMeta {
 
     public boolean isPinned() {
         return pinned;
+    }
+
+    public boolean isMerged() {
+        return Boolean.TRUE.equals(merged);
+    }
+
+    public void setMerged(boolean merged) {
+        this.merged = merged ? Boolean.TRUE : null;
     }
 
     public void setPinned(boolean pinned) {
