@@ -47,10 +47,10 @@ final class SessionJournalReevaluateDialog {
         this.progressOwner = progressOwner != null ? progressOwner : () -> owner;
     }
 
-    /** Journals that can be re-evaluated: closed ones with a folder. */
+    /** Closed journals with a single capture stream can be re-evaluated. */
     static List<SessionJournalMeta> eligible(List<SessionJournalMeta> journals) {
         return journals.stream()
-            .filter(meta -> meta.getDirectory() != null && !meta.isLive())
+            .filter(meta -> meta.getDirectory() != null && !meta.isLive() && !meta.isMerged())
             .toList();
     }
 

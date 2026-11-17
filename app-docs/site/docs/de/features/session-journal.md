@@ -314,6 +314,14 @@ Rechtsklick auf eine Automatisierungszeile für **Behalten (Pin)** / **Pin löse
 - **Mit KI neu auswerten…** (Button und Rechtsklickmenü) fasst die ausgewählten geschlossenen Journale erneut mit einem von Ihnen gewählten Profil zusammen — siehe [Ein Journal erneut mit KI bewerten](#ein-journal-erneut-mit-ki-bewerten).
 - **Optionen** enthält die oben beschriebenen globalen Erfassungs- und KI-Einstellungen sowie **Zusammenfassungen aufholen**: Es zählt die geschlossenen Journale, die nie zusammengefasst wurden (aufgezeichnet, während Zusammenfassungen deaktiviert waren oder kein Modell erreichbar war) und führt bei Bedarf die reguläre Zusammenfassung nacheinander hinter einem Fortschrittsdialog aus – zwischen Journalen abbrechbar, und ein unterbrochener Lauf wird an der Stelle fortgesetzt, an der er gestoppt wurde.
 
+### Zusammenführen von Sitzungsprotokollen { #merging-session-journals }
+
+Wählen Sie mindestens zwei geschlossene Journale mit ++ctrl++ (unter macOS ++cmd++) oder ++shift++ aus und wählen Sie **Zusammenführen…**. Geben Sie einen Titel für das neue Journal ein. Die ursprünglichen Journale bleiben im Manager.
+
+Das zusammengeführte Journal zeigt die Einträge in chronologischer Reihenfolge an, wobei jeder kopierte Eintrag mit einer Terminalbezeichnung versehen ist. Im Capture-Log werden die ursprünglichen Terminal-Streams in separaten Abschnitten aufbewahrt. Notizen, Markierungen, Screenshots, Anmerkungen und gespeicherte KI-Chats werden übernommen. Terminalbezeichnungen werden auch in exportierten Einträgen angezeigt.
+
+Die **Gemeinsame Übersicht** fasst die ursprünglichen Abschlusszusammenfassungen oder die periodischen Zusammenfassungen für ein Journal ohne Abschlusszusammenfassung zusammen. **Übersicht aus vorhandenen Zusammenfassungen mit KI überarbeiten** sendet diesen Text an das konfigurierte KI-Profil des Journals. Das zusammengeführte Journal behält die ursprünglichen Zusammenfassungseinträge bei und verwendet den kombinierten Text, wenn die KI die Neufassung nicht abschließen kann. Um die Terminalaktivität mit KI neu zu bewerten, öffnen Sie das ursprüngliche Journal.
+
 ### Ein Journal erneut mit KI bewerten
 
 Wenn eine Zusammenfassung schlecht ausfiel oder die KI während der Aufzeichnung des Journals nicht erreichbar war, wählen Sie das Journal – oder einen Lauf bzw. eine Gruppe, die alle seine Journale repräsentiert – und wählen Sie **Mit KI neu auswerten…**. Das Dialogfenster bietet jedes KI-Profil (vorausgewählt: das Profil, das das Journal verfasst hat, sonst das Journal-Profil) und für Journale mit Screenshots **Screenshots erneut beschreiben**.

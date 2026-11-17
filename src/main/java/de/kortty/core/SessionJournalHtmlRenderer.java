@@ -640,6 +640,10 @@ public final class SessionJournalHtmlRenderer {
         html.append(">\n");
         appendCardActions(html, entry);
         html.append("<div class=\"card-head\">");
+        if (entry.getTerminalSource() != null) {
+            html.append("<span class=\"state-tag\">")
+                .append(escapeHtml(entry.getTerminalSource())).append("</span>");
+        }
         if (hasMarker) {
             html.append("<span class=\"badge\">")
                 .append(escapeHtml(SessionJournalMarkers.displayName(marked)))

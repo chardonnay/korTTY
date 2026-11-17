@@ -18,6 +18,7 @@ What changed in the current release. The version this guide was built for is sho
 ### Session journal
 
 - **Journal terminals** lets you choose one, several or all terminals in a split tab and record them together in one session journal. Choosing **All terminals in this tab** also includes new splits. The capture log identifies the terminal that produced each entry. See [Enabling the journal](../features/session-journal.md#enabling-the-journal).
+- **Merge session journals** — select several closed journals in the [journal manager](../features/session-journal.md#managing-journals) to create one journal with a shared timeline, labeled terminal sections and an optional AI-refined overview.
 - After stopping a session journal, use **Hide journal bar** in the bar's right-click menu to hide it in that tab.
 
 - **AI chats in the journal** — while the journal records, an **AI agent** card continued in an AI chat gets an **AI chat** tag, an **Open in AI chat** button and a collapsible transcript with the steps of the run. The journal keeps a masked copy that follows the chat until the journal stops, so a deleted chat still opens read-only from it. Exports get an **Include AI chats** option: an appendix in PDF, a file per chat beside Markdown, the transcript in HTML bundles. See [AI agent cards and their AI chats](../features/session-journal.md#ai-agent-cards-and-their-ai-chats).

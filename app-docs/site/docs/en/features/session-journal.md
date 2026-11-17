@@ -314,6 +314,14 @@ Right-click an automation row for **Keep (pin)** / **Release pin** — on a run 
 - **Re-evaluate with AI…** (button and right-click menu) summarizes the selected closed journals again with a profile you pick — see [Re-evaluating a journal with AI](#re-evaluating-a-journal-with-ai).
 - **Options** holds the global capture and AI settings described above, plus **Catch up summaries**: it counts the closed journals that were never summarized (recorded while summaries were off or no model was reachable) and, on demand, runs the regular summarizer over them one by one behind a progress dialog — cancellable between journals, and an interrupted run resumes where it stopped.
 
+### Merging session journals { #merging-session-journals }
+
+Select at least two closed journals with ++ctrl++ (on macOS, ++cmd++) or ++shift++ and choose **Merge…**. Enter a title for the new journal. The original journals stay in the manager.
+
+The merged journal shows entries in chronological order, with a terminal label on each copied entry. The capture log keeps the original terminal streams in separate sections. Notes, markers, screenshots, annotations and saved AI chats are carried over. Terminal labels also appear in exported entries.
+
+The **Combined overview** brings together the original closing summaries, or the periodic summaries for a journal without a closing summary. **Refine the overview with AI using existing summaries** sends that text to the configured journal AI profile. The merged journal keeps the original summary entries and uses the combined text if the AI cannot finish the rewrite. To re-evaluate terminal activity with AI, open the original journal.
+
 ### Re-evaluating a journal with AI
 
 When a summary turned out poor, or the AI was not reachable while the journal was recorded, select the journal — or a run or group, which stands for all its journals — and choose **Re-evaluate with AI…**. The dialog offers every AI profile (preselected: the profile that wrote the journal, else the journal profile), and, for journals with screenshots, **Describe the screenshots again**.
