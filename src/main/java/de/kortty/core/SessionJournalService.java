@@ -686,10 +686,11 @@ public class SessionJournalService {
         SessionJournalLogSerializer serializer = SessionJournalLogSerializer.forFormat(format);
         for (SessionJournalLogEntry entry : SessionJournalLogReader.readPart(partFile)) {
             String rewrittenText = replacer.apply(entry.text());
-            if (changed(entry.text(), rewrittenText)) {
+            String rewrittenSource = replacer.apply(entry.source());
+            if (changed(entry.text(), rewrittenText) || changed(entry.source(), rewrittenSource)) {
                 replacements.put(entry.seq(), serializer.entryLine(new SessionJournalLogEntry(
                     entry.seq(), entry.timestamp(), entry.kind(), rewrittenText,
-                    entry.redacted(), entry.partial(), entry.file(), entry.repeat())));
+                    entry.redacted(), entry.partial(), entry.file(), entry.repeat(), rewrittenSource)));
             }
         }
         if (replacements.isEmpty() || dryRun) {

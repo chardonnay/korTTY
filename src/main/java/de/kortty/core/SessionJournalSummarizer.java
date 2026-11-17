@@ -566,6 +566,12 @@ public class SessionJournalSummarizer {
         int maxLines = settings != null ? settings.getSessionJournalAiMaxLines() : 100;
         int budget = promptTokenBudget(settings != null ? settings.getSessionJournalAiTokenBudget() : 130_000);
         boolean chunked = settings != null && settings.isSessionJournalAiChunkingEnabled();
+        if (entries.stream().filter(entry -> entry.source() != null).map(SessionJournalLogEntry::source)
+                .distinct().limit(2).count() > 1) {
+            // Interleaved command ranges overlap. Advance the common log cursor in chronological
+            // windows and include source labels so the model can follow each shell independently.
+            return new Cut(buildChunkedWindows(filterContentEntries(entries), maxLines, budget, true), null);
+        }
         List<SessionJournalCommandBlocks.Block> blocks = new ArrayList<>(SessionJournalCommandBlocks.cut(entries));
         SessionJournalCommandBlocks.Block runningBlock = null;
         boolean endedRunning = false;
@@ -951,19 +957,19 @@ public class SessionJournalSummarizer {
      * statuses; other NOTEs are skipped.
      */
     private static List<SessionJournalLogEntry> filterContentEntries(List<SessionJournalLogEntry> entries) {
-        long lastOutputSeq = entries.stream()
-            .filter(e -> e.kind() == SessionJournalLogEntry.Kind.OUT
-                || e.kind() == SessionJournalLogEntry.Kind.SEED)
-            .mapToLong(SessionJournalLogEntry::seq)
-            .max()
-            .orElse(-1);
+        Map<String, Long> lastOutputBySource = new java.util.HashMap<>();
+        for (SessionJournalLogEntry entry : entries) {
+            if (entry.kind() == SessionJournalLogEntry.Kind.OUT || entry.kind() == SessionJournalLogEntry.Kind.SEED) {
+                lastOutputBySource.put(entry.source(), entry.seq());
+            }
+        }
         List<SessionJournalLogEntry> result = new ArrayList<>();
         for (SessionJournalLogEntry entry : entries) {
             switch (entry.kind()) {
                 case OUT, SEED -> {
                     // Stale idle-flush partials are superseded by their completed line; the very
                     // last output line (typically the pending prompt) stays.
-                    if (!entry.partial() || entry.seq() == lastOutputSeq) {
+                    if (!entry.partial() || entry.seq() == lastOutputBySource.get(entry.source())) {
                         result.add(entry);
                     }
                 }
@@ -982,6 +988,11 @@ public class SessionJournalSummarizer {
 
     /** Consecutive parts of {@code content}, each within the line limit and the (prompt) token budget. */
     private List<Window> buildChunkedWindows(List<SessionJournalLogEntry> content, int maxLines, int budget) {
+        return buildChunkedWindows(content, maxLines, budget, false);
+    }
+
+    private List<Window> buildChunkedWindows(List<SessionJournalLogEntry> content, int maxLines, int budget,
+            boolean labelled) {
         List<Window> windows = new ArrayList<>();
         List<SessionJournalLogEntry> current = new ArrayList<>();
         int inputCount = 0;
@@ -989,12 +1000,15 @@ public class SessionJournalSummarizer {
         int usedTokens = 0;
         for (SessionJournalLogEntry entry : content) {
             String line = renderLine(entry);
+            if (labelled) {
+                line = entry.labelledText(line);
+            }
             int lineTokens = AiTokenCounter.estimateTokens(line);
             boolean lineLimitReached = maxLines > 0
                 && (inputCount >= maxLines || outputCount >= maxLines);
             boolean budgetReached = !current.isEmpty() && usedTokens + lineTokens > budget;
             if (lineLimitReached || budgetReached) {
-                windows.add(windowFromEntries(current));
+                windows.add(windowFromEntries(current, labelled));
                 current = new ArrayList<>();
                 inputCount = 0;
                 outputCount = 0;
@@ -1009,15 +1023,27 @@ public class SessionJournalSummarizer {
             }
         }
         if (!current.isEmpty()) {
-            windows.add(windowFromEntries(current));
+            windows.add(windowFromEntries(current, labelled));
         }
         return windows;
     }
 
-    private Window windowFromEntries(List<SessionJournalLogEntry> entries) {
+    private Window windowFromEntries(List<SessionJournalLogEntry> entries, boolean labelled) {
         List<String> inputLines = new ArrayList<>();
         List<String> outputLines = new ArrayList<>();
-        split(entries, inputLines, outputLines);
+        boolean hasActivity = entries.stream().anyMatch(entry -> switch (entry.kind()) {
+            case IN, SCREENSHOT -> true;
+            case OUT, SEED -> !SessionJournalShellPrompts.isIdleLine(entry.text());
+            case NOTE -> false;
+        });
+        if (labelled && hasActivity) {
+            for (SessionJournalLogEntry entry : entries) {
+                String line = entry.labelledText(renderLine(entry));
+                (entry.kind() == SessionJournalLogEntry.Kind.IN ? inputLines : outputLines).add(line);
+            }
+        } else {
+            split(entries, inputLines, outputLines);
+        }
         return new Window(
             entries.get(0).seq(),
             entries.get(entries.size() - 1).seq(),
@@ -1089,7 +1115,7 @@ public class SessionJournalSummarizer {
         StringBuilder evidence = new StringBuilder(4096);
         for (SessionJournalLogEntry entry : entries) {
             if (entry.text() != null && !entry.redacted()) {
-                evidence.append(entry.text()).append('\n');
+                evidence.append(entry.labelledText(entry.text())).append('\n');
             }
         }
         return evidence.toString();

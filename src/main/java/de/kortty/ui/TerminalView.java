@@ -34,6 +34,8 @@ import de.kortty.core.SshTtyConnector;
 import de.kortty.core.SshTunnelApprovals;
 import de.kortty.core.SshTunnelManager;
 import de.kortty.core.ObservableTtyConnector;
+import de.kortty.core.DisplayTextSanitizer;
+import de.kortty.core.SessionJournalSession;
 import de.kortty.core.RemoteDirectoryChange;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.core.LocalShellTtyConnector;
@@ -489,15 +491,63 @@ public class TerminalView extends BorderPane {
     // One terminal/split widget can host several concurrent agent runs, keyed by runId.
     private final Map<SithTermFxWidget, Map<String, TerminalAgentRunState>> terminalAgentRunStates = new ConcurrentHashMap<>();
     private ObservableTtyConnector.DataListener terminalLoggerDataListener;
-    // Session journal: the live capture session survives reconnects (one journal per tab
-    // lifetime); only the data listener hops to the new connector.
-    private volatile de.kortty.core.SessionJournalSession journalSession;
+    // The tab owns one journal. Each selected pane has an independent terminal stream in it.
+    private final Map<SithTermFxWidget, JournalCapture> paneJournals = new ConcurrentHashMap<>();
+    private int nextJournalSource = 1;
+    private volatile boolean journalAllPanes;
+    private volatile boolean journalScopeChosen;
+
+    private static final class JournalCapture {
+        private final SessionJournalSession session;
+        private final SessionJournalSession.TerminalCapture stream;
+        private volatile ObservableTtyConnector connector;
+        private ObservableTtyConnector.DataListener listener;
+        private volatile boolean ready;
+
+        private JournalCapture(SessionJournalSession session,
+                SessionJournalSession.TerminalCapture stream, boolean ready) {
+            this.session = session;
+            this.stream = stream;
+            this.ready = ready;
+        }
+
+        private synchronized void bind(ObservableTtyConnector next) {
+            detach(connector);
+            connector = next;
+            attachWhenReady();
+        }
+
+        private synchronized void seedFinished() {
+            ready = true;
+            attachWhenReady();
+        }
+
+        private void attachWhenReady() {
+            if (ready && connector != null && connector.isConnected() && session.isActive()) {
+                listener = stream::appendOutputChunk;
+                connector.addDataListener(listener);
+            }
+        }
+
+        private synchronized void detach(TtyConnector expected) {
+            if (connector != null && connector == expected) {
+                if (listener != null) {
+                    connector.removeDataListener(listener);
+                }
+                connector = null;
+                listener = null;
+            }
+        }
+
+        private synchronized void detach() {
+            detach(connector);
+        }
+    }
     private volatile java.util.function.Consumer<de.kortty.core.SessionJournalAiPreflight.Result> journalAiPreflightListener;
-    private ObservableTtyConnector.DataListener journalDataListener;
-    private ObservableTtyConnector journalAttachedConnector;
     private String journalTabSessionId;
     private java.util.function.Consumer<SithTermFxWidget> journalScreenshotHandler;
-    private Runnable journalNoteHandler;
+    private Consumer<SithTermFxWidget> journalNoteHandler;
+    private Runnable paneJournalStateListener;
     private final Map<SshTtyConnector, ObservableTtyConnector.DataListener> terminalAgentPromptDataListeners = new ConcurrentHashMap<>();
     private final Map<ObservableTtyConnector, TerminalAgentShortcutInputFilterRegistration>
         terminalAgentShortcutInputFilters = new ConcurrentHashMap<>();
@@ -771,6 +821,7 @@ public class TerminalView extends BorderPane {
             // Its origin is bound by now: a pane of another connection with another color gets its frame.
             refreshPaneConnectionColors(null);
             refreshIsolationMarkers(null);
+            notifyPaneJournalStateChanged();
         });
         // The first pane is set up now (it was configured inside the constructor above): report the
         // rule set it starts with, if any.
@@ -889,7 +940,7 @@ public class TerminalView extends BorderPane {
                 items.add(aiMenu);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
-            if (isSessionJournalActive()) {
+            if (getSessionJournalSession(widget) != null) {
                 if (journalScreenshotHandler != null) {
                     javafx.scene.control.MenuItem journalShotItem =
                         new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.journalScreenshot"));
@@ -899,7 +950,7 @@ public class TerminalView extends BorderPane {
                 if (journalNoteHandler != null) {
                     javafx.scene.control.MenuItem journalNoteItem =
                         new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.journalNote"));
-                    journalNoteItem.setOnAction(e -> journalNoteHandler.run());
+                    journalNoteItem.setOnAction(e -> journalNoteHandler.accept(widget));
                     items.add(journalNoteItem);
                 }
                 if (journalScreenshotHandler != null || journalNoteHandler != null) {
@@ -1515,6 +1566,8 @@ public class TerminalView extends BorderPane {
     /** Called when a split pane is closed: stop its effect and release its per-pane state. */
     private void onPaneClosed(SithTermFxWidget widget) {
         TtyConnector closingConnector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        stopPaneJournal(widget);
+        Platform.runLater(this::notifyPaneJournalStateChanged);
         cancelPastePacing(widget);
         pasteInputHold.release(widget);
         stopPaneEffect(widget);
@@ -1960,7 +2013,7 @@ public class TerminalView extends BorderPane {
 
         @Override
         public void journalLocalOutput(String text) {
-            forwardLocalOutputToJournal(text);
+            forwardLocalOutputToJournal(widget, text);
         }
 
         @Override
@@ -3355,6 +3408,10 @@ public class TerminalView extends BorderPane {
         paneOrigins.bind(widget, baseConnector);
         applyTerminalEmulation(widget, baseConnector);
         installAgentShortcutInputInterceptor(widget, baseConnector);
+        if (widget != terminalWidget && baseConnector instanceof ObservableTtyConnector observable
+                && paneJournal(widget) == null) {
+            startAutomaticPaneJournal(widget, observable, false);
+        }
         installTerminalRecordingInputListener(baseConnector);
         bindCodingAgentMonitor(widget, baseConnector);
         trackLocalWorkingDirectory(widget, baseConnector);
@@ -3612,7 +3669,7 @@ public class TerminalView extends BorderPane {
                 isTerminalAgentCommandNameCaseInsensitive()),
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
             rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
-            this::forwardJournalInputLine,
+            line -> forwardJournalInputLine(widget, observableConnector, line),
             observableConnector.getCharset(),
             () -> clearInputLineSequence(observableConnector));
         terminalAgentShortcutInputFilters.put(
@@ -8488,7 +8545,10 @@ public class TerminalView extends BorderPane {
                         stopLogger();
                         // The journal itself stays open across disconnect/reconnect; only the
                         // listener on the dying connector is released.
-                        detachJournalDataListener();
+                        JournalCapture capture = paneJournal(terminalWidget);
+                        if (capture != null) {
+                            capture.detach(monitoredConnector);
+                        }
 
                         if (externalDisconnectListener != null) {
                             externalDisconnectListener.onDisconnect(reason, wasError);
@@ -8811,17 +8871,77 @@ public class TerminalView extends BorderPane {
     }
 
     /** Handler the terminal-pane context menu "note to journal" item calls; set by TerminalTab. */
-    public void setJournalNoteHandler(Runnable handler) {
+    public void setJournalNoteHandler(Consumer<SithTermFxWidget> handler) {
         this.journalNoteHandler = handler;
     }
 
-    public boolean isSessionJournalActive() {
-        de.kortty.core.SessionJournalSession session = journalSession;
-        return session != null && session.isActive();
+    void setPaneJournalStateListener(Runnable listener) {
+        paneJournalStateListener = listener;
     }
 
-    public de.kortty.core.SessionJournalSession getSessionJournalSession() {
-        return journalSession;
+    private void notifyPaneJournalStateChanged() {
+        if (paneJournalStateListener != null) {
+            paneJournalStateListener.run();
+        }
+    }
+
+    private JournalCapture paneJournal(@Nullable SithTermFxWidget widget) {
+        return widget != null ? paneJournals.get(widget) : null;
+    }
+
+    boolean hasPaneJournal() {
+        return !paneJournals.isEmpty();
+    }
+
+    public boolean isSessionJournalActive() {
+        return hasPaneJournal();
+    }
+
+    boolean journalsAllPanes() {
+        return journalAllPanes;
+    }
+
+    void setJournalAllPanes(boolean all) {
+        journalAllPanes = all;
+        journalScopeChosen = true;
+    }
+
+    @Nullable SithTermFxWidget journalPane() {
+        SithTermFxWidget focused = getFocusedWidget();
+        return paneJournal(focused) != null ? focused
+            : getOrderedWidgets().stream().filter(pane -> paneJournal(pane) != null).findFirst().orElse(null);
+    }
+
+    SessionJournalSession tabJournal() {
+        return paneJournals.values().stream().findFirst().map(capture -> capture.session).orElse(null);
+    }
+
+    String journalSource(@Nullable SithTermFxWidget widget) {
+        JournalCapture capture = paneJournal(widget);
+        return capture != null ? capture.stream.source() : null;
+    }
+
+    public SessionJournalSession getSessionJournalSession() {
+        return getSessionJournalSession(getFocusedWidget());
+    }
+
+    public SessionJournalSession getSessionJournalSession(@Nullable SithTermFxWidget widget) {
+        JournalCapture capture = paneJournal(widget);
+        return capture != null && capture.session.isActive() ? capture.session : null;
+    }
+
+    boolean hasPrimaryJournal() {
+        return getSessionJournalSession(terminalWidget) != null;
+    }
+
+    boolean canStartPaneJournal(SithTermFxWidget widget) {
+        return getOrderedWidgets().contains(widget) && journalConnector(widget) != null
+            && de.kortty.policy.PolicyManager.effective().sessionJournalAllowed() && !isIncognito();
+    }
+
+    private @Nullable ObservableTtyConnector journalConnector(SithTermFxWidget widget) {
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        return base instanceof ObservableTtyConnector observable && observable.isConnected() ? observable : null;
     }
 
     /** Receives the result of the AI connection test of an automatically started journal (FX thread). */
@@ -8831,11 +8951,11 @@ public class TerminalView extends BorderPane {
     }
 
     /** True when the running journal is configured to call the AI (so a connection test matters). */
-    public boolean sessionJournalWouldUseAi() {
+    boolean sessionJournalWouldUseAi(SithTermFxWidget widget) {
         de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
         de.kortty.model.GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings() : null;
-        return de.kortty.core.SessionJournalAiPreflight.aiWouldRun(connection.getSessionJournalConfig(), settings);
+        return de.kortty.core.SessionJournalAiPreflight.aiWouldRun(paneConnection(widget).getSessionJournalConfig(), settings);
     }
 
     /**
@@ -8843,7 +8963,7 @@ public class TerminalView extends BorderPane {
      * runs meanwhile, so nothing is lost; the tab shows a bar when the AI is not reachable.
      */
     public void runJournalAiPreflight() {
-        if (!sessionJournalWouldUseAi()) {
+        if (!sessionJournalWouldUseAi(terminalWidget)) {
             return;
         }
         de.kortty.core.SessionJournalAiPreflight.checkAsync(de.kortty.core.SessionJournalAiSupport.applicationInvoker())
@@ -8860,7 +8980,7 @@ public class TerminalView extends BorderPane {
 
     /** "Record without AI": the running journal keeps capturing but no longer calls the AI. */
     public void disableSessionJournalAi() {
-        de.kortty.core.SessionJournalSession session = journalSession;
+        var session = tabJournal();
         if (session != null) {
             session.setAiSummariesEnabled(false);
         }
@@ -8872,32 +8992,42 @@ public class TerminalView extends BorderPane {
      * re-attached to the new connector.
      */
     private void startSessionJournal() {
-        try {
-            de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
-            if (!policy.sessionJournalAllowed()) {
-                return;
-            }
-            if (isSessionJournalActive()) {
-                attachJournalDataListener();
-                journalSession.noteReconnect();
-                noteJournalIsolation();
-                return;
-            }
-            de.kortty.model.SessionJournalConfig config = connection.getSessionJournalConfig();
-            boolean enabled = config != null && config.isEnabled();
-            if (!enabled && !policy.sessionJournalEnforced()) {
-                return;
-            }
-            if (isIncognito() && !policy.sessionJournalEnforced()) {
-                // Incognito keeps no journal, unless the organization enforces one for every session.
-                return;
-            }
-            createAndStartSessionJournal(false, java.util.List.of());
+        SithTermFxWidget widget = terminalWidget;
+        if (widget != null && ttyConnector instanceof ObservableTtyConnector connector
+                && startAutomaticPaneJournal(widget, connector, true)) {
             runJournalAiPreflight();
-            noteJournalIsolation();
-        } catch (Exception e) {
-            logger.error("Failed to start session journal for {}:{}: {}",
-                connection.getHost(), connection.getPort(), e.getMessage(), e);
+        }
+    }
+
+    private synchronized boolean startAutomaticPaneJournal(SithTermFxWidget widget,
+            ObservableTtyConnector connector, boolean useConnectionSetting) {
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        if (cleanedUp || !policy.sessionJournalAllowed()) {
+            return false;
+        }
+        JournalCapture current = paneJournal(widget);
+        if (current != null) {
+            current.session.noteReconnect();
+            noteJournalIsolation(current.session, connector);
+            current.bind(connector);
+            return false;
+        }
+        ServerConnection paneConnection = paneConnection(widget);
+        boolean requested = journalAllPanes || !journalScopeChosen && useConnectionSetting
+            && paneConnection.getSessionJournalConfig().isEnabled();
+        if (!policy.sessionJournalEnforced() && (!requested || isIncognito())) {
+            return false;
+        }
+        try {
+            boolean starting = tabJournal() == null;
+            JournalCapture capture = createPaneCapture(widget, false, false);
+            noteJournalIsolation(capture.session, connector);
+            paneJournals.put(widget, capture);
+            capture.bind(connector);
+            return starting;
+        } catch (java.io.IOException e) {
+            logger.error("Failed to start session journal for {}: {}", paneConnection.getHost(), e.getMessage(), e);
+            return false;
         }
     }
 
@@ -8922,87 +9052,115 @@ public class TerminalView extends BorderPane {
     }
 
     /** Writes the session's isolation into its journal, once per (re)connect. */
-    private void noteJournalIsolation() {
-        de.kortty.core.SessionJournalSession journal = journalSession;
-        if (journal == null || !(ttyConnector instanceof de.kortty.isolation.IsolationAware aware)) {
-            return;
+    private void noteJournalIsolation(SessionJournalSession journal, TtyConnector connector) {
+        if (connector instanceof de.kortty.isolation.IsolationAware aware) {
+            var report = aware.isolationReport();
+            String state = report.state().name().toLowerCase(Locale.ROOT);
+            journal.noteIsolation(report.backendId() != null ? state + " (" + report.backendId() + ")" : state);
         }
-        de.kortty.isolation.IsolationReport report = aware.isolationReport();
-        String state = report.state().name().toLowerCase(Locale.ROOT);
-        journal.noteIsolation(report.backendId() != null ? state + " (" + report.backendId() + ")" : state);
     }
 
-    /**
-     * Enables the journal mid-session: the current scrollback is imported as seed entries, then
-     * the live taps attach. Call on the FX thread; seeding runs on a background thread.
-     *
-     * @return true when the journal is (now) active
-     */
-    public boolean enableSessionJournalRetroactively() {
-        if (isSessionJournalActive()) {
+    /** Enables capture mid-session, using only the selected pane's scrollback. FX thread. */
+    synchronized boolean enablePaneJournal(SithTermFxWidget widget, boolean withoutAi) {
+        if (getSessionJournalSession(widget) != null) {
             return true;
         }
-        if (ttyConnector == null || !de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
-            return false;
-        }
-        if (isIncognito()) {
+        ObservableTtyConnector connector = journalConnector(widget);
+        if (cleanedUp || connector == null || !canStartPaneJournal(widget)) {
             return false;
         }
         try {
-            final java.util.List<String> seedLines = readScrollbackForSeed();
-            final de.kortty.core.SessionJournalSession session = createSessionJournal(true);
-            session.start();
-            journalSession = session;
+            List<String> seedLines = readScrollbackForSeed(widget);
+            JournalCapture capture = createPaneCapture(widget, true, withoutAi);
+            capture.bind(connector);
+            paneJournals.put(widget, capture);
             Thread seeder = new Thread(() -> {
                 try {
-                    session.appendSeedLines(seedLines);
+                    capture.stream.appendSeedLines(seedLines);
                 } catch (Exception e) {
                     logger.warn("Session journal seeding failed: {}", e.getMessage());
                 } finally {
-                    // Live output must come strictly after the seed block, so attach only now.
-                    attachJournalDataListener();
+                    noteJournalIsolation(capture.session, connector);
+                    capture.seedFinished();
                 }
             }, "SessionJournal-Seed");
             seeder.setDaemon(true);
             seeder.start();
             return true;
-        } catch (Exception e) {
-            logger.error("Failed to enable session journal retroactively for {}:{}: {}",
-                connection.getHost(), connection.getPort(), e.getMessage(), e);
+        } catch (java.io.IOException e) {
+            logger.error("Failed to enable session journal: {}", e.getMessage(), e);
             return false;
         }
     }
 
-    /** Stops and closes the journal (explicit user stop or tab close). Safe to call repeatedly. */
+    /** Ends the shared journal through a tab-wide action, leaving its terminals open. */
     public void stopSessionJournal() {
-        detachJournalDataListener();
-        de.kortty.core.SessionJournalSession session = journalSession;
-        journalSession = null;
+        setJournalAllPanes(false);
+        SessionJournalSession session = detachPaneJournals();
         if (session != null) {
-            // The KI-chats linked to this journal get their final copy now, frozen, before the journal closes. The
-            // sync records the directory as stopped here, so a chat linked after this point is frozen as well. Its
-            // own guard: a failing summary below must not leave a chat that is still followed.
-            try {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSessionJournalChatSync() != null) {
-                    app.getSessionJournalChatSync().journalStopped(session.getDirectory());
+            Thread worker = new Thread(() -> finishJournal(session), "SessionJournal-Stop");
+            worker.setDaemon(true);
+            worker.start();
+        }
+    }
+
+    synchronized void stopPaneJournal(@Nullable SithTermFxWidget widget) {
+        JournalCapture capture = widget != null ? paneJournals.remove(widget) : null;
+        if (capture != null) {
+            capture.detach();
+            boolean last = paneJournals.isEmpty();
+            Thread worker = new Thread(() -> {
+                if (last) {
+                    finishJournal(capture.session);
+                } else {
+                    capture.stream.close();
                 }
-            } catch (Exception e) {
-                logger.warn("Could not freeze the KI-chat copies of the closing journal: {}", e.getMessage());
+            }, "SessionJournal-Stop");
+            worker.setDaemon(true);
+            worker.start();
+        }
+    }
+
+    private synchronized SessionJournalSession detachPaneJournals() {
+        List<JournalCapture> captures = List.copyOf(paneJournals.values());
+        paneJournals.clear();
+        for (JournalCapture capture : captures) {
+            capture.detach();
+        }
+        return !captures.isEmpty() ? captures.getFirst().session : null;
+    }
+
+    private void closePaneJournals() {
+        SessionJournalSession session = detachPaneJournals();
+        if (session != null) {
+            finishJournal(session);
+        }
+    }
+
+    private void finishJournal(SessionJournalSession session) {
+        // The KI-chats linked to this journal get their final copy now, frozen, before the journal closes. The
+        // sync records the directory as stopped here, so a chat linked after this point is frozen as well. Its
+        // own guard: a failing summary below must not leave a chat that is still followed.
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            if (app != null && app.getSessionJournalChatSync() != null) {
+                app.getSessionJournalChatSync().journalStopped(session.getDirectory());
             }
-            try {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSessionJournalSummarizer() != null) {
-                    app.getSessionJournalSummarizer().onSessionClosing(session);
-                }
-            } catch (Exception e) {
-                logger.warn("Session journal close summarization failed: {}", e.getMessage());
+        } catch (Exception e) {
+            logger.warn("Could not freeze the KI-chat copies of the closing journal: {}", e.getMessage());
+        }
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            if (app != null && app.getSessionJournalSummarizer() != null) {
+                app.getSessionJournalSummarizer().onSessionClosing(session);
             }
-            try {
-                session.close();
-            } catch (Exception e) {
-                logger.warn("Error closing session journal: {}", e.getMessage());
-            }
+        } catch (Exception e) {
+            logger.warn("Session journal close summarization failed: {}", e.getMessage());
+        }
+        try {
+            session.close();
+        } catch (Exception e) {
+            logger.warn("Error closing session journal: {}", e.getMessage());
         }
     }
 
@@ -9025,77 +9183,59 @@ public class TerminalView extends BorderPane {
         return out.toByteArray();
     }
 
-    private void createAndStartSessionJournal(boolean seeded, java.util.List<String> seedLines)
+    private JournalCapture createPaneCapture(SithTermFxWidget widget, boolean seeded, boolean withoutAi)
             throws java.io.IOException {
-        de.kortty.core.SessionJournalSession session = createSessionJournal(seeded);
-        session.start();
-        journalSession = session;
-        if (seeded && !seedLines.isEmpty()) {
-            session.appendSeedLines(seedLines);
+        PaneOrigin origin = paneOrigins.resolve(widget, tabOrigin());
+        var session = tabJournal();
+        if (session == null) {
+            session = createSessionJournal(origin, seeded, withoutAi);
+            nextJournalSource = 1;
+        } else if (origin.password() != null) {
+            session.addKnownSecret(origin.password());
         }
-        attachJournalDataListener();
+        String source = I18n.get("terminal.journal.scope.source", nextJournalSource++,
+            DisplayTextSanitizer.sanitize(origin.connection().getDisplayName(), 80));
+        var stream = session.addTerminalCapture(session.redact(source),
+            origin.connection().getSessionJournalConfig().isCaptureInput());
+        return new JournalCapture(session, stream, !seeded);
     }
 
-    private de.kortty.core.SessionJournalSession createSessionJournal(boolean seeded) throws java.io.IOException {
+    private SessionJournalSession createSessionJournal(PaneOrigin origin, boolean seeded, boolean withoutAi)
+            throws java.io.IOException {
         de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
         if (app == null || app.getSessionJournalService() == null) {
             throw new java.io.IOException("Session journal service not available");
         }
-        de.kortty.model.GlobalSettings globalSettings = app.getGlobalSettingsManager() != null
-            ? app.getGlobalSettingsManager().getSettings()
-            : null;
-        java.util.List<String> knownSecrets = new java.util.ArrayList<>();
-        if (password != null && !password.isBlank()) {
-            knownSecrets.add(password);
+        GlobalSettings globalSettings = app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings() : null;
+        List<String> knownSecrets = origin.password() != null && !origin.password().isBlank()
+            ? List.of(origin.password()) : List.of();
+        String tabSessionId = journalTabSessionId != null ? journalTabSessionId : origin.connection().getId();
+        var session = app.getSessionJournalService()
+            .createSession(origin.connection(), tabSessionId, globalSettings, knownSecrets, seeded);
+        session.start();
+        if (withoutAi) {
+            session.setAiSummariesEnabled(false);
         }
-        String tabSessionId = journalTabSessionId != null ? journalTabSessionId : connection.getId();
-        de.kortty.core.SessionJournalSession session = app.getSessionJournalService()
-            .createSession(connection, tabSessionId, globalSettings, knownSecrets, seeded);
-        de.kortty.core.SessionJournalSummarizer summarizer = app.getSessionJournalSummarizer();
+        var summarizer = app.getSessionJournalSummarizer();
         if (summarizer != null) {
             summarizer.register(session);
         }
         return session;
     }
 
-    private void attachJournalDataListener() {
-        if (!(ttyConnector instanceof ObservableTtyConnector observableConnector)) {
-            return;
-        }
-        detachJournalDataListener();
-        journalDataListener = data -> {
-            de.kortty.core.SessionJournalSession session = journalSession;
-            if (session != null) {
-                session.appendOutputChunk(data);
-            }
-        };
-        observableConnector.addDataListener(journalDataListener);
-        journalAttachedConnector = observableConnector;
-    }
-
-    private void detachJournalDataListener() {
-        if (journalAttachedConnector != null && journalDataListener != null) {
-            journalAttachedConnector.removeDataListener(journalDataListener);
-        }
-        journalAttachedConnector = null;
-        journalDataListener = null;
-    }
-
-    private void forwardJournalInputLine(String line) {
-        de.kortty.core.SessionJournalSession session = journalSession;
-        if (session != null) {
-            session.appendInputLine(line);
+    private void forwardJournalInputLine(@Nullable SithTermFxWidget widget, ObservableTtyConnector connector,
+            String line) {
+        JournalCapture capture = paneJournal(widget);
+        if (capture != null && capture.ready && capture.connector == connector) {
+            capture.stream.appendInputLine(line);
         }
     }
 
     /** Reads history + screen lines under the buffer lock for the retroactive seed. */
-    private java.util.List<String> readScrollbackForSeed() {
-        java.util.List<String> lines = new java.util.ArrayList<>();
-        SithTermFxWidget widget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
-        if (widget == null) {
-            widget = terminalWidget;
-        }
-        if (widget == null || widget.getTerminalTextBuffer() == null) {
+    private List<String> readScrollbackForSeed(SithTermFxWidget widget) {
+        List<String> lines = new ArrayList<>();
+        if (widget.getTerminalTextBuffer() == null) {
             return lines;
         }
         var textBuffer = widget.getTerminalTextBuffer();
@@ -9145,7 +9285,7 @@ public class TerminalView extends BorderPane {
             SithTermFxWidget targetWidget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 targetWidget.getTerminal().writeCharacters("\r\n*** " + message + " ***\r\n");
-                forwardLocalOutputToJournal("\r\n*** " + message + " ***\r\n");
+                forwardLocalOutputToJournal(targetWidget, "\r\n*** " + message + " ***\r\n");
                 // korTTY's own text, not the session's: a highlight trigger must not fire on it.
                 markHighlightBaseline(targetWidget);
             }
@@ -9159,7 +9299,7 @@ public class TerminalView extends BorderPane {
         Platform.runLater(() -> {
             SithTermFxWidget targetWidget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
             if (targetWidget != null && targetWidget.getTerminal() != null) {
-                writeLocalMessageToTerminal(targetWidget.getTerminal(), message);
+                writeLocalMessageToTerminal(targetWidget, message);
                 markHighlightBaseline(targetWidget);
             }
         });
@@ -9176,7 +9316,7 @@ public class TerminalView extends BorderPane {
                 : (splitPane != null ? splitPane.getFocusedWidget() : terminalWidget);
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 String prompt = resolvePromptForLocalRedisplay(targetWidget);
-                writeLocalMessageToTerminal(targetWidget.getTerminal(), message);
+                writeLocalMessageToTerminal(targetWidget, message);
                 writePromptForLocalRedisplay(targetWidget.getTerminal(), prompt);
                 markHighlightBaseline(targetWidget);
             }
@@ -9191,11 +9331,12 @@ public class TerminalView extends BorderPane {
         if (widget == null || widget.getTerminal() == null || !getOrderedWidgets().contains(widget)) {
             return;
         }
-        writeLocalMessageToTerminal(widget.getTerminal(), message);
+        writeLocalMessageToTerminal(widget, message);
         markHighlightBaseline(widget);
     }
 
-    private void writeLocalMessageToTerminal(Terminal terminal, String message) {
+    private void writeLocalMessageToTerminal(SithTermFxWidget widget, String message) {
+        Terminal terminal = widget.getTerminal();
         if (terminal == null || message == null || message.isBlank()) {
             return;
         }
@@ -9206,7 +9347,7 @@ public class TerminalView extends BorderPane {
             writeTerminalNewLine(terminal);
             journalChunk.append(line).append("\r\n");
         }
-        forwardLocalOutputToJournal(journalChunk.toString());
+        forwardLocalOutputToJournal(widget, journalChunk.toString());
     }
 
     /**
@@ -9216,10 +9357,10 @@ public class TerminalView extends BorderPane {
      * a caller includes flushes any half-received remote line first, mirroring what the screen
      * shows.
      */
-    private void forwardLocalOutputToJournal(String text) {
-        de.kortty.core.SessionJournalSession session = journalSession;
-        if (session != null && session.isActive() && text != null && !text.isBlank()) {
-            session.appendOutputChunk(text);
+    private void forwardLocalOutputToJournal(SithTermFxWidget widget, String text) {
+        JournalCapture capture = paneJournal(widget);
+        if (capture != null && capture.ready && text != null && !text.isBlank()) {
+            capture.stream.appendOutputChunk(text);
         }
     }
 
@@ -9324,7 +9465,10 @@ public class TerminalView extends BorderPane {
     public void disconnectOnly() {
         stopAllTerminalAgentShellKeepAlives();
         stopLogger();
-        detachJournalDataListener();
+        JournalCapture capture = paneJournal(terminalWidget);
+        if (capture != null) {
+            capture.detach(ttyConnector);
+        }
         // Released before the session closes; the reconnect that follows opens them again.
         tunnelManager.stop();
         if (ttyConnector != null) {
@@ -9375,7 +9519,7 @@ public class TerminalView extends BorderPane {
         releaseAllCodingAgentPaneState();
         shellIntegration.detachAll();
         stopLogger();
-        stopSessionJournal();
+        closePaneJournals();
         stopAllEffects();
         closeTunnels();
         if (ttyConnector != null) {

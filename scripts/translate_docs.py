@@ -784,6 +784,12 @@ def remask(text: str, store: list[str]) -> str | None:
     return text
 
 
+def same_text_without_link_anchors(source: str, target: str) -> bool:
+    """Anchor synchronization alone does not turn an English fallback into German."""
+    pattern = r"(\]\([^)\s#]*)#[^)\s]+(\))"
+    return re.sub(pattern, r"\1\2", source).strip() == re.sub(pattern, r"\1\2", target).strip()
+
+
 def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str]:
     """Line-aligns a previous English source with its generated German page into a
     translation memory (masked EN -> masked DE). translate_md preserves line counts,
@@ -807,7 +813,7 @@ def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str
     for idx, masked, store in jobs:
         de_line = de_lines[idx]
         source_words = re.findall(r"[A-Za-z]{2,}", en_lines[idx])
-        if de_line.strip() == en_lines[idx].strip() and len(source_words) >= 2 \
+        if same_text_without_link_anchors(en_lines[idx], de_line) and len(source_words) >= 2 \
                 and not is_identifier_line(masked):
             # A failed provider call writes the English source into the generated page. Never
             # promote that fallback into translation memory on the next run, or it becomes
@@ -879,7 +885,7 @@ def changed_line_keep(base_en: str, base_de: str, md: str) -> dict[int, str] | N
         for k in range(i2 - i1):
             german = de_old[i1 + k]
             masked = jobs.get(j1 + k)
-            if masked is not None and german.strip() == en_old[i1 + k].strip() \
+            if masked is not None and same_text_without_link_anchors(en_old[i1 + k], german) \
                     and looks_untranslated(masked, masked) and not is_identifier_line(masked):
                 continue  # shipped in English by an earlier failed run: translate it now
             keep[j1 + k] = german

@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
  * @param redacted  true for the placeholder written instead of suppressed (password) input
  * @param partial   true when an output line was flushed by the idle timer without a newline
  * @param file      journal-directory-relative screenshot path; only for SCREENSHOT entries
+ * @param source    terminal label in a shared journal, or null for an unlabelled entry
  * @param repeat    number of occurrences this entry represents (coalesced duplicate OUT lines).
  *                  A run of K identical lines is stored as the head entry (repeat 1, written
  *                  immediately) plus one repeat entry with {@code repeat = K - 1} when the run
@@ -27,7 +28,8 @@ public record SessionJournalLogEntry(
     boolean redacted,
     boolean partial,
     String file,
-    int repeat) {
+    int repeat,
+    String source) {
 
     public SessionJournalLogEntry {
         if (repeat < 1) {
@@ -45,6 +47,16 @@ public record SessionJournalLogEntry(
             boolean partial,
             String file) {
         this(seq, timestamp, kind, text, redacted, partial, file, 1);
+    }
+
+    public SessionJournalLogEntry(long seq, OffsetDateTime timestamp, Kind kind, String text,
+            boolean redacted, boolean partial, String file, int repeat) {
+        this(seq, timestamp, kind, text, redacted, partial, file, repeat, null);
+    }
+
+    /** A source-labelled line for display while preserving the raw text for matching. */
+    public String labelledText(String value) {
+        return source != null ? "[" + source + "] " + value : value;
     }
 
     public enum Kind {

@@ -3811,6 +3811,14 @@ tasks.register<JavaExec>("splitLayoutRestoreSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("sessionJournalPaneScopeSmoke") {
+    group = "verification"
+    description = "Checks shared journals for selected terminals and future splits using local demo shells."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SessionJournalPaneScopeSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("restoreAttentionBarSmoke") {
     group = "verification"
     description = "Shows the restore bar in a window's status bar as an opened project leaves it (tabs waiting for a password and the vault, one blocked, one gone) and checks its counts, its Connect, Unlock Vault, Details and Dismiss actions, the greyed-out actions while Connect asks and that a hidden bar takes no room; pass a PNG path via --args to save a snapshot (needs a display)."

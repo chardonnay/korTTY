@@ -34,11 +34,15 @@ Rotation is configurable per connection on the **Journal** tab: **Maximum size p
 2. On the **Journal** tab, enable **Enable session journal for this connection**
 3. Optionally adjust **Capture typed input lines**, **Generate AI summaries**, the per-connection **Summary interval**, and the rotation pair **Maximum size per log part (MB)** and **Maximum rotated log parts**
 
-Every future connection of this server then starts its journal automatically. The journal survives reconnects — one journal per tab lifetime, with a reconnect marker in the log.
+Every future connection of this server then starts its journal automatically. The journal survives reconnects and records a reconnect marker in the log.
 
 ### Retroactively for a running session
 
 Use **Tools > Start/Stop Session Journal** (++ctrl+alt+t++), the tab context menu (**Session Journal > Start journal**) or the journal bar's **Start journal** button. The existing scrollback is imported into the journal as seed entries first, so the timeline covers what already happened, then live capture attaches.
+
+These controls open **Journal terminals…**. Check any open terminals or choose **All terminals in this tab** to include the current terminals and splits you open later. Choose **Apply** to start one shared journal for the selection. Reopen the dialog to change the selection. A removed terminal stops contributing immediately, and its existing history stays in the journal. Clearing all selections ends the journal. Closing the last recorded terminal or closing the tab also ends it.
+
+The shared journal puts each terminal's scrollback, input and output into one capture log with a label for the source terminal. The journal uses the first selected terminal's connection settings for rotation and AI summaries. Each terminal uses its own **Capture typed input lines** setting. When several terminals contribute activity, summaries use bounded chronological excerpts with terminal labels.
 
 ### AI connection test before the journal starts
 
@@ -50,9 +54,9 @@ A journal whose summaries can never be written is of little use, so when the jou
 
 ### The journal bar
 
-While a journal is available, a bar below the terminal shows its state (**Journal active since HH:MM**) and offers **Stop journal**, **Screenshot** and **Note**:
+The bar below the terminal shows the focused terminal’s recording state and offers **Stop journal** or, in a split tab, **Journal terminals…**. When the focused terminal is recording, the bar also offers **Screenshot** and **Note**.
 
-- **Screenshot** (++ctrl+alt+c++, also **Tools > Add Journal Screenshot** and the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.
+- **Screenshot** (++ctrl+alt+c++, also **Tools > Add Journal Screenshot** and the terminal's right-click menu) captures the focused terminal and files it into the journal timeline. From the terminal’s right-click menu it captures the pane under the cursor.
 - **Note** opens the [note editor](#writing-notes) for a free-text remark that appears as its own timeline entry at the current position.
 
 ### Writing notes

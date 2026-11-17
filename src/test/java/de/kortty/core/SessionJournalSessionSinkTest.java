@@ -95,6 +95,85 @@ class SessionJournalSessionSinkTest {
     }
 
     @Test
+    void sharesOneJournalWithoutMixingTerminalStreams() throws IOException {
+        for (SessionJournalLogFormat format : SessionJournalLogFormat.values()) {
+            settings.setSessionJournalLogFormat(format);
+            SessionJournalSession session = service.createSession(
+                sampleConnection(), "shared-tab", settings, List.of("foreign-secret"), true);
+            try (session) {
+                session.start();
+                var first = session.addTerminalCapture("Terminal 1", true);
+                var second = session.addTerminalCapture("Terminal 2", false);
+                first.appendOutputChunk("one-");
+                second.appendOutputChunk("second\r\n");
+                first.appendOutputChunk("foreign-secret\r\n");
+                second.appendSeedLines(List.of("second history"));
+                second.appendInputLine("excluded");
+                first.close();
+                second.appendOutputChunk("still recording\r\n");
+            }
+
+            var log = service.readLogAfter(session.getDirectory(), 0);
+            assertThat(log.stream().filter(entry -> "Terminal 1".equals(entry.source()))
+                .map(SessionJournalLogEntry::text).toList()).hasSize(1);
+            assertThat(log.stream().filter(entry -> "Terminal 1".equals(entry.source()))
+                .findFirst().orElseThrow().text()).startsWith("one-");
+            assertThat(log.stream().filter(entry -> "Terminal 2".equals(entry.source()))
+                .map(SessionJournalLogEntry::text).toList())
+                .containsAtLeast("second", "second history", "still recording").inOrder();
+            assertThat(log.stream().map(SessionJournalLogEntry::text).toList()).doesNotContain("excluded");
+            assertThat(log.stream().noneMatch(entry -> entry.text() != null
+                && entry.text().contains("foreign-secret"))).isTrue();
+        }
+    }
+
+    @Test
+    void aPasswordPromptOnlySuppressesInputFromItsOwnTerminal() throws Exception {
+        try (SessionJournalSession session = service.createSession(
+                sampleConnection(), "shared-password", settings, List.of(), false)) {
+            session.start();
+            var first = session.addTerminalCapture("first", true);
+            var second = session.addTerminalCapture("second", true);
+            first.appendOutputChunk("[sudo] password for demo:");
+            waitUntil(session::isInputSuppressed);
+            second.appendInputLine("uptime");
+            second.appendOutputChunk("second output\r\n");
+            first.appendInputLine("never-write-this-password");
+        }
+        var journal = service.listJournals(settings).getFirst();
+        var log = service.readLogAfter(journal.getDirectory(), 0);
+        assertThat(log.stream().filter(entry -> entry.kind() == SessionJournalLogEntry.Kind.IN)
+            .map(SessionJournalLogEntry::text).toList()).containsExactly("uptime", "").inOrder();
+        assertThat(log.stream().filter(SessionJournalLogEntry::redacted)
+            .map(SessionJournalLogEntry::source).toList()).containsExactly("first");
+    }
+
+    @Test
+    void concurrentTerminalOutputsArePersistedInUniqueSequenceOrder() throws Exception {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "shared-concurrent", settings, List.of(), false);
+        try (session; var workers = java.util.concurrent.Executors.newFixedThreadPool(3)) {
+            session.start();
+            List<java.util.concurrent.Future<?>> tasks = new java.util.ArrayList<>();
+            for (int terminal = 0; terminal < 3; terminal++) {
+                var stream = session.addTerminalCapture("source-" + terminal, true);
+                tasks.add(workers.submit(() -> {
+                    for (int line = 0; line < 200; line++) {
+                        stream.appendOutputChunk("line-" + line + "\r\n");
+                    }
+                }));
+            }
+            for (var task : tasks) {
+                task.get(10, java.util.concurrent.TimeUnit.SECONDS);
+            }
+        }
+        var log = service.readLogAfter(session.getDirectory(), 0);
+        assertThat(log.stream().filter(entry -> entry.kind() == SessionJournalLogEntry.Kind.OUT).count())
+            .isEqualTo(600);
+        assertThat(log.stream().map(SessionJournalLogEntry::seq).toList()).isInStrictOrder();
+    }
+
+    @Test
     void failingSinkNeverStopsWritingOrStarvesOtherSinks() throws IOException {
         SessionJournalSession session = service.createSession(
             sampleConnection(), "tab-1234567890ab", settings, List.of(), false);

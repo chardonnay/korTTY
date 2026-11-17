@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.ConnectionSettingsSupport;
@@ -24,6 +25,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.control.Tab;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
@@ -39,6 +44,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -201,7 +207,9 @@ public class TerminalTab extends Tab {
         this.terminalView.setJournalTabSessionId(aiSessionId);
         this.terminalView.setJournalScreenshotHandler(widget ->
             Platform.runLater(() -> takeJournalScreenshot(widget)));
-        this.terminalView.setJournalNoteHandler(() -> Platform.runLater(this::addJournalNote));
+        this.terminalView.setJournalNoteHandler(widget -> Platform.runLater(() -> addJournalNote(widget, null)));
+        this.terminalView.setPaneJournalStateListener(this::refreshJournalUi);
+        this.terminalView.addFocusedWidgetListener(widget -> refreshJournalUi());
         this.terminalView.setShellTitleListener(this::onShellTitleChanged);
         // Split panes of another connection with another tab color are listed in the tab's tooltip.
         this.terminalView.setPaneConnectionsListener(this::setPaneConnectionsLine);
@@ -459,7 +467,8 @@ public class TerminalTab extends Tab {
         Button stopButton = new Button(I18n.get("terminal.journal.ai.stopJournal"));
         stopButton.setOnAction(event -> {
             hideJournalAiBar();
-            stopJournal();
+            terminalView.stopSessionJournal();
+            refreshJournalUi();
         });
         journalAiBar = new javafx.scene.layout.HBox(10, journalAiLabel, retryButton, withoutAiButton, stopButton);
         journalAiBar.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
@@ -471,7 +480,7 @@ public class TerminalTab extends Tab {
 
     private void onAutomaticJournalAiPreflight(de.kortty.core.SessionJournalAiPreflight.Result result) {
         journalAiCheckRunning = false;
-        if (result.ok() || !isJournalActive()) {
+        if (result.ok() || !terminalView.hasPrimaryJournal()) {
             hideJournalAiBar();
             refreshJournalUi();
             return;
@@ -523,7 +532,8 @@ public class TerminalTab extends Tab {
      * is still gone, only the journal decision is made.
      */
     private void stopJournalAfterDisconnect() {
-        stopJournal();
+        terminalView.stopSessionJournal();
+        refreshJournalUi();
         applyChromeAwareVisibility(journalDecisionBar, false, false);
         Instant at = disconnectedAt != null ? disconnectedAt : Instant.now();
         String timeStr = DateTimeFormatter.ofPattern("HH:mm").format(at.atZone(ZoneId.systemDefault()));
@@ -799,19 +809,91 @@ public class TerminalTab extends Tab {
     }
 
     public boolean isJournalActive() {
-        return terminalView.isSessionJournalActive();
+        return terminalView.getSessionJournalSession() != null;
+    }
+
+    String journalActionKey() {
+        return terminalView.getOrderedWidgets().size() > 1 ? "terminal.journal.scope.title"
+            : isJournalActive() ? "terminal.journal.stop" : "terminal.journal.start";
     }
 
     public void toggleJournalFromUser() {
-        if (isJournalActive()) {
-            if (de.kortty.policy.PolicyManager.effective().sessionJournalEnforced()) {
-                showJournalError(I18n.get("terminal.journal.error.enforced"));
-                return;
-            }
-            stopJournal();
-        } else {
-            startJournal();
+        var policy = de.kortty.policy.PolicyManager.effective();
+        if (journalAiCheckRunning) {
+            return;
         }
+        if (!policy.sessionJournalAllowed()) {
+            showJournalError(I18n.get("terminal.journal.error.policy"));
+            return;
+        }
+        List<SithTermFxWidget> panes = terminalView.getOrderedWidgets();
+        if (!panes.isEmpty()) {
+            chooseJournalPanes(panes);
+        }
+    }
+
+    private void chooseJournalPanes(List<SithTermFxWidget> panes) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        DialogGeometrySupport.installAutomatic(dialog, "terminal.journalScope");
+        dialog.setResizable(true);
+        dialog.setTitle(I18n.get("terminal.journal.scope.title"));
+        dialog.setHeaderText(I18n.get("terminal.journal.scope.header"));
+        if (getTabPane() != null && getTabPane().getScene() != null) {
+            dialog.initOwner(getTabPane().getScene().getWindow());
+        }
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.APPLY, ButtonType.CANCEL);
+
+        VBox rows = new VBox(8);
+        List<CheckBox> choices = new ArrayList<>();
+        List<Boolean> recorded = new ArrayList<>();
+        boolean enforced = de.kortty.policy.PolicyManager.effective().sessionJournalEnforced();
+        for (int i = 0; i < panes.size(); i++) {
+            SithTermFxWidget pane = panes.get(i);
+            boolean recording = terminalView.getSessionJournalSession(pane) != null;
+            CheckBox choice = new CheckBox(I18n.get("terminal.journal.scope.pane", i + 1,
+                DisplayTextSanitizer.sanitize(terminalView.paneConnection(pane).getDisplayName(), 80)));
+            if (pane == terminalView.getFocusedWidget()) {
+                choice.setText(choice.getText() + " " + I18n.get("terminal.journal.scope.focused"));
+            }
+            choice.setSelected(recording || !terminalView.hasPaneJournal()
+                && pane == terminalView.getFocusedWidget() && terminalView.canStartPaneJournal(pane));
+            recorded.add(recording);
+            choice.setDisable(recording ? enforced : !terminalView.canStartPaneJournal(pane));
+            choices.add(choice);
+            rows.getChildren().add(choice);
+        }
+        CheckBox all = new CheckBox(I18n.get("terminal.journal.scope.all"));
+        all.setSelected(terminalView.journalsAllPanes());
+        all.setDisable(terminalView.isIncognito() || choices.stream().allMatch(CheckBox::isDisabled));
+        List<CheckBox> available = choices.stream().filter(choice -> !choice.isDisabled()).toList();
+        for (CheckBox choice : available) {
+            choice.disableProperty().bind(all.selectedProperty());
+        }
+        all.selectedProperty().addListener((observable, wasAll, isAll) -> {
+            if (isAll) {
+                available.forEach(choice -> choice.setSelected(true));
+            }
+        });
+        ScrollPane scroll = new ScrollPane(rows);
+        scroll.setFitToWidth(true);
+        scroll.setPrefViewportWidth(460);
+        scroll.setPrefViewportHeight(Math.min(260, panes.size() * 34));
+        dialog.getDialogPane().setContent(new VBox(10, all, scroll));
+        if (dialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.APPLY) {
+            return;
+        }
+
+        List<SithTermFxWidget> start = new ArrayList<>();
+        List<SithTermFxWidget> stop = new ArrayList<>();
+        for (int i = 0; i < panes.size(); i++) {
+            SithTermFxWidget pane = panes.get(i);
+            boolean selected = choices.get(i).isSelected();
+            if (selected != recorded.get(i)) {
+                (selected ? start : stop).add(pane);
+            }
+        }
+        startJournals(start, stop, all.isSelected());
     }
 
     public void toggleJournalFromMenuOrShortcut() {
@@ -826,7 +908,7 @@ public class TerminalTab extends Tab {
         }
         boolean visible = isJournalConfigEnabled()
             || journalControlsRevealedByUser
-            || isJournalActive();
+            || terminalView.hasPaneJournal();
         if (!terminalChromeVisible) {
             previousJournalBarVisible = visible;
             previousJournalBarManaged = visible;
@@ -842,103 +924,92 @@ public class TerminalTab extends Tab {
             && connection.getSessionJournalConfig().isEnabled();
     }
 
-    /** Starts a journal for the running session; the existing scrollback is imported as seed. */
-    private void startJournal() {
-        if (!de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
-            showJournalError(I18n.get("terminal.journal.error.policy"));
-            return;
+    private void startJournals(List<SithTermFxWidget> start, List<SithTermFxWidget> stop, boolean all) {
+        if (all) {
+            start = terminalView.getOrderedWidgets().stream()
+                .filter(pane -> terminalView.getSessionJournalSession(pane) == null)
+                .filter(terminalView::canStartPaneJournal).toList();
         }
-        if (!terminalView.isConnected()) {
+        if (start.stream().anyMatch(pane -> !terminalView.canStartPaneJournal(pane))) {
             showJournalError(I18n.get("terminal.journal.error.notConnected"));
             return;
         }
-        if (!terminalView.sessionJournalWouldUseAi()) {
-            enableJournalNow(false);
-            return;
+        if (terminalView.tabJournal() == null && !start.isEmpty()
+                && terminalView.sessionJournalWouldUseAi(start.getFirst())) {
+            checkAiThenStartJournals(start, stop, all);
+        } else {
+            applyJournalSelection(start, stop, all, false);
         }
-        checkAiThenStartJournal();
     }
 
-    /**
-     * A journal whose summaries can never be written is pointless: test the AI first and only
-     * then start. The scrollback is imported when the journal starts, so output printed during
-     * the test is not lost.
-     */
-    private void checkAiThenStartJournal() {
-        if (journalAiCheckRunning) {
-            return;
-        }
+    private void checkAiThenStartJournals(List<SithTermFxWidget> start, List<SithTermFxWidget> stop, boolean all) {
         journalAiCheckRunning = true;
+        journalToggleButton.setDisable(true);
         journalStatusLabel.setText(I18n.get("terminal.journal.ai.checking"));
         de.kortty.core.SessionJournalAiPreflight.checkAsync(de.kortty.core.SessionJournalAiSupport.applicationInvoker())
             .thenAccept(result -> Platform.runLater(() -> {
                 journalAiCheckRunning = false;
                 if (result.ok()) {
-                    enableJournalNow(false);
+                    applyJournalSelection(start, stop, all, false);
                 } else {
-                    askAfterFailedJournalAiCheck(result);
+                    askAfterFailedJournalAiCheck(result, start, stop, all);
                 }
             }));
     }
 
-    private void askAfterFailedJournalAiCheck(de.kortty.core.SessionJournalAiPreflight.Result result) {
+    private void askAfterFailedJournalAiCheck(de.kortty.core.SessionJournalAiPreflight.Result result,
+            List<SithTermFxWidget> start, List<SithTermFxWidget> stop, boolean all) {
         ButtonType retry = new ButtonType(I18n.get("terminal.journal.ai.retry"), ButtonBar.ButtonData.OK_DONE);
         ButtonType withoutAi = new ButtonType(I18n.get("terminal.journal.ai.withoutAi"), ButtonBar.ButtonData.OTHER);
         ButtonType cancel = new ButtonType(I18n.get("terminal.journal.ai.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         Alert alert = new Alert(Alert.AlertType.WARNING, "", retry, withoutAi, cancel);
-        DialogThemeHelper.applyTheme(alert);
         alert.setTitle(I18n.get("terminal.journal.ai.dialogTitle"));
         alert.setHeaderText(I18n.get("terminal.journal.ai.dialogHeader"));
         alert.setContentText(I18n.get("terminal.journal.ai.dialogText", failureText(result)));
-        alert.getDialogPane().setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        DialogGeometrySupport.installAutomatic(alert, "terminal.journalAiPreflight");
         ButtonType choice = alert.showAndWait().orElse(cancel);
         if (choice == retry) {
-            checkAiThenStartJournal();
+            checkAiThenStartJournals(start, stop, all);
         } else if (choice == withoutAi) {
-            enableJournalNow(true);
+            applyJournalSelection(start, stop, all, true);
         } else {
             refreshJournalUi();
         }
     }
 
-    private void enableJournalNow(boolean withoutAi) {
-        if (!terminalView.isConnected()) {
-            showJournalError(I18n.get("terminal.journal.error.notConnected"));
-        } else if (!terminalView.enableSessionJournalRetroactively()) {
-            showJournalError(I18n.get("terminal.journal.error.start", ""));
-        } else if (withoutAi) {
-            terminalView.disableSessionJournalAi();
+    private void applyJournalSelection(List<SithTermFxWidget> start, List<SithTermFxWidget> stop,
+            boolean all, boolean withoutAi) {
+        int failed = 0;
+        for (SithTermFxWidget pane : start) {
+            if (!terminalView.enablePaneJournal(pane, withoutAi)) {
+                failed++;
+            }
         }
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalEnforced()) {
+            stop.forEach(terminalView::stopPaneJournal);
+        }
+        terminalView.setJournalAllPanes(all && terminalView.hasPaneJournal());
         refreshJournalUi();
-        if (withoutAi && isJournalActive()) {
-            journalStatusLabel.setText(I18n.get("terminal.journal.ai.recordingWithoutAi"));
+        if (failed > 0) {
+            showJournalError(I18n.get("terminal.journal.scope.failed", failed));
+        } else if (withoutAi && isJournalActive()) {
+            flashJournalStatus(I18n.get("terminal.journal.ai.recordingWithoutAi"));
         }
     }
 
-    private void stopJournal() {
-        // Closing flushes the writer and may run a final AI pass; keep it off the FX thread.
-        Thread stopper = new Thread(() -> {
-            terminalView.stopSessionJournal();
-            Platform.runLater(this::refreshJournalUi);
-        }, "SessionJournal-Stop");
-        stopper.setDaemon(true);
-        stopper.start();
-        journalStatusLabel.setText(I18n.get("terminal.journal.stoppedAt",
-            DateTimeFormatter.ofPattern("HH:mm").format(Instant.now().atZone(ZoneId.systemDefault()))));
-    }
-
-    /** Screenshot of the given split widget (context menu) or the whole terminal (bar/menu). */
-    public void takeJournalScreenshot(com.sithtermfx.ui.SithTermFxWidget widgetOrNull) {
-        if (!isJournalActive()) {
+    public void takeJournalScreenshot(SithTermFxWidget widgetOrNull) {
+        SithTermFxWidget widget = widgetOrNull != null ? widgetOrNull : terminalView.getFocusedWidget();
+        var session = terminalView.getSessionJournalSession(widget);
+        String source = terminalView.journalSource(widget);
+        if (session == null) {
             showJournalError(I18n.get("terminal.journal.error.notActive"));
             return;
         }
         try {
-            byte[] png = terminalView.captureJournalScreenshotPng(widgetOrNull);
-            de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
+            byte[] png = terminalView.captureJournalScreenshotPng(widget);
             Thread saver = new Thread(() -> {
                 try {
-                    de.kortty.model.SessionJournalEntry entry = session.attachScreenshot(png, null);
+                    de.kortty.model.SessionJournalEntry entry = session.attachScreenshot(png, source, source);
                     de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
                     if (app != null && app.getSessionJournalScreenshotAnalyzer() != null) {
                         // Fire-and-forget: the analyzer applies its own gates and never blocks the save.
@@ -964,7 +1035,13 @@ public class TerminalTab extends Tab {
 
     /** Quick note with a pre-filled suggestion (e.g. a timestamp reference from the live panel). */
     public void addJournalNote(String prefillText) {
-        if (!isJournalActive()) {
+        addJournalNote(terminalView.getFocusedWidget(), prefillText);
+    }
+
+    void addJournalNote(SithTermFxWidget widget, String prefillText) {
+        var session = terminalView.getSessionJournalSession(widget);
+        String source = terminalView.journalSource(widget);
+        if (session == null) {
             showJournalError(I18n.get("terminal.journal.error.notActive"));
             return;
         }
@@ -987,15 +1064,14 @@ public class TerminalTab extends Tab {
             return;
         }
         final String text = noteText;
-        de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
-        if (session == null) {
+        if (!session.isActive()) {
             return;
         }
         Thread saver = new Thread(() -> {
             try {
                 de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
                 entry.setKind(de.kortty.model.SessionJournalEntryKind.USER_NOTE);
-                entry.setText(text.strip());
+                entry.setText(session.redact(text.strip()));
                 long seq = session.getLastSequence();
                 if (seq > 0) {
                     entry.setLogStartSeq(seq);
@@ -1004,7 +1080,7 @@ public class TerminalTab extends Tab {
                 KorTTYApplication.getInstance().getSessionJournalService()
                     .appendEntry(session.getDirectory(), entry);
                 // Timeline twin in the capture log so the live panel streams the note too.
-                session.appendUserNote(text);
+                session.appendUserNote(text, source);
                 Platform.runLater(() -> flashJournalStatus(I18n.get("terminal.journal.noteAdded")));
             } catch (Exception e) {
                 showJournalError(I18n.get("terminal.journal.error.note", e.getMessage()));
@@ -1032,23 +1108,26 @@ public class TerminalTab extends Tab {
             }
         }
         boolean active = isJournalActive();
-        if (!active) {
+        if (!terminalView.hasPrimaryJournal()) {
             hideJournalAiBar();
         }
         refreshJournalControlsVisibility();
-        journalToggleButton.setText(I18n.get(active ? "terminal.journal.stop" : "terminal.journal.start"));
-        setJournalButtonIcon(active);
+        boolean split = terminalView.getOrderedWidgets().size() > 1;
+        journalToggleButton.setText(I18n.get(journalActionKey()));
+        setJournalButtonIcon(active && !split);
         // Starting is never blocked by "enforced" (an enforced journal already auto-starts); only
         // stopping an already-active one is. toggleJournalFromUser() already refuses the action —
         // this greys the button out and explains why, instead of a click quietly doing nothing.
-        boolean stopLocked = active && de.kortty.policy.PolicyManager.effective().sessionJournalEnforced();
-        journalToggleButton.setDisable(stopLocked);
+        boolean stopLocked = !split && active && de.kortty.policy.PolicyManager.effective().sessionJournalEnforced();
+        journalToggleButton.setDisable(stopLocked || journalAiCheckRunning);
         journalToggleButton.setTooltip(stopLocked
             ? new Tooltip(I18n.get("terminal.journal.error.enforced"))
             : null);
         applyNodeVisibility(journalScreenshotButton, active, active);
         applyNodeVisibility(journalNoteButton, active, active);
-        if (active) {
+        if (journalAiCheckRunning) {
+            journalStatusLabel.setText(I18n.get("terminal.journal.ai.checking"));
+        } else if (active) {
             de.kortty.core.SessionJournalSession session = terminalView.getSessionJournalSession();
             String since = session != null && session.getMetaSnapshot().getStartedAt() != null
                 ? session.getMetaSnapshot().getStartedAt()
@@ -1507,7 +1586,7 @@ public class TerminalTab extends Tab {
                         && reason.toLowerCase().contains("remote logout");
                 TerminalDisconnectSupport.Reaction reaction = TerminalDisconnectSupport.reactionFor(
                     wasError, reconnectInProgress, isMoshSession, isRemoteLogout,
-                    splitHasOtherPanes, isJournalActive());
+                    splitHasOtherPanes, terminalView.hasPrimaryJournal());
                 switch (reaction) {
                     case IGNORE_RECONNECT_IN_PROGRESS -> reconnectInProgress = false;
                     case PANE_CLOSED_ONLY -> {
