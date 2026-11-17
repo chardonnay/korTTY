@@ -4,6 +4,10 @@ What changed in the current release. The version this guide was built for is sho
 
 ## v2.26.0
 
+### SFTP
+
+- Cancelling a transfer while its channel opens reliably marks it **Cancelled**. Uploads also apply the configured partial-file retention when cancellation interrupts metadata checks.
+
 ### Terminal
 
 - **Connection duration** — the terminal status bar shows hours and minutes, with a day count starting at 24 hours.

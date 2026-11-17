@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -294,6 +295,40 @@ class SftpTransferQueueIntegrationTest {
     }
 
     @Test
+    void closingWhileAChannelOpensCancelsTheItemWithoutReportingConnectionLoss() throws Exception {
+        fixture = SftpLoopbackFixture.builder(tmp).start();
+        CountDownLatch opening = new CountDownLatch(1);
+        CountDownLatch finishOpening = new CountDownLatch(1);
+        FixtureSource source = new FixtureSource(fixture, true) {
+            @Override
+            public SftpClient openChannel() throws IOException {
+                opening.countDown();
+                try {
+                    if (!finishOpening.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        throw new IOException("Timed out waiting for queue close");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException(e);
+                }
+                return super.openChannel();
+            }
+        };
+        SftpTransferQueue queue = queue(source, TransferSettings.defaults().withParallelTransfers(1),
+            ConflictResolver.always(ConflictAction.OVERWRITE));
+        TransferBatch batch = queue.enqueueUpload(localFiles("opening", 1, 1024), "/");
+        try {
+            assertThat(opening.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+            queue.close();
+        } finally {
+            finishOpening.countDown();
+        }
+        assertThat(queue.awaitWorkers(TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS))).isTrue();
+        assertWithMessage(describe(batch)).that(batch.items().get(0).state()).isEqualTo(TransferState.CANCELLED);
+        assertThat(batch.items().get(0).isConnectionLost()).isFalse();
+    }
+
+    @Test
     void closingWaitsForCancelledUploadsToRemoveTheirPartsBeforeTheSessionGoes() throws Exception {
         fixture = SftpLoopbackFixture.builder(tmp).requestDelayMillis(2).start();
         FixtureSource source = new FixtureSource(fixture, true);
@@ -556,7 +591,7 @@ class SftpTransferQueueIntegrationTest {
     }
 
     /** A source over one loopback session; can refuse extra channels and lose its session. */
-    static final class FixtureSource implements SftpChannelSource {
+    static class FixtureSource implements SftpChannelSource {
         final ClientSession session;
         final SftpClient primary;
         final boolean owns;

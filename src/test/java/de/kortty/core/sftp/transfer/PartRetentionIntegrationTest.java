@@ -8,6 +8,8 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -104,6 +106,30 @@ class PartRetentionIntegrationTest {
             downloadContext(target), PartRetention.KEEP, null, TransferCancellation.create());
         assertThat(outcome.resumedFrom()).isGreaterThan(0L);
         assertThat(Files.readAllBytes(target)).isEqualTo(data);
+        assertThat(index.size()).isEqualTo(0);
+    }
+
+    @Test
+    void cancellingDuringTheInitialPartStatStillRemovesTheUploadPart() throws IOException {
+        Path local = Files.write(tmp.resolve("local.bin"), data);
+        TransferCancellation cancel = TransferCancellation.create();
+        SftpClient interrupted = (SftpClient) Proxy.newProxyInstance(SftpClient.class.getClassLoader(),
+            new Class<?>[] {SftpClient.class}, (proxy, method, args) -> {
+                if ("stat".equals(method.getName()) && args[0] instanceof SftpClient.Handle) {
+                    cancel.cancel();
+                    throw new IOException("Channel closed during part stat");
+                }
+                try {
+                    return method.invoke(client, args);
+                } catch (InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            });
+
+        expectThrows(TransferCancelledException.class, () -> PartTransfers.upload(interrupted, client, local, "/up.bin",
+            uploadContext(local), PartRetention.KEEP_ON_FAILURE, null, cancel));
+
+        assertThat(Files.exists(fixture.root().resolve("up.bin" + PartFiles.PART_SUFFIX))).isFalse();
         assertThat(index.size()).isEqualTo(0);
     }
 

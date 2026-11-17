@@ -190,32 +190,25 @@ public final class PartTransfers {
                 resume.forget();
             }
             return new Outcome(bytes, method, resumeFrom);
-        } catch (TransferCancelledException cancelled) {
+        } catch (IOException | RuntimeException failure) {
             if (handleOpen) {
                 closeQuietly(handle);
             }
-            if (partPresent && retention.keepOnCancel() && resume != null) {
-                recordRemotePart(resume, cleanup, part);
-            } else {
+            // Cancelling can close the channel during metadata or finalization as well as copying.
+            boolean cancelled = failure instanceof TransferCancelledException || cancel.isCancelled();
+            boolean keep = cancelled ? retention.keepOnCancel() && resume != null : retention.keepOnFailure();
+            if (!keep) {
                 if (partPresent) {
                     removeRemoteQuietly(cleanup, part);
                 }
                 if (resume != null) {
                     resume.forget();
                 }
-            }
-            throw cancelled;
-        } catch (IOException | RuntimeException failure) {
-            if (handleOpen) {
-                closeQuietly(handle);
-            }
-            if (partPresent && !retention.keepOnFailure()) {
-                removeRemoteQuietly(cleanup, part);
-                if (resume != null) {
-                    resume.forget();
-                }
             } else if (resume != null && partPresent) {
                 recordRemotePart(resume, cleanup, part);
+            }
+            if (cancelled && !(failure instanceof TransferCancelledException)) {
+                throw new TransferCancelledException(failure);
             }
             throw failure;
         }
