@@ -24,9 +24,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Tab;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -84,6 +86,7 @@ public class TerminalTab extends Tab {
     private Button journalNoteButton;
     private Label journalStatusLabel;
     private boolean journalControlsRevealedByUser;
+    private boolean journalBarHiddenByUser;
     private boolean previousJournalBarVisible;
     private boolean previousJournalBarManaged;
     private javafx.animation.PauseTransition journalStatusResetDelay;
@@ -795,6 +798,18 @@ public class TerminalTab extends Tab {
         journalBar = new HBox(8, journalToggleButton, journalScreenshotButton, journalNoteButton, journalStatusLabel);
         journalBar.setStyle("-fx-background-color: #242424; -fx-padding: 4 8 4 8;");
         journalBar.setMaxWidth(Double.MAX_VALUE); // full-width opaque bar (see createStatusBar note)
+        MenuItem hideJournalBar = new MenuItem(I18n.get("terminal.journal.hideBar"));
+        hideJournalBar.setOnAction(event -> {
+            journalBarHiddenByUser = true;
+            refreshJournalControlsVisibility();
+        });
+        ContextMenu journalBarMenu = new ContextMenu(hideJournalBar);
+        journalBar.setOnContextMenuRequested(event -> {
+            if (!isJournalActive()) {
+                journalBarMenu.show(journalBar, event.getScreenX(), event.getScreenY());
+                event.consume();
+            }
+        });
         refreshJournalUi();
     }
 
@@ -815,6 +830,9 @@ public class TerminalTab extends Tab {
     }
 
     public void toggleJournalFromMenuOrShortcut() {
+        if (!isJournalActive()) {
+            journalBarHiddenByUser = false;
+        }
         journalControlsRevealedByUser = true;
         refreshJournalControlsVisibility();
         toggleJournalFromUser();
@@ -824,9 +842,8 @@ public class TerminalTab extends Tab {
         if (journalBar == null) {
             return;
         }
-        boolean visible = isJournalConfigEnabled()
-            || journalControlsRevealedByUser
-            || isJournalActive();
+        boolean visible = isJournalActive()
+            || (!journalBarHiddenByUser && (isJournalConfigEnabled() || journalControlsRevealedByUser));
         if (!terminalChromeVisible) {
             previousJournalBarVisible = visible;
             previousJournalBarManaged = visible;
