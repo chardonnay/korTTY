@@ -390,6 +390,9 @@ public final class SessionJournalExportService {
                 md.append("  `[").append(SessionJournalMarkers.displayName(marker)).append("]`");
             }
             md.append("\n\n");
+            if (entry.getTerminalSource() != null) {
+                md.append(entry.getTerminalSource()).append("\n\n");
+            }
             String agentMeta = agentMetaLine(entry);
             if (!agentMeta.isEmpty()) {
                 md.append(agentMeta).append("\n\n");
@@ -945,6 +948,11 @@ public final class SessionJournalExportService {
                 cursor.y() - 12f, fit(title, fonts.sansBold(), 11.5f, bodyWidth - badgeOffset));
         }
         cursor = cursor.withY(cursor.y() - 18f);
+
+        if (entry.getTerminalSource() != null) {
+            cursor = drawParagraph(pdf, cursor, fonts.sans(), 8.8f, new Color(0x5e, 0x6e, 0x82),
+                entry.getTerminalSource(), 2f, bodyX, bodyWidth);
+        }
 
         String agentMeta = agentMetaLine(entry);
         if (!agentMeta.isEmpty()) {

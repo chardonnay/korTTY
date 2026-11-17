@@ -34,7 +34,7 @@ public final class SessionJournalLogReader {
     private static final Logger logger = LoggerFactory.getLogger(SessionJournalLogReader.class);
     private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
     private static final int MAX_XML_REPAIR_ATTEMPTS = 8;
-    private static final int MAX_PART_PROBE = 1000;
+    static final int MAX_PART_PROBE = 1000;
 
     public static final String BASE_FILE_NAME = "session-log";
 
