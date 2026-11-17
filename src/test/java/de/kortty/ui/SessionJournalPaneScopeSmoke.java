@@ -108,6 +108,24 @@ public final class SessionJournalPaneScopeSmoke {
                 "selected terminals have different journals");
             check(fx(() -> tab.getTerminalView().getSessionJournalSession(panes.get(1))) == null,
                 "excluded terminal is recording");
+            fx(() -> {
+                tab.getTerminalView().focusWidget(panes.get(1));
+                return null;
+            });
+            await(() -> fx(() -> tab.getTerminalView().getFocusedWidget() == panes.get(1)));
+            fx(() -> {
+                var hidden = TerminalTab.class.getDeclaredField("journalBarHiddenByUser");
+                hidden.setAccessible(true);
+                hidden.setBoolean(tab, true);
+                tab.refreshJournalControlsVisibility();
+                var bar = TerminalTab.class.getDeclaredField("journalBar");
+                bar.setAccessible(true);
+                check(((javafx.scene.Node) bar.get(tab)).isVisible(),
+                    "focusing an excluded terminal hid the running journal bar");
+                hidden.setBoolean(tab, false);
+                tab.getTerminalView().focusWidget(panes.getFirst());
+                return null;
+            });
             Thread.sleep(500);
             for (int i = 0; i < panes.size(); i++) {
                 int index = i;

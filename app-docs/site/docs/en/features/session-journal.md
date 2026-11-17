@@ -59,6 +59,8 @@ The bar below the terminal shows the focused terminal’s recording state and of
 - **Screenshot** (++ctrl+alt+c++, also **Tools > Add Journal Screenshot** and the terminal's right-click menu) captures the focused terminal and files it into the journal timeline. From the terminal’s right-click menu it captures the pane under the cursor.
 - **Note** opens the [note editor](#writing-notes) for a free-text remark that appears as its own timeline entry at the current position.
 
+After stopping a journal, right-click **Start journal** or the bar and choose **Hide journal bar** to hide it in that tab. Start a journal from the tab context menu or with ++ctrl+alt+t++ to bring the bar back.
+
 ### Writing notes
 
 Notes are written in the same editor everywhere they are edited — the journal bar's **Note** button, the live panel's, the entry form in the [viewer](#the-viewer-and-editing), and the [screenshot editor](#screenshot-notes-and-annotations):

@@ -59,6 +59,8 @@ Die Leiste unter dem Terminal zeigt den Aufzeichnungsstatus des fokussierten Ter
 - **Screenshot** (++ctrl+alt+c++, auch **Werkzeuge > Journal-Screenshot hinzufügen** und das Kontextmenü des Terminals) erfasst das fokussierte Terminal und fügt das Bild der Zeitleiste des Journals hinzu. Beim Aufruf über das Kontextmenü des Terminals wird der Bereich unter dem Mauszeiger erfasst.
 - **Notiz** öffnet den [Notiz-Editor](#notizen-schreiben) für einen freitextlichen Kommentar, der als eigener Zeitstrahl-Eintrag an der aktuellen Position erscheint.
 
+Klicken Sie nach dem Beenden eines Journals mit der rechten Maustaste auf **Journal starten** oder auf die Leiste und wählen Sie **Journalleiste ausblenden**. Die Leiste wird in diesem Tab ausgeblendet. Sobald Sie über das Tab-Kontextmenü oder mit ++ctrl+alt+t++ ein Journal starten, erscheint die Leiste wieder.
+
 ### Notizen schreiben
 
 Notizen werden überall im selben Editor geschrieben, wenn sie bearbeitet werden – der **Notiz**-Knopf in der Journalleiste, im Live-Paneel, das Eintragformular im [Viewer](#der-viewer-und-die-bearbeitung) und der [Screenshot-Editor](#screenshot-notizen-und-anmerkungen):
