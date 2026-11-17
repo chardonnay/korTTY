@@ -23,7 +23,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.testng.Assert.expectThrows;
@@ -41,10 +42,12 @@ class TerminalSftpLeaseIntegrationTest {
     private SshServer server;
     private SshClient client;
     private ClientSession session;
-    private final AtomicInteger openServerChannels = new AtomicInteger();
+    private Set<Channel> openServerChannels;
 
     @BeforeMethod
     void setUp() throws IOException {
+        Set<Channel> channels = ConcurrentHashMap.newKeySet();
+        openServerChannels = channels;
         tempDir = Files.createTempDirectory("kortty-sftp-lease-test");
         Path remoteRoot = Files.createDirectory(tempDir.resolve("remote"));
         server = SshServer.setUpDefaultServer();
@@ -54,15 +57,16 @@ class TerminalSftpLeaseIntegrationTest {
         server.setPasswordAuthenticator((user, password, serverSession) -> true);
         server.setFileSystemFactory(new VirtualFileSystemFactory(remoteRoot));
         server.setSubsystemFactories(Collections.singletonList(new SftpSubsystemFactory.Builder().build()));
+        // Capture this server's set so late close callbacks cannot affect the next test.
         server.addChannelListener(new ChannelListener() {
             @Override
-            public void channelOpenSuccess(Channel channel) {
-                openServerChannels.incrementAndGet();
+            public void channelInitialized(Channel channel) {
+                channels.add(channel);
             }
 
             @Override
             public void channelClosed(Channel channel, Throwable reason) {
-                openServerChannels.decrementAndGet();
+                channels.remove(channel);
             }
         });
         server.start();
@@ -146,9 +150,9 @@ class TerminalSftpLeaseIntegrationTest {
 
     private void awaitOpenServerChannels(int expected) throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
-        while (openServerChannels.get() != expected && System.nanoTime() < deadline) {
+        while (openServerChannels.size() != expected && System.nanoTime() < deadline) {
             Thread.sleep(20);
         }
-        assertThat(openServerChannels.get()).isEqualTo(expected);
+        assertThat(openServerChannels).hasSize(expected);
     }
 }

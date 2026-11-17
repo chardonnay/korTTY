@@ -599,11 +599,11 @@ public final class SftpTransferQueue implements AutoCloseable {
             }
         }
 
-        /** No channel for {@code item}: the connection is gone, or the pool shrank below the workers. */
+        /** No channel for {@code item}: cancelled, disconnected, or fewer channels than workers. */
         private boolean noLease(TransferItem item) {
             boolean requeue;
             synchronized (lock) {
-                requeue = source.isOpen() && workers.size() > 1 && !closed;
+                requeue = !item.cancellation().isCancelled() && source.isOpen() && workers.size() > 1 && !closed;
                 if (requeue) {
                     item.setState(TransferState.QUEUED);
                     pending.addFirst(item);
@@ -1195,26 +1195,35 @@ public final class SftpTransferQueue implements AutoCloseable {
      * {@code item} and everything still waiting fail as "connection lost"; all can be retried.
      * When {@code lostSource} is an earlier connection and the queue already moved on to a live one
      * ({@link #useSource}), only {@code item} fails: the waiting items belong to the new connection.
+     * A cancelled item keeps its cancellation state and leaves the waiting items for their workers.
      */
     private void connectionLost(TransferItem item, SftpChannelSource lostSource) {
         String reason = I18n.get("sftp.queue.error.connectionLost");
-        List<TransferItem> failed = new ArrayList<>();
+        List<TransferItem> stopped = new ArrayList<>();
+        boolean cancelled;
         synchronized (lock) {
+            cancelled = item.cancellation().isCancelled();
             if (!item.state().isTerminal()) {
-                item.fail(reason, true);
-                failed.add(item);
+                if (cancelled) {
+                    item.finish(TransferState.CANCELLED, null);
+                } else {
+                    item.fail(reason, true);
+                }
+                stopped.add(item);
             }
             boolean movedOn = lostSource != null && source != lostSource && source.isOpen();
-            if (!movedOn) {
+            if (!cancelled && !movedOn) {
                 for (TransferItem other : pending) {
                     other.fail(reason, true);
-                    failed.add(other);
+                    stopped.add(other);
                 }
                 pending.clear();
             }
         }
-        logger.info("SFTP connection lost; {} transfer(s) marked failed", failed.size());
-        announceStopped(failed);
+        if (!cancelled) {
+            logger.info("SFTP connection lost; {} transfer(s) marked failed", stopped.size());
+        }
+        announceStopped(stopped);
     }
 
     private void afterTerminal(TransferItem item) {

@@ -4,6 +4,10 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ## v2.26.0
 
+### SFTP
+
+- Wird eine Übertragung beim Öffnen ihres Kanals abgebrochen, erhält sie zuverlässig den Status **Abgebrochen**. Uploads berücksichtigen die konfigurierte Aufbewahrung von Teildateien auch dann, wenn der Abbruch die Metadatenprüfung unterbricht.
+
 ### Terminal
 
 - **Verbindungsdauer** — Die Terminal-Statusleiste zeigt Stunden und Minuten an. Ab 24 Stunden kommt die Anzahl der Tage hinzu.
