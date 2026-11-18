@@ -1166,7 +1166,7 @@
 <tr>
 <td>Model</td>
 <td>dropdown/text</td>
-<td>(editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints)</td>
+<td>Editable. Use <strong>Refresh available models</strong> beside the field to load the provider's list. Built-in suggestions are available for known providers before loading. <strong>Auto</strong> is available for local LM Studio endpoints.</td>
 <td>—</td>
 <td>(profile <code>model</code> field)</td>
 </tr>
@@ -1428,6 +1428,39 @@
 </ul>
 <p>An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the <strong>Default profile</strong>. Configure those roles and the local runtime under <strong>AI &gt; AI Manager &gt; Local AI</strong>; see <a href="../../features/local-models.html">Local models with llama.cpp</a>. Terminal agent runs follow their own order, which includes the AI agent profile; see <a href="#local-ai-manager-settings">Local AI manager settings</a>.</p>
 <p>The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.</p>
+<h4 id="model-list-endpoints">Model list endpoints<a class="headerlink" href="#model-list-endpoints" title="Permanent link">&para;</a></h4>
+<p><strong>Load models</strong> in the setup wizard and <strong>Refresh available models</strong> in the AI Manager fetch model IDs from the selected API. An OpenAI-compatible chat URL uses the sibling <code>/models</code> endpoint, including any provider or proxy path prefix. The request uses the profile's API key, including a replacement entered in the editor. Some providers include models for other tasks in their catalog, so pick a model that supports chat.</p>
+<p>For a local server such as Ollama exposing <code>/v1/models</code>, select a specific model in the wizard and click <strong>Load models</strong>. LM Studio reports the models already loaded.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Model list URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anthropic (Claude)</td>
+<td><code>https://api.anthropic.com/v1/models</code></td>
+</tr>
+<tr>
+<td>Google Gemini</td>
+<td><code>https://generativelanguage.googleapis.com/v1beta/openai/models</code></td>
+</tr>
+<tr>
+<td>Groq</td>
+<td><code>https://api.groq.com/openai/v1/models</code></td>
+</tr>
+<tr>
+<td>OpenRouter</td>
+<td><code>https://openrouter.ai/api/v1/models</code></td>
+</tr>
+<tr>
+<td>MiniMax</td>
+<td><code>https://api.minimax.io/v1/models</code></td>
+</tr>
+</tbody>
+</table>
 <h3 id="local-ai-manager-settings">Local AI manager settings<a class="headerlink" href="#local-ai-manager-settings" title="Permanent link">&para;</a></h3>
 <p><strong>AI &gt; AI Manager &gt; Local AI</strong> groups these settings on three section tabs: <strong>Profile roles</strong> (the four profile selectors), <strong>Local runtime</strong> (runtime updates, preferred backend, RAG embedding model ID) and <strong>Hugging Face</strong> (the token). <strong>Save</strong> under the sections writes all of them.</p>
 <table>

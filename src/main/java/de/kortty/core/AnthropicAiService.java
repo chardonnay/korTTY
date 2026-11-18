@@ -40,7 +40,7 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
 
     private static final Logger logger = LoggerFactory.getLogger(AnthropicAiService.class);
     private static final Gson GSON = new Gson();
-    private static final String ANTHROPIC_VERSION = "2023-06-01";
+    static final String ANTHROPIC_VERSION = "2023-06-01";
     /** Smallest thinking budget Anthropic accepts for extended thinking. */
     private static final int MIN_THINKING_BUDGET_TOKENS = 1024;
     /** Smallest share of {@code max_tokens} kept free for the answer when thinking is on. */

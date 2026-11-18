@@ -1166,7 +1166,7 @@
 <tr>
 <td>Modell</td>
 <td>Dropdown/Text</td>
-<td>(bearbeitbar; "Standard", vorgeschlagene Modelle von Cloud-Anbietern mit kurzen Vorschlägen plus live geladene Modelle; "Automatisch" nur für lokale LM Studio-Endpunkte)</td>
+<td>Bearbeitbar. Klicken Sie neben dem Feld auf <strong>Verfügbare Modelle aktualisieren</strong>, um die Anbieterliste zu laden. Bei bekannten Anbietern stehen vor dem Laden integrierte Vorschläge zur Verfügung. <strong>Automatisch</strong> ist für lokale LM-Studio-Endpunkte verfügbar.</td>
 <td>—</td>
 <td>(Profilfeld <code>model</code>)</td>
 </tr>
@@ -1428,6 +1428,39 @@
 </ul>
 <p>Ein explizit gewähltes oder für Sicherheitsprüfungen bestimmtes Profil hat die höchste Priorität. Andernfalls verwenden Terminal-Textaktionen das konfigurierte Text-Profil, Code-Aktionen das Coding-Profil, und eine nicht zugewiesene Rolle fällt auf das <strong>Standardprofil</strong> zurück. Konfigurieren Sie diese Rollen und die Lokale Laufzeit unter <strong>KI &gt; KI-Manager &gt; Lokale KI</strong>; siehe <a href="../../features/local-models.html">Lokale Modelle mit llama.cpp</a>. Ausführungen des Terminal-Agenten folgen ihrer eigenen Reihenfolge, die das Profil für den KI-Agenten umfasst; siehe <a href="#einstellungen-des-lokalen-ki-managers">Einstellungen des lokalen KI-Managers</a>.</p>
 <p>Der KI-Manager ist moduslos und kann während der Nutzung des Hauptfensters geöffnet bleiben. Ein erneutes Aufrufen des Managers führt dazu, dass der gleiche Manager für das Hauptfenster wiederhergestellt und gefokussiert wird, und der offene primäre Abschnitt bleibt bei Interaktion mit den Steuerelementen sichtbar mit einem fett unterstrichenen Akzent.</p>
+<h4 id="model-list-endpoints">Endpunkte für Modelllisten<a class="headerlink" href="#model-list-endpoints" title="Permanent link">&para;</a></h4>
+<p>Mit <strong>Modelle laden</strong> im Einrichtungsassistenten und <strong>Verfügbare Modelle aktualisieren</strong> im KI-Manager rufen Sie die Modell-IDs von der ausgewählten API ab. Bei einer OpenAI-kompatiblen Chat-URL verwendet korTTY den <code>/models</code>-Endpunkt im selben API-Pfad. Anbieter- oder Proxy-Präfixe bleiben dabei erhalten. Die Anfrage verwendet den API-Schlüssel des Profils oder den im Editor eingegebenen Ersatzschlüssel. Einige Anbieter führen auch Modelle für andere Aufgaben in ihrem Katalog. Wählen Sie ein Modell mit Chat-Unterstützung.</p>
+<p>Wenn ein lokaler Server wie Ollama <code>/v1/models</code> bereitstellt, wählen Sie im Assistenten die Option für ein bestimmtes Modell und klicken auf <strong>Modelle laden</strong>. LM Studio meldet die bereits geladenen Modelle.</p>
+<table>
+<thead>
+<tr>
+<th>Anbieter</th>
+<th>URL der Modellliste</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anthropic (Claude)</td>
+<td><code>https://api.anthropic.com/v1/models</code></td>
+</tr>
+<tr>
+<td>Google Gemini</td>
+<td><code>https://generativelanguage.googleapis.com/v1beta/openai/models</code></td>
+</tr>
+<tr>
+<td>Groq</td>
+<td><code>https://api.groq.com/openai/v1/models</code></td>
+</tr>
+<tr>
+<td>OpenRouter</td>
+<td><code>https://openrouter.ai/api/v1/models</code></td>
+</tr>
+<tr>
+<td>MiniMax</td>
+<td><code>https://api.minimax.io/v1/models</code></td>
+</tr>
+</tbody>
+</table>
 <h3 id="einstellungen-des-lokalen-ki-managers">Einstellungen des lokalen KI-Managers<a class="headerlink" href="#einstellungen-des-lokalen-ki-managers" title="Permanent link">&para;</a></h3>
 <p><strong>KI &gt; KI-Manager &gt; Lokale KI</strong> gruppiert diese Einstellungen in drei Tab-Abschnitten: <strong>Profil-Rollen</strong> (die vier Profil-Auswahlfelder), <strong>Lokale Laufzeit</strong> (Laufzeit-Updates, bevorzugtes Backend, RAG-Embedding-Modell-ID) und <strong>Hugging Face</strong> (der Token). Über <strong>Speichern</strong> unter den Abschnitten werden alle davon gespeichert.</p>
 <table>

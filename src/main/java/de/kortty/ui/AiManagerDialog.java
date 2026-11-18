@@ -126,6 +126,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<String> modelCombo;
     private final TextField cliCustomModelField;
     private final Button refreshModelsButton;
+    private Object modelListRequest;
     private final ComboBox<AiReasoningEffort> reasoningCombo;
     private final ComboBox<de.kortty.model.AiVisionMode> visionCombo;
     private final ComboBox<AiPromptPreset> promptPresetCombo;
@@ -548,6 +549,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 selectedProfile.setConnectionMode(newValue);
                 ensureCliDefaults(selectedProfile);
                 loadModelSelection(selectedProfile);
+                modelListRequest = null;
                 refreshReasoningOptions(reasoningCombo.getValue());
                 updateConnectionModeUi();
                 profileListView.refresh();
@@ -602,8 +604,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             if (hasReplacementKey) {
                 clearApiKeyCheck.setSelected(false);
             }
+            resetHttpModelList();
         });
-        clearApiKeyCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateApiKeyPromptText());
+        clearApiKeyCheck.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            updateApiKeyPromptText();
+            resetHttpModelList();
+        });
 
         globalRequestTimeoutSpinner.setEditable(true);
         globalRequestTimeoutSpinner.setPrefWidth(110);
@@ -614,7 +620,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         cliProviderCombo.setPrefWidth(260);
         modelCombo.setPrefWidth(260);
         refreshModelsButton.setMinWidth(36);
-        refreshModelsButton.setOnAction(e -> refreshLocalModels(true));
+        refreshModelsButton.setOnAction(e -> refreshModels(true));
         refreshReasoningButton.setMinWidth(36);
         refreshReasoningButton.setOnAction(e -> refreshReasoningFromConnection(refreshReasoningButton));
 
@@ -640,7 +646,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
         apiUrlField.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshReasoningOptions(reasoningCombo.getValue());
-            refreshLocalModels(false);
+            resetHttpModelList();
             // Typing or pasting an Anthropic Messages URL locks the internet mode at once.
             updateInternetAccessUi();
             updateTrustedLocalEndpointUi();
@@ -1448,10 +1454,21 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profile.setModel(editorText);
     }
 
-    private void refreshLocalModels(boolean showErrors) {
-        if (modelCombo == null || apiUrlField == null) {
+    private void resetHttpModelList() {
+        if (loadingProfile || selectedProfile == null || isCliModeSelected() || isEmbeddedModeSelected()) {
             return;
         }
+        modelListRequest = null;
+        preserveModelItems(List.of());
+        updateModelRefreshButton();
+    }
+
+    private void updateModelRefreshButton() {
+        refreshModelsButton.setDisable(modelListRequest != null || selectedProfile == null || isCliModeSelected()
+            || (!isEmbeddedModeSelected() && !LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText()))));
+    }
+
+    private void refreshModels(boolean showErrors) {
         if (isEmbeddedModeSelected()) {
             List<String> ids = localEmbeddedModelIds(selectedConnectionMode());
             String selected = trimToNull(modelEditorText());
@@ -1459,23 +1476,19 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             if (selected != null) {
                 modelCombo.getEditor().setText(selected);
             }
-            refreshModelsButton.setDisable(false);
-            return;
-        }
-        if (isCliModeSelected()) {
-            refreshModelsButton.setDisable(true);
             return;
         }
         String apiUrl = trimToNull(apiUrlField.getText());
-        refreshModelsButton.setDisable(!LocalLmModelResolver.canListModels(apiUrl));
-        if (!LocalLmModelResolver.canListModels(apiUrl)) {
-            preserveModelItems(List.of());
+        if (modelListRequest != null || selectedProfile == null || isCliModeSelected()
+            || !LocalLmModelResolver.canListModels(apiUrl)) {
             return;
         }
-        AiProfile profile = selectedProfile;
-        String profileId = profile != null ? profile.getId() : null;
-        String apiKey = profile != null ? getPlainApiKey(profile) : null;
-        refreshModelsButton.setDisable(true);
+        String enteredKey = trimToNull(apiKeyField.getText());
+        String apiKey = enteredKey != null || clearApiKeyCheck.isSelected()
+            ? enteredKey : getPlainApiKey(selectedProfile);
+        Object request = new Object();
+        modelListRequest = request;
+        updateModelRefreshButton();
         CompletableFuture
             .supplyAsync(() -> {
                 try {
@@ -1485,24 +1498,23 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 }
             })
             .whenComplete((models, throwable) -> Platform.runLater(() -> {
-                if (!java.util.Objects.equals(apiUrl, trimToNull(apiUrlField.getText()))) {
-                    refreshModelsButton.setDisable(!LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText())));
+                if (modelListRequest != request) {
                     return;
                 }
-                refreshModelsButton.setDisable(false);
-                if (selectedProfile != profile && (selectedProfile == null || !java.util.Objects.equals(selectedProfile.getId(), profileId))) {
-                    return;
-                }
+                modelListRequest = null;
+                updateModelRefreshButton();
                 if (throwable != null) {
-                    preserveModelItems(List.of());
                     if (showErrors) {
                         Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
-                        showSimpleAlert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed") + ": "
-                            + (cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName()));
+                        showSimpleAlert(Alert.AlertType.ERROR, I18n.get("ai.wizard.server.model.loadFailed",
+                            cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName()));
                     }
                     return;
                 }
-                preserveModelItems(models != null ? models : List.of());
+                preserveModelItems(models);
+                if (models.isEmpty() && showErrors) {
+                    showSimpleAlert(Alert.AlertType.INFORMATION, I18n.get("ai.model.list.empty"));
+                }
             }));
     }
 
@@ -1957,8 +1969,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         clearApiKeyCheck.setDisable(managedLocalMode || (apiKeyField.getText() != null && !apiKeyField.getText().isBlank()));
         updateInternetAccessUi();
         updateTrustedLocalEndpointUi();
-        refreshModelsButton.setDisable(cliMode
-            || (!embeddedMode && !LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText()))));
+        updateModelRefreshButton();
         refreshReasoningButton.setDisable(selectedProfile == null || profileTestRunning.get());
         cliProviderCombo.setDisable(!cliMode);
         cliExecutableField.setDisable(!cliMode);
@@ -2127,6 +2138,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
      * Disabled) before this method gets to apply the stored one.
      */
     private void loadSelectedProfile(AiProfile profile) {
+        modelListRequest = null;
         loadingProfile = true;
         try {
             applySelectedProfileToForm(profile);
@@ -2136,6 +2148,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         // A stored native Anthropic profile with an internet mode (from before the lock) shows
         // Disabled; the profile keeps that value when it is saved.
         updateInternetAccessUi();
+        if (profile != null && LocalLmModelResolver.isLoopbackHttpUrl(profile.getApiUrl())
+            && !isEmbeddedModeSelected() && !isCliModeSelected()) {
+            refreshModels(false);
+        }
     }
 
     private void applySelectedProfileToForm(AiProfile profile) {
@@ -2194,7 +2210,6 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         refreshReasoningOptions(profile.getReasoningEffort());
         visionCombo.setValue(profile.getVisionSupport());
         promptPresetCombo.setValue(profile.getPromptPreset());
-        refreshLocalModels(false);
         internetAccessModeCombo.setValue(profile.getInternetAccessMode());
         maxSelectionCharsSpinner.getValueFactory().setValue(
             profile.getMaxSelectionChars() != null && profile.getMaxSelectionChars() > 0

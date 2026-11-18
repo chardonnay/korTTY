@@ -215,14 +215,16 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private VBox cloudUrlBox;
     private PasswordField cloudKeyField;
     private ComboBox<String> cloudModelCombo;
-    private Label cloudKeyHelp;
     private Label cloudModelStatus;
+    private Button loadCloudModelsButton;
+    private Object cloudModelListRequest;
     private ToggleGroup reasoningToggle;
     private RadioButton reasoningOffRadio;
     private RadioButton reasoningOnRadio;
     private ComboBox<String> reasoningLevelCombo;
 
     // Local server controls
+    private Object serverModelListRequest;
     private TextField serverUrlField;
     private PasswordField serverKeyField;
     private ToggleGroup serverModelToggle;
@@ -563,8 +565,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             case CLOUD_KEY -> trimToNull(text(cloudKeyField)) != null && trimToNull(resolveCloudModel()) != null;
             case SERVER_URL -> trimToNull(text(serverUrlField)) != null;
             case SERVER_MODEL -> serverAutoRadio.isSelected()
-                || trimToNull(serverModelCombo.getValue()) != null
-                || trimToNull(serverModelCombo.getEditor().getText()) != null;
+                || resolveServerModel() != null;
             case CLI_PROVIDER -> cliProviderCombo.getValue() != null;
             case CLI_CHECK -> {
                 if (isLmStudioSelected()) {
@@ -584,10 +585,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                     startScan();
                 }
             }
-            case CLOUD_KEY -> {
-                applyProviderHelp(cloudProvider());
-                refreshReasoningLevels();
-            }
+            case CLOUD_KEY -> refreshReasoningLevels();
             case SERVER_MODEL -> refreshReasoningLevels();
             case CLI_CHECK -> {
                 refreshCliStatus();
@@ -1191,7 +1189,10 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
         cloudUrlField = new TextField();
         cloudUrlField.setPromptText(I18n.get("ai.wizard.cloud.url.prompt"));
-        cloudUrlField.textProperty().addListener((o, a, b) -> updateButtons());
+        cloudUrlField.textProperty().addListener((o, a, b) -> {
+            resetCloudModelList();
+            updateButtons();
+        });
         cloudUrlBox = new VBox(4, new Label(I18n.get("ai.wizard.cloud.url.label")), cloudUrlField);
 
         Runnable syncUrlVisibility = () -> {
@@ -1208,6 +1209,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                 return;
             }
             selectedCloudProvider = (CloudProvider) newToggle.getUserData();
+            resetCloudModelList();
             detectedName = null;
             syncUrlVisibility.run();
         });
@@ -1255,9 +1257,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private Node buildCloudKey() {
-        CloudProvider provider = cloudProvider();
-
-        cloudKeyHelp = new Label();
+        Label cloudKeyHelp = new Label(I18n.get("ai.wizard.cloud.key.help"));
         cloudKeyHelp.setWrapText(true);
         cloudKeyHelp.getStyleClass().add("ai-wizard-card-desc");
         Hyperlink keyLink = new Hyperlink(I18n.get("ai.wizard.cloud.key.getLink"));
@@ -1267,7 +1267,10 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
         cloudKeyField = new PasswordField();
         cloudKeyField.setPromptText(I18n.get("ai.wizard.cloud.key.prompt"));
-        cloudKeyField.textProperty().addListener((o, a, b) -> updateButtons());
+        cloudKeyField.textProperty().addListener((o, a, b) -> {
+            resetCloudModelList();
+            updateButtons();
+        });
 
         cloudModelCombo = new ComboBox<>();
         cloudModelCombo.setEditable(true);
@@ -1282,9 +1285,9 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             refreshReasoningLevels();
             updateButtons();
         });
-        Button loadModelsButton = new Button(I18n.get("ai.wizard.server.model.load"));
-        loadModelsButton.setOnAction(e -> loadCloudModels());
-        HBox modelRow = new HBox(8, cloudModelCombo, loadModelsButton);
+        loadCloudModelsButton = new Button(I18n.get("ai.wizard.server.model.load"));
+        loadCloudModelsButton.setOnAction(e -> loadCloudModels());
+        HBox modelRow = new HBox(8, cloudModelCombo, loadCloudModelsButton);
         HBox.setHgrow(cloudModelCombo, Priority.ALWAYS);
 
         cloudModelStatus = new Label();
@@ -1292,7 +1295,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         cloudModelStatus.getStyleClass().add("ai-wizard-card-desc");
 
         TitledPane advanced = advancedReasoningPane();
-        applyProviderHelp(provider);
+        resetCloudModelList();
 
         return new VBox(12,
             keyHelpRow,
@@ -1338,16 +1341,14 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         return box;
     }
 
-    private void applyProviderHelp(CloudProvider provider) {
-        if (cloudKeyHelp == null) {
+    private void resetCloudModelList() {
+        if (cloudModelStatus == null) {
             return;
         }
+        cloudModelListRequest = null;
+        loadCloudModelsButton.setDisable(false);
         String examples = AiCloudModelCatalog.examplesForUrl(resolveCloudUrl());
-        if (examples.isEmpty()) {
-            examples = "gpt-4o-mini";
-        }
-        cloudKeyHelp.setText(I18n.get("ai.wizard.cloud.key.help"));
-        cloudModelStatus.setText(I18n.get("ai.wizard.cloud.model.examples", examples));
+        cloudModelStatus.setText(examples.isEmpty() ? "" : I18n.get("ai.wizard.cloud.model.examples", examples));
         seedCloudModelSuggestions();
     }
 
@@ -1391,6 +1392,9 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             return;
         }
         String key = trimToNull(text(cloudKeyField));
+        Object request = new Object();
+        cloudModelListRequest = request;
+        loadCloudModelsButton.setDisable(true);
         cloudModelStatus.setText(I18n.get("ai.wizard.server.model.loading"));
         CompletableFuture
             .supplyAsync(() -> {
@@ -1401,20 +1405,26 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                 }
             })
             .whenComplete((models, error) -> Platform.runLater(() -> {
+                if (cloudModelListRequest != request) {
+                    return;
+                }
+                cloudModelListRequest = null;
+                loadCloudModelsButton.setDisable(false);
                 if (error != null) {
                     Throwable cause = error.getCause() != null ? error.getCause() : error;
                     cloudModelStatus.setText(I18n.get("ai.wizard.server.model.loadFailed",
                         cause.getMessage() != null ? cause.getMessage() : cause.toString()));
                     return;
                 }
-                if (models == null || models.isEmpty()) {
-                    cloudModelStatus.setText(I18n.get("ai.wizard.server.model.loadFailed", ""));
+                if (models.isEmpty()) {
+                    seedCloudModelSuggestions();
+                    cloudModelStatus.setText(I18n.get("ai.model.list.empty"));
                     return;
                 }
                 String current = cloudModelCombo.getEditor().getText();
                 cloudModelCombo.getItems().setAll(AiModelComboSupport.buildModelItems(
                     null, null, url, models, trimToNull(current)));
-                if (current != null && !current.isBlank()) {
+                if (current != null) {
                     cloudModelCombo.getEditor().setText(current);
                 }
                 cloudModelStatus.setText("");
@@ -1464,9 +1474,9 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private Node buildServerUrl() {
         serverUrlField = new TextField();
         serverUrlField.setPromptText(I18n.get("ai.wizard.server.url.prompt"));
-        serverUrlField.textProperty().addListener((o, a, b) -> updateButtons());
+        serverUrlField.textProperty().addListener((o, a, b) -> resetServerModelList());
         serverKeyField = new PasswordField();
-        serverKeyField.textProperty().addListener((o, a, b) -> updateButtons());
+        serverKeyField.textProperty().addListener((o, a, b) -> resetServerModelList());
         return new VBox(10,
             new VBox(4, new Label(I18n.get("ai.wizard.cloud.url.label")), serverUrlField),
             new VBox(4, new Label(I18n.get("ai.wizard.server.key.label")), serverKeyField));
@@ -1507,13 +1517,29 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         return new VBox(10, serverAutoRadio, serverChooseRadio, chooseRow, serverModelStatus, advancedReasoningPane());
     }
 
+    private void resetServerModelList() {
+        serverModelListRequest = null;
+        if (serverModelStatus != null) {
+            String current = serverModelCombo.getEditor().getText();
+            serverModelCombo.getItems().clear();
+            serverModelCombo.getEditor().setText(current);
+            serverModelStatus.setText("");
+        }
+        updateButtons();
+    }
+
     private void loadServerModels() {
+        if (serverModelListRequest != null) {
+            return;
+        }
         String url = trimToNull(text(serverUrlField));
         if (url == null || !LocalLmModelResolver.canListModels(url)) {
             serverModelStatus.setText(I18n.get("ai.wizard.server.model.loadFailed", url == null ? "" : url));
             return;
         }
         String key = trimToNull(text(serverKeyField));
+        Object request = new Object();
+        serverModelListRequest = request;
         serverModelStatus.setText(I18n.get("ai.wizard.server.model.loading"));
         CompletableFuture
             .supplyAsync(() -> {
@@ -1524,17 +1550,22 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                 }
             })
             .whenComplete((models, error) -> Platform.runLater(() -> {
+                if (serverModelListRequest != request) {
+                    return;
+                }
+                serverModelListRequest = null;
                 if (error != null) {
                     Throwable cause = error.getCause() != null ? error.getCause() : error;
                     serverModelStatus.setText(I18n.get("ai.wizard.server.model.loadFailed",
                         cause.getMessage() != null ? cause.getMessage() : cause.toString()));
                     return;
                 }
-                serverModelStatus.setText("");
-                serverModelCombo.getItems().setAll(models != null ? models : List.of());
-                if (serverModelCombo.getItems().isEmpty()) {
-                    serverModelStatus.setText(I18n.get("ai.wizard.server.model.loadFailed", ""));
-                } else if (serverChooseRadio.isSelected()) {
+                String current = resolveServerModel();
+                serverModelCombo.getItems().setAll(AiModelComboSupport.buildModelItems(null, null, url, models, current));
+                serverModelStatus.setText(models.isEmpty() ? I18n.get("ai.model.list.empty") : "");
+                if (current != null) {
+                    serverModelCombo.getEditor().setText(current);
+                } else if (!models.isEmpty() && serverChooseRadio.isSelected()) {
                     serverModelCombo.getSelectionModel().selectFirst();
                 }
             }));
@@ -2189,10 +2220,6 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private String resolveCloudModel() {
-        String value = trimToNull(cloudModelCombo != null ? cloudModelCombo.getValue() : null);
-        if (value != null) {
-            return value;
-        }
         return trimToNull(cloudModelCombo != null ? cloudModelCombo.getEditor().getText() : null);
     }
 
@@ -2217,10 +2244,6 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private String resolveServerModel() {
-        String value = trimToNull(serverModelCombo != null ? serverModelCombo.getValue() : null);
-        if (value != null) {
-            return value;
-        }
         return trimToNull(serverModelCombo != null ? serverModelCombo.getEditor().getText() : null);
     }
 

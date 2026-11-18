@@ -7,9 +7,9 @@ import java.util.List;
  * Shared logic for building the AI model picker used by the AI Manager and the Settings dialog.
  *
  * <p>The item order is: the "Default" label, then the "Auto" label only for endpoints where an
- * automatic model can actually be detected (a local LM Studio-style server), then curated provider
- * suggestions from {@link AiCloudModelCatalog}, then any live-loaded model ids, then the current
- * custom value. "Auto" is deliberately withheld for remote cloud endpoints because
+ * automatic model can actually be detected (a local LM Studio-style server), then live model IDs
+ * or curated fallback suggestions from {@link AiCloudModelCatalog}, then the current custom
+ * value. "Auto" is deliberately withheld for remote cloud endpoints because
  * {@link AiServiceFactory} cannot auto-resolve a model there.
  */
 public final class AiModelComboSupport {
@@ -50,16 +50,12 @@ public final class AiModelComboSupport {
         if (autoLabel != null && supportsAutoModel(apiUrl)) {
             items.add(autoLabel);
         }
-        for (String suggestion : AiCloudModelCatalog.suggestedModelsForUrl(apiUrl)) {
-            if (suggestion != null && !suggestion.isBlank() && !items.contains(suggestion)) {
-                items.add(suggestion);
-            }
-        }
-        if (loadedModels != null) {
-            for (String model : loadedModels) {
-                if (model != null && !model.isBlank() && !items.contains(model)) {
-                    items.add(model);
-                }
+        List<String> availableModels = loadedModels == null || loadedModels.isEmpty()
+            ? AiCloudModelCatalog.suggestedModelsForUrl(apiUrl)
+            : loadedModels;
+        for (String model : availableModels) {
+            if (model != null && !model.isBlank() && !items.contains(model)) {
+                items.add(model);
             }
         }
         if (currentValue != null && !currentValue.isBlank() && !items.contains(currentValue)) {
