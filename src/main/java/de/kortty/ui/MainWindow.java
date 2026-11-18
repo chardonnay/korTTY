@@ -3611,11 +3611,16 @@ public class MainWindow {
             registry.register(new AppAction("toolbar.localShell", I18n.get("toolbar.localShell"),
                 I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
                 this::openLocalShellFromToolbar, true, false));
-            if (LocalShellTtyConnector.isWindows()) {
+            boolean windows = LocalShellTtyConnector.isWindows();
+            String powerShellCommand = windows ? LocalShellPresetSupport.POWERSHELL
+                : LocalShellTtyConnector.findUnixPowerShellCommand();
+            if (powerShellCommand != null) {
                 registry.register(new AppAction("toolbar.powershell", I18n.get("toolbar.powershell"),
                     I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
-                    () -> openShellFromToolbar(LocalShellPresetSupport.POWERSHELL,
+                    () -> openShellFromToolbar(powerShellCommand,
                         I18n.get("connEdit.shell.powershell")), true, false));
+            }
+            if (windows) {
                 registry.register(new AppAction("toolbar.cmd", I18n.get("toolbar.cmd"),
                     I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
                     () -> openShellFromToolbar(LocalShellPresetSupport.CMD, "cmd.exe"), true, false));

@@ -376,6 +376,30 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
     }
 
+    /** Returns the quoted executable path for PowerShell on Linux or macOS when installed. */
+    public static String findUnixPowerShellCommand() {
+        return findUnixPowerShellCommand(System.getProperty("os.name", ""),
+            AiCliProviderRegistry.executableSearchDirectories());
+    }
+
+    static String findUnixPowerShellCommand(String osName, List<String> searchDirectories) {
+        String os = osName.toLowerCase(Locale.ROOT);
+        if (!os.startsWith("linux") && !os.startsWith("mac") && !os.equals("darwin")) {
+            return null;
+        }
+        for (String directory : searchDirectories) {
+            try {
+                Path candidate = Path.of(directory).resolve("pwsh").toAbsolutePath();
+                if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
+                    return "\"" + candidate + "\"";
+                }
+            } catch (InvalidPathException ignored) {
+                // Skip malformed PATH entries just as for the Windows shell searches.
+            }
+        }
+        return null;
+    }
+
     /**
      * Returns a ready-to-store command that launches Git Bash as a login shell, or {@code null} when
      * not on Windows or Git Bash is not installed. The path is quoted so spaces are preserved.

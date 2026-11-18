@@ -3,12 +3,42 @@ package de.kortty.core;
 import de.kortty.model.ConnectionProtocol;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 
 import static com.google.common.truth.Truth.assertThat;
 
 class LocalShellTtyConnectorTest {
+
+    @Test
+    void findsExecutablePowerShellOnLinuxAndMacOs() throws IOException {
+        Path directory = Files.createTempDirectory("PowerShell bin ");
+        Path pwsh = directory.resolve("pwsh");
+        List<String> searchDirectories = List.of(directory.toString());
+        try {
+            assertThat(LocalShellTtyConnector.findUnixPowerShellCommand("Linux", searchDirectories)).isNull();
+            Files.createDirectory(pwsh);
+            assertThat(LocalShellTtyConnector.findUnixPowerShellCommand("Linux", searchDirectories)).isNull();
+            Files.delete(pwsh);
+
+            Files.createFile(pwsh);
+            if (!LocalShellTtyConnector.isWindows()) {
+                assertThat(LocalShellTtyConnector.findUnixPowerShellCommand("Linux", searchDirectories)).isNull();
+                assertThat(pwsh.toFile().setExecutable(true)).isTrue();
+            }
+            for (String os : List.of("Linux", "Mac OS X")) {
+                String command = LocalShellTtyConnector.findUnixPowerShellCommand(os, searchDirectories);
+                assertThat(LocalShellTtyConnector.resolveShellCommand(command)).containsExactly(pwsh.toString());
+            }
+            assertThat(LocalShellTtyConnector.findUnixPowerShellCommand("Windows 11", searchDirectories)).isNull();
+        } finally {
+            Files.deleteIfExists(pwsh);
+            Files.delete(directory);
+        }
+    }
 
     @Test
     void launchesRemoteClientRecognizesRemoteLoginCommands() {

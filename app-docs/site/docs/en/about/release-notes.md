@@ -11,6 +11,7 @@ What changed in the current release. The version this guide was built for is sho
 ### Terminal
 
 - **Connection duration** — the terminal status bar shows hours and minutes, with a day count starting at 24 hours.
+- **New PowerShell** is available in the toolbar's action catalog on Linux and macOS when korTTY detects an installed `pwsh`.
 
 ### AI agent and AI chat
 

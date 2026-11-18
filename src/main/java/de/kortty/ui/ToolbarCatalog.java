@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.model.IconToolbarSettings;
 import de.kortty.model.IconToolbarSettings.Entry;
 import de.kortty.model.IconToolbarSettings.Kind;
 import de.kortty.model.IconToolbarSettings.Section;
@@ -30,7 +31,12 @@ final class ToolbarCatalog {
     }
 
     List<Entry> actions() {
-        List<Entry> result = new ArrayList<>(de.kortty.model.IconToolbarSettings.defaults().entries());
+        // Start with the layout that includes both shell buttons and keep each registered action.
+        List<Entry> result = new ArrayList<>(IconToolbarSettings.defaults(true).entries());
+        result.removeIf(entry -> switch (entry.target()) {
+            case "toolbar.powershell", "toolbar.cmd" -> actions.find(entry.target()).isEmpty();
+            default -> false;
+        });
         // Registered only on Windows with Git for Windows installed, so the catalog offers it only there.
         if (actions.find("toolbar.gitBash").isPresent()) {
             result.add(Entry.action("toolbar.gitBash", Section.TERMINAL));

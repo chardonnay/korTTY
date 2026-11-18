@@ -37,6 +37,8 @@ Auf Windows verfügt der Terminalbereich des Standardlayouts ebenfalls über die
 
 Ein gespeichertes Symbolleistenlayout unter Windows erhält beide Schaltflächen einmal, nach **Neue lokale Shell**, oder am Anfang der Symbolleiste, wenn Terminal keine Schaltflächen hat. Die von Ihnen bereits platzierten Schaltflächen bleiben an ihrer Stelle, und das spätere Entfernen wird gespeichert.
 
+Unter Linux und macOS finden Sie **Neue PowerShell** unter **Icon-Leiste anpassen … → Aktionen**, wenn korTTY eine ausführbare Datei `pwsh` im `PATH` oder in einem Standardverzeichnis wie `/bin`, `/usr/local/bin` oder `/opt/homebrew/bin` findet. Fügen Sie die Schaltfläche zur Icon-Leiste hinzu, um PowerShell in einem neuen lokalen Tab zu starten.
+
 Wenn zum ersten Mal eine ältere gespeicherte Toolbar-Layout geladen wird, fügt korTTY automatisch die Schaltfläche für den Logdatei-Manager nach den Sitzungsjournalen in Werkzeuge hinzu oder am Ende von Werkzeuge, falls Sitzungsjournale nicht vorhanden sind. Bestehende Schaltflächen, Trennungen, ihre Reihenfolge sowie die Sichtbarkeit der beiden Zeilen werden erhalten. Eine bereits platzierte Schaltfläche für den Logdatei-Manager bleibt an ihrem Platz, ohne eine doppelte zu erstellen. Nach dieser Migration wird die Entfernung der Schaltfläche durch Anpassung gespeichert. Auf dieselbe Weise wird die Schaltfläche für den Connection-Manager einmalig am Anfang von Werkzeuge hinzugefügt oder als neue Gruppe Werkzeuge am Ende, falls das Layout keine enthält; eine bereits platzierte Schaltfläche für den Connection-Manager bleibt an ihrem Platz, und eine spätere Entfernung wird ebenfalls gespeichert.
 
 ![Icon toolbar with demo connection buttons](../assets/screenshots/main/icon-toolbar.png)

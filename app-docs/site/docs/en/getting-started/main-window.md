@@ -37,6 +37,8 @@ On Windows, the Terminal section of the default layout also has the buttons **Ne
 
 A saved toolbar layout on Windows gets both buttons once, after **New local shell**, or at the start of the toolbar when Terminal has no buttons. Buttons you already placed stay where they are, and removing them later is remembered.
 
+On Linux and macOS, **Customize toolbar… → Actions** offers **New PowerShell** when korTTY finds an executable `pwsh` on its `PATH` or in a standard location such as `/bin`, `/usr/local/bin` or `/opt/homebrew/bin`. Add the button to the toolbar to start PowerShell in a new local tab.
+
 When an older saved toolbar layout is loaded for the first time, korTTY automatically adds the Logfile Manager button after Session Journals in Tools, or at the end of Tools if Session Journals is absent. Existing buttons, separators, their order and the visibility of both rows are preserved. A Logfile Manager button you already placed stays where it is, without adding a duplicate. After this migration, removing the button through customization is remembered. In the same way, the Connection Manager button is added once at the start of Tools, or as a new Tools group at the end if the layout has none; a Connection Manager button you already placed stays where it is, and removing it afterwards is remembered as well.
 
 ![Icon toolbar with demo connection buttons](../assets/screenshots/main/icon-toolbar.png)
