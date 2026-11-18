@@ -1,6 +1,9 @@
 package de.kortty.core;
 
 import de.kortty.model.AiInternetAccessMode;
+import de.kortty.model.GlobalSettings;
+
+import java.util.function.BiFunction;
 
 /**
  * Decrypted internet-tool configuration used while creating AI services.
@@ -45,6 +48,59 @@ public record AiInternetAccessConfiguration(
         braveSearchMcpPluginId = trimToNull(braveSearchMcpPluginId);
         searxngMcpPluginId = trimToNull(searxngMcpPluginId);
         lmStudioToolpackMcpPluginId = trimToNull(lmStudioToolpackMcpPluginId);
+    }
+
+    /** Builds the selected provider configuration using the caller's credential handling. */
+    public static AiInternetAccessConfiguration fromSettings(
+        GlobalSettings settings,
+        AiInternetAccessMode mode,
+        BiFunction<String, String, String> decryptSecret) {
+        if (settings == null || mode == null || !mode.isEnabled()) {
+            return AiInternetAccessConfiguration.disabled();
+        }
+        String tavilyApiKey = null;
+        String brightDataApiToken = null;
+        String braveSearchApiKey = null;
+        String searxngUrl = null;
+        String tavilyMcpServerLabel = null;
+        String brightDataMcpServerLabel = null;
+        String braveSearchMcpPluginId = null;
+        String searxngMcpPluginId = null;
+        String lmStudioToolpackMcpPluginId = null;
+        switch (mode) {
+            case KORTTY_TAVILY_TOOL -> tavilyApiKey = decryptSecret.apply(settings.getEncryptedAiTavilyApiKey(), "Tavily API key");
+            case LM_STUDIO_TAVILY_MCP -> {
+                tavilyApiKey = decryptSecret.apply(settings.getEncryptedAiTavilyApiKey(), "Tavily API key");
+                tavilyMcpServerLabel = settings.getAiTavilyMcpServerLabel();
+            }
+            case BRIGHT_DATA_WEB_MCP -> {
+                brightDataApiToken = decryptSecret.apply(settings.getEncryptedAiBrightDataApiToken(), "Bright Data API token");
+                brightDataMcpServerLabel = settings.getAiBrightDataMcpServerLabel();
+            }
+            case BRAVE_SEARCH_MCP -> {
+                braveSearchApiKey = decryptSecret.apply(settings.getEncryptedAiBraveSearchApiKey(), "Brave Search API key");
+                braveSearchMcpPluginId = settings.getAiBraveSearchMcpPluginId();
+            }
+            case SEARXNG_MCP -> {
+                searxngUrl = settings.getAiSearxngUrl();
+                searxngMcpPluginId = settings.getAiSearxngMcpPluginId();
+            }
+            case LM_STUDIO_TOOLPACK -> lmStudioToolpackMcpPluginId = settings.getAiLmStudioToolpackMcpPluginId();
+            case DISABLED -> {
+            }
+        }
+        return new AiInternetAccessConfiguration(
+            mode,
+            tavilyApiKey,
+            brightDataApiToken,
+            braveSearchApiKey,
+            searxngUrl,
+            tavilyMcpServerLabel,
+            brightDataMcpServerLabel,
+            braveSearchMcpPluginId,
+            searxngMcpPluginId,
+            lmStudioToolpackMcpPluginId,
+            settings.isAiAgentAlwaysOfferWebTools());
     }
 
     public static AiInternetAccessConfiguration disabled() {

@@ -12,7 +12,6 @@ import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiUsageRecorder;
 import de.kortty.core.SessionJournalRedactor;
 import de.kortty.core.TerminalAgentService;
-import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import de.kortty.policy.AgentExecutionMode;
@@ -239,53 +238,8 @@ public class JobSchedulerAiSupport {
 
     private AiInternetAccessConfiguration buildInternetAccessConfiguration(AiProfile profile) {
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-        AiInternetAccessMode mode = profile != null ? profile.getInternetAccessMode() : null;
-        if (settings == null || mode == null || !mode.isEnabled()) {
-            return AiInternetAccessConfiguration.disabled();
-        }
-        String tavilyApiKey = null;
-        String brightDataApiToken = null;
-        String braveSearchApiKey = null;
-        String searxngUrl = null;
-        String tavilyMcpServerLabel = null;
-        String brightDataMcpServerLabel = null;
-        String braveSearchMcpPluginId = null;
-        String searxngMcpPluginId = null;
-        String lmStudioToolpackMcpPluginId = null;
-        switch (mode) {
-            case KORTTY_TAVILY_TOOL -> tavilyApiKey = decryptSecret(settings.getEncryptedAiTavilyApiKey(), "Tavily API key");
-            case LM_STUDIO_TAVILY_MCP -> {
-                tavilyApiKey = decryptSecret(settings.getEncryptedAiTavilyApiKey(), "Tavily API key");
-                tavilyMcpServerLabel = settings.getAiTavilyMcpServerLabel();
-            }
-            case BRIGHT_DATA_WEB_MCP -> {
-                brightDataApiToken = decryptSecret(settings.getEncryptedAiBrightDataApiToken(), "Bright Data API token");
-                brightDataMcpServerLabel = settings.getAiBrightDataMcpServerLabel();
-            }
-            case BRAVE_SEARCH_MCP -> {
-                braveSearchApiKey = decryptSecret(settings.getEncryptedAiBraveSearchApiKey(), "Brave Search API key");
-                braveSearchMcpPluginId = settings.getAiBraveSearchMcpPluginId();
-            }
-            case SEARXNG_MCP -> {
-                searxngUrl = settings.getAiSearxngUrl();
-                searxngMcpPluginId = settings.getAiSearxngMcpPluginId();
-            }
-            case LM_STUDIO_TOOLPACK -> lmStudioToolpackMcpPluginId = settings.getAiLmStudioToolpackMcpPluginId();
-            case DISABLED -> {
-            }
-        }
-        return new AiInternetAccessConfiguration(
-            mode,
-            tavilyApiKey,
-            brightDataApiToken,
-            braveSearchApiKey,
-            searxngUrl,
-            tavilyMcpServerLabel,
-            brightDataMcpServerLabel,
-            braveSearchMcpPluginId,
-            searxngMcpPluginId,
-            lmStudioToolpackMcpPluginId,
-            settings.isAiAgentAlwaysOfferWebTools());
+        return AiInternetAccessConfiguration.fromSettings(
+            settings, profile != null ? profile.getInternetAccessMode() : null, this::decryptSecret);
     }
 
     private String decryptSecret(String encryptedValue, String label) {
