@@ -164,3 +164,63 @@ apis:
     # Keyword mode only (q, limit); the hybrid mode needs an account key and a searchId. Anonymous
     # 50/day, keyed 500/day. Results carry githubUrl, downloaded through ai-skills-github.
     notes: OpenAPI at https://skillsmp.com/openapi.json; response skills live under data.skills.
+
+  - id: ai-models-anthropic
+    name: Anthropic Models API
+    version: "2023-06-01"
+    endpoint: https://api.anthropic.com/v1/models
+    auth: x-api-key and anthropic-version headers
+    source: src/main/java/de/kortty/core/LocalLmModelResolver.java
+    docs_url: https://platform.claude.com/docs/en/api/models/list
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/ai.md
+      - app-docs/site/docs/de/reference/settings/ai.md
+    review_after: "2027-04-01"
+
+  - id: ai-models-gemini
+    name: Gemini OpenAI-compatible Models API
+    version: "v1beta"
+    endpoint: https://generativelanguage.googleapis.com/v1beta/openai/models
+    auth: Bearer token
+    source: src/main/java/de/kortty/core/LocalLmModelResolver.java
+    docs_url: https://aistudio.google.com/docs/openai#list-models
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/ai.md
+      - app-docs/site/docs/de/reference/settings/ai.md
+    review_after: "2027-04-01"
+
+  - id: ai-models-groq
+    name: GroqCloud Models API
+    version: "v1"
+    endpoint: https://api.groq.com/openai/v1/models
+    auth: Bearer token
+    source: src/main/java/de/kortty/core/LocalLmModelResolver.java
+    docs_url: https://console.groq.com/docs/models#get-all-available-models
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/ai.md
+      - app-docs/site/docs/de/reference/settings/ai.md
+    review_after: "2027-04-01"
+
+  - id: ai-models-openrouter
+    name: OpenRouter Models API
+    version: "v1"
+    endpoint: https://openrouter.ai/api/v1/models
+    auth: Optional Bearer token
+    source: src/main/java/de/kortty/core/LocalLmModelResolver.java
+    docs_url: https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/ai.md
+      - app-docs/site/docs/de/reference/settings/ai.md
+    review_after: "2027-04-01"
+
+  - id: ai-models-minimax
+    name: MiniMax OpenAI-compatible Models API
+    version: "v1"
+    endpoint: https://api.minimax.io/v1/models
+    auth: Bearer token
+    source: src/main/java/de/kortty/core/LocalLmModelResolver.java
+    docs_url: https://platform.minimax.io/docs/api-reference/models/openai/api/list-models.json
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/ai.md
+      - app-docs/site/docs/de/reference/settings/ai.md
+    review_after: "2027-04-01"

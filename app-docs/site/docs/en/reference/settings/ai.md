@@ -108,7 +108,7 @@ The profile fields are edited in **AI > AI Manager > Profiles**. The editor keep
 | Trusted local endpoint: send terminal selections without masking secrets | check box | Available only for an HTTP API profile whose API URL is on `localhost` or `127.0.0.1`. On: terminal selections and attached files reach this endpoint without masking — turn it on only when the endpoint runs the model itself, not for a proxy or an SSH port forward to a cloud API. See [Masking secrets before sending](../../features/ai-assistant.md#masking-secrets-before-sending) | Off | (profile `trustedLocalEndpoint` field) |
 | CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
 | CLI executable | text | — | — | (profile `cliExecutablePath` field) |
-| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
+| Model | dropdown/text | Editable. Use **Refresh available models** beside the field to load the provider's list. Built-in suggestions are available for known providers before loading. **Auto** is available for local LM Studio endpoints. | — | (profile `model` field) |
 | Local GGUF model | dropdown | Installed chat models; available when Connection is Integrated llama.cpp | — | (profile `embeddedModelId` field) |
 | Context window | number + slider | 512 tokens up to the context the selected GGUF model was trained for (read from the file); available when Connection is Integrated llama.cpp. Pre-set to 32,768 tokens (or the trained context when that is less) whenever the profile or the model is selected; a file that does not declare its trained context gets a range up to 131,072 tokens. The value belongs to the model, so it applies to every profile that uses it and is the same as **Context size** under **Local Models > Configure**; a larger context needs more RAM or VRAM. Saving stops a loaded model so its next request starts it with the new size; a model that is answering a request keeps its size and korTTY says so | 32,768 | (model `contextSize` in `llm/models.xml`) |
 | Local MLX model | dropdown | Installed MLX models; available when Connection is Integrated MLX (Apple Silicon) | — | (profile `embeddedModelId` field) |
@@ -166,6 +166,20 @@ KorTTY stores multiple named AI profiles, each with its own model, connection me
 An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the **Default profile**. Configure those roles and the local runtime under **AI > AI Manager > Local AI**; see [Local models with llama.cpp](../../features/local-models.md). Terminal agent runs follow their own order, which includes the AI agent profile; see [Local AI manager settings](#local-ai-manager-settings).
 
 The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.
+
+#### Model list endpoints { #model-list-endpoints }
+
+**Load models** in the setup wizard and **Refresh available models** in the AI Manager fetch model IDs from the selected API. An OpenAI-compatible chat URL uses the sibling `/models` endpoint, including any provider or proxy path prefix. The request uses the profile's API key, including a replacement entered in the editor. Some providers include models for other tasks in their catalog, so pick a model that supports chat.
+
+For a local server such as Ollama exposing `/v1/models`, select a specific model in the wizard and click **Load models**. LM Studio reports the models already loaded.
+
+| Provider | Model list URL |
+| --- | --- |
+| Anthropic (Claude) | `https://api.anthropic.com/v1/models` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/models` |
+| Groq | `https://api.groq.com/openai/v1/models` |
+| OpenRouter | `https://openrouter.ai/api/v1/models` |
+| MiniMax | `https://api.minimax.io/v1/models` |
 
 ### Local AI manager settings
 

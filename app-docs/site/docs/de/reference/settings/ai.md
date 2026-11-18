@@ -108,7 +108,7 @@ Die Profilfelder werden in **KI > KI-Manager > Profile** bearbeitet. Der Editor 
 | Vertrauenswürdiger lokaler Endpunkt: Terminal-Auswahlen ohne Maskierung von Geheimnissen senden | Kontrollkästchen | Nur verfügbar für ein HTTP-API-Profil, dessen API-URL auf `localhost` oder `127.0.0.1` liegt. Ein: Terminalauswahlen und angehängte Dateien erreichen diesen Endpunkt ohne Maskierung – schalten Sie es nur ein, wenn der Endpunkt das Modell selbst ausführt, nicht für einen Proxy oder eine SSH-Portweiterleitung zu einer Cloud-API. Siehe [Maskierung von Geheimnissen vor dem Senden](../../features/ai-assistant.md#geheimnisse-vor-dem-senden-maskieren) | Aus | (profile `trustedLocalEndpoint` field) |
 | CLI-Anbieter | Dropdown | (registrierte Anbieter) | — | (Profilfeld `cliProviderId`) |
 | CLI-Executable | Text | — | — | (Profilfeld `cliExecutablePath`) |
-| Modell | Dropdown/Text | (bearbeitbar; "Standard", vorgeschlagene Modelle von Cloud-Anbietern mit kurzen Vorschlägen plus live geladene Modelle; "Automatisch" nur für lokale LM Studio-Endpunkte) | — | (Profilfeld `model`) |
+| Modell | Dropdown/Text | Bearbeitbar. Klicken Sie neben dem Feld auf **Verfügbare Modelle aktualisieren**, um die Anbieterliste zu laden. Bei bekannten Anbietern stehen vor dem Laden integrierte Vorschläge zur Verfügung. **Automatisch** ist für lokale LM-Studio-Endpunkte verfügbar. | — | (Profilfeld `model`) |
 | Lokales GGUF-Modell | Dropdown | Installierte Chat-Modelle; verfügbar, wenn Verbindung Integriertes llama.cpp ist | — | (Profilfeld `embeddedModelId`) |
 | Kontextfenster | Zahl + Schieberegler | 512 Tokens bis zur Kontextgröße, für die das ausgewählte GGUF-Modell trainiert wurde (aus der Datei gelesen); verfügbar, wenn die Verbindung Integriertes llama.cpp ist. Voreingestellt auf 32.768 Tokens (oder den trainierten Kontext, wenn dieser kleiner ist), sobald das Profil oder das Modell ausgewählt wird; eine Datei, die keinen trainierten Kontext angibt, erhält einen Bereich bis zu 131.072 Tokens. Der Wert gehört zum Modell und gilt daher für jedes Profil, das es verwendet, und entspricht **Kontextgröße** unter **Lokale Modelle > Konfigurieren**; ein größerer Kontext benötigt mehr RAM oder VRAM. Beim Speichern wird ein geladenes Modell gestoppt, damit der nächste Aufruf es mit der neuen Größe startet; ein Modell, das gerade eine Anfrage bearbeitet, behält seine Größe bei, und korTTY gibt dies an | 32.768 | (Modell `contextSize` in `llm/models.xml`) |
 | Lokales MLX-Modell | Dropdown | Installierte MLX-Modelle; verfügbar, wenn Verbindung Integriertes MLX (Apple Silicon) ist | — | (Profilfeld `embeddedModelId`) |
@@ -166,6 +166,20 @@ korTTY speichert mehrere benannte KI-Profile, jedes mit eigener Modellvariante, 
 Ein explizit gewähltes oder für Sicherheitsprüfungen bestimmtes Profil hat die höchste Priorität. Andernfalls verwenden Terminal-Textaktionen das konfigurierte Text-Profil, Code-Aktionen das Coding-Profil, und eine nicht zugewiesene Rolle fällt auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die Lokale Laufzeit unter **KI > KI-Manager > Lokale KI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md). Ausführungen des Terminal-Agenten folgen ihrer eigenen Reihenfolge, die das Profil für den KI-Agenten umfasst; siehe [Einstellungen des lokalen KI-Managers](#einstellungen-des-lokalen-ki-managers).
 
 Der KI-Manager ist moduslos und kann während der Nutzung des Hauptfensters geöffnet bleiben. Ein erneutes Aufrufen des Managers führt dazu, dass der gleiche Manager für das Hauptfenster wiederhergestellt und gefokussiert wird, und der offene primäre Abschnitt bleibt bei Interaktion mit den Steuerelementen sichtbar mit einem fett unterstrichenen Akzent.
+
+#### Endpunkte für Modelllisten { #model-list-endpoints }
+
+Mit **Modelle laden** im Einrichtungsassistenten und **Verfügbare Modelle aktualisieren** im KI-Manager rufen Sie die Modell-IDs von der ausgewählten API ab. Bei einer OpenAI-kompatiblen Chat-URL verwendet korTTY den `/models`-Endpunkt im selben API-Pfad. Anbieter- oder Proxy-Präfixe bleiben dabei erhalten. Die Anfrage verwendet den API-Schlüssel des Profils oder den im Editor eingegebenen Ersatzschlüssel. Einige Anbieter führen auch Modelle für andere Aufgaben in ihrem Katalog. Wählen Sie ein Modell mit Chat-Unterstützung.
+
+Wenn ein lokaler Server wie Ollama `/v1/models` bereitstellt, wählen Sie im Assistenten die Option für ein bestimmtes Modell und klicken auf **Modelle laden**. LM Studio meldet die bereits geladenen Modelle.
+
+| Anbieter | URL der Modellliste |
+| --- | --- |
+| Anthropic (Claude) | `https://api.anthropic.com/v1/models` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/models` |
+| Groq | `https://api.groq.com/openai/v1/models` |
+| OpenRouter | `https://openrouter.ai/api/v1/models` |
+| MiniMax | `https://api.minimax.io/v1/models` |
 
 ### Einstellungen des lokalen KI-Managers
 
