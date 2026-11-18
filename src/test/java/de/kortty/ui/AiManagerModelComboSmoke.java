@@ -57,7 +57,7 @@ public final class AiManagerModelComboSmoke {
                 profiles.add(local);
                 profileListView.getSelectionModel().select(local);
 
-                // Async refresh delivers the live model list (refreshLocalModels callback).
+                // Simulate the live result arriving from the model-list endpoint.
                 invoke(dialog, "preserveModelItems", new Class<?>[] {List.class}, List.of(LIVE_MODEL));
                 if (!modelCombo.getItems().contains(LIVE_MODEL)) {
                     throw new AssertionError("live model missing from items: " + modelCombo.getItems());
@@ -88,8 +88,12 @@ public final class AiManagerModelComboSmoke {
                         + local.getModelSelectionMode() + " model=" + local.getModel());
                 }
 
-                // --- C: free typing must stay untouched by the sync and snapshot as typed. ---
+                // --- C: a refresh after free typing must keep the custom ID and save it. ---
                 modelCombo.getEditor().setText("my-custom-model");
+                invoke(dialog, "preserveModelItems", new Class<?>[] {List.class}, List.of("another-live-model"));
+                if (!modelCombo.isEditable() || !modelCombo.getItems().contains("my-custom-model")) {
+                    throw new AssertionError("refresh lost the editable custom model");
+                }
                 invoke(dialog, "snapshotSelectedProfileState", new Class<?>[] {});
                 System.out.println("C: profile model=" + local.getModel());
                 if (local.getModelSelectionMode() != AiModelSelectionMode.MANUAL

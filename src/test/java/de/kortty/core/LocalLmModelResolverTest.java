@@ -282,6 +282,72 @@ class LocalLmModelResolverTest {
     }
 
     @Test
+    void listModelsKeepsTheProvidersApiPrefix() throws Exception {
+        for (String base : List.of(
+            "https://generativelanguage.googleapis.com/v1beta/openai",
+            "https://api.groq.com/openai/v1",
+            "https://openrouter.ai/api/v1",
+            "https://proxy.example.com/team/ai")) {
+            StringHttpClientTestDouble client = new StringHttpClientTestDouble("""
+                {"data":[{"id":"model-alpha"}]}
+                """);
+            String url = base + "/chat/completions/";
+            assertThat(LocalLmModelResolver.canListModels(url)).isTrue();
+            assertThat(LocalLmModelResolver.loadAvailableModelNames(url, "token", client))
+                .containsExactly("model-alpha");
+            assertThat(client.requests().getFirst().uri()).isEqualTo(URI.create(base + "/models"));
+        }
+    }
+
+    @Test
+    void listModelsSupportsExistingMiniMaxProfiles() throws Exception {
+        String url = "https://api.minimax.io/v1/text/chatcompletion_v2";
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble("""
+            {"data":[{"id":"model-alpha"}]}
+            """);
+        assertThat(LocalLmModelResolver.canListModels(url)).isTrue();
+        assertThat(LocalLmModelResolver.loadAvailableModelNames(url, "token", client))
+            .containsExactly("model-alpha");
+        assertThat(client.requests().getFirst().uri()).isEqualTo(URI.create("https://api.minimax.io/v1/models"));
+    }
+
+    @Test
+    void loopbackPickerFallsBackWhenTheNativeLmStudioPathIsAbsent() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble(List.of(404, 200), "", """
+            {"data":[{"id":"gemma4:31b"}]}
+            """);
+
+        assertThat(LocalLmModelResolver.loadAvailableModelNames(
+            "http://localhost:11434/v1/chat/completions", null, client)).containsExactly("gemma4:31b");
+        assertThat(client.requests().stream().map(HttpRequest::uri).map(URI::getPath).toList())
+            .containsExactly("/api/v1/models", "/v1/models").inOrder();
+    }
+
+    @Test
+    void listAnthropicModelsUsesNativeHeadersAndFollowsPagination() throws Exception {
+        String url = "https://api.anthropic.com/v1/messages";
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble(
+            """
+            {"data":[{"id":"claude-alpha"}],"has_more":true,"last_id":"claude+alpha"}
+            """,
+            """
+            {"data":[{"id":"claude-beta"}],"has_more":false}
+            """);
+
+        assertThat(LocalLmModelResolver.canListModels(url)).isTrue();
+        assertThat(LocalLmModelResolver.loadAvailableModelNames(url, "secret", client))
+            .containsExactly("claude-alpha", "claude-beta").inOrder();
+        assertThat(client.requests()).hasSize(2);
+        assertThat(client.requests().get(0).uri()).isEqualTo(URI.create("https://api.anthropic.com/v1/models"));
+        assertThat(client.requests().get(1).uri().getRawQuery()).isEqualTo("after_id=claude%2Balpha");
+        for (HttpRequest request : client.requests()) {
+            assertThat(request.headers().firstValue("x-api-key")).hasValue("secret");
+            assertThat(request.headers().firstValue("anthropic-version")).hasValue(AnthropicAiService.ANTHROPIC_VERSION);
+            assertThat(request.headers().firstValue("Authorization")).isEmpty();
+        }
+    }
+
+    @Test
     void resolveSelectsExactlyOneLoadedLmStudioLlmAndSendsApiKey() throws Exception {
         StringHttpClientTestDouble client = new StringHttpClientTestDouble("""
             {
@@ -440,19 +506,26 @@ class LocalLmModelResolverTest {
     }
 
     private static final class StringHttpClientTestDouble extends HttpClient {
-        private final String responseBody;
+        private final List<String> responseBodies;
+        private final List<Integer> responseStatuses;
         private final List<HttpRequest> requests = new ArrayList<>();
 
-        private StringHttpClientTestDouble(String responseBody) {
-            this.responseBody = responseBody;
+        private StringHttpClientTestDouble(String... responseBodies) {
+            this(java.util.Collections.nCopies(responseBodies.length, 200), responseBodies);
+        }
+
+        private StringHttpClientTestDouble(List<Integer> responseStatuses, String... responseBodies) {
+            this.responseBodies = List.of(responseBodies);
+            this.responseStatuses = responseStatuses;
         }
 
         @Override
         public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
-            requests.add(request);
             @SuppressWarnings("unchecked")
-            T typedBody = (T) responseBody;
-            return new SimpleHttpResponse<>(request, typedBody);
+            T typedBody = (T) responseBodies.get(requests.size());
+            int status = responseStatuses.get(requests.size());
+            requests.add(request);
+            return new SimpleHttpResponse<>(request, typedBody, status);
         }
 
         @Override
@@ -522,12 +595,7 @@ class LocalLmModelResolverTest {
         }
     }
 
-    private record SimpleHttpResponse<T>(HttpRequest request, T body) implements HttpResponse<T> {
-        @Override
-        public int statusCode() {
-            return 200;
-        }
-
+    private record SimpleHttpResponse<T>(HttpRequest request, T body, int statusCode) implements HttpResponse<T> {
         @Override
         public Optional<HttpResponse<T>> previousResponse() {
             return Optional.empty();

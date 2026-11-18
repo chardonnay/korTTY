@@ -34,12 +34,12 @@ class AiModelComboSupportTest {
     }
 
     @Test
-    void mergesLiveModelsAndCurrentValueWithoutDuplicates() {
+    void prefersLiveModelsAndKeepsTheCurrentValueWithoutDuplicates() {
         String url = "https://api.openai.com/v1/chat/completions";
         List<String> items = AiModelComboSupport.buildModelItems(
-            "Default", "Auto", url, List.of("gpt-4o", "gpt-4.1"), "my-custom-model");
+            "Default", "Auto", url, List.of("gpt-4o", "gpt-4.1", "gpt-4o"), "my-custom-model");
         assertThat(items)
-            .containsExactly("Default", "gpt-4o-mini", "gpt-4o", "o4-mini", "gpt-4.1", "my-custom-model")
+            .containsExactly("Default", "gpt-4o", "gpt-4.1", "my-custom-model")
             .inOrder();
     }
 
