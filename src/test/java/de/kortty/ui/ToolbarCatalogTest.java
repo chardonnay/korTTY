@@ -68,6 +68,25 @@ public class ToolbarCatalogTest {
     }
 
     @Test
+    void powerShellIsOfferedOnceWhenItsActionIsRegistered() {
+        ActionRegistry registry = new ActionRegistry();
+        var catalog = new ToolbarCatalog(registry, List::of, id -> { }, group -> { }, () -> { });
+        assertThat(catalog.actions().stream().map(Entry::target).toList()).doesNotContain("toolbar.powershell");
+
+        AtomicInteger launches = new AtomicInteger();
+        registry.register(new AppAction("toolbar.powershell", "New PowerShell", "", null, List.of(),
+            () -> true, null, launches::incrementAndGet, true, false));
+        List<Entry> powerShellEntries = catalog.actions().stream()
+            .filter(entry -> entry.target().equals("toolbar.powershell")).toList();
+        assertThat(powerShellEntries.stream().map(Entry::section).toList()).containsExactly(Section.TERMINAL);
+        assertThat(catalog.actions().stream().map(Entry::target).toList()).doesNotContain("toolbar.cmd");
+        Entry powerShell = powerShellEntries.getFirst();
+        assertThat(catalog.describe(powerShell).icon()).isEqualTo("powershell");
+        catalog.run(powerShell);
+        assertThat(launches.get()).isEqualTo(1);
+    }
+
+    @Test
     void gitBashIsOfferedOnlyWhenItsActionIsRegistered() {
         var without = new ToolbarCatalog(new ActionRegistry(), List::of, id -> { }, group -> { }, () -> { });
         assertThat(without.actions().stream().map(Entry::target).toList()).doesNotContain("toolbar.gitBash");
@@ -78,7 +97,6 @@ public class ToolbarCatalogTest {
         assertThat(with.actions().stream().filter(entry -> "toolbar.gitBash".equals(entry.target()))
             .map(Entry::section).toList()).containsExactly(Section.TERMINAL);
         assertThat(with.describe(Entry.action("toolbar.gitBash", Section.TERMINAL)).icon()).isEqualTo("gitBash");
-        assertThat(with.describe(Entry.action("toolbar.powershell", Section.TERMINAL)).icon()).isEqualTo("powershell");
         assertThat(with.describe(Entry.action("toolbar.cmd", Section.TERMINAL)).icon()).isEqualTo("cmd");
     }
 }

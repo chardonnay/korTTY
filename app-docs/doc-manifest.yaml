@@ -74,10 +74,10 @@ pages:
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/getting-started/main-window.md
     owns_i18n: [toolbar.]
-    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java, src/main/java/de/kortty/ui/IconToolbar.java, src/main/java/de/kortty/ui/ToolbarCatalog.java, src/main/java/de/kortty/ui/ToolbarEditorModel.java, src/main/java/de/kortty/ui/ToolbarIcons.java, src/main/java/de/kortty/ui/SettingsSection.java, src/main/java/de/kortty/model/IconToolbarSettings.java, src/main/resources/styles/icon-toolbar.css]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java, src/main/java/de/kortty/ui/IconToolbar.java, src/main/java/de/kortty/ui/ToolbarCatalog.java, src/main/java/de/kortty/ui/ToolbarEditorModel.java, src/main/java/de/kortty/ui/ToolbarIcons.java, src/main/java/de/kortty/ui/SettingsSection.java, src/main/java/de/kortty/model/IconToolbarSettings.java, src/main/resources/styles/icon-toolbar.css, src/main/java/de/kortty/core/LocalShellTtyConnector.java]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png, main/icon-toolbar.png, main/icon-toolbar-customize.png, main/icon-toolbar-context-menu.png]
-    last_synced_ref: "4493348a"
+    last_synced_ref: "8e438d49"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md

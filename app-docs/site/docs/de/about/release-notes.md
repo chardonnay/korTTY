@@ -11,6 +11,7 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 ### Terminal
 
 - **Verbindungsdauer** — Die Terminal-Statusleiste zeigt Stunden und Minuten an. Ab 24 Stunden kommt die Anzahl der Tage hinzu.
+- **Neue PowerShell** ist unter Linux und macOS in der Aktionsliste der Icon-Leiste verfügbar, wenn korTTY eine installierte PowerShell (`pwsh`) erkennt.
 
 ### KI-Agent und KI-Chat
 
