@@ -1623,12 +1623,20 @@ jobs:
             fi
           done < <(find release -maxdepth 1 -type f -printf '%f\n' | sort)
 
-      - name: Upload to release
-        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ steps.release.outputs.tag }}
-          files: release/*
+      - name: Upload assets to existing release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_SCOPE: ${{ github.event_name == 'release' && 'all' || inputs.scope }}
+        run: |
+          # Upload by tag. Updating the release's target commit before uploading
+          # can fail with the workflow token even when the tag already exists.
+          upload_args=()
+          if [[ "$RELEASE_SCOPE" == all ]]; then
+            upload_args+=(--clobber)
+          fi
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "${upload_args[@]}" release/*
 
       - name: Add grouped download guide to release notes
         shell: bash

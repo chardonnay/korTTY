@@ -72,6 +72,16 @@ class PacmanWorkflowContractTest(unittest.TestCase):
         text = job("upload-release")
         self.assertIn("--pacman-pkgrel auto", text)
 
+    def test_normal_upload_targets_existing_release_and_only_full_builds_can_replace_assets(self):
+        text = job("upload-release")
+        upload = text.split("- name: Upload assets to existing release", 1)[1].split("- name:", 1)[0]
+        self.assertIn("TAG: ${{ steps.release.outputs.tag }}", upload)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", upload)
+        self.assertIn('gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "${upload_args[@]}" release/*', upload)
+        self.assertRegex(upload, r'if \[\[ "\$RELEASE_SCOPE" == all \]\]; then\n +upload_args\+=\(--clobber\)\n +fi')
+        self.assertNotIn("action-gh-release", text)
+        self.assertIn("Refuse to replace existing assets in Flatpak-only mode", text)
+
     def test_packager_has_cross_build_guard_and_exact_output(self):
         self.assertIn("Cross-packaging guard", PACKAGER)
         self.assertIn("(prepare|build|check)", PACKAGER)
