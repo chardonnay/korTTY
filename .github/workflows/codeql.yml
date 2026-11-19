@@ -1,11 +1,8 @@
 name: CodeQL
 
-# Static security analysis of the Java source and the GitHub Actions workflow
-# files. Uses build-mode: none, which
-# does NOT compile the project — it sidesteps the heavy SithTermFX (Maven) +
-# mosh4j/Node/Monaco vendoring that build-release.yml performs. korTTY has no
-# .kt source files (Kotlin appears only in the Gradle DSL), so the "Kotlin is
-# skipped under build-mode none" caveat does not apply here.
+# Static security analysis of Java, Python, JavaScript/TypeScript, and GitHub
+# Actions. Build mode none lets CodeQL analyze Java without compiling korTTY
+# or fetching its bundled dependencies. CodeQL skips the Kotlin Gradle scripts.
 #
 # Results land in: Security -> Code scanning alerts.
 # This workflow has NO access to signing/notarization secrets.
@@ -41,6 +38,10 @@ jobs:
           # …). The three stale actions/missing-workflow-permissions alerts on main came from
           # GitHub's earlier default setup; without this analysis they could never re-close.
           - language: actions
+            build-mode: none
+          - language: python
+            build-mode: none
+          - language: javascript-typescript
             build-mode: none
 
     steps:
