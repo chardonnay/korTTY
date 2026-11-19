@@ -450,8 +450,10 @@ _META_REPLY_PATTERNS = [re.compile(p, re.IGNORECASE) for p in (
 # What a translation carries over unchanged: mask tokens, numbers, and identifiers with an
 # inner capital or an inner dot/underscore (korTTY, JavaFX, settings.json, ssh_config). Not
 # slashes: "foreground/background" is prose and becomes "Vordergrund-/Hintergrund".
+# Dotted identifiers have word segments that can themselves contain underscores.
 _CARRY_OVER_RE = re.compile(
-    r"KTPH\d{3}|\d+|\b[A-Za-z0-9]*[a-z][A-Z][A-Za-z0-9]*\b|\b\w+(?:[._]\w+)+\b")
+    r"KTPH\d{3}|\d+|\b[A-Za-z0-9]*[a-z][A-Z][A-Za-z0-9]*\b"
+    r"|\b\w+(?:\.\w+)+\b|\b\w+_\w+\b")
 
 
 def carry_over_tokens(text: str) -> set[str]:

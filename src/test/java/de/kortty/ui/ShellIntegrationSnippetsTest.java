@@ -129,11 +129,11 @@ class ShellIntegrationSnippetsTest {
 
     @Test
     void zshMarksTheCommandsItRuns() throws Exception {
-        requireShell("zsh");
+        String zsh = requireShell("zsh");
         Path dir = Files.createTempDirectory("kortty-zsh");
         try {
             Files.createDirectory(dir.resolve("a b%x"));
-            String output = runInteractive(List.of("zsh", "-i"), dir,
+            String output = runInteractive(List.of(zsh, "-i"), dir,
                 "cd 'a b%x'\nsource " + quoted(resource("kortty.zsh")) + "\nfalse\ntrue\nexit\n", "ZDOTDIR", dir.toString());
             assertThat(output).contains(ESC + "]133;C" + BEL + ESC + "]133;D;1" + BEL);
             assertThat(output).contains(ESC + "]133;C" + BEL + ESC + "]133;D;0" + BEL);
@@ -147,13 +147,14 @@ class ShellIntegrationSnippetsTest {
 
     @Test
     void bashMarksTheCommandsItRuns() throws Exception {
-        int[] version = requireBash(4, 4);
+        String bash = requireShell("bash");
+        int[] version = requireBashVersion(bash, 4, 4);
         Path dir = Files.createTempDirectory("kortty-bash");
         try {
             Files.createDirectory(dir.resolve("a b%x"));
             // bash prints its prompts and PS0, which carries C, to stderr: read both streams, as a
             // terminal shows both.
-            String output = runInteractive(List.of("bash", "--norc", "--noprofile", "-i"), dir, true,
+            String output = runInteractive(List.of(bash, "--norc", "--noprofile", "-i"), dir, true,
                 "cd 'a b%x'\nPROMPT_COMMAND='echo \"hook saw $?\"'\nsource " + quoted(resource("kortty.bash"))
                     + "\nfalse\nexit\n");
             assertThat(output).contains(ESC + "]133;C" + BEL);
@@ -164,7 +165,7 @@ class ShellIntegrationSnippetsTest {
                 .that(output).contains("hook saw 1\n");
             if (version[0] > 5 || (version[0] == 5 && version[1] >= 1)) {
                 // bash 5.1 and later also take PROMPT_COMMAND as an array.
-                String arrayOutput = runInteractive(List.of("bash", "--norc", "--noprofile", "-i"), dir, true,
+                String arrayOutput = runInteractive(List.of(bash, "--norc", "--noprofile", "-i"), dir, true,
                     "PROMPT_COMMAND=(true 'echo \"hook saw $?\"')\nsource " + quoted(resource("kortty.bash"))
                         + "\nfalse\nexit\n");
                 assertThat(arrayOutput).contains(ESC + "]133;D;1" + BEL);
@@ -192,10 +193,11 @@ class ShellIntegrationSnippetsTest {
 
     /** Parses {@code snippet} with {@code shell}; 0 when the shell is not installed. */
     private static int syntaxCheck(String shell, String flag, String snippet) throws Exception {
-        if (!available(shell)) {
+        String executable = findShell(shell);
+        if (executable == null) {
             return 0;
         }
-        Process process = new ProcessBuilder(shell, flag, resource(snippet).toString()).redirectErrorStream(true).start();
+        Process process = new ProcessBuilder(executable, flag, resource(snippet).toString()).redirectErrorStream(true).start();
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue();
         assertWithMessage(shell + " rejects " + snippet + ": " + output).that(process.exitValue()).isEqualTo(0);
@@ -232,16 +234,17 @@ class ShellIntegrationSnippetsTest {
         return output;
     }
 
-    private static void requireShell(String shell) {
-        if (!available(shell)) {
+    private static String requireShell(String shell) {
+        String executable = findShell(shell);
+        if (executable == null) {
             throw new SkipException(shell + " is not installed");
         }
+        return executable;
     }
 
-    /** The bash version, or a skip when bash is missing or older than {@code major.minor}. */
-    private static int[] requireBash(int major, int minor) throws Exception {
-        requireShell("bash");
-        Process process = new ProcessBuilder("bash", "-c", "echo ${BASH_VERSINFO[0]} ${BASH_VERSINFO[1]}")
+    /** The bash version, or a skip when it is older than {@code major.minor}. */
+    private static int[] requireBashVersion(String bash, int major, int minor) throws Exception {
+        Process process = new ProcessBuilder(bash, "-c", "echo ${BASH_VERSINFO[0]} ${BASH_VERSINFO[1]}")
             .redirectErrorStream(true).start();
         String[] parts = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim().split(" ");
         process.waitFor(30, TimeUnit.SECONDS);
@@ -252,18 +255,18 @@ class ShellIntegrationSnippetsTest {
         return version;
     }
 
-    /** Whether {@code shell} can be started here; never on Windows, where a bash on the PATH is a WSL or MSYS one. */
-    private static boolean available(String shell) {
+    /** Looks in Unix installation directories, including Homebrew's newer bash on macOS. */
+    private static String findShell(String shell) {
         if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
-            return false;
+            return null;
         }
-        try {
-            Process process = new ProcessBuilder(shell, "-c", "exit 0").redirectErrorStream(true).start();
-            process.getInputStream().readAllBytes();
-            return process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0;
-        } catch (IOException | InterruptedException e) {
-            return false;
+        for (String dir : List.of("/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/usr/bin", "/bin")) {
+            Path executable = Path.of(dir, shell);
+            if (Files.isRegularFile(executable) && Files.isExecutable(executable)) {
+                return executable.toString();
+            }
         }
+        return null;
     }
 
     private static void deleteQuietly(Path dir) {

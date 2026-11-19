@@ -41,9 +41,6 @@ LANGS = ["en", "de"]
 # The tree GuideTranslationGenerator clones when it translates the guide at run time.
 SOURCE_LANG = "en"
 
-# Strip ANSI color codes from captured mkdocs output before filtering/printing.
-_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
-
 
 def gradle_version() -> str:
     text = (REPO_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
@@ -94,20 +91,8 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     cmd = [sys.executable, "-m", "mkdocs", "build", "-f", str(cfg)]
     if strict:
         cmd.append("--strict")
-    print(f"\n=== mkdocs build [{lang}] (version {version}) ===")
-    # Capture mkdocs output so we can drop the Material-for-MkDocs "MkDocs 2.0"
-    # advocacy banner (a box-drawn block printed on every build) — it is not a
-    # problem with this project and only clutters the Gradle/app build log. Real
-    # INFO/WARNING/ERROR lines are kept.
-    proc = subprocess.run(cmd, cwd=SITE_DIR, env=env, capture_output=True, text=True)
-    for raw in (proc.stdout + proc.stderr).splitlines():
-        clean = _ANSI_RE.sub("", raw)
-        if "│" in clean or "Material for MkDocs" in clean or "MkDocs 2.0" in clean \
-                or "squidfunk.github.io" in clean:
-            continue
-        print(clean)
-    if proc.returncode != 0:
-        raise subprocess.CalledProcessError(proc.returncode, cmd)
+    print(f"\n=== mkdocs build [{lang}] (version {version}) ===", flush=True)
+    subprocess.run(cmd, cwd=SITE_DIR, env=env, check=True)
     out = BUILD_OUT / lang
     set_html_lang(out, lang)
     share_assets_with_source(out, lang)

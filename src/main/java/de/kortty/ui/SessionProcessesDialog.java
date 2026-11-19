@@ -21,6 +21,8 @@ import javafx.scene.layout.VBox;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -158,7 +160,8 @@ final class SessionProcessesDialog extends ThemeAwareDialog<Void> {
             return "–";
         }
         try {
-            Process ps = new ProcessBuilder("ps", "-o", "rss=", "-p", Long.toString(pid)).redirectErrorStream(true).start();
+            String psPath = Files.isExecutable(Path.of("/bin/ps")) ? "/bin/ps" : "/usr/bin/ps";
+            Process ps = new ProcessBuilder(psPath, "-o", "rss=", "-p", Long.toString(pid)).redirectErrorStream(true).start();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream(), StandardCharsets.UTF_8))) {
                 String line = reader.readLine();
                 ps.waitFor(2, TimeUnit.SECONDS);

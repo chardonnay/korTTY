@@ -355,6 +355,12 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 dependencies {
+    constraints {
+        implementation("com.google.guava:guava:33.7.2-jre") {
+            because("google-java-format and Truth bring in Guava affected by GHSA-xxph-c9ww-hj94")
+        }
+    }
+
     // AtlantaFX supplies Java/CSS only. Its published POM targets OpenJFX 23, so exclude every
     // transitive OpenJFX module and keep korTTY's independently verified JavaFX 21.0.12 runtime.
     implementation("io.github.mkpaz:atlantafx-base:$atlantaFxVersion") {
