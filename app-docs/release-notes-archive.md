@@ -11,6 +11,10 @@ This file is not part of the documentation site — it is neither published nor 
 Releases older than the ones below are recorded in `RELEASE_NOTES.adoc` next to this file, and
 every version is also listed on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases).
 
+## v2.26.1
+
+The same security fixes are included in v2.26.2.
+
 ## v2.26.0
 
 ### SFTP
