@@ -2,6 +2,9 @@ package de.kortty.core.remote;
 
 import de.kortty.core.remote.extract.ArchiveExtractException;
 import de.kortty.core.remote.extract.RemoteArchiveExtractor;
+import net.lingala.zip4j.ZipFile;
+import net.lingala.zip4j.model.ZipParameters;
+import net.lingala.zip4j.model.enums.EncryptionMethod;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
@@ -170,16 +173,19 @@ public class RemoteArchiveExtractorIntegrationTest {
     @Test
     public void passwordProtectedZipIsRefused() throws Exception {
         requireTool("unzip");
-        requireTool("zip");
         Path parent = folder("secret");
-        Files.writeString(parent.resolve("a.txt"), "a");
-        Process zip = new ProcessBuilder("zip", "-q", "-P", "test-only", "locked.zip", "a.txt")
-            .directory(parent.toFile()).redirectErrorStream(true).start();
-        assertThat(zip.waitFor()).isEqualTo(0);
-        Files.delete(parent.resolve("a.txt"));
+        Path archive = parent.resolve("locked.zip");
+        Path member = Files.writeString(parent.resolve("a.txt"), "a");
+        ZipParameters parameters = new ZipParameters();
+        parameters.setEncryptFiles(true);
+        parameters.setEncryptionMethod(EncryptionMethod.ZIP_STANDARD);
+        try (ZipFile zip = new ZipFile(archive.toFile(), "test-only".toCharArray())) {
+            zip.addFile(member.toFile(), parameters);
+        }
+        Files.delete(member);
 
         ArchiveExtractException error = expectThrows(ArchiveExtractException.class,
-            () -> extractor.extract(parent.resolve("locked.zip").toString(), new RemoteCommandCancellation(), null));
+            () -> extractor.extract(archive.toString(), new RemoteCommandCancellation(), null));
 
         assertThat(error.reason()).isEqualTo(ArchiveExtractException.Reason.PASSWORD_PROTECTED);
         assertThat(names(parent)).containsExactly("locked.zip");

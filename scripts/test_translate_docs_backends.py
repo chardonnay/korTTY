@@ -336,6 +336,11 @@ class MetaReplies(unittest.TestCase):
         self.assertFalse(td.is_meta_reply("Set the timeout to 30 seconds.", "Setzen Sie das Zeitlimit auf 30 Sekunden."))
         self.assertFalse(td.is_meta_reply("Set the timeout.", "Setzen Sie das Zeitlimit."))
 
+    def test_carry_over_tokens_keep_complete_identifiers(self):
+        text = "ssh_config, __init__, müller__name, user_config.ssh.key, JavaFX, KTPH003, 30, e.g."
+        self.assertEqual(td.carry_over_tokens(text),
+                         {"ssh_config", "__init__", "müller__name", "user_config.ssh.key", "JavaFX", "KTPH003", "30"})
+
     def test_meta_line_is_retried_then_failed(self):
         masked, store = td.mask("Open the file with the editor.")
         tr = _Translator(lambda t, n: MetaReplies.SEEN[0], fragment=lambda t: MetaReplies.SEEN[0])

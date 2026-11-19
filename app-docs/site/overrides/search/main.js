@@ -27,15 +27,22 @@ function joinUrl (base, path) {
   return base + "/" + path;
 }
 
-function escapeHtml (value) {
-  return value.replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+// KORTTY: search index fields and translated labels are plain text.
+function textElement (tag, text) {
+  var element = document.createElement(tag);
+  element.textContent = text;
+  return element;
 }
 
 function formatResult (location, title, summary) {
-  return '<article><h3><a href="' + joinUrl(base_url, location) + '">'+ escapeHtml(title) + '</a></h3><p>' + escapeHtml(summary) +'</p></article>';
+  var article = document.createElement('article');
+  var heading = document.createElement('h3');
+  var link = textElement('a', title);
+  link.href = joinUrl(base_url, location);
+  heading.appendChild(link);
+  article.appendChild(heading);
+  article.appendChild(textElement('p', summary));
+  return article;
 }
 
 function displayResults (results) {
@@ -53,18 +60,19 @@ function displayResults (results) {
     var shown = suggest ? Math.min(results.length, SUGGEST_LIMIT) : results.length;
     for (var i=0; i < shown; i++){
       var result = results[i];
-      var html = formatResult(result.location, result.title, result.summary);
-      search_results.insertAdjacentHTML('beforeend', html);
+      search_results.appendChild(formatResult(result.location, result.title, result.summary));
     }
     if (suggest && results.length > shown) {
       var moreText = search_results.getAttribute('data-more-text');
       if (moreText) {
         var input = document.getElementById('mkdocs-search-query');
-        var href = joinUrl(base_url, 'search.html?q=')
+        var more = document.createElement('p');
+        more.className = 'kt-search-more';
+        var link = textElement('a', moreText.replace('{n}', results.length - shown));
+        link.href = joinUrl(base_url, 'search.html?q=')
           + encodeURIComponent(input ? input.value : '');
-        search_results.insertAdjacentHTML('beforeend',
-          '<p class="kt-search-more"><a href="' + href + '">'
-          + escapeHtml(moreText.replace('{n}', results.length - shown)) + '</a></p>');
+        more.appendChild(link);
+        search_results.appendChild(more);
       }
     }
   } else {
@@ -72,7 +80,7 @@ function displayResults (results) {
     if (!noResultsText) {
       noResultsText = "No results found";
     }
-    search_results.insertAdjacentHTML('beforeend', '<p>' + noResultsText + '</p>');
+    search_results.appendChild(textElement('p', noResultsText));
   }
 }
 
@@ -154,7 +162,7 @@ function showPreparing () {
   while (panel.firstChild) {
     panel.removeChild(panel.firstChild);
   }
-  panel.insertAdjacentHTML('beforeend', '<p>' + escapeHtml(text) + '</p>');
+  panel.appendChild(textElement('p', text));
 }
 
 function bootstrapSearch () {
