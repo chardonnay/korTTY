@@ -74,8 +74,10 @@ jobs:
       KORTTY_AI_CATALOG_PUBLIC_KEY: ${{ vars.KORTTY_AI_CATALOG_PUBLIC_KEY }}
     strategy:
       fail-fast: false
+      # Use the same Ubuntu release for both Linux architectures. RPM 6 on
+      # ubuntu-latest (26.04) fails with the existing GPG signing macros.
       matrix:
-        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'flatpak-only' && '[{"os":"ubuntu-latest","platform":"linux","arch":"x86_64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64"}]' || '[{"os":"macos-latest","platform":"macos","arch":"aarch64"},{"os":"macos-15-intel","platform":"macos","arch":"x86_64"},{"os":"windows-latest","platform":"windows","arch":"x86_64"},{"os":"ubuntu-latest","platform":"linux","arch":"x86_64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64"}]') }}
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.scope == 'flatpak-only' && '[{"os":"ubuntu-24.04","platform":"linux","arch":"x86_64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64"}]' || '[{"os":"macos-latest","platform":"macos","arch":"aarch64"},{"os":"macos-15-intel","platform":"macos","arch":"x86_64"},{"os":"windows-latest","platform":"windows","arch":"x86_64"},{"os":"ubuntu-24.04","platform":"linux","arch":"x86_64"},{"os":"ubuntu-24.04-arm","platform":"linux","arch":"aarch64"}]') }}
 
     steps:
       - name: Checkout code
