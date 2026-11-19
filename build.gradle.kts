@@ -807,7 +807,10 @@ val formatterSqlFormatterSha256 = "5ec54da8958d4ad9f6c948a8032ce55a2444361a9a922
 val formatterPerlTidyVersion = "20260204"
 val monacoEditorVersion = "0.57.0"
 val monacoEditorSha256 = "3ea1712fbacd3290cf4751007e3a5b57cc279767607812d4c3e57925fb0b05c2"
-val monacoEsbuildVersion = "0.28.0"
+val monacoEsbuildVersion = "0.28.2"
+val monacoEsbuildSha256 = "e045f94c235c7adc50e77ba2a579c7bec41b496b6b47c3a7845f7c1e19959a88"
+val monacoDomPurifyVersion = "3.4.18"
+val monacoDomPurifySha256 = "8b86f79c6481fec23dd81d4de32179422668912ed033c0c47e786a6e70cb3379"
 
 fun formatterArch(): String = when (System.getProperty("os.arch", "").lowercase()) {
     "aarch64", "arm64" -> "arm64"
@@ -1038,6 +1041,9 @@ tasks.register("prepareMonacoWorkspace") {
     inputs.property("monacoEditorVersion", monacoEditorVersion)
     inputs.property("monacoEditorSha256", monacoEditorSha256)
     inputs.property("monacoEsbuildVersion", monacoEsbuildVersion)
+    inputs.property("monacoEsbuildSha256", monacoEsbuildSha256)
+    inputs.property("monacoDomPurifyVersion", monacoDomPurifyVersion)
+    inputs.property("monacoDomPurifySha256", monacoDomPurifySha256)
     outputs.dir(monacoWorkspaceDir)
     doLast {
         val workspace = monacoWorkspaceDir.get().asFile
@@ -1047,19 +1053,17 @@ tasks.register("prepareMonacoWorkspace") {
             from("src/monaco")
             into(workspace.resolve("src"))
         }
-        val cachedTarball = formatterDownloadDir.get().asFile.resolve("monaco-editor-$monacoEditorVersion.tgz")
-        downloadPinned(
-            "https://registry.npmjs.org/monaco-editor/-/monaco-editor-$monacoEditorVersion.tgz",
-            cachedTarball,
-            monacoEditorSha256
-        )
-        // Depend on the tarball via a RELATIVE file: spec resolved against the
-        // workspace. Java's File.toURI() yields "file:/C:/..." on Windows, which
-        // npm cannot parse as a path (it only worked on Unix because the path was
-        // "/home/..."). Copy the SHA-verified tarball into the workspace and depend
-        // on it by bare filename so npm resolves it natively on every OS.
-        val localMonacoTarballName = "monaco-editor-$monacoEditorVersion.tgz"
-        cachedTarball.copyTo(workspace.resolve(localMonacoTarballName), overwrite = true)
+        // npm resolves relative file: specs on every OS, including Windows.
+        fun npmTarball(packageName: String, packageVersion: String, checksum: String): String {
+            val name = "$packageName-$packageVersion.tgz"
+            val cached = formatterDownloadDir.get().asFile.resolve(name)
+            downloadPinned("https://registry.npmjs.org/$packageName/-/$name", cached, checksum)
+            cached.copyTo(workspace.resolve(name), overwrite = true)
+            return "file:$name"
+        }
+        val editor = npmTarball("monaco-editor", monacoEditorVersion, monacoEditorSha256)
+        val esbuild = npmTarball("esbuild", monacoEsbuildVersion, monacoEsbuildSha256)
+        val domPurify = npmTarball("dompurify", monacoDomPurifyVersion, monacoDomPurifySha256)
         workspace.resolve("package.json").writeText(
             """
             {
@@ -1069,8 +1073,12 @@ tasks.register("prepareMonacoWorkspace") {
                 "build": "node src/build-monaco.mjs ${monacoGeneratedResourceDir.get().asFile.resolve("monaco").absolutePath.replace("\\", "\\\\")}"
               },
               "dependencies": {
-                "esbuild": "${monacoEsbuildVersion}",
-                "monaco-editor": "file:$localMonacoTarballName"
+                "esbuild": "$esbuild",
+                "dompurify": "$domPurify",
+                "monaco-editor": "$editor"
+              },
+              "overrides": {
+                "dompurify": "$domPurify"
               }
             }
             """.trimIndent()
@@ -1105,6 +1113,7 @@ tasks.register("bundleMonacoEditor") {
     description = "Bundles Monaco Editor and its web workers as local JavaFX WebView resources."
     dependsOn("prepareMonacoWorkspace")
     inputs.dir("src/monaco")
+    inputs.file(monacoWorkspaceDir.map { it.file("package-lock.json") })
     outputs.dir(monacoGeneratedResourceDir)
     doLast {
         val outputDir = monacoGeneratedResourceDir.get().asFile

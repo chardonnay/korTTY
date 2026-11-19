@@ -18,6 +18,21 @@ const workerEntries = {
   ts: "workers/ts.worker.js"
 };
 
+// Monaco imports its vendored DOMPurify through a relative path. Use the patched npm
+// module for that import in the host and in any worker that shares the same code.
+const vendoredPurify = fileURLToPath(import.meta.resolve("monaco-editor/base/browser/dompurify/dompurify.js"));
+const pinnedPurify = fileURLToPath(import.meta.resolve("dompurify"));
+const purifyPlugin = {
+  name: "monaco-dompurify",
+  setup(builder) {
+    builder.onResolve({ filter: /dompurify\.js$/ }, args => {
+      if (path.resolve(args.resolveDir, args.path) === vendoredPurify) {
+        return { path: pinnedPurify };
+      }
+    });
+  }
+};
+
 await fs.rm(outDir, { recursive: true, force: true });
 await fs.mkdir(outDir, { recursive: true });
 await fs.mkdir(path.join(root, "generated", "workers"), { recursive: true });
@@ -30,6 +45,7 @@ for (const [name, relativeEntry] of Object.entries(workerEntries)) {
   const outfile = path.join(root, "generated", "workers", `${name}.worker.js`);
   await build({
     entryPoints: [path.join(root, relativeEntry)],
+    plugins: [purifyPlugin],
     bundle: true,
     outfile,
     format: "iife",
@@ -55,6 +71,7 @@ await fs.writeFile(
 
 const hostBuild = await build({
   entryPoints: [path.join(root, "monaco-host.js")],
+  plugins: [purifyPlugin],
   bundle: true,
   outfile: path.join(outDir, "monaco-host.js"),
   format: "iife",
@@ -74,6 +91,10 @@ const hostBuild = await build({
   // for deciding what the WebView has to parse on every editor boot.
   metafile: true
 });
+const inputs = Object.keys(hostBuild.metafile.inputs).map(input => path.resolve(input));
+if (!inputs.includes(pinnedPurify) || inputs.includes(vendoredPurify)) {
+  throw new Error("The Monaco host must bundle the pinned DOMPurify module");
+}
 await fs.writeFile(
   path.join(root, "generated", "monaco-host.meta.json"),
   JSON.stringify(hostBuild.metafile),
