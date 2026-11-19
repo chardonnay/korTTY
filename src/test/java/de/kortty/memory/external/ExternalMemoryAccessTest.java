@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import static com.google.common.truth.Truth.assertThat;
+import static de.kortty.testutil.SymbolicLinks.createOrSkip;
 
 class ExternalMemoryAccessTest {
 
@@ -66,7 +67,7 @@ class ExternalMemoryAccessTest {
         Path target = ExternalMemoryFixtures.write(outside.resolve("secret.md"), "Not for korTTY.\n");
         Path link = home.resolve(".kiro/steering/link.md");
         Files.createDirectories(link.getParent());
-        Files.createSymbolicLink(link, target);
+        createOrSkip(link, target);
 
         assertThat(access(p -> true).check(link, home).refusal()).hasValue(ExternalMemoryAccess.Refusal.OUTSIDE_ROOT);
     }
