@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
+import static de.kortty.testutil.SymbolicLinks.createOrSkip;
 
 class ExternalMemoryDiscoveryTest {
 
@@ -77,7 +78,7 @@ class ExternalMemoryDiscoveryTest {
     @Test
     void aLinkThatLeavesItsFolderIsNotOffered() throws IOException {
         Path secret = ExternalMemoryFixtures.write(outside.resolve("leak.md"), "Leaked.\n");
-        Files.createSymbolicLink(home.resolve(".kiro/steering/leak.md"), secret);
+        createOrSkip(home.resolve(".kiro/steering/leak.md"), secret);
 
         List<ExternalMemoryDiscovery.Candidate> found = discovery().homeCandidates();
 
