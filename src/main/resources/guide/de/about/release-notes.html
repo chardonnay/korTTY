@@ -839,44 +839,11 @@
     <article>
         <p><h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
-<h2 id="v2260">v2.26.0<a class="headerlink" href="#v2260" title="Permanent link">&para;</a></h2>
-<h3 id="sftp">SFTP<a class="headerlink" href="#sftp" title="Permanent link">&para;</a></h3>
+<h2 id="v2261">v2.26.1<a class="headerlink" href="#v2261" title="Permanent link">&para;</a></h2>
+<h3 id="sicherheit">Sicherheit<a class="headerlink" href="#sicherheit" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Wird eine Übertragung beim Öffnen ihres Kanals abgebrochen, erhält sie zuverlässig den Status <strong>Abgebrochen</strong>. Uploads berücksichtigen die konfigurierte Aufbewahrung von Teildateien auch dann, wenn der Abbruch die Metadatenprüfung unterbricht.</li>
-</ul>
-<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Verbindungsdauer</strong> — Die Terminal-Statusleiste zeigt Stunden und Minuten an. Ab 24 Stunden kommt die Anzahl der Tage hinzu.</li>
-<li><strong>Neue PowerShell</strong> ist unter Linux und macOS in der Aktionsliste der Icon-Leiste verfügbar, wenn korTTY eine installierte PowerShell (<code>pwsh</code>) erkennt.</li>
-</ul>
-<h3 id="ki-agent-und-ki-chat">KI-Agent und KI-Chat<a class="headerlink" href="#ki-agent-und-ki-chat" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Modelllisten für KI-Profile</strong> — Laden Sie beim Anlegen oder Bearbeiten eines Profils die aktuellen Modell-IDs vom Anbieter. Die Auswahl behält Ihre eingegebene Modell-ID bei und bietet integrierte Vorschläge, bis eine Liste verfügbar ist. Siehe <a href="../reference/settings/ai.html#model-list-endpoints">Endpunkte für Modelllisten</a>.</li>
-<li><strong>Im KI-Chat fortsetzen</strong> — Wenn ein Terminal-Lauf abgeschlossen ist, bietet eine Leiste unter dem Terminal die Option <strong>Im KI-Chat fortsetzen</strong> und ein Feld für eine Anschlussfrage an; das Laufmenü jedes Agent-Designs enthält denselben Eintrag. Der Chat beginnt mit der Aufgabe und der finalen Antwort und listet die Schritte des Laufs (Befehle, Exit-Codes, gekürzte Ausgabe) in einer eingeklappten <strong>Schritte</strong>-Liste auf. Alles Gespeicherte wird maskiert, einschließlich eines während des Laufs eingegebenen sudo-Passworts. Siehe <a href="../features/ai-agent-designs.html#im-ki-chat-fortsetzen">Im KI-Chat fortsetzen</a>.</li>
-<li><strong>Profil für den KI-Agenten</strong> — eine neue Rolle <strong>Profil für den KI-Agenten</strong> unter <strong>KI &gt; KI-Manager &gt; Lokale KI &gt; Profil-Rollen</strong> bestimmt das Profil, das Terminal-Agent-Läufe verwenden, wenn weder der Lauf noch die Verbindung eines benennt; bleibt sie leer, verwenden Läufe weiterhin das Coding-Profil und dann das Standardprofil. Siehe <a href="../reference/settings/ai.html#einstellungen-des-lokalen-ki-managers">Einstellungen des lokalen KI-Managers</a>.</li>
-<li><strong>Suche im KI-Manager</strong> — eine Suchzeile über den Tabs des KI-Managers findet eine Option auf jeder Seite, öffnet die Seite und hebt sie hervor; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> springt dorthin. Siehe <a href="../reference/settings/ai.html#searching-the-ai-manager">Suche im KI-Manager</a>.</li>
-<li><strong>Sudo im KI-Agenten</strong> – Jeder SSH-Lauf öffnet beim ersten sudo-Befehl ein eigenes Pseudoterminal, auch in SSH-Sitzungen mit Sandbox oder im Inkognito-Modus. Wenn die Validierung ein Passwort verlangt, geben Sie es einmal ein. Spätere Befehle können das sudo-Ticket des Servers verwenden, bis der Lauf endet oder das Ticket abläuft. <strong>Immer erlauben</strong> genehmigt die verbleibenden Befehle des Laufs. Siehe <a href="../features/ai-tools.html#privilegienbehandlung">Privilegienbehandlung</a>.</li>
-</ul>
-<h3 id="session-journal">Session-Journal<a class="headerlink" href="#session-journal" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Journal-Terminals</strong> ermöglicht es Ihnen, ein, mehrere oder alle Terminals eines geteilten Tabs auszuwählen und gemeinsam in einem Sitzungsjournal aufzuzeichnen. <strong>Alle Terminals in diesem Tab</strong> bezieht auch neue Split-Terminals ein. Das Aufzeichnungsprotokoll kennzeichnet bei jedem Eintrag das Terminal, aus dem er stammt. Siehe <a href="../features/session-journal.html#das-journal-wird-aktiviert">Journal aktivieren</a>.</li>
-<li><strong>Journale zusammenführen</strong> – Wählen Sie mehrere geschlossene Journale im <a href="../features/session-journal.html#journale-verwalten">Journal-Manager</a> aus, um ein Journal mit einer gemeinsamen Zeitleiste, gekennzeichneten Terminalabschnitten und einer optionalen KI-gestützten Übersicht zu erstellen.</li>
-<li>
-<p>Nach dem Beenden eines Sitzungsjournals können Sie die Leiste in diesem Tab per Rechtsklick mit <strong>Journalleiste ausblenden</strong> ausblenden.</p>
-</li>
-<li>
-<p><strong>KI-Chats im Journal</strong> — Während das Journal aufzeichnet, erhält eine <strong>KI-Agent</strong>-Karte, die in einem KI-Chat fortgesetzt wurde, ein <strong>KI-Chat</strong>-Tag, eine <strong>Im KI-Chat öffnen</strong>-Schaltfläche und ein aufklappbares Transkript mit den Schritten der Ausführung. Das Journal behält eine maskierte Kopie bei, die dem Chat bis zum Stopp des Journals folgt, sodass ein gelöschter Chat weiterhin daraus nur lesbar geöffnet werden kann. Exporte erhalten eine <strong>KI-Chats einschließen</strong>-Option: ein Anhang im PDF, eine Datei pro Chat neben dem Markdown, das Transkript in HTML-Bundles. Siehe <a href="../features/session-journal.html#ki-agent-karten-und-deren-ki-chats">KI-Agent-Karten und deren KI-Chats</a>.</p>
-</li>
-<li><strong>Zusammenfassungen pro Befehl</strong> — der KI-Zusammenfasser liest das Protokoll Befehl für Befehl und teilt niemals einen auf, sodass ein langer <code>dnf upgrade</code> einen Eintrag statt ein Dutzend ergibt. Eingaben in ein laufendes Programm gehören zu ihrem Befehl; Tippfehler und Befehle, die nur Hilfe anzeigen, wie <code>ls --help</code> oder <code>man crontab</code>, werden von den Karten und der <strong>Befehle</strong>-Zählung ausgeschlossen. Ein langer Befehl wird zusammengefasst oder, bei Chunking, in mehreren Prompts vollständig gelesen; ein Befehl, der noch läuft, erhält nach 15 Minuten einen <strong>läuft noch</strong>-Eintrag. Mit Shell-Integration kennt korTTY das exakte Ende und den Exit-Status jedes Befehls. Siehe <a href="../features/session-journal.html#ki-zusammenfassungen">KI-Zusammenfassungen</a>.</li>
-<li><strong>Abschluss im Hintergrund</strong> — der Abschlussvorgang eines Journals läuft im Hintergrund ab und wird im Journal-Manager als <strong>wird abgeschlossen</strong> angezeigt; ein Journal, das durch das Beenden von korTTY oder einen Absturz unvollendet geblieben ist, wird beim nächsten Start abgeschlossen.</li>
-<li><strong>Neuauswertung im Hintergrund</strong> — <strong>Mit KI neu auswerten…</strong> läuft weiter, wenn Sie das Fenster oder den Journal-Manager schließen. Das Fortschrittsfenster zeigt den aktuellen Schritt, einen Fortschrittsbalken, die vergangene Zeit und eine Schätzung der verbleibenden Zeit; der Journal-Manager zeigt den Lauf in einer Statuszeile mit <strong>Fortschritt anzeigen</strong> und <strong>Abbrechen</strong>. Siehe <a href="../features/session-journal.html#ein-journal-erneut-mit-ki-bewerten">Ein Journal mit KI neu auswerten</a>.</li>
-<li><strong>Scrollbalken auf der Journalseite</strong> — das Protokollfeld verfügt über einen eigenen, sichtbaren Scrollbalken, jeder Scrollbalken-Griff bleibt mindestens 40 px lang und die Scrollbalken von Auszügen sind nicht mehr durch das angedockte Protokollfeld sichtbar.</li>
-</ul>
-<h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Struktur-Panel</strong> — <strong>Struktur</strong> in der Symbolleiste des Snippet-Editors zeigt ein Panel links neben dem Code mit den Klassen und Funktionen, den Variablen (Art, Bereich, erste Zeile, Verwendungen) und den Platzhaltern des Snippets. Klicken Sie auf einen Eintrag, um ihn im Code auszuwählen; der Baum folgt dem Cursor und ein Filter schränkt alle drei Listen ein. Siehe <a href="../features/snippets.html#struktur-panel">Struktur-Panel</a>.</li>
-<li><strong>Lua</strong> — Lua ist eine Snippet-Sprache mit Hervorhebung, Vervollständigung und Strukturregeln, auch im Dateieditor des SFTP-Managers. <strong>Code formatieren</strong> verwendet StyLua und <strong>Syntax prüfen</strong> verwendet <code>luac -p</code>, wenn diese installiert sind. Siehe <a href="../features/snippets.html#formatcode">Code formatieren</a>.</li>
-<li><strong>Vom Finder erkannte installierte Formatter</strong> — Black, RuboCop, StyLua und die anderen Formatter, die Sie selbst installieren, werden ebenfalls in den üblichen Installationsordnern wie <code>/opt/homebrew/bin</code> und <code>~/.cargo/bin</code> gefunden, sodass sie funktionieren, wenn korTTY vom Finder oder Dock gestartet wurde.</li>
+<li>Guava wurde auf 33.7.2-jre aktualisiert. Der Monaco-Build verwendet jetzt DOMPurify 3.4.18 und esbuild 0.28.2.</li>
+<li>Die Offline-Anleitung zeigt Suchergebnisse und Statusmeldungen als Klartext an. Die Dokumentationswerkzeuge verarbeiten Bezeichner sicher, und die Sitzungsprozessanzeige verwendet einen festen Systempfad.</li>
 </ul></p>
     </article>
 </section>
@@ -885,7 +852,7 @@
             <!-- block footer -->
 <footer class="kt-footer">
   <div class="kt-footer__line">MIT-lizenziert &middot; Entwickelt von Daniel Mengel</div>
-  <div class="kt-footer__line">korTTY <strong>v2.26.0</strong></div>
+  <div class="kt-footer__line">korTTY <strong>v2.26.1</strong></div>
 </footer>
 
             <!-- endblock -->

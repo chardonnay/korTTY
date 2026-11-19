@@ -839,44 +839,11 @@
     <article>
         <p><h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
-<h2 id="v2260">v2.26.0<a class="headerlink" href="#v2260" title="Permanent link">&para;</a></h2>
-<h3 id="sftp">SFTP<a class="headerlink" href="#sftp" title="Permanent link">&para;</a></h3>
+<h2 id="v2261">v2.26.1<a class="headerlink" href="#v2261" title="Permanent link">&para;</a></h2>
+<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Cancelling a transfer while its channel opens reliably marks it <strong>Cancelled</strong>. Uploads also apply the configured partial-file retention when cancellation interrupts metadata checks.</li>
-</ul>
-<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Connection duration</strong> — the terminal status bar shows hours and minutes, with a day count starting at 24 hours.</li>
-<li><strong>New PowerShell</strong> is available in the toolbar's action catalog on Linux and macOS when korTTY detects an installed <code>pwsh</code>.</li>
-</ul>
-<h3 id="ai-agent-and-ai-chat">AI agent and AI chat<a class="headerlink" href="#ai-agent-and-ai-chat" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Model lists for AI profiles</strong> — load current model IDs from the provider when setting up or editing a profile. The picker keeps the model ID you have entered and offers built-in suggestions until a list is available. See <a href="../reference/settings/ai.html#model-list-endpoints">Model list endpoints</a>.</li>
-<li><strong>Continue a run in an AI chat</strong> — when a terminal run has finished, a bar under the terminal offers <strong>Continue in AI chat</strong> and a field for a follow-up question; the run menu of every agent design has the same entry. The chat starts with the task and the final answer, and lists the steps of the run (commands, exit codes, shortened output) in a collapsed <strong>Steps</strong> list. Everything stored is masked, including a sudo password typed during the run. See <a href="../features/ai-agent-designs.html#continue-a-run-in-an-ai-chat">Continue a run in an AI chat</a>.</li>
-<li><strong>AI agent profile</strong> — a new <strong>AI agent profile</strong> role under <strong>AI &gt; AI Manager &gt; Local AI &gt; Profile roles</strong> picks the profile terminal agent runs use when neither the run nor the connection names one; left empty, runs keep using the Coding profile and then the default profile. See <a href="../reference/settings/ai.html#local-ai-manager-settings">Local AI manager settings</a>.</li>
-<li><strong>Searching the AI Manager</strong> — a search line above the AI Manager's tabs finds an option on any page, opens the page and highlights it; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> jumps to it. See <a href="../reference/settings/ai.html#searching-the-ai-manager">Searching the AI Manager</a>.</li>
-<li><strong>Sudo in the AI Agent</strong> — Each SSH run opens its own pseudoterminal when it first needs sudo, including in sandboxed or incognito SSH sessions. Enter the password once when validation requests it, and later commands can use the server's sudo ticket until the run ends or the ticket expires. <strong>Allow Always</strong> approves the run's remaining commands. See <a href="../features/ai-tools.html#privilege-handling">Privilege handling</a>.</li>
-</ul>
-<h3 id="session-journal">Session journal<a class="headerlink" href="#session-journal" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Journal terminals</strong> lets you choose one, several or all terminals in a split tab and record them together in one session journal. Choosing <strong>All terminals in this tab</strong> also includes new splits. The capture log identifies the terminal that produced each entry. See <a href="../features/session-journal.html#enabling-the-journal">Enabling the journal</a>.</li>
-<li><strong>Merge session journals</strong> — select several closed journals in the <a href="../features/session-journal.html#managing-journals">journal manager</a> to create one journal with a shared timeline, labeled terminal sections and an optional AI-refined overview.</li>
-<li>
-<p>After stopping a session journal, use <strong>Hide journal bar</strong> in the bar's right-click menu to hide it in that tab.</p>
-</li>
-<li>
-<p><strong>AI chats in the journal</strong> — while the journal records, an <strong>AI agent</strong> card continued in an AI chat gets an <strong>AI chat</strong> tag, an <strong>Open in AI chat</strong> button and a collapsible transcript with the steps of the run. The journal keeps a masked copy that follows the chat until the journal stops, so a deleted chat still opens read-only from it. Exports get an <strong>Include AI chats</strong> option: an appendix in PDF, a file per chat beside Markdown, the transcript in HTML bundles. See <a href="../features/session-journal.html#ai-agent-cards-and-their-ai-chats">AI agent cards and their AI chats</a>.</p>
-</li>
-<li><strong>Summaries per command</strong> — the AI summarizer reads the log command by command and never splits one, so a long <code>dnf upgrade</code> becomes one entry instead of a dozen. Replies typed into a running program belong to their command; typos and commands that only show help, such as <code>ls --help</code> or <code>man crontab</code>, are left out of the cards and of the <strong>Commands</strong> count. A long command is condensed or, with chunking, read in full in several prompts; a command still running gets a <strong>still running</strong> entry after 15 minutes. With shell integration korTTY knows each command's exact end and exit status. See <a href="../features/session-journal.html#ai-summaries">AI summaries</a>.</li>
-<li><strong>Finishing in the background</strong> — the closing pass of a journal runs in the background and shows as <strong>finishing</strong> in the journal manager; a journal left unfinished by quitting korTTY or a crash is finished at the next start.</li>
-<li><strong>Re-evaluation in the background</strong> — <strong>Re-evaluate with AI…</strong> keeps running when you close its window or the journal manager. The progress window shows the current step, a progress bar, the elapsed time and an estimate of the time left; the journal manager shows the run in a status line with <strong>Show progress</strong> and <strong>Cancel</strong>. See <a href="../features/session-journal.html#re-evaluating-a-journal-with-ai">Re-evaluating a journal with AI</a>.</li>
-<li><strong>Scrollbars on the journal page</strong> — the log panel has a visible scrollbar of its own, every scrollbar thumb stays at least 40 px long, and the scrollbars of excerpts no longer show through the docked log panel.</li>
-</ul>
-<h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Structure panel</strong> — <strong>Structure</strong> in the snippet editor toolbar shows a panel left of the code with the classes and functions, the variables (kind, scope, first line, usages) and the placeholders of the snippet. Click an entry to select it in the code; the tree follows the caret and a filter narrows all three lists. See <a href="../features/snippets.html#structure-panel">Structure panel</a>.</li>
-<li><strong>Lua</strong> — Lua is a snippet language with highlighting, completion and structure rules, also in the file editor of the SFTP manager. <strong>Format Code</strong> uses StyLua and <strong>Check Syntax</strong> uses <code>luac -p</code> when they are installed. See <a href="../features/snippets.html#format-code">Format Code</a>.</li>
-<li><strong>Installed formatters found from the Finder</strong> — Black, RuboCop, StyLua and the other formatters you install yourself are also found in the usual install folders such as <code>/opt/homebrew/bin</code> and <code>~/.cargo/bin</code>, so they work when korTTY was started from the Finder or the Dock.</li>
+<li>Updated Guava to 33.7.2-jre and the Monaco build to DOMPurify 3.4.18 and esbuild 0.28.2.</li>
+<li>The offline guide renders search-result text and status messages as plain text. Documentation tooling handles identifiers safely, and the session process monitor uses a fixed system path.</li>
 </ul></p>
     </article>
 </section>
@@ -885,7 +852,7 @@
             <!-- block footer -->
 <footer class="kt-footer">
   <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
-  <div class="kt-footer__line">korTTY <strong>v2.26.0</strong></div>
+  <div class="kt-footer__line">korTTY <strong>v2.26.1</strong></div>
 </footer>
 
             <!-- endblock -->
