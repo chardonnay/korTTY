@@ -169,6 +169,24 @@ SithTermFX is built from source during the build (no GitHub token required). You
 
 On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[SithTermFX] at tag `v1.2.7` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
 
+=== Test reports with Allure Report 3
+
+Run the TestNG suite and the dialog benchmark on a machine with a desktop session. Use `gradlew.bat` on Windows.
+
+[source,bash]
+----
+./gradlew test dialogOpenPerfSmoke allureResults --continue
+----
+
+`allureResults` collects the latest result files in `build/allure-results`. `--continue` lets Gradle collect the reports even when a test fails. The dialog benchmark reports cold timings and warm medians in milliseconds. Add `"-Pkortty.perf.iterations=21"` to also report the warm 95th percentile, based on at least 20 warm iterations per dialog.
+
+Generate a report with a local Allure Report 3 CLI, or pass the contents of `build/allure-results` to a self-hosted generator. For release comparisons, use the same machine and benchmark options, keep the same `historyPath` in the Allure configuration, and label each run with its release tag.
+
+[source,bash]
+----
+allure generate build/allure-results --report-name 'korTTY <release-tag>'
+----
+
 == Run
 
 [source,bash]
