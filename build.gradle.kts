@@ -3472,17 +3472,34 @@ tasks.register<JavaExec>("monacoWebViewSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
-tasks.register<JavaExec>("dialogOpenPerfSmoke") {
+val dialogPerfResults = layout.buildDirectory.dir("test-results/dialogOpenPerfSmoke")
+val dialogOpenPerfSmoke = tasks.register<JavaExec>("dialogOpenPerfSmoke") {
     group = "verification"
-    description = "Opens the heavy korTTY dialogs repeatedly and prints construct/show/first-pulse/stall/close times."
+    description = "Measures dialog opening times with JavaFX and writes Allure Report 3 results."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.DialogOpenPerfSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
     systemProperty("kortty.ui.perf", "true")
+    systemProperty("kortty.perf.allureResults", dialogPerfResults.get().asFile.absolutePath)
     listOf("kortty.perf.iterations", "kortty.perf.settleMs", "kortty.perf.dialogs",
         "kortty.perf.design", "kortty.perf.fontScale").forEach { key ->
         (findProperty(key) as String?)?.let { systemProperty(key, it) }
     }
+    doFirst {
+        val directory = dialogPerfResults.get().asFile.toPath()
+        Files.deleteIfExists(directory.resolve("dialog-open-perf.json"))
+        Files.deleteIfExists(directory.resolve("dialog-open-result.json"))
+    }
+}
+
+tasks.register<Sync>("allureResults") {
+    group = "verification"
+    description = "Collects the latest TestNG and JavaFX dialog results for Allure Report 3."
+    // Keep collection independent so --continue can export failed test runs as well.
+    mustRunAfter(tasks.test, dialogOpenPerfSmoke)
+    from(layout.buildDirectory.dir("test-results/test")) { include("TEST-*.xml") }
+    from(dialogPerfResults) { include("dialog-open-result.json", "dialog-open-perf.json") }
+    into(layout.buildDirectory.dir("allure-results"))
 }
 
 tasks.register<JavaExec>("dialogThemeIdempotenceSmoke") {

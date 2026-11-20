@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import com.google.gson.Gson;
+import de.kortty.JavaFxPlatformSupport;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.AppDesign;
@@ -26,10 +28,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.function.ToDoubleFunction;
 
 /**
  * Headed benchmark for the "dialogs open slowly" investigation. Opens the heavy korTTY dialogs
@@ -62,22 +66,57 @@ import java.util.function.Supplier;
  */
 public final class DialogOpenPerfSmoke {
 
-    private record Sample(double construct, double show, double firstPulse, double maxStall, double close) {
+    private record Sample(long start, long stop, double construct, double show, double firstPulse,
+                          double maxStall, double close) {
     }
 
+    private record Timing(String name, ToDoubleFunction<Sample> value) {
+    }
+
+    private record AllureMeasurement(String id, String key, double value, long start, long stop) {
+    }
+
+    private record AllureResult(String uuid, String name, String fullName, String status, String stage,
+                                long start, long stop, Map<String, String> statusDetails) {
+    }
+
+    private static final List<Timing> TIMINGS = List.of(
+        new Timing("construct", Sample::construct), new Timing("show", Sample::show),
+        new Timing("firstPulse", Sample::firstPulse), new Timing("maxStall", Sample::maxStall),
+        new Timing("close", Sample::close));
     private static final Map<String, List<Sample>> RESULTS = new LinkedHashMap<>();
 
     private DialogOpenPerfSmoke() {
     }
 
     public static void main(String[] args) throws Exception {
+        long started = System.currentTimeMillis();
+        int exitCode;
+        try {
+            exitCode = runBenchmark();
+        } catch (Exception | LinkageError e) {
+            e.printStackTrace();
+            exitCode = 1;
+        }
+        String allureResults = System.getProperty("kortty.perf.allureResults");
+        if (allureResults != null) {
+            writeAllureResults(Path.of(allureResults), started, exitCode);
+        }
+        System.exit(exitCode);
+    }
+
+    private static int runBenchmark() throws Exception {
         Path home = Files.createTempDirectory("kortty-dialog-perf");
         System.setProperty("user.home", home.toString());
         System.setProperty("kortty.ui.perf", "true");
         Locale.setDefault(Locale.ENGLISH);
+        JavaFxPlatformSupport.configureRenderer();
 
         int iterations = Integer.getInteger("kortty.perf.iterations", 5);
         int settleMs = Integer.getInteger("kortty.perf.settleMs", 3000);
+        if (iterations < 1 || settleMs < 0) {
+            throw new IllegalArgumentException("Dialog benchmark requires at least one iteration and a nonnegative settle time");
+        }
         List<String> dialogs = Arrays.asList(
             System.getProperty("kortty.perf.dialogs", "alert,settings,connection,ai,snippet").split("\\s*,\\s*"));
 
@@ -94,14 +133,14 @@ public final class DialogOpenPerfSmoke {
         boolean finished = done.await(20, TimeUnit.MINUTES);
         if (failure.get() != null) {
             failure.get().printStackTrace();
-            System.exit(1);
+            return 1;
         }
         if (!finished) {
             System.err.println("DIALOG PERF TIMEOUT");
-            System.exit(2);
+            return 2;
         }
         printSummary(iterations);
-        System.exit(0);
+        return 0;
     }
 
     private static void run(int iterations, int settleMs, List<String> dialogs, CountDownLatch done) throws Exception {
@@ -210,6 +249,7 @@ public final class DialogOpenPerfSmoke {
         if (sampler != null) {
             sampler.start();
         }
+        long startMillis = System.currentTimeMillis();
         long t0 = System.nanoTime();
         Dialog<?> dialog = factory.get();
         long constructed = System.nanoTime();
@@ -241,6 +281,7 @@ public final class DialogOpenPerfSmoke {
             long closed = System.nanoTime();
             stalls.stop();
             Sample sample = new Sample(
+                startMillis, startMillis + Math.max(1, TimeUnit.NANOSECONDS.toMillis(closed - t0)),
                 ms(constructed - t0), ms(shown[0] - showing[0]), ms(firstPulse[0] - shown[0]),
                 ms(stalls.maxGapNanos), ms(closed - hiding[0]));
             RESULTS.computeIfAbsent(name, k -> new ArrayList<>()).add(sample);
@@ -376,6 +417,7 @@ public final class DialogOpenPerfSmoke {
             if (samples.size() > 1) {
                 List<Sample> warm = samples.subList(1, samples.size());
                 print(entry.getKey(), "warm-med", new Sample(
+                    warm.getFirst().start(), warm.getLast().stop(),
                     median(warm, Sample::construct), median(warm, Sample::show), median(warm, Sample::firstPulse),
                     median(warm, Sample::maxStall), median(warm, Sample::close)));
             }
@@ -388,9 +430,55 @@ public final class DialogOpenPerfSmoke {
             name, run, s.construct, s.show, s.firstPulse, s.maxStall, s.close);
     }
 
-    private static double median(List<Sample> samples, java.util.function.ToDoubleFunction<Sample> getter) {
-        double[] values = samples.stream().mapToDouble(getter).sorted().toArray();
+    private static double median(List<Sample> samples, ToDoubleFunction<Sample> getter) {
+        return median(samples.stream().mapToDouble(getter).sorted().toArray());
+    }
+
+    private static double median(double[] values) {
         int n = values.length;
         return n % 2 == 1 ? values[n / 2] : (values[n / 2 - 1] + values[n / 2]) / 2.0;
+    }
+
+    private static void writeAllureResults(Path directory, long started, int exitCode) throws Exception {
+        Files.createDirectories(directory);
+        Gson gson = new Gson();
+        String platform = (System.getProperty("os.name") + "-" + System.getProperty("os.arch"))
+            .toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-");
+        if (exitCode == 0) {
+            List<AllureMeasurement> measurements = new ArrayList<>();
+            RESULTS.forEach((dialog, samples) -> addAllureMeasurements(measurements, platform, dialog, samples));
+            Files.writeString(directory.resolve("dialog-open-perf.json"), gson.toJson(measurements));
+        }
+        Map<String, String> details = switch (exitCode) {
+            case 0 -> null;
+            case 2 -> Map.of("message", "The JavaFX dialog benchmark did not finish within 20 minutes.");
+            default -> Map.of("message", "The JavaFX dialog benchmark failed. See the Gradle console for details.");
+        };
+        var result = new AllureResult(UUID.randomUUID().toString(), "Open and close dialogs (" + platform + ")",
+            DialogOpenPerfSmoke.class.getName() + "." + platform, exitCode == 0 ? "passed" : "broken",
+            "finished", started, Math.max(started, System.currentTimeMillis()), details);
+        Files.writeString(directory.resolve("dialog-open-result.json"), gson.toJson(result));
+    }
+
+    private static void addAllureMeasurements(List<AllureMeasurement> measurements, String platform, String dialog,
+                                               List<Sample> samples) {
+        Sample cold = samples.getFirst();
+        List<Sample> warm = samples.subList(1, samples.size());
+        for (Timing timing : TIMINGS) {
+            String key = "dialog." + platform + "." + dialog + "." + timing.name();
+            measurements.add(new AllureMeasurement(dialog, key + ".coldMs", timing.value().applyAsDouble(cold),
+                cold.start(), cold.stop()));
+            if (!warm.isEmpty()) {
+                double[] values = warm.stream().mapToDouble(timing.value()).sorted().toArray();
+                long start = warm.getFirst().start();
+                long stop = Math.max(start + 1, warm.getLast().stop());
+                measurements.add(new AllureMeasurement(dialog, key + ".warmMedianMs", median(values), start, stop));
+                // With fewer samples, the nearest-rank p95 would always equal the maximum.
+                if (values.length >= 20) {
+                    int index = (int) Math.ceil(0.95 * values.length) - 1;
+                    measurements.add(new AllureMeasurement(dialog, key + ".warmP95Ms", values[index], start, stop));
+                }
+            }
+        }
     }
 }
