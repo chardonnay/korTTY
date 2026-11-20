@@ -42,7 +42,7 @@ The palette also offers the commands of the terminal's and the tab's right-click
 | **Duplicate** | Tabs | Opens a copy of the tab next to it and signs in like **Duplicate** in the tab's right-click menu. |
 | **Reconnect** | Tabs | Connects the tab again, like **Reconnect** in its right-click menu. |
 | **Monitor for Activity** | Tabs | Watches the tab for new output after a quiet spell, or stops watching it, like the entry in its right-click menu; the row shows a check mark while the tab is watched. See [Watching a tab for activity or silence](terminal-notifications.md#watching-a-tab-for-activity-or-silence). |
-| **Monitor for Silence** | Tabs | Watches the tab for output that stops, or stops watching it, like the entry in its right-click menu; the row shows a check mark while the tab is watched. |
+| **Monitor for Inactivity** | Tabs | Watches the tab for output that stops, or stops watching it, like the entry in its right-click menu; the row shows a check mark while the tab is watched. |
 
 In any other kind of tab, such as a snippet editor, these rows are greyed out. **Find** is not listed a second time: type `find` for **Edit → Find…**, which opens the search of the focused pane.
 

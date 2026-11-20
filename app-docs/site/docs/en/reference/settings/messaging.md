@@ -16,7 +16,7 @@ Open **Configuration → Global Settings → Messaging** to choose which events 
 | Minimum command runtime: | number | 1–3,600 seconds | 30 | `commandFinishedNotificationSeconds` |
 | Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777) | toggle | — | On | `remoteTerminalNotificationsEnabled` |
 | Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you | toggle | — | On | `aiRunToastsEnabled` |
-| Monitor for Silence reports after: | number | 5–3,600 seconds | 30 | `terminalSilenceSeconds` |
+| Monitor for Inactivity reports after: | number | 5–3,600 seconds | 30 | `terminalSilenceSeconds` |
 
 ## Coding-agent messages
 
@@ -27,7 +27,7 @@ Notifications requested directly by terminal programs (OSC 9 / OSC 777) and long
 ## Notes
 
 - Long-running-command notifications and their minimum-runtime field are unavailable while shell integration is off under [Terminal](terminal.md). Re-enabling shell integration makes the controls available again.
-- **Monitor for Silence reports after:** sets the delay for tabs watched through their context menu. Activity and silence monitoring are enabled per tab, not by a global notification switch.
+- **Monitor for Inactivity reports after:** sets the delay for tabs watched through their context menu. Activity and silence monitoring are enabled per tab, not by a global notification switch.
 - An [enterprise policy](../enterprise-policy.md#rulefeatures) can disable desktop notifications and lock the notification switches. Tab attention marks remain visible inside korTTY.
 - See [Terminal notifications](../../features/terminal-notifications.md) for event handling and notification clicks, and [Coding agents](../../features/coding-agents.md#app-icon-badge-and-notifications) for the detected-agent notification behavior.
 
@@ -40,4 +40,4 @@ Notifications requested directly by terminal programs (OSC 9 / OSC 777) and long
 
     **Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you**, on by default, covers korTTY's own AI Agent and AI Swarm: when a run in a tab you are not looking at waits for your approval or a password, finishes or stops without finishing, a desktop notification titled with the tab's name says so in one fixed sentence, never with the prompt, a command or output, at most one per tab and kind every 10 seconds. A terminal tab is marked with 🔔 either way. It is read on every event. See [AI agent and AI Swarm runs](../../features/terminal-notifications.md#ai-agent-and-ai-swarm-runs).
 
-    **Monitor for Silence reports after:** is how long a pane has to stay without output, after printing something, before a tab you watch with **Monitor for Silence** in its right-click menu is marked with 🔔 and shows a desktop notification, 30 seconds by default. The watch itself, like **Monitor for Activity**, which reports new output after 10 seconds of quiet, is switched per tab, off until you switch it on, and never saved. The threshold is read every second, so a change applies to the watched tabs as soon as you save. See [Watching a tab for activity or silence](../../features/terminal-notifications.md#watching-a-tab-for-activity-or-silence).
+    **Monitor for Inactivity reports after:** is how long a pane has to stay without output, after printing something, before a tab you watch with **Monitor for Inactivity** in its right-click menu is marked with 🔔 and shows a desktop notification, 30 seconds by default. The watch itself, like **Monitor for Activity**, which reports new output after 10 seconds of quiet, is switched per tab, off until you switch it on, and never saved. The threshold is read every second, so a change applies to the watched tabs as soon as you save. See [Watching a tab for activity or silence](../../features/terminal-notifications.md#watching-a-tab-for-activity-or-silence).

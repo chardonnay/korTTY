@@ -42,7 +42,7 @@ Die Palette bietet außerdem die Befehle der Rechtsklickmenüs des Terminals und
 | **Duplizieren** | Tabs | Öffnet eine Kopie des Tabs daneben und meldet sich an wie **Duplizieren** im Rechtsklickmenü des Tabs. |
 | **Neu verbinden** | Tabs | Verbindet den Tab erneut, wie **Neu verbinden** in seinem Rechtsklickmenü. |
 | **Auf Aktivität überwachen** | Tabs | Überwacht den Tab auf neue Ausgabe nach einer Ruhephase oder beendet die Überwachung, wie der Eintrag in seinem Rechtsklickmenü; die Zeile zeigt ein Häkchen, solange der Tab überwacht wird. Siehe [Einen Tab auf Aktivität oder Stille überwachen](terminal-notifications.md#einen-tab-auf-aktivitat-oder-stille-uberwachen). |
-| **Auf Stille überwachen** | Tabs | Überwacht den Tab darauf, dass seine Ausgabe aufhört, oder beendet die Überwachung, wie der Eintrag in seinem Rechtsklickmenü; die Zeile zeigt ein Häkchen, solange der Tab überwacht wird. |
+| **Auf Inaktivität überwachen** | Tabs | Überwacht den Tab darauf, dass seine Ausgabe aufhört, oder beendet die Überwachung, wie der Eintrag in seinem Rechtsklickmenü; die Zeile zeigt ein Häkchen, solange der Tab überwacht wird. |
 
 In allen anderen Arten von Tabs, etwa einem Snippet-Editor, sind diese Zeilen ausgegraut. **Suchen** wird nicht ein zweites Mal aufgeführt: Geben Sie `suchen` für **Bearbeiten → Suchen…** ein, das die Suche des fokussierten Bereichs öffnet.
 

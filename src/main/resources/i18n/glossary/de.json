@@ -4,6 +4,16 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "Auf Stille überwachen",
+      "to": "Auf Inaktivität überwachen",
+      "note": "Use the German label of tab.contextMenu.monitorSilence."
+    },
+    {
+      "from": "Auf Aktivität / Stille überwachen",
+      "to": "Auf Aktivität / Inaktivität überwachen",
+      "note": "Use the German menu labels in the terminal feature table."
+    },
+    {
       "from": "Suche im KI-Manager{ #searching-the-ai-manager }",
       "to": "Suche im KI-Manager { #searching-the-ai-manager }",
       "scope": "markdown",
