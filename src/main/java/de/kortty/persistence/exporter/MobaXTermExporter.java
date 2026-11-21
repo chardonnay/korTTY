@@ -80,7 +80,7 @@ public class MobaXTermExporter implements ConnectionExporter {
                     writer.newLine();
                     
                     // Add SSH tunnel information as comment lines
-                    if (conn.getSshTunnels() != null && !conn.getSshTunnels().isEmpty()) {
+                    if (!conn.isTelnet() && conn.getSshTunnels() != null && !conn.getSshTunnels().isEmpty()) {
                         for (de.kortty.model.SSHTunnel tunnel : conn.getSshTunnels()) {
                             if (tunnel.isEnabled()) {
                                 writer.write("# Tunnel: ");
@@ -122,15 +122,18 @@ public class MobaXTermExporter implements ConnectionExporter {
         // name=#109#0%host%port%user%-1%-1%-1%-1%0%0%%%-1%0%0%0%%1080%%0%0%1#MobaFont%10%0%0%-1%15%236,236,236%30,30,30%180,180,192%0%-1%0%%xterm%-1%-1%_Std_Colors_0_%80%24%0%1%-1%<none>%%0%1%-1%-1#0#
         
         StringBuilder sb = new StringBuilder();
-        sb.append(sanitizeName(conn.getName()));
-        sb.append("=#109#0%"); // SSH type
+        sb.append(sanitizeName(conn.isTelnet() ? conn.getDisplayName() : conn.getName()));
+        sb.append(conn.isTelnet() ? "=#98#1%" : "=#109#0%");
         sb.append(conn.getHost());
         sb.append("%");
         sb.append(conn.getPort());
-        sb.append("%");
-        sb.append(conn.getUsername());
-        // Standard MobaXterm SSH settings
-        sb.append("%-1%-1%-1%-1%0%0%%%-1%0%0%0%%1080%%0%0%1");
+        if (conn.isTelnet()) {
+            sb.append("%%%2%%%%%0%0%%1080%");
+        } else {
+            sb.append("%");
+            sb.append(conn.getUsername());
+            sb.append("%-1%-1%-1%-1%0%0%%%-1%0%0%0%%1080%%0%0%1");
+        }
         // Font and color settings
         sb.append("#MobaFont%10%0%0%-1%15%236,236,236%30,30,30%180,180,192%0%-1%0%%xterm%-1%-1%_Std_Colors_0_%80%24%0%1%-1%<none>%%0%1%-1%-1#0#");
         

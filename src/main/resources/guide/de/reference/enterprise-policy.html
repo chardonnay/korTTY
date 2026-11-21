@@ -1164,6 +1164,12 @@
 <td><a href="../features/serial.html">Serielle Verbindungen</a> zu einem seriellen Port des Computers. Ein serieller Port hat keinen Host, daher kann <code>[rule.servers]</code> ihn nicht abdecken; <code>deny</code> blockiert sie als Ganzes: Der Connection-Editor und die Schnellverbindung bieten für neue Verbindungen nicht mehr <strong>Seriell</strong> an, und jeder Versuch, einen seriellen Port zu öffnen — eine gespeicherte oder importierte serielle Verbindung, ein wiederhergestelltes Tab, ein erneutes Verbinden — wird mit <em>Die Richtlinie Ihrer Organisation erlaubt keine seriellen Verbindungen.</em> abgewiesen. Gespeicherte serielle Verbindungen bleiben gespeichert. Lockdown verweigert es ebenfalls. Es gibt keine Option in den Einstellungen, daher ändert <code>allow</code> nichts</td>
 </tr>
 <tr>
+<td><code>telnet-connections</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td><a href="../features/connections.html#telnet-verbindungen">Telnet-Verbindungen</a> über TCP. Bei <code>deny</code> oder im Lockdown blenden die Dialoge Telnet für neue Profile aus und korTTY verweigert das Öffnen und Wiederverbinden jeder Telnet-Sitzung. Die Host- und Portbeschränkungen aus <code>[rule.servers]</code> gelten ebenfalls.</td>
+</tr>
+<tr>
 <td><code>desktop-notifications</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>

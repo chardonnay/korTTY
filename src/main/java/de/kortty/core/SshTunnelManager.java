@@ -205,7 +205,7 @@ public final class SshTunnelManager {
      * background attach; nothing then reads the shared list or its mutable entries concurrently.
      */
     public static List<SSHTunnel> enabledTunnels(ServerConnection connection) {
-        if (connection == null || connection.getSshTunnels() == null) {
+        if (connection == null || connection.isTelnet() || connection.getSshTunnels() == null) {
             return List.of();
         }
         List<SSHTunnel> copies = new ArrayList<>();

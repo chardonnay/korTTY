@@ -240,6 +240,9 @@ public class SFTPSession implements SftpChannelSource {
         if (!owning) {
             throw new IllegalStateException("A borrowed SFTP session is attached, not connected");
         }
+        if (connection.isTelnet()) {
+            throw new IllegalArgumentException(LanguageManager.getInstance().getString("telnet.sftpUnavailable"));
+        }
         de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection).ifPresent(target -> {
             logger.warn("Blocked SFTP session to {} by enterprise policy", target);
             throw new de.kortty.policy.PolicyRestrictionException(

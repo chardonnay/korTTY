@@ -622,11 +622,15 @@ public class ServerConnection {
         return getProtocol() == ConnectionProtocol.SERIAL;
     }
 
-    /**
-     * True for SSH and Mosh: the protocols with a host, a user and credentials. Local shells and
-     * serial ports have none of these, so host-based features (SFTP, tunnels, swarm targets, the
-     * password prompt) skip them.
-     */
+    public boolean isTelnet() {
+        return getProtocol() == ConnectionProtocol.TELNET;
+    }
+
+    public boolean usesSshAuthentication() {
+        return getProtocol().usesSshAuthentication();
+    }
+
+    /** Whether the connection has a network endpoint governed by server policy. */
     public boolean isNetworkConnection() {
         return !isLocalShell() && !isSerial();
     }
@@ -848,7 +852,15 @@ public class ServerConnection {
         if (isSerial()) {
             return serialDisplayLabel();
         }
-        return username + "@" + host;
+        return isTelnet() ? telnetEndpoint() : username + "@" + host;
+    }
+
+    public String telnetEndpoint() {
+        String address = java.util.Objects.toString(host, "");
+        if (address.contains(":") && !address.startsWith("[")) {
+            address = "[" + address + "]";
+        }
+        return address + ":" + port;
     }
 
     /** {@code COM3 @ 115200} for a serial connection without a name; the bare rate when no port is set. */

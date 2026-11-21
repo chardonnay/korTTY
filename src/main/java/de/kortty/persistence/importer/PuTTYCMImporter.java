@@ -1,6 +1,7 @@
 package de.kortty.persistence.importer;
 
 import de.kortty.model.AuthMethod;
+import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SSHTunnel;
 import de.kortty.model.TunnelType;
@@ -139,12 +140,14 @@ public class PuTTYCMImporter implements ConnectionImporter {
         String name = fields.get(0);
         String protocol = fields.get(1);
         String host = fields.get(2);
-        int port = 22;
+        boolean telnet = protocol.equalsIgnoreCase("Telnet");
+        int defaultPort = telnet ? ConnectionProtocol.TELNET_PORT : 22;
+        int port = defaultPort;
         
         try {
             port = Integer.parseInt(fields.get(3));
         } catch (NumberFormatException e) {
-            logger.warn("Invalid port number at line {}, using default 22", lineNumber);
+            logger.warn("Invalid port number at line {}, using default {}", lineNumber, defaultPort);
         }
         
         // PuTTY keeps a serial session's line in the host field and its speed in the port field.
@@ -152,9 +155,8 @@ public class PuTTYCMImporter implements ConnectionImporter {
             return serialConnection(name, host, port, fields);
         }
 
-        // Only import SSH connections
-        if (!protocol.equalsIgnoreCase("SSH")) {
-            logger.debug("Skipping non-SSH connection: {} (protocol: {})", name, protocol);
+        if (!telnet && !protocol.equalsIgnoreCase("SSH")) {
+            logger.debug("Skipping unsupported connection: {} (protocol: {})", name, protocol);
             return null;
         }
         
@@ -165,7 +167,7 @@ public class PuTTYCMImporter implements ConnectionImporter {
         conn.setAuthMethod(AuthMethod.PASSWORD); // Default, user can change later
         
         // Username (field 4)
-        if (fields.size() > 4 && !fields.get(4).isEmpty()) {
+        if (!telnet && fields.size() > 4 && !fields.get(4).isEmpty()) {
             conn.setUsername(fields.get(4));
         }
         
@@ -177,6 +179,15 @@ public class PuTTYCMImporter implements ConnectionImporter {
             conn.setGroup(group);
         }
         
+        if (telnet) {
+            if (host.isBlank() || port < 1 || port > 65535) {
+                return null;
+            }
+            conn.setProtocol(ConnectionProtocol.TELNET);
+            conn.setUsername(null);
+            return conn;
+        }
+
         // Parse tunnels
         List<SSHTunnel> tunnels = new ArrayList<>();
         

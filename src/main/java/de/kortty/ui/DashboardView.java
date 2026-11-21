@@ -1324,6 +1324,7 @@ public class DashboardView extends VBox {
             case MOSH, MOSH_CLIENT -> "mosh";
             case LOCAL_SHELL -> "local";
             case SERIAL -> "serial";
+            case TELNET -> "telnet";
         };
     }
 

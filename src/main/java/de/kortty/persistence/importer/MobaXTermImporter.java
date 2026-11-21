@@ -1,5 +1,6 @@
 package de.kortty.persistence.importer;
 
+import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,11 @@ public class MobaXTermImporter implements ConnectionImporter {
     
     private static final Logger logger = LoggerFactory.getLogger(MobaXTermImporter.class);
     
+    // Bookmark type 1 is Telnet; the first numeric field selects the icon.
+    private static final Pattern TELNET_PATTERN = Pattern.compile(
+            "([^=]+)=\\s*#\\d+#1%([^%#]+)%([^%#]*)(?:[%#].*)?"
+    );
+
     // Pattern for SSH bookmark entries
     // Format: name=#109#flag%host%port%user%...
     private static final Pattern SSH_PATTERN = Pattern.compile(
@@ -145,6 +151,29 @@ public class MobaXTermImporter implements ConnectionImporter {
     }
     
     private ServerConnection parseConnection(String line, String group) {
+        Matcher telnet = TELNET_PATTERN.matcher(line);
+        if (telnet.matches()) {
+            String host = telnet.group(2).trim();
+            String portText = telnet.group(3).trim();
+            int port;
+            try {
+                port = portText.isEmpty() ? ConnectionProtocol.TELNET_PORT : Integer.parseInt(portText);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+            if (host.isEmpty() || port < 1 || port > 65535) {
+                return null;
+            }
+            ServerConnection connection = new ServerConnection();
+            connection.setName(telnet.group(1).trim());
+            connection.setProtocol(ConnectionProtocol.TELNET);
+            connection.setHost(host);
+            connection.setPort(port);
+            connection.setUsername(null);
+            connection.setGroup(group);
+            return connection;
+        }
+
         Matcher serialMatcher = SERIAL_PATTERN.matcher(line);
         if (serialMatcher.matches()) {
             return serialConnection(serialMatcher.group(1).trim(), serialMatcher.group(2), serialMatcher.group(3), group);

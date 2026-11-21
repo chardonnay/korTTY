@@ -208,6 +208,7 @@ public final class EffectivePolicy {
                     case INCOGNITO_SESSIONS -> ManagedSetting.INCOGNITO_SESSIONS;
                     case DESKTOP_NOTIFICATIONS -> ManagedSetting.DESKTOP_NOTIFICATIONS;
                     case SERIAL_CONNECTIONS -> ManagedSetting.SERIAL_CONNECTIONS;
+                    case TELNET_CONNECTIONS -> ManagedSetting.TELNET_CONNECTIONS;
                 });
             }
         }
@@ -490,6 +491,10 @@ public final class EffectivePolicy {
      */
     public boolean serialConnectionsAllowed() {
         return decision(PolicyFeature.SERIAL_CONNECTIONS) != PolicyDecision.DENY;
+    }
+
+    public boolean telnetConnectionsAllowed() {
+        return decision(PolicyFeature.TELNET_CONNECTIONS) != PolicyDecision.DENY;
     }
 
     /**

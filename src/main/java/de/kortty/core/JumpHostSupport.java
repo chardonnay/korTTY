@@ -81,7 +81,7 @@ public final class JumpHostSupport {
 
     /** Whether {@code connection} declares a usable, enabled jump server. */
     public static boolean isActive(ServerConnection connection) {
-        JumpServer jump = connection != null ? connection.getJumpServer() : null;
+        JumpServer jump = connection != null && !connection.isTelnet() ? connection.getJumpServer() : null;
         return jump != null && jump.isEnabled()
             && jump.getHost() != null && !jump.getHost().isBlank();
     }
