@@ -19,7 +19,7 @@ final class GroupOpenSupport {
 
     /** Whether {@code connection} needs no password to open: a local shell, a serial port or SSH key auth. */
     static boolean opensWithoutPassword(ServerConnection connection) {
-        return !connection.isNetworkConnection() || connection.getAuthMethod() == AuthMethod.PUBLIC_KEY;
+        return !connection.usesSshAuthentication() || connection.getAuthMethod() == AuthMethod.PUBLIC_KEY;
     }
 
     /**

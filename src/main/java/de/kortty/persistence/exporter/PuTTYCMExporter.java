@@ -65,8 +65,8 @@ public class PuTTYCMExporter implements ConnectionExporter {
                 line.append(escapeCsv(conn.getName()));
                 line.append(",");
                 
-                // Protocol (always SSH for our connections)
-                line.append("SSH");
+                // Protocol
+                line.append(conn.isTelnet() ? "Telnet" : "SSH");
                 line.append(",");
                 
                 // Host
@@ -78,7 +78,7 @@ public class PuTTYCMExporter implements ConnectionExporter {
                 line.append(",");
                 
                 // Username
-                line.append(escapeCsv(conn.getUsername() != null ? conn.getUsername() : ""));
+                line.append(escapeCsv(!conn.isTelnet() && conn.getUsername() != null ? conn.getUsername() : ""));
                 line.append(",");
                 
                 // Group (use folder path)
@@ -95,7 +95,7 @@ public class PuTTYCMExporter implements ConnectionExporter {
                 String remoteTunnels = "";
                 String dynamicTunnels = "";
                 
-                if (conn.getSshTunnels() != null && !conn.getSshTunnels().isEmpty()) {
+                if (!conn.isTelnet() && conn.getSshTunnels() != null && !conn.getSshTunnels().isEmpty()) {
                     List<String> local = new ArrayList<>();
                     List<String> remote = new ArrayList<>();
                     List<String> dynamic = new ArrayList<>();

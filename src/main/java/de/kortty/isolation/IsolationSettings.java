@@ -164,7 +164,7 @@ public final class IsolationSettings {
             case LOCAL_SHELL, MOSH_CLIENT -> IsolationLevel.SANDBOX;
             case SSH_TCP -> sshSandboxAvailable && sshWorkerAvailable ? IsolationLevel.SANDBOX
                 : sshWorkerAvailable ? IsolationLevel.PROCESS : IsolationLevel.NONE;
-            case MOSH, SERIAL -> IsolationLevel.NONE;
+            case MOSH, SERIAL, TELNET -> IsolationLevel.NONE;
         };
     }
 }

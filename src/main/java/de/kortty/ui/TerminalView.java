@@ -40,6 +40,7 @@ import de.kortty.core.RemoteDirectoryChange;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.core.LocalShellTtyConnector;
 import de.kortty.core.SerialTtyConnector;
+import de.kortty.core.TelnetTtyConnector;
 import de.kortty.core.QuickSelectSettings;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentCommandRunners;
@@ -3638,6 +3639,8 @@ public class TerminalView extends BorderPane {
             targetConnection = nativeMoshConnector.getConnection();
         } else if (connector instanceof SerialTtyConnector serialConnector) {
             targetConnection = serialConnector.getConnection();
+        } else if (connector instanceof TelnetTtyConnector telnetConnector) {
+            targetConnection = telnetConnector.getConnection();
         }
         widget.setEmulationType(TerminalEmulationSupport.fromConnection(targetConnection));
     }
@@ -4025,6 +4028,9 @@ public class TerminalView extends BorderPane {
             // organization demands more than that (IsolationSettings caps SERIAL at NONE).
             isolationRequestForPane(targetConnection);
             connector = new SerialTtyConnector(targetConnection);
+        } else if (targetConnection.isTelnet()) {
+            isolationRequestForPane(targetConnection);
+            connector = new TelnetTtyConnector(targetConnection);
         } else {
             de.kortty.isolation.IsolationRequest sshIsolation = isolationRequestForPane(targetConnection);
             de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
@@ -4133,6 +4139,8 @@ public class TerminalView extends BorderPane {
             connected = localShellConnector.connect();
         } else if (connector instanceof SerialTtyConnector serialConnector) {
             connected = serialConnector.connect();
+        } else if (connector instanceof TelnetTtyConnector telnetConnector) {
+            connected = telnetConnector.connect();
         } else if (connector instanceof SshTtyConnector sshConnector) {
             connected = sshConnector.connect();
         } else {
@@ -4170,12 +4178,8 @@ public class TerminalView extends BorderPane {
             localShellConnector.setDisconnectListener(powerAwareListener);
             return;
         }
-        if (connector instanceof SerialTtyConnector serialConnector) {
-            serialConnector.setDisconnectListener(powerAwareListener);
-            return;
-        }
-        if (connector instanceof SshTtyConnector sshConnector) {
-            sshConnector.setDisconnectListener(powerAwareListener);
+        if (connector instanceof ObservableTtyConnector observable) {
+            observable.setDisconnectListener(powerAwareListener);
         }
     }
 
@@ -5205,6 +5209,9 @@ public class TerminalView extends BorderPane {
         if (connector instanceof SerialTtyConnector serial) {
             return serial.getConnection();
         }
+        if (connector instanceof TelnetTtyConnector telnet) {
+            return telnet.getConnection();
+        }
         return null;
     }
 
@@ -5972,6 +5979,8 @@ public class TerminalView extends BorderPane {
             paneConnection = local.getConnection();
         } else if (connector instanceof SerialTtyConnector serial) {
             paneConnection = serial.getConnection();
+        } else if (connector instanceof TelnetTtyConnector telnet) {
+            paneConnection = telnet.getConnection();
         }
         return paneConnection != null ? paneConnection : connection;
     }

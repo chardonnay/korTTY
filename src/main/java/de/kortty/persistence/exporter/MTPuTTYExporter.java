@@ -51,6 +51,9 @@ public class MTPuTTYExporter implements ConnectionExporter {
     
     @Override
     public void exportConnections(List<ServerConnection> connections, Path file) throws Exception {
+        if (connections.stream().anyMatch(ServerConnection::isTelnet)) {
+            throw new IllegalArgumentException(de.kortty.core.LanguageManager.getInstance().getString("telnet.mtputtyExport"));
+        }
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document doc = builder.newDocument();

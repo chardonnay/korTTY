@@ -1164,6 +1164,12 @@
 <td><a href="../features/serial.html">Serial connections</a> to a serial port of the computer. A serial port has no host, so <code>[rule.servers]</code> cannot cover it; <code>deny</code> blocks them as a whole: the connection editor and Quick Connect no longer offer <strong>Serial</strong> for new connections, and every attempt to open a serial port — a saved or imported serial connection, a restored tab, a reconnect — is refused with <em>Your organization's policy does not allow serial connections.</em> Saved serial connections stay stored. Lockdown denies it too. There is no Settings control, so <code>allow</code> changes nothing</td>
 </tr>
 <tr>
+<td><code>telnet-connections</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td><a href="../features/connections.html#telnet-connections">Telnet connections</a> over TCP. With <code>deny</code> or lockdown, the editors hide Telnet for new profiles and korTTY refuses to open or reconnect any Telnet session. The <code>[rule.servers]</code> host and port restrictions also apply.</td>
+</tr>
+<tr>
 <td><code>desktop-notifications</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>

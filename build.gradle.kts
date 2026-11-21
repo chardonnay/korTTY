@@ -398,6 +398,7 @@ dependencies {
     
     // Archive support (TAR.BZ2, 7z)
     implementation("org.apache.commons:commons-compress:1.28.0")
+    implementation("commons-net:commons-net:3.13.0")
     implementation("org.tukaani:xz:1.12")
     
     // jfiglet - ASCII art banners (FIGfonts)

@@ -51,7 +51,7 @@ final class SwarmScheduleDraftSupport {
             return ids;
         }
         for (ServerConnection connection : connections) {
-            if (connection != null && connection.isNetworkConnection() && connection.getId() != null) {
+            if (connection != null && connection.usesSshAuthentication() && connection.getId() != null) {
                 ids.add(connection.getId());
             }
         }

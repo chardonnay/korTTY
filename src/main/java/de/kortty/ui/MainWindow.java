@@ -4153,7 +4153,7 @@ public class MainWindow {
 
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection().isNetworkConnection()
+            if (result.connection().usesSshAuthentication()
                     && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return; // User cancelled password prompt or no valid password available
@@ -4249,7 +4249,7 @@ public class MainWindow {
 
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (result.connection().isNetworkConnection()
+            if (result.connection().usesSshAuthentication()
                     && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return null;
@@ -4293,7 +4293,7 @@ public class MainWindow {
 
     private String ensurePasswordForConnection(ServerConnection connection, String candidatePassword) {
         // Local shells and serial ports have no authentication; never prompt for a password.
-        if (connection == null || !connection.isNetworkConnection()
+        if (connection == null || !connection.usesSshAuthentication()
                 || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
             return candidatePassword;
         }
@@ -13407,7 +13407,7 @@ public class MainWindow {
         java.util.List<ServerConnection> toOpen = new java.util.ArrayList<>();
         if (connections != null) {
             for (ServerConnection connection : connections) {
-                if (connection != null && !connection.isSerial() && (includeLocalShell || !connection.isLocalShell())) {
+                if (connection != null && (connection.usesSshAuthentication() || (includeLocalShell && connection.isLocalShell()))) {
                     toOpen.add(connection);
                 }
             }
@@ -13433,7 +13433,7 @@ public class MainWindow {
         TerminalTab tab;
         try {
             String password = ensurePasswordForConnection(connection, null);
-            boolean requiresPassword = connection.isNetworkConnection()
+            boolean requiresPassword = connection.usesSshAuthentication()
                 && connection.getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY;
             if (requiresPassword && (password == null || password.isBlank())) {
                 logger.warn("Swarm skipping connection {}: no password provided", logLabel);
@@ -13814,6 +13814,7 @@ public class MainWindow {
             case MOSH_CLIENT -> I18n.get("protocol.moshClient");
             case LOCAL_SHELL -> I18n.get("protocol.localShell");
             case SERIAL -> I18n.get("protocol.serial");
+            case TELNET -> I18n.get("protocol.telnetUnencrypted");
             case SSH_TCP -> I18n.get("protocol.sshTcp");
         };
     }
@@ -15266,6 +15267,9 @@ public class MainWindow {
      * @param temporarySSHKey Optional temporary SSH key (only when opened from tab that used temp key)
      */
     private void openSFTPManagerForConnection(ServerConnection connection, de.kortty.model.TemporarySSHKey temporarySSHKey) {
+        if (connection.isTelnet()) {
+            return;
+        }
         Telemetry.track(TelemetryEvents.SFTP_OPENED, Map.of("borrowed", false));
         try {
             de.kortty.model.TemporarySSHKey keyToUse = temporarySSHKey;

@@ -83,7 +83,8 @@ public enum PolicyFeature {
      * the editors no longer offer the protocol for new connections, and saved serial connections stay
      * stored but refuse to connect.
      */
-    SERIAL_CONNECTIONS("serial-connections");
+    SERIAL_CONNECTIONS("serial-connections"),
+    TELNET_CONNECTIONS("telnet-connections");
 
     private final String tomlKey;
 

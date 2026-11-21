@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
+import de.kortty.model.ConnectionProtocol;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Orientation;
@@ -9,6 +10,10 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tab;
@@ -200,6 +205,56 @@ public final class QuickConnectScrollSmoke {
         }
         ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", outFile);
         System.out.println("Snapshot written: " + outFile.getAbsolutePath());
+
+        verifyTelnetForms(dialog, tempDir);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void verifyTelnetForms(QuickConnectDialog quick, Path dataDir) throws Exception {
+        ComboBox<ConnectionProtocol> quickProtocol = (ComboBox<ConnectionProtocol>) field(quick, "protocolCombo");
+        Spinner<Integer> quickPort = (Spinner<Integer>) field(quick, "portSpinner");
+        quickProtocol.setValue(ConnectionProtocol.TELNET);
+        if (quickPort.getValue() != 23 || ((Node) field(quick, "passwordField")).isVisible()) {
+            throw new IllegalStateException("Telnet in Quick Connect must start on port 23 and hide SSH authentication");
+        }
+        ((TextField) field(quick, "hostField")).setText("console.example.test");
+        quickPort.getEditor().setText("2323");
+        quickProtocol.setValue(ConnectionProtocol.SSH_TCP);
+        quickProtocol.setValue(ConnectionProtocol.TELNET);
+        ButtonType connect = quick.getDialogPane().getButtonTypes().stream()
+            .filter(type -> type.getText().equals(I18n.get("quickConnect.connect"))).findFirst().orElseThrow();
+        var result = quick.getResultConverter().call(connect);
+        if (result == null || !result.connection().isTelnet() || result.connection().getPort() != 2323
+                || result.password() != null || result.temporarySSHKey() != null) {
+            throw new IllegalStateException("Quick Connect lost the Telnet endpoint or added SSH credentials");
+        }
+
+        ConnectionEditDialog editor = new ConnectionEditDialog(
+            null, null, new CredentialManager(dataDir), new SSHKeyManager(dataDir), null);
+        ComboBox<ConnectionProtocol> protocol = (ComboBox<ConnectionProtocol>) field(editor, "protocolCombo");
+        Spinner<Integer> port = (Spinner<Integer>) field(editor, "portSpinner");
+        protocol.setValue(ConnectionProtocol.TELNET);
+        ((TextField) field(editor, "nameField")).setText("Demo console");
+        ((TextField) field(editor, "hostField")).setText("console.example.test");
+        TabPane tabs = (TabPane) editor.getDialogPane().getContent().lookup(".tab-pane");
+        if (port.getValue() != 23 || ((Node) field(editor, "passwordField")).isVisible()
+                || tabs.getTabs().stream().anyMatch(tab -> tab.getText().equals(I18n.get("connEdit.tab.tunnels"))
+                    || tab.getText().equals(I18n.get("connEdit.tab.jumpServer")))) {
+            throw new IllegalStateException("Telnet profiles must hide SSH controls and use the Telnet default port");
+        }
+        var save = editor.getDialogPane().getButtonTypes().stream()
+            .filter(type -> type.getText().equals(I18n.get("dialog.save"))).findFirst().orElseThrow();
+        var profile = editor.getResultConverter().call(save);
+        if (profile == null || !profile.isTelnet() || profile.getPort() != 23
+                || profile.getUsername() != null || profile.getCredentialId() != null) {
+            throw new IllegalStateException("The Connection Manager did not save a credential-free Telnet profile");
+        }
+    }
+
+    private static Object field(Object dialog, String name) throws ReflectiveOperationException {
+        var field = dialog.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(dialog);
     }
 
     private static void collectTitledPanes(Node node, List<TitledPane> out) {

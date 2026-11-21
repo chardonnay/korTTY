@@ -126,7 +126,7 @@ public final class ConnectionOverviewExport {
             putText(out, "host", connection.getHost());
             out.put("port", connection.getPort());
         }
-        if (!connection.isSerial()) {
+        if (!connection.isSerial() && !connection.isTelnet()) {
             putText(out, "username", connection.getUsername());
         }
         if (connection.isLocalShell()) {
@@ -276,12 +276,13 @@ public final class ConnectionOverviewExport {
             case MOSH_CLIENT -> "moshClient";
             case LOCAL_SHELL -> "localShell";
             case SERIAL -> "serial";
+            case TELNET -> "telnet";
         };
     }
 
     /** The auth method of a connection; a local shell or serial port authenticates nothing and a temporary key wins. */
     private static String authMethodId(ServerConnection connection) {
-        if (!connection.isNetworkConnection()) {
+        if (!connection.usesSshAuthentication()) {
             return "none";
         }
         if (hasText(connection.getTemporaryKeyContent()) || isTemporaryKeyPath(connection.getPrivateKeyPath())) {

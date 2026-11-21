@@ -24,7 +24,7 @@ final class SwarmHeadlessTargetSupport {
             return schedulable;
         }
         for (ServerConnection connection : missing) {
-            if (connection != null && connection.isNetworkConnection() && connection.getId() != null) {
+            if (connection != null && connection.usesSshAuthentication() && connection.getId() != null) {
                 schedulable.add(connection);
             }
         }

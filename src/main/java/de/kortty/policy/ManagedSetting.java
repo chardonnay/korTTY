@@ -80,6 +80,7 @@ public enum ManagedSetting {
     DESKTOP_NOTIFICATIONS,
     /** Serial-port connections ({@link PolicyFeature#SERIAL_CONNECTIONS}); no Settings control of its own. */
     SERIAL_CONNECTIONS,
+    TELNET_CONNECTIONS,
     /** The korTTY memory as a whole ({@link PolicyFeature#AI_MEMORY}); no Settings control of its own. */
     AI_MEMORY,
     /** Learning of rules in Settings ({@code [rule.ai-memory] learning}). */

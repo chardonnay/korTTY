@@ -1,12 +1,12 @@
 # Connections
 
-korTTY manages SSH, Mosh, **local-shell** and [serial](serial.md) connections through three entry points: **Quick Connect**, the **Connection Manager**, and saved **Projects**.
+korTTY manages SSH, Mosh, [Telnet](#telnet-connections), **local-shell** and [serial](serial.md) connections through three entry points: **Quick Connect**, the **Connection Manager**, and saved **Projects**.
 
 ![Connection flow](../assets/diagrams/connection-flow.svg)
 
 ## Quick Connect
 
-Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them. Saved connections can be picked from a dropdown with its own search field that matches name, host or [tag](#tags) (`*` works as a wildcard); a saved connection's tag is shown next to its name (🏷) in the dropdown and in the quick buttons' tooltips.
+Open with ++ctrl+k++ (or **Connections → Quick Connect…**). For SSH, enter host, port, username and authentication. To reach a Telnet endpoint, choose **Telnet** and enter the host and port. To keep the profile, select **Save Connection** before connecting. Frequently used connections appear as quick buttons; a live search filters them. Saved connections can be picked from a dropdown with its own search field that matches name, host or [tag](#tags) (`*` works as a wildcard); a saved connection's tag is shown next to its name (🏷) in the dropdown and in the quick buttons' tooltips.
 
 ## Connection Manager
 
@@ -85,7 +85,7 @@ The connection editor has these tabs:
 
 | Tab | Contents |
 | --- | --- |
-| Connection | Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native), Local Shell or Serial), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment an optional free-text [tag](#tags) and the [OS symbol](#os-symbols), **Connection timeout** (1–300 seconds) and **Retries** (1–20 attempts, used while **Enable connection retries** is on in *Settings → Terminal*). For **Local Shell** and **Serial** connections host, port, username and authentication are not required and are disabled; a serial connection has its own rows for the port and line settings (see [Serial connections](serial.md#settings)). See [Character encoding](#character-encoding). |
+| Connection | Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native), Telnet, Local Shell or Serial), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment an optional free-text [tag](#tags) and the [OS symbol](#os-symbols), **Connection timeout** (1–300 seconds) and **Retries** (1–20 attempts, used while **Enable connection retries** is on in *Settings → Terminal*). For **Local Shell** and **Serial** connections host, port, username and authentication are not required and are disabled; a serial connection has its own rows for the port and line settings (see [Serial connections](serial.md#settings)). For **Telnet**, only the host and port are required. See [Character encoding](#character-encoding). |
 | Terminal Settings | **Use the global terminal settings** or **Own settings for this connection** with per-connection colors, font and ANSI/TrueColor handling (see [Own terminal settings](#own-terminal-settings)), the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), and below the paste protection the **Session isolation** rows with the [isolation level, strict terminal mode and incognito switch](session-isolation.md), terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
@@ -166,11 +166,25 @@ A **tab color** marks every terminal tab of a connection with a small colored do
 === "Mosh Client (native)"
     Roaming Mosh session with the `mosh-client` program installed on this computer, shown in a terminal tab. korTTY starts the session over SSH itself and then hands the screen to `mosh-client`, which needs to be on the `PATH` (install it with your system package manager, for example Homebrew, apt or dnf). On Windows, korTTY looks for `mosh-client.exe` in the folders of the `PATH`; `scoop install mosh-client` installs it, but puts only `mosh.exe` on the `PATH`, so add the Scoop folder of `mosh-client` to the `PATH` yourself. A connection to a server behind a [jump server](jump-server.md) is refused, because the Mosh session runs over UDP, which the jump server's tunnel cannot carry. With [session isolation](session-isolation.md), this protocol can also run in an operating-system sandbox.
 
+=== "Telnet"
+    Opens an unencrypted network terminal. See [Telnet connections](#telnet-connections) below.
+
 === "Local Shell"
     Opens the **local machine's** shell in a terminal tab (no network) via a pty4j-backed pseudo-terminal. Host, port, username and authentication are not required. See [Local Shell](#local-shell) below.
 
 === "Serial"
     Opens a terminal on a **serial port** of this computer (COM port, `/dev/ttyUSB0`, a USB-to-serial adapter), with speed, data format, flow control and what ++enter++ sends set per connection. Host, port, username and authentication are not used. See [Serial connections](serial.md).
+
+## Telnet connections
+
+Choose **Telnet** under **Protocol** in **Quick Connect** or the **Connection Manager**. Enter a host name or IP address and a TCP port. The default is `23`. Changing the protocol updates the default port and keeps a custom port. If the device asks you to sign in, type the login details directly in the terminal.
+
+!!! warning "Telnet is unencrypted"
+    Telnet sends terminal traffic, including anything you type at a login prompt, in clear text. The dialog and tab identify the connection as unencrypted. The SSH password and key controls, host-key verification, SFTP, tunnels and jump servers are unavailable for Telnet profiles.
+
+**Terminal emulation** sets both the local emulation and the terminal type reported to the server. korTTY negotiates server echo and sends the terminal width and height when the server accepts the Telnet window-size option. Use **Character encoding** for devices that send legacy text. In Quick Connect, it is in the **Connection Timeout** section. If the server closes the connection, korTTY offers to reconnect.
+
+Use Telnet for a server or network console that speaks Telnet. For a device attached directly to the computer, see [Serial connections](serial.md). The [enterprise policy](../reference/enterprise-policy.md#rulefeatures) can disable Telnet and restrict allowed hosts and ports. Telnet runs inside korTTY, so a policy that requires process or sandbox isolation prevents the session from opening.
 
 ## SSH host-key verification
 
@@ -226,6 +240,8 @@ A local shell can also be isolated from korTTY and the other tabs, in its own pr
 ## Import from other clients
 
 **Connections → Import…** reads connection files from **MTPuTTY**, **MobaXterm** and **PuTTY Connection Manager**, with group filtering and credential handling.
+
+Telnet endpoints can be imported and exported in the PuTTY Connection Manager CSV and MobaXterm bookmark formats. Use the native korTTY XML format to keep korTTY-specific settings such as terminal emulation and character encoding.
 
 !!! note "More to come"
     This page is part of the scaffolded guide. The full feature library — SFTP, snippets, JobScheduler, AI assistant & tools, terminal recording, security, and the complete settings tables — is being filled in next.

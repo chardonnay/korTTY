@@ -4,6 +4,10 @@ What changed in the current release. The version this guide was built for is sho
 
 ## v2.26.2
 
+### Connections
+
+- Quick Connect and the Connection Manager support Telnet profiles for network terminals and legacy console servers. The tab identifies Telnet as unencrypted, and administrators can disable it in enterprise policy.
+
 ### Security
 
 - Updated Guava to 33.7.2-jre and the Monaco build to DOMPurify 3.4.18 and esbuild 0.28.2.

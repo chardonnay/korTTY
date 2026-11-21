@@ -760,7 +760,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     }
 
     private String authDescription(ServerConnection connection) {
-        if (!connection.isNetworkConnection()) {
+        if (!connection.usesSshAuthentication()) {
             return I18n.get("connectionManager.inspector.auth.none");
         }
         if (connection.getTemporaryKeyContent() != null || connection.isTemporaryKeyPermanent()) {

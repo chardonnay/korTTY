@@ -1898,10 +1898,15 @@ public class TerminalTab extends Tab {
      * @param suffix Additional suffix to append (e.g., " (DISCONNECT)")
      */
     private void updateTabTitle(String suffix) {
-        String effectiveSuffix = suffix != null ? suffix : "";
-        lastTitleSuffix = effectiveSuffix;
-        Platform.runLater(() -> setText(composeTitle(
-            List.of(agentStatusBadge, attentionBadge), tabGroup, getEffectiveTitle(), effectiveSuffix)));
+        String statusSuffix = suffix != null ? suffix : "";
+        lastTitleSuffix = statusSuffix;
+        Platform.runLater(() -> {
+            String effectiveSuffix = connection.isTelnet()
+                ? " · " + I18n.get("protocol.telnetUnencrypted") + statusSuffix
+                : statusSuffix;
+            setText(composeTitle(
+                List.of(agentStatusBadge, attentionBadge), tabGroup, getEffectiveTitle(), effectiveSuffix));
+        });
     }
 
     /**
@@ -2322,6 +2327,9 @@ public class TerminalTab extends Tab {
         }
         if (connection.isSerial()) {
             return connection.serialDisplayLabel();
+        }
+        if (connection.isTelnet()) {
+            return connection.telnetEndpoint() + " · " + I18n.get("protocol.telnetUnencrypted");
         }
         String endpoint = effectiveTitle(null, null, null, connection.getUsername(), connection.getHost());
         return endpoint.isEmpty() ? getConnectionTitle() : endpoint;

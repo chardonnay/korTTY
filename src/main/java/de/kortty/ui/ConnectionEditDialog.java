@@ -68,6 +68,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final TextField nameField;
     private final TextField hostField;
     private final Spinner<Integer> portSpinner;
+    private final TelnetFormSupport telnetForm;
     private final ComboBox<ConnectionProtocol> protocolCombo;
     private final ComboBox<EmulationType> terminalEmulationCombo;
     /** Per-connection terminal encoding; the first entry (value null) uses the default. */
@@ -251,6 +252,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         portSpinner = new Spinner<>(1, 65535, connection.getPort());
         portSpinner.setEditable(true);
         portSpinner.setPrefWidth(80);
+        telnetForm = new TelnetFormSupport(portSpinner, connection.getProtocol());
 
         protocolCombo = new ComboBox<>();
         protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT, ConnectionProtocol.LOCAL_SHELL);
@@ -258,6 +260,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         // what it is, and refuses to connect.
         if (de.kortty.policy.PolicyManager.effective().serialConnectionsAllowed() || connection.isSerial()) {
             protocolCombo.getItems().add(ConnectionProtocol.SERIAL);
+        }
+        if (de.kortty.policy.PolicyManager.effective().telnetConnectionsAllowed() || connection.isTelnet()) {
+            protocolCombo.getItems().add(ConnectionProtocol.TELNET);
         }
         protocolCombo.setValue(connection.getProtocol());
         protocolCombo.setCellFactory(lv -> new ListCell<>() {
@@ -391,7 +396,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         }
         
         // Restore previously selected SSH key and load its passphrase into the field
-        if (connection.getSshKeyId() != null && sshKeyManager != null) {
+        if (!connection.isTelnet() && connection.getSshKeyId() != null && sshKeyManager != null) {
             sshKeyManager.findKeyById(connection.getSshKeyId()).ifPresent(key -> {
                 savedSSHKeysCombo.setValue(key);
                 keyPathField.setText(sshKeyManager.getEffectiveKeyPath(key));
@@ -449,12 +454,19 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         HBox hostBox = new HBox(10, hostField, new Label(I18n.get("common.port") + ":"), portSpinner);
         connectionGrid.add(hostBox, 1, row++);
         
+        int usernameRow = row;
         connectionGrid.add(new Label(I18n.get("common.username") + ":"), 0, row);
         connectionGrid.add(usernameField, 1, row++);
 
         connectionGrid.add(new Label(I18n.get("connEdit.protocol")), 0, row);
-        connectionGrid.add(protocolCombo, 1, row++);
+        var telnetSelected = protocolCombo.valueProperty().isEqualTo(ConnectionProtocol.TELNET);
+        Label telnetWarning = TelnetFormSupport.warning();
+        telnetWarning.visibleProperty().bind(telnetSelected);
+        telnetWarning.managedProperty().bind(telnetSelected);
+        connectionGrid.add(new VBox(4, protocolCombo, telnetWarning), 1, row++);
+        TelnetFormSupport.hideForTelnet(connectionGrid, usernameRow, usernameRow, telnetSelected);
 
+        int shellRowsStart = row;
         // Local shell controls (only relevant for LOCAL_SHELL protocol) — OS-appropriate shells only.
         shellPresetCombo = new ComboBox<>();
         LocalShellPresetSupport.configure(shellPresetCombo, gitBashCommand, cygwinCommand, wslCommand);
@@ -486,6 +498,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         connectionGrid.add(shellIntegrationLabel, 0, row);
         connectionGrid.add(new VBox(4, shellIntegrationAutoInjectCheck, shellIntegrationAutoInjectHint), 1, row++);
 
+        TelnetFormSupport.hideForTelnet(connectionGrid, shellRowsStart, row - 1, telnetSelected);
         serialEditor = new SerialSettingsEditor(connection.serialSettingsOrNull());
         row = serialEditor.addTo(connectionGrid, row);
 
@@ -517,6 +530,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         retryBox.getChildren().addAll(retrySpinner, new Label(I18n.get("connEdit.attempts")));
         connectionGrid.add(retryBox, 1, row++);
 
+        int sshRowsStart = row;
         hostKeyCheckCombo = new ComboBox<>();
         hostKeyCheckCombo.getItems().addAll(
             new HostKeyChoice(null, I18n.get("connEdit.hostKeyCheck.inherit")),
@@ -586,6 +600,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         connectionTab.setContent(connectionGrid);
         
+        TelnetFormSupport.hideForTelnet(connectionGrid, sshRowsStart, row, telnetSelected);
+
         // Tab 2: Terminal settings
         Tab settingsTab = createSettingsTab();
         
@@ -638,10 +654,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (temporaryKeyArea != null) temporaryKeyArea.textProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         serialEditor.setOnChange(() -> validateForm(saveButton));
         protocolCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            telnetForm.protocolChanged(oldVal, newVal);
+            if (newVal == ConnectionProtocol.TELNET) {
+                tabPane.getTabs().removeAll(tunnelsTab, jumpServerTab);
+            } else if (oldVal == ConnectionProtocol.TELNET) {
+                tabPane.getTabs().addAll(2, java.util.List.of(tunnelsTab, jumpServerTab));
+            }
             updateLocalShellFields();
             updateEncodingField();
             validateForm(saveButton);
         });
+        if (connection.isTelnet()) {
+            tabPane.getTabs().removeAll(tunnelsTab, jumpServerTab);
+        }
+        portSpinner.getEditor().textProperty().addListener((obs, old, value) -> validateForm(saveButton));
         updateLocalShellFields();
         updateEncodingField();
         validateForm(saveButton);
@@ -661,9 +687,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 
                 connection.setName(getNameText);
                 connection.setHost(getHostText);
-                connection.setPort(portSpinner.getValue());
-                connection.setUsername(getUsernameText.isEmpty() ? "root" : getUsernameText);
-                connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
+                connection.setProtocol(protocolCombo.getValue());
+                connection.setPort(connection.isTelnet() ? telnetForm.enteredPort() : portSpinner.getValue());
+                connection.setUsername(connection.isTelnet() ? null
+                    : getUsernameText.isEmpty() ? "root" : getUsernameText);
                 if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
                     connection.setLocalShellCommand(effectiveShellCommand());
                     String workingDir = shellWorkingDirField.getText() != null ? shellWorkingDirField.getText().trim() : "";
@@ -686,78 +713,93 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setDisableHostKeyCheck(
                     hostKeyCheckCombo.getValue() != null ? hostKeyCheckCombo.getValue().value() : null);
                 
-                // Save credential reference
-                if (savedCredentialsCombo.getValue() != null) {
-                    connection.setCredentialId(savedCredentialsCombo.getValue().getId());
-                } else {
+                // Only SSH-based sessions use the saved authentication controls.
+                if (connection.isTelnet()) {
                     connection.setCredentialId(null);
-                }
-                
-                if (temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected()) {
-                    // Temporary SSH Key authentication
-                    connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
                     connection.setSshKeyId(null);
-                    
-                    String tempKeyContent = temporaryKeyArea != null && temporaryKeyArea.getText() != null ? 
-                        temporaryKeyArea.getText().trim() : "";
-                    
-                    if (!tempKeyContent.isEmpty()) {
-                        connection.setTemporaryKeyContent(tempKeyContent);
-                        connection.setTemporaryKeyExpirationMinutes(
-                            temporaryKeyExpirationSpinner != null ? 
-                                (long) temporaryKeyExpirationSpinner.getValue() : 60L);
-                        connection.setTemporaryKeyPermanent(
-                            temporaryKeyPermanentCheck != null && temporaryKeyPermanentCheck.isSelected());
-                        
-                        // Set privateKeyPath to TEMPORARY: prefix for compatibility
-                        connection.setPrivateKeyPath("TEMPORARY:" + tempKeyContent);
+                    connection.setEncryptedPassword(null);
+                    connection.setPrivateKeyPath(null);
+                    connection.setPrivateKeyPassphrase(null);
+                    connection.setTemporaryKeyContent(null);
+                    connection.setTemporaryKeyExpirationMinutes(null);
+                    connection.setTemporaryKeyPermanent(false);
+                    connection.setAuthMethod(AuthMethod.PASSWORD);
+                    connection.setDisableHostKeyCheck(null);
+                } else {
+                    if (savedCredentialsCombo.getValue() != null) {
+                        connection.setCredentialId(savedCredentialsCombo.getValue().getId());
                     } else {
-                        // Clear temporary key if empty
+                        connection.setCredentialId(null);
+                    }
+
+                    if (temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected()) {
+                        // Temporary SSH Key authentication
+                        connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                        connection.setSshKeyId(null);
+
+                        String tempKeyContent = temporaryKeyArea != null && temporaryKeyArea.getText() != null ?
+                            temporaryKeyArea.getText().trim() : "";
+
+                        if (!tempKeyContent.isEmpty()) {
+                            connection.setTemporaryKeyContent(tempKeyContent);
+                            connection.setTemporaryKeyExpirationMinutes(
+                                temporaryKeyExpirationSpinner != null ?
+                                    (long) temporaryKeyExpirationSpinner.getValue() : 60L);
+                            connection.setTemporaryKeyPermanent(
+                                temporaryKeyPermanentCheck != null && temporaryKeyPermanentCheck.isSelected());
+
+                            // Set privateKeyPath to TEMPORARY: prefix for compatibility
+                            connection.setPrivateKeyPath("TEMPORARY:" + tempKeyContent);
+                        } else {
+                            // Clear temporary key if empty
+                            connection.setTemporaryKeyContent(null);
+                            connection.setTemporaryKeyExpirationMinutes(null);
+                            connection.setTemporaryKeyPermanent(false);
+                            connection.setPrivateKeyPath(null);
+                        }
+                    } else if (keyAuthRadio != null && keyAuthRadio.isSelected()) {
+                        connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
+                        // Clear temporary key fields
                         connection.setTemporaryKeyContent(null);
                         connection.setTemporaryKeyExpirationMinutes(null);
                         connection.setTemporaryKeyPermanent(false);
-                        connection.setPrivateKeyPath(null);
-                    }
-                } else if (keyAuthRadio != null && keyAuthRadio.isSelected()) {
-                    connection.setAuthMethod(AuthMethod.PUBLIC_KEY);
-                    // Clear temporary key fields
-                    connection.setTemporaryKeyContent(null);
-                    connection.setTemporaryKeyExpirationMinutes(null);
-                    connection.setTemporaryKeyPermanent(false);
-                    
-                    // Use key from combo if selected, otherwise use path field
-                    if (savedSSHKeysCombo != null && savedSSHKeysCombo.getValue() != null) {
-                        connection.setSshKeyId(savedSSHKeysCombo.getValue().getId());
-                        connection.setPrivateKeyPath(sshKeyManager != null ? 
-                            sshKeyManager.getEffectiveKeyPath(savedSSHKeysCombo.getValue()) : 
-                            (keyPathField != null && keyPathField.getText() != null ? keyPathField.getText().trim() : ""));
-                    } else {
-                        connection.setSshKeyId(null);
-                        connection.setPrivateKeyPath(keyPathField != null && keyPathField.getText() != null ? keyPathField.getText().trim() : "");
-                    }
-                    // Persist key passphrase only when encrypted (never store plain text)
-                    String passphraseToSave = keyPassphraseField != null ? keyPassphraseField.getText() : null;
-                    if (passphraseToSave != null && !passphraseToSave.trim().isEmpty() && masterPassword != null) {
-                        try {
-                            EncryptionService encryptionService = new EncryptionService();
-                            connection.setPrivateKeyPassphrase(encryptionService.encryptPassword(passphraseToSave.trim(), masterPassword));
-                        } catch (Exception ex) {
-                            logger.error("Failed to encrypt key passphrase for saving", ex);
+
+                        // Use key from combo if selected, otherwise use path field
+                        if (savedSSHKeysCombo != null && savedSSHKeysCombo.getValue() != null) {
+                            connection.setSshKeyId(savedSSHKeysCombo.getValue().getId());
+                            connection.setPrivateKeyPath(sshKeyManager != null ?
+                                sshKeyManager.getEffectiveKeyPath(savedSSHKeysCombo.getValue()) :
+                                (keyPathField != null && keyPathField.getText() != null ? keyPathField.getText().trim() : ""));
+                        } else {
+                            connection.setSshKeyId(null);
+                            connection.setPrivateKeyPath(keyPathField != null && keyPathField.getText() != null ? keyPathField.getText().trim() : "");
+                        }
+                        // Persist key passphrase only when encrypted (never store plain text)
+                        String passphraseToSave = keyPassphraseField != null ? keyPassphraseField.getText() : null;
+                        if (passphraseToSave != null && !passphraseToSave.trim().isEmpty() && masterPassword != null) {
+                            try {
+                                EncryptionService encryptionService = new EncryptionService();
+                                connection.setPrivateKeyPassphrase(encryptionService.encryptPassword(passphraseToSave.trim(), masterPassword));
+                            } catch (Exception ex) {
+                                logger.error("Failed to encrypt key passphrase for saving", ex);
+                                connection.setPrivateKeyPassphrase(null);
+                            }
+                        } else {
                             connection.setPrivateKeyPassphrase(null);
                         }
                     } else {
-                        connection.setPrivateKeyPassphrase(null);
+                        connection.setAuthMethod(AuthMethod.PASSWORD);
+                        connection.setSshKeyId(null);
+                        // Clear temporary key fields
+                        connection.setTemporaryKeyContent(null);
+                        connection.setTemporaryKeyExpirationMinutes(null);
+                        connection.setTemporaryKeyPermanent(false);
+                        // Note: Password should be encrypted before saving
                     }
-                } else {
-                    connection.setAuthMethod(AuthMethod.PASSWORD);
-                    connection.setSshKeyId(null);
-                    // Clear temporary key fields
-                    connection.setTemporaryKeyContent(null);
-                    connection.setTemporaryKeyExpirationMinutes(null);
-                    connection.setTemporaryKeyPermanent(false);
-                    // Note: Password should be encrypted before saving
+
+
                 }
-                
+
                 // Terminal settings: "own" stores the edited values with useGlobalSettings=false, so
                 // new and reconnected tabs draw with them; "global" keeps the stored values but
                 // follows the global settings again.
@@ -787,10 +829,12 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 
                 // Store the edited tunnels; an open tab of this connection applies them when the
                 // connection manager has saved (MainWindow#refreshAllTerminalTabsConnectionSettings).
-                TunnelEditSupport.writeBack(connection, editedTunnels);
+                if (!connection.isTelnet()) {
+                    TunnelEditSupport.writeBack(connection, editedTunnels);
+                }
                 
                 // Save jump server settings
-                if (enableJumpCheck != null && enableJumpCheck.isSelected()) {
+                if (!connection.isTelnet() && enableJumpCheck != null && enableJumpCheck.isSelected()) {
                     if (connection.getJumpServer() == null) {
                         connection.setJumpServer(new de.kortty.model.JumpServer());
                     }
@@ -1287,11 +1331,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
     /** The password field is editable only for SSH password auth with no credential lookup running. */
     private void updatePasswordFieldEnablement() {
-        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL
-            || protocolCombo.getValue() == ConnectionProtocol.SERIAL;
+        boolean terminalCredentials = protocolCombo.getValue() != null
+            && !protocolCombo.getValue().usesSshAuthentication();
         boolean useKey = keyAuthRadio.isSelected();
         boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
-        passwordField.setDisable(local || useKey || useTemporaryKey || credentialPasswordResolver.isPending());
+        passwordField.setDisable(terminalCredentials || useKey || useTemporaryKey || credentialPasswordResolver.isPending());
     }
 
     private void updateAuthFields() {
@@ -1320,7 +1364,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         // requires a non-empty host.
         boolean valid = serial ? serialEditor.validationErrorKey() == null
             : localShell || (hostText != null && !hostText.trim().isEmpty());
-        if (valid && !localShell && !serial && connection.isTeamworkConnection()) {
+        boolean telnet = protocolCombo.getValue() == ConnectionProtocol.TELNET;
+        if (telnet) {
+            valid = valid && telnetForm.enteredPort() > 0;
+        }
+        if (valid && !localShell && !serial && !telnet && connection.isTeamworkConnection()) {
             boolean hasCred = passwordAuthRadio != null && passwordAuthRadio.isSelected()
                 && savedCredentialsCombo != null && savedCredentialsCombo.getValue() != null;
             boolean hasKey = keyAuthRadio != null && keyAuthRadio.isSelected() && savedSSHKeysCombo != null && savedSSHKeysCombo.getValue() != null;
@@ -2393,6 +2441,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         }
         if (protocol == ConnectionProtocol.SERIAL) {
             return I18n.get("protocol.serial");
+        }
+        if (protocol == ConnectionProtocol.TELNET) {
+            return I18n.get("protocol.telnet");
         }
         return I18n.get("protocol.sshTcp");
     }

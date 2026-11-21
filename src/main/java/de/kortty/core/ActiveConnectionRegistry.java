@@ -43,6 +43,9 @@ public final class ActiveConnectionRegistry {
     /** Protocol label of a Mosh connection through the native {@code mosh} client. */
     public static final String PROTOCOL_MOSH_CLIENT = "MOSH_CLIENT";
 
+    /** Protocol label of a Telnet terminal connection. */
+    public static final String PROTOCOL_TELNET = "TELNET";
+
     /** One open connection, as reported to monitoring. */
     public record Entry(String id, String name, String protocol, LocalDateTime connectedAt) {
         public Entry {
@@ -94,6 +97,9 @@ public final class ActiveConnectionRegistry {
         }
         if (connector instanceof NativeMoshTtyConnector) {
             return PROTOCOL_MOSH_CLIENT;
+        }
+        if (connector instanceof TelnetTtyConnector) {
+            return PROTOCOL_TELNET;
         }
         return null;
     }
@@ -190,6 +196,9 @@ public final class ActiveConnectionRegistry {
     }
 
     private static String displayNameOf(TtyConnector connector) {
+        if (connector instanceof TelnetTtyConnector telnet) {
+            return telnet.getName();
+        }
         ServerConnection connection = null;
         if (connector instanceof SshTtyConnector ssh) {
             connection = ssh.getConnection();

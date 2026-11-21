@@ -66,6 +66,9 @@ final class ConnectionRowGraphics {
             String port = serial.getPortName() != null ? serial.getPortName() : I18n.get("protocol.serial");
             return port + " · " + serial.frameSummary();
         }
+        if (connection.isTelnet()) {
+            return connection.telnetEndpoint();
+        }
         String host = connection.getHost() != null ? connection.getHost() : "";
         String user = connection.getUsername();
         String address = user != null && !user.isBlank() ? user + "@" + host : host;
@@ -75,7 +78,7 @@ final class ConnectionRowGraphics {
     /** The connection's enabled tunnels. */
     static List<SSHTunnel> enabledTunnels(ServerConnection connection) {
         List<SSHTunnel> tunnels = new ArrayList<>();
-        if (connection != null && connection.getSshTunnels() != null) {
+        if (connection != null && !connection.isTelnet() && connection.getSshTunnels() != null) {
             for (SSHTunnel tunnel : connection.getSshTunnels()) {
                 if (tunnel != null && tunnel.isEnabled()) {
                     tunnels.add(tunnel);
@@ -109,7 +112,7 @@ final class ConnectionRowGraphics {
 
     /** The jump server's {@code host:port} when the connection uses an enabled one, else null. */
     static String jumpTarget(ServerConnection connection) {
-        if (connection == null || connection.getJumpServer() == null || !connection.getJumpServer().isEnabled()) {
+        if (!de.kortty.core.JumpHostSupport.isActive(connection)) {
             return null;
         }
         String host = connection.getJumpServer().getHost();
@@ -272,7 +275,7 @@ final class ConnectionRowGraphics {
         if (connection.isIncognito()) {
             marks.add(mark("incognito", fill, I18n.get("connectionManager.row.incognito")));
         }
-        if (Boolean.TRUE.equals(connection.getDisableHostKeyCheck())) {
+        if (!connection.isTelnet() && Boolean.TRUE.equals(connection.getDisableHostKeyCheck())) {
             marks.add(mark("hostKey", fill, I18n.get("connectionManager.row.hostKeyOff")));
         }
         return marks;

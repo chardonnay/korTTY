@@ -103,7 +103,7 @@ final class ConnectionInspectorPane extends ScrollPane {
             connection.getHost() != null && !local ? connection.getHost() : "–");
         host.setStyle("-fx-font-family: '" + monoFamily() + "';");
         row(connectionFacts, "connectionManager.inspector.user",
-            !connection.isSerial() && connection.getUsername() != null && !connection.getUsername().isBlank()
+            !connection.isSerial() && !connection.isTelnet() && connection.getUsername() != null && !connection.getUsername().isBlank()
                 ? connection.getUsername() : "–");
         row(connectionFacts, "connectionManager.inspector.port", local ? "–" : String.valueOf(connection.getPort()));
         if (connection.isSerial()) {
@@ -220,7 +220,7 @@ final class ConnectionInspectorPane extends ScrollPane {
         connect.setOnAction(e -> run(onConnect, connection));
         HBox actions = new HBox(6, connect);
         actions.setAlignment(Pos.CENTER_LEFT);
-        if (onSftp != null && connection.isNetworkConnection()) {
+        if (onSftp != null && connection.usesSshAuthentication()) {
             actions.getChildren().add(iconButton("sftp", I18n.get("connectionManager.inspector.sftp"), () -> run(onSftp, connection)));
         }
         if (!facts.readOnly()) {
@@ -294,7 +294,9 @@ final class ConnectionInspectorPane extends ScrollPane {
         javafx.scene.layout.FlowPane chips = new javafx.scene.layout.FlowPane(6, 6);
         chips.getChildren().add(iconChip("isolation",
             I18n.get("connectionManager.inspector.isolationChip", facts.isolation())));
-        chips.getChildren().add(iconChip("hostKey", I18n.get("connectionManager.inspector.hostKeyChip", facts.hostKey())));
+        if (!connection.isTelnet()) {
+            chips.getChildren().add(iconChip("hostKey", I18n.get("connectionManager.inspector.hostKeyChip", facts.hostKey())));
+        }
         if (connection.isIncognito()) {
             chips.getChildren().add(iconChip("incognito", I18n.get("connectionManager.row.incognito")));
         }
@@ -413,6 +415,7 @@ final class ConnectionInspectorPane extends ScrollPane {
             case MOSH_CLIENT -> I18n.get("protocol.moshClient");
             case LOCAL_SHELL -> I18n.get("protocol.localShell");
             case SERIAL -> I18n.get("protocol.serial");
+            case TELNET -> I18n.get("protocol.telnetUnencrypted");
             default -> I18n.get("protocol.sshTcp");
         };
     }

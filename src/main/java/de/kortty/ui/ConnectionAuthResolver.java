@@ -277,6 +277,9 @@ final class ConnectionAuthResolver {
         if (blocked.isPresent()) {
             return Resolution.blocked(original, blocked.get());
         }
+        if (original.isTelnet()) {
+            return Resolution.ready(original, null, null);
+        }
         TeamworkDefaults teamwork = original.isTeamworkConnection() ? seams.teamwork().get() : TeamworkDefaults.NONE;
         ServerConnection connection = applyTeamworkDefaults(original, teamwork);
 
@@ -324,6 +327,9 @@ final class ConnectionAuthResolver {
 
     /** Whether a password for {@code connection} is stored, readable or not (credential store or vault). */
     boolean hasStoredPassword(ServerConnection connection) {
+        if (connection.isTelnet()) {
+            return false;
+        }
         String credentialId = connection.getCredentialId();
         if (credentialId != null && seams.credentials().holdsPassword(credentialId)) {
             return true;
@@ -339,6 +345,9 @@ final class ConnectionAuthResolver {
      * vault's own failure propagates.
      */
     @Nullable String storedPassword(ServerConnection connection) {
+        if (connection.isTelnet()) {
+            return null;
+        }
         String credentialId = connection.getCredentialId();
         if (credentialId != null) {
             try {

@@ -1,12 +1,12 @@
 # Verbindungen
 
-korTTY verwaltet SSH-, Mosh-, **lokale-Shell-** und [serielle](serial.md)-Verbindungen über drei Einstiegspunkte: die **Schnellverbindung**, den **Connection-Manager** und gespeicherte **Projekte**.
+korTTY verwaltet SSH-, Mosh-, [Telnet](#telnet-verbindungen)-, **lokale Shell**- und [serielle](serial.md) Verbindungen über drei Einstiege: **Schnellverbindung**, **Connection-Manager** und gespeicherte **Projekte**.
 
 ![Connection flow](../assets/diagrams/connection-flow.svg)
 
 ## Schnellverbindung
 
-Öffnen mit ++ctrl+k++ (oder **Verbindungen → Schnellverbindung…**). Geben Sie Host, Port, Benutzernamen und Authentifizierung ein und stellen Sie eine Verbindung her, ohne zu speichern. Häufig verwendete Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie. Gespeicherte Verbindungen können aus einem Dropdown-Menü mit einem eigenen Suchfeld ausgewählt werden, das nach Name, Host oder [Tag](#tags) filtert (`*` funktioniert als Platzhalter); Das Tag einer gespeicherten Verbindung wird neben ihrem Namen (🏷) im Dropdown-Menü und in den QuickInfos der Schnellschaltflächen angezeigt.
+Öffnen Sie die Schnellverbindung mit ++ctrl+k++ oder über **Verbindungen → Schnellverbindung…**. Geben Sie für SSH Host, Port, Benutzername und Authentifizierung an. Wählen Sie für Telnet **Telnet** und geben Sie Host und Port ein. Aktivieren Sie **Verbindung speichern**, um das Profil beim Verbinden zu behalten. Häufig verwendete Verbindungen erscheinen als Schaltflächen und lassen sich per Live-Suche filtern. Wählen Sie ein gespeichertes Profil über die Auswahlliste mit Suchfeld. Die Suche findet Name, Host oder [Tag](#tags) und unterstützt `*` als Platzhalter. Ein Tag erscheint in der Liste und in den Tooltips der Schaltflächen neben dem Profilnamen (🏷).
 
 ## Connection-Manager
 
@@ -85,7 +85,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 | Registerkarte | Inhalt |
 | --- | --- |
-| Verbindung | Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ), Lokale Shell oder Seriell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuordnung, ein optionales Freitext-[Tag](#tags) sowie das [OS-Symbol](#os-symbole), **Verbindungstimeout** (1–300 Sekunden) und **Wiederholungsversuche** (1–20 Versuche, verwendet, wenn **Verbindungswiederholungen aktivieren** in *Einstellungen → Terminal* aktiviert ist). Bei **Lokale Shell**- und **Seriell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert; eine serielle Verbindung hat eigene Zeilen für die Port- und Leitungseinstellungen (siehe [Serielle Verbindungen](serial.md#einstellungen)). Siehe [Zeichenkodierung](#zeichenkodierung). |
+| Verbindung | Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ), Telnet, Lokale Shell oder Seriell), Terminal-Emulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / tastaturinteraktiv), **Host-Schlüsselprüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppe oder Ordner, optionaler [Tag](#tags) und [Betriebssystemsymbol](#os-symbole), **Verbindungs-Timeout** (1–300 Sekunden) und **Wiederholungen** (1–20 Versuche, wenn **Verbindungswiederholungen aktivieren** unter *Einstellungen → Terminal* eingeschaltet ist). Bei **Lokale Shell** und **Seriell** sind Host, Port, Benutzername und Authentifizierung deaktiviert. **Seriell** bietet eigene Felder für Schnittstelle und Leitungsparameter (siehe [Serielle Verbindungen](serial.md#einstellungen)). Für **Telnet** sind nur Host und Port erforderlich. Siehe [Zeichenkodierung](#zeichenkodierung). |
 | Terminal-Einstellungen | **Globale Terminal-Einstellungen verwenden** oder **Eigene Einstellungen für diese Verbindung** mit verbindungsabhängigen Farben, Schriftart und ANSI/TrueColor-Handhabung (siehe [Eigene Terminaleinstellungen](#eigene-terminaleinstellungen)), dem **Terminal-Verhalten** Abschnitt mit dem [Tab-Farbe](#tab-farbe), der [Schlüsselworthervorhebung](#hervorhebung-von-schlusselwortern) Regelset und das [Einfüge-Schutz](#einfugeschutz), und darunter die Zeilen zur Sitzungs-Isolation mit dem [Isolationsebene, strikter Terminalmodus und Incognito-Schalter](session-isolation.md), Terminal-Effekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
@@ -166,11 +166,25 @@ Eine **Tab-Farbe** markiert jeden Terminal-Tab einer Verbindung mit einem kleine
 === "Mosh-Client (nativ)"
     Roaming Mosh-Sitzung mit dem `mosh-client` Programm, das auf diesem Computer installiert ist, angezeigt in einem Terminal-Tab. korTTY startet die Sitzung über SSH selbst und übergibt dann den Bildschirm an `mosh-client`, das auf dem `PATH` sein muss (installieren Sie es mit Ihrem Systempaketmanager, z. B. Homebrew, apt oder dnf). Eine Verbindung zu einem Server hinter einem [ Sprungserver](jump-server.md) wird verweigert, weil die Mosh-Sitzung über UDP läuft, das der Tunnel des Sprungservers nicht transportieren kann. Mit [ Sitzungs-Isolation](session-isolation.md) kann dieses Protokoll ebenfalls in einer Betriebssystem-Sandbox ausgeführt werden.
 
+=== "Telnet"
+    Öffnet ein unverschlüsseltes Terminal über das Netzwerk. Siehe [Telnet-Verbindungen](#telnet-verbindungen) unten.
+
 === "Lokale Shell"
     Öffnet die **lokale Maschine**-Shell in einem Terminal-Tab (ohne Netzwerk) über einen pty4j-gebackenen Pseudoterminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe unten [Lokale Shell](#lokale-shell).
 
 === "Seriell"
     Öffnet ein Terminal auf einem **seriellen Port** dieses Computers (COM-Port, `/dev/ttyUSB0`, ein USB-zu-Seriell-Adapter), mit pro Verbindung einstellbarer Geschwindigkeit, Datenformat, Flusssteuerung und dem, was ++enter++ sendet. Host, Port, Benutzername und Authentifizierung werden nicht verwendet. Siehe [Serielle Verbindungen](serial.md).
+
+## Telnet-Verbindungen
+
+Wählen Sie **Telnet** unter **Protokoll** in der **Schnellverbindung** oder im **Connection-Manager**. Geben Sie einen Hostnamen oder eine IP-Adresse und einen TCP-Port ein. Der Standardport ist `23`. Wenn Sie das Protokoll wechseln, passt korTTY den Standardport an und behält einen individuell eingetragenen Port bei. Falls das Gerät eine Anmeldung verlangt, geben Sie Ihre Anmeldedaten direkt im Terminal ein.
+
+!!! warning "Telnet ist unverschlüsselt"
+    Telnet überträgt den gesamten Terminalverkehr im Klartext, einschließlich Ihrer Eingaben bei der Anmeldung. Dialog und Tab kennzeichnen die Verbindung als unverschlüsselt. SSH-Passwort- und Schlüsselfelder, Host-Schlüsselprüfung, SFTP, Tunnel und Jump-Server stehen für Telnet-Profile nicht zur Verfügung.
+
+Die **Terminal-Emulation** bestimmt die lokale Darstellung und den Terminaltyp, den korTTY an den Server meldet. korTTY handelt das Echo mit dem Server aus und übermittelt die Breite und Höhe des Terminals, wenn der Server die Telnet-Fenstergrößenoption akzeptiert. Verwenden Sie **Zeichenkodierung**, wenn ein älteres Gerät eine andere Kodierung benötigt. In der Schnellverbindung finden Sie diese Einstellung im Abschnitt **Verbindungs-Timeout**. Wenn der Server die Verbindung schließt, bietet korTTY an, sie erneut aufzubauen.
+
+Verwenden Sie Telnet für Server oder Netzwerkkonsolen, die Telnet unterstützen. Für Geräte, die direkt am Computer angeschlossen sind, siehe [Serielle Verbindungen](serial.md). Die [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) kann Telnet sperren und zulässige Hosts und Ports festlegen. Telnet läuft innerhalb von korTTY. Wenn die Richtlinie eine Prozess- oder Sandbox-Isolierung verlangt, lässt sich die Sitzung nicht öffnen.
 
 ## SSH-Hostschlüsselüberprüfung
 
@@ -226,6 +240,8 @@ Eine lokale Shell kann ebenfalls von korTTY und den anderen Tabs isoliert werden
 ## Import von anderen Clients
 
 **Verbindungen → Importieren…** liest Verbindungsdateien von **MTPuTTY**, **MobaXterm** und **PuTTY Connection Manager**, mit Gruppenfilterung und Anmeldeinformationsverarbeitung.
+
+Telnet-Verbindungsdaten lassen sich als PuTTY Connection Manager CSV oder als MobaXterm-Lesezeichen importieren und exportieren. Verwenden Sie das native korTTY-XML-Format, um korTTY-spezifische Einstellungen wie Terminal-Emulation und Zeichenkodierung zu erhalten.
 
 !!! note "Mehr folgt"
     Diese Seite ist Teil des Scaffolded-Anleitungs. Als nächstes wird die vollständige Funktionsbibliothek – SFTP, Snippets, JobScheduler, KI-Assistent und -Tools, Terminalaufzeichnung, Sicherheit und die vollständigen Einstellungstabellen – ausgefüllt.

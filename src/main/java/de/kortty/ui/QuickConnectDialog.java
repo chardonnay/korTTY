@@ -73,6 +73,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     }
     private TextField hostField;
     private Spinner<Integer> portSpinner;
+    private TelnetFormSupport telnetForm;
+    private ComboBox<String> telnetEncoding;
     private ComboBox<ConnectionProtocol> protocolCombo;
     private ComboBox<EmulationType> terminalEmulationCombo;
     private TextField usernameField;
@@ -242,11 +244,14 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 return;
             }
             boolean local = protocol == ConnectionProtocol.LOCAL_SHELL;
-            connectButton.setDisable(!local && hostField.getText().trim().isEmpty());
+            connectButton.setDisable(!local && (hostField.getText().trim().isEmpty()
+                || (protocol == ConnectionProtocol.TELNET && telnetForm.enteredPort() < 0)));
         };
         hostField.textProperty().addListener((obs, old, newVal) -> updateConnectButton.run());
+        portSpinner.getEditor().textProperty().addListener((obs, old, value) -> updateConnectButton.run());
         serialEditor.setOnChange(updateConnectButton);
         protocolCombo.valueProperty().addListener((obs, old, newVal) -> {
+            telnetForm.protocolChanged(old, newVal);
             updateLocalShellFields();
             updateConnectButton.run();
         });
@@ -268,7 +273,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 if (result != null && result.connection() != null) {
                     // Stamp the host-key override here, the single choke point for every
                     // individual-result branch, so an ad-hoc Quick Connect can override too.
-                    if (hostKeyCheckCombo != null && hostKeyCheckCombo.getValue() != null) {
+                    if (!result.connection().isTelnet() && hostKeyCheckCombo != null && hostKeyCheckCombo.getValue() != null) {
                         result.connection().setDisableHostKeyCheck(hostKeyCheckCombo.getValue().value());
                     }
                     applyAiAssignments(result.connection());
@@ -329,7 +334,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                     selectedConn.setTerminalEffectPluginId(null);
                     selectedConn.setTerminalEffectAnimationSpeed(null);
                 }
-                if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
+                if (!conn.isTelnet() && conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().isBlank()) {
                     tempKeyForBtn = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
                     if (tempKeyForBtn == null || !tempKeyForBtn.isValid()) {
                         // Key expired or not found - store fresh from persisted content
@@ -379,6 +384,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
         protocolCombo = new ComboBox<>();
         protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT, ConnectionProtocol.LOCAL_SHELL);
+        if (de.kortty.policy.PolicyManager.effective().telnetConnectionsAllowed()) {
+            protocolCombo.getItems().add(ConnectionProtocol.TELNET);
+        }
+        telnetForm = new TelnetFormSupport(portSpinner, ConnectionProtocol.SSH_TCP);
         // serial-connections = "deny": not offered; a saved serial connection picked here still refuses to connect.
         if (de.kortty.policy.PolicyManager.effective().serialConnectionsAllowed()) {
             protocolCombo.getItems().add(ConnectionProtocol.SERIAL);
@@ -649,7 +658,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         grid.add(usernameField, 1, 1);
 
         grid.add(new Label(I18n.get("quickConnect.protocol")), 0, 2);
-        grid.add(protocolCombo, 1, 2);
+        var telnetSelected = protocolCombo.valueProperty().isEqualTo(ConnectionProtocol.TELNET);
+        Label telnetWarning = TelnetFormSupport.warning();
+        telnetWarning.visibleProperty().bind(telnetSelected);
+        telnetWarning.managedProperty().bind(telnetSelected);
+        grid.add(new VBox(4, protocolCombo, telnetWarning), 1, 2);
 
         grid.add(new Label(I18n.get("quickConnect.terminalEmulation")), 0, 3);
         grid.add(terminalEmulationCombo, 1, 3);
@@ -719,6 +732,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             row++;
         }
 
+        TelnetFormSupport.hideForTelnet(grid, 1, 1, telnetSelected);
+        TelnetFormSupport.hideForTelnet(grid, 4, row - 1, telnetSelected);
+
+        int shellRowsStart = row;
         // Local shell controls (only relevant for LOCAL_SHELL protocol)
         grid.add(new Label(I18n.get("connEdit.shell")), 0, row);
         grid.add(shellPresetCombo, 1, row++);
@@ -726,6 +743,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         grid.add(customShellCommandField, 1, row++);
         grid.add(new Label(I18n.get("connEdit.shellWorkingDir")), 0, row);
         grid.add(shellWorkingDirField, 1, row++);
+        TelnetFormSupport.hideForTelnet(grid, shellRowsStart, row - 1, telnetSelected);
         row = serialEditor.addTo(grid, row);
 
         grid.add(saveConnectionCheck, 1, row++);
@@ -758,6 +776,20 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             hostKeyCheckCombo, de.kortty.policy.ManagedSetting.HOST_KEY_CHECK);
         timeoutGrid.add(new Label(I18n.get("connEdit.hostKeyCheck")), 0, 2);
         timeoutGrid.add(hostKeyCheckCombo, 1, 2);
+        TelnetFormSupport.hideForTelnet(timeoutGrid, 2, 2, telnetSelected);
+        telnetEncoding = new ComboBox<>();
+        String defaultEncoding = I18n.get("connEdit.encoding.inherit");
+        telnetEncoding.getItems().add(defaultEncoding);
+        telnetEncoding.getItems().addAll(de.kortty.core.TerminalEncodingSupport.SUPPORTED_ENCODINGS);
+        telnetEncoding.setValue(defaultEncoding);
+        Label encodingLabel = new Label(I18n.get("connEdit.encoding"));
+        encodingLabel.setLabelFor(telnetEncoding);
+        for (javafx.scene.Node node : java.util.List.of(encodingLabel, telnetEncoding)) {
+            node.visibleProperty().bind(telnetSelected);
+            node.managedProperty().bind(telnetSelected);
+        }
+        timeoutGrid.add(encodingLabel, 0, 3);
+        timeoutGrid.add(telnetEncoding, 1, 3);
         collapsibleSections.getChildren().add(
             collapsibleSection("connectionTimeout", I18n.get("quickConnect.section.connectionTimeout"), timeoutGrid));
 
@@ -1422,15 +1454,17 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         // A Local Shell connection may have no host or username; the connect button's listener
         // trims the host text, so it must never be null.
         hostField.setText(Objects.requireNonNullElse(conn.getHost(), ""));
-        portSpinner.getValueFactory().setValue(conn.getPort());
-        usernameField.setText(Objects.requireNonNullElse(conn.getUsername(), ""));
         protocolCombo.setValue(conn.getProtocol());
+        telnetForm.loadPort(conn.getPort(), conn.getProtocol());
+        usernameField.setText(Objects.requireNonNullElse(conn.getUsername(), ""));
+        String encoding = de.kortty.core.TerminalEncodingSupport.displayName(conn.getEncoding());
+        telnetEncoding.setValue(encoding != null ? encoding : telnetEncoding.getItems().getFirst());
         loadLocalShellSelection(conn);
         serialEditor.load(conn.serialSettingsOrNull());
         TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, conn.getTerminalEmulationType());
         showTerminalLogSettings(conn);
         updateCredentialCombo(conn.getHost());
-        if (conn.getCredentialId() != null && credentialManager != null) {
+        if (!conn.isTelnet() && conn.getCredentialId() != null && credentialManager != null) {
             credentialManager.findCredentialById(conn.getCredentialId()).ifPresent(cred -> {
                 if (savedCredentialsCombo.getItems().contains(cred)) {
                     savedCredentialsCombo.setValue(cred);
@@ -1456,6 +1490,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             ConnectionSettingsSupport.editorSeed(conn.getSettings(), globalTerminalDefaults()));
         shownAppearance = currentAppearance();
         
+        if (conn.isTelnet()) {
+            passwordField.clear();
+            saveConnectionCheck.setSelected(false);
+            return;
+        }
         // Set authentication method
         if (temporaryKeyAuthRadio != null && temporaryKeyArea != null && conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
             TemporarySSHKey existingKey = TemporarySSHKeyManager.getInstance().getTemporaryKey(conn.getTemporaryKeyContent());
@@ -1568,9 +1607,14 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     }
     
     private ConnectionResult createIndividualResult() {
-        String resolvedPassword = passwordField.getText();
-        // Check if using a saved connection
         ServerConnection selected = savedConnectionsCombo.getValue();
+        if (protocolCombo.getValue() == ConnectionProtocol.TELNET) {
+            return createTelnetResult(selected);
+        }
+        if (selected != null && selected.isTelnet()) {
+            selected = null;
+        }
+        String resolvedPassword = passwordField.getText();
 
         // Resolve password robustly for password-auth flows:
         // 1) direct input field, 2) selected credential, 3) selected saved connection fallback.
@@ -1788,6 +1832,31 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         return new ConnectionResult(connection, resolvedPassword, saveConnectionCheck.isSelected(), false, null, false, tempKey);
     }
 
+    private ConnectionResult createTelnetResult(ServerConnection selected) {
+        String host = hostField.getText().trim();
+        int port = telnetForm.enteredPort();
+        boolean existing = selected != null && selected.isTelnet()
+            && Objects.equals(selected.getHost(), host) && selected.getPort() == port;
+        ServerConnection target = existing ? baseCopyOf(selected) : new ServerConnection();
+        target.setProtocol(ConnectionProtocol.TELNET);
+        target.setHost(host);
+        target.setPort(port);
+        target.setUsername(null);
+        target.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
+        target.setRetryCount(retrySpinner.getValue());
+        String encoding = telnetEncoding.getValue();
+        target.setEncoding(Objects.equals(encoding, telnetEncoding.getItems().getFirst()) ? null : encoding);
+        applySelectedTerminalEmulation(target, existing ? selected : null);
+        applyTerminalSettings(target);
+        applyTerminalEffectSettings(target);
+        boolean save = !existing && saveConnectionCheck.isSelected();
+        if (save) {
+            String name = connectionNameField.getText().trim();
+            target.setName(name.isEmpty() ? target.telnetEndpoint() : name);
+        }
+        return new ConnectionResult(target, null, save, existing, null, false, null);
+    }
+
     private void updateCredentialCombo(String hostname) {
         if (savedCredentialsCombo == null || credentialManager == null) return;
         ignoreSavedCredentialsEvents = true;
@@ -1829,6 +1898,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         }
         if (protocol == ConnectionProtocol.SERIAL) {
             return I18n.get("protocol.serial");
+        }
+        if (protocol == ConnectionProtocol.TELNET) {
+            return I18n.get("protocol.telnet");
         }
         return I18n.get("protocol.sshTcp");
     }
@@ -1988,6 +2060,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
      * Retrieves password for a connection, prioritizing credential store.
      */
     private String getConnectionPassword(ServerConnection conn) {
+        if (conn.isTelnet()) {
+            return null;
+        }
         // Try credential store first
         if (conn.getCredentialId() != null && credentialManager != null) {
             try {
