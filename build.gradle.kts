@@ -356,7 +356,7 @@ tasks.named<ProcessResources>("processResources") {
 
 dependencies {
     constraints {
-        implementation("com.google.guava:guava:33.7.2-jre") {
+        implementation("com.google.guava:guava:33.8.0-jre") {
             because("google-java-format and Truth bring in Guava affected by GHSA-xxph-c9ww-hj94")
         }
     }
