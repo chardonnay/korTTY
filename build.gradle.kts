@@ -445,7 +445,7 @@ dependencies {
     // OS/arch inside the jar; prepareSlimRuntimeJars strips foreign platforms and the retained
     // macOS dylib is re-signed by signMacBundledNativeLibraries — an unsigned bundled .dylib
     // fails Apple notarization (same story as the pty4j pin above).
-    implementation("com.github.luben:zstd-jni:1.5.7-26")
+    implementation("com.github.luben:zstd-jni:1.5.7-28")
 
     // Serial-port connections (ConnectionProtocol.SERIAL). Ships one native per OS/arch inside the
     // jar (Windows/Linux/OSX plus BSD, Solaris and Android); prepareSlimRuntimeJars keeps only the
