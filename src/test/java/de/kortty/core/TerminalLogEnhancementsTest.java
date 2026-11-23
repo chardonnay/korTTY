@@ -78,6 +78,8 @@ public class TerminalLogEnhancementsTest {
             BitSet original = TerminalLogPresentation.sourceSelection(map, display);
             var result = JsonParser.parseString(convert(document(LogFormat.JSON), LogFormat.JSON, LogFormat.JSON, original)).getAsJsonObject();
             assertThat(result.getAsJsonArray("entries").size()).isEqualTo(1);
+            String xml = convert(document(LogFormat.JSON), LogFormat.JSON, LogFormat.XML, original);
+            assertThat(JsonParser.parseString(convert(xml, LogFormat.XML, LogFormat.JSON, null))).isEqualTo(result);
             assertThat(JsonParser.parseString(Files.readString(pretty))).isEqualTo(JsonParser.parseString(document(LogFormat.JSON)));
         } finally { SessionJournalExportProtection.deleteRecursively(dir); }
     }

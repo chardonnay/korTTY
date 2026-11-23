@@ -16,3 +16,4 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 ### Terminal
 
 - Der Menüeintrag **Auf Inaktivität überwachen** hat in allen unterstützten Sprachen eine neue Bezeichnung. Sie erscheint im Terminal-Tab-Menü, in der Befehlspalette und in den Benachrichtigungseinstellungen.
+- Beim Export ausgewählter Logzeilen bleiben die Formatoptionen bis zur Bestätigung geöffnet. So können Sie ausgewählte JSON-Einträge in XML umwandeln, bevor Sie den Speicherort wählen.

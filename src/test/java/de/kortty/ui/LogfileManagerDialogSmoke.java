@@ -32,15 +32,19 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
@@ -48,6 +52,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.input.PickResult;
 import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 
 import javax.imageio.ImageIO;
@@ -73,6 +78,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -674,9 +680,65 @@ public final class LogfileManagerDialogSmoke {
         int rawJsonLines = countLines(json.path());
         check(waitUntil(() -> listOf(jsonViewer).getItems().size() > rawJsonLines, 30000), "JSON opens formatted by default");
         savePng(jsonViewer.getDialogPane(), SCREENSHOTS.resolve("logfile-viewer-json.png"));
+        checkViewerSelectionExport(jsonViewer);
         onFxRun(() -> checkWithText(jsonViewer, I18n.get("logfile.viewer.formatted")).fire());
         check(waitUntil(() -> listOf(jsonViewer).getItems().size() == rawJsonLines, 30000), "JSON raw view restores physical source rows");
         onFxRun(jsonViewer::close);
+    }
+
+    private void checkViewerSelectionExport(LogfileViewerDialog viewer) throws Exception {
+        String action = I18n.get("logfile.viewer.exportSelection");
+        ContextMenu menu = onFx(() -> {
+            ListView<Integer> lines = listOf(viewer);
+            lines.getSelectionModel().select(2);
+            Node row = lines.lookupAll(".list-cell").stream()
+                .filter(node -> node instanceof ListCell<?> cell && cell.getIndex() == 2)
+                .findFirst().orElseThrow();
+            Point2D screen = row.localToScreen(20, 5);
+            Event.fireEvent(row, new ContextMenuEvent(ContextMenuEvent.CONTEXT_MENU_REQUESTED,
+                20, 5, screen.getX(), screen.getY(), false, new PickResult(row, 20, 5)));
+            return Window.getWindows().stream().filter(ContextMenu.class::isInstance)
+                .map(ContextMenu.class::cast)
+                .filter(popup -> popup.getItems().stream().anyMatch(item -> action.equals(item.getText())))
+                .findFirst().orElseThrow();
+        });
+        checkSelectionExportOptions("context menu", () -> {
+            Node item = menu.getItems().stream().filter(entry -> action.equals(entry.getText()))
+                .findFirst().orElseThrow().getStyleableNode();
+            Event.fireEvent(item, new MouseEvent(MouseEvent.MOUSE_RELEASED, 0, 0, menu.getX(), menu.getY(),
+                MouseButton.PRIMARY, 1, false, false, false, false, false, false, false,
+                false, false, false, false, false, new PickResult(item, 0, 0)));
+            check(!menu.isShowing(), "the row context menu closes after activating export");
+        });
+        checkSelectionExportOptions("toolbar", () -> buttonWithText(viewer, action).fire());
+    }
+
+    private void checkSelectionExportOptions(String source, Runnable activateExport) throws Exception {
+        AtomicBoolean actionReturned = new AtomicBoolean();
+        Platform.runLater(() -> {
+            activateExport.run();
+            actionReturned.set(true);
+        });
+        check(waitUntil(() -> Window.getWindows().stream().anyMatch(window ->
+            window instanceof Stage stage && I18n.get("logfile.export.title").equals(stage.getTitle())), 5_000),
+            source + " opens the selection export options");
+        onFx(() -> {
+            Window window = Window.getWindows().stream().filter(candidate ->
+                candidate instanceof Stage stage && I18n.get("logfile.export.title").equals(stage.getTitle()))
+                .findFirst().orElseThrow();
+            DialogPane pane = (DialogPane) window.getScene().getRoot();
+            check(actionReturned.get(), source + " action finishes before the options are confirmed");
+            Button export = (Button) pane.lookupButton(pane.getButtonTypes().get(0));
+            check(!export.isDefaultButton(), source + " requires explicit confirmation to open Save as");
+            var xml = TerminalLogConfig.LogFormat.XML.getDisplayName();
+            ComboBox<?> contents = allNodes(pane).stream().filter(node -> node instanceof ComboBox<?> combo
+                    && combo.getItems().contains(xml)).map(node -> (ComboBox<?>) node).findFirst().orElseThrow();
+            contents.getSelectionModel().select(contents.getItems().indexOf(xml));
+            check(xml.equals(contents.getValue()), source + " lets the user select XML for the JSON log");
+            ((Button) pane.lookupButton(pane.getButtonTypes().get(1))).fire();
+            check(!window.isShowing(), source + " can cancel the format dialog");
+            return null;
+        });
     }
 
     private void checkViewerTail(LogfileViewerDialog viewer) throws Exception {
