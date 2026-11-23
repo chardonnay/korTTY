@@ -15,6 +15,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.geometry.Insets;
@@ -79,6 +80,15 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
      * @param preset the time filter of the list, or {@code null}; selects the range checkbox when set
      */
     public LogfileExportDialog(Window owner, List<TerminalLogFile> files, LogTimeRange preset) {
+        this(owner, files, preset, false);
+    }
+
+    LogfileExportDialog(Window owner, TerminalLogFile file) {
+        this(owner, List.of(file), null, true);
+    }
+
+    private LogfileExportDialog(Window owner, List<TerminalLogFile> files, LogTimeRange preset,
+                                boolean selectedLines) {
         if (owner != null) {
             initOwner(owner);
         }
@@ -171,6 +181,11 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         ButtonType cancelType = new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         getDialogPane().getButtonTypes().addAll(exportType, cancelType);
         Button export = (Button) getDialogPane().lookupButton(exportType);
+        if (selectedLines) {
+            // An Enter used to open the options must not also confirm them.
+            export.setDefaultButton(false);
+            setOnShown(event -> Platform.runLater(contentCombo::requestFocus));
+        }
         BooleanBinding invalidProtection = Bindings.createBooleanBinding(() ->
             (formatCombo.getValue() == TerminalLogExportOptions.Archive.ZIP && passwordCheck.isSelected()
                 && (password.getText().isEmpty() || !password.getText().equals(confirmation.getText())))

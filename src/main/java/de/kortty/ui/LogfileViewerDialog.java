@@ -83,6 +83,7 @@ import java.text.NumberFormat;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -1327,22 +1328,37 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
 
     private void exportSelection() {
         Opened current = opened;
-        if (current == null || file.live()) { return; }
-        java.util.BitSet displayed = new java.util.BitSet();
+        if (current == null || file.live()) {
+            return;
+        }
+        BitSet displayed = new BitSet();
         listView.getSelectionModel().getSelectedIndices().forEach(displayed::set);
-        if (displayed.isEmpty()) { return; }
-        var choice = new LogfileExportDialog(getDialogPane().getScene().getWindow(), List.of(file), null).showAndWait();
-        if (choice.isEmpty()) { return; }
-        var options = choice.get().options();
+        if (displayed.isEmpty()) {
+            return;
+        }
+        // JavaFX dismisses a context menu after its item action returns.
+        Platform.runLater(() -> showSelectionExport(current, displayed));
+    }
+
+    private void showSelectionExport(Opened current, BitSet displayed) {
+        if (disposed.get() || opened != current) {
+            return;
+        }
+        Window owner = getDialogPane().getScene().getWindow();
+        var choice = new LogfileExportDialog(owner, file).showAndWait().orElse(null);
+        if (choice == null) {
+            return;
+        }
+        var options = choice.options();
         var chooser = new javafx.stage.FileChooser();
         chooser.setTitle(I18n.get("logfile.export.saveAs"));
-        chooser.setInitialFileName(de.kortty.core.TerminalLogExporter.targetName(file, options, choice.get().range(), true));
-        var selected = chooser.showSaveDialog(getDialogPane().getScene().getWindow());
+        chooser.setInitialFileName(de.kortty.core.TerminalLogExporter.targetName(file, options, choice.range(), true));
+        var selected = chooser.showSaveDialog(owner);
         if (selected == null) { options.close(); return; }
         Path target = selected.toPath();
         AtomicBoolean cancel = new AtomicBoolean();
         ThemeAwareDialog<Void> progress = new ThemeAwareDialog<>();
-        progress.initOwner(getDialogPane().getScene().getWindow());
+        progress.initOwner(owner);
         progress.setTitle(I18n.get("logfile.export.progress.title"));
         progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
         var bar = new javafx.scene.control.ProgressBar();
@@ -1355,9 +1371,9 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
                         || !Files.getLastModifiedTime(file.path()).equals(file.modified())) {
                         throw new IOException(I18n.get("logfile.viewer.sourceChanged"));
                     }
-                    java.util.BitSet original = de.kortty.core.TerminalLogPresentation.sourceSelection(current.selectionMap(), displayed);
+                    BitSet original = de.kortty.core.TerminalLogPresentation.sourceSelection(current.selectionMap(), displayed);
                     return de.kortty.core.TerminalLogExporter.exportOne(file, target, options,
-                        false, choice.get().range(), original, List.of(file.directory()),
+                        false, choice.range(), original, List.of(file.directory()),
                         bytes -> updateProgress(bytes, Math.max(1, file.sizeBytes())), cancel::get);
                 }
             }
