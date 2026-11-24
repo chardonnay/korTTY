@@ -67,6 +67,9 @@ public final class DialogGeometrySupport {
     /** Prevents repeated theme application from installing duplicate event handlers. */
     private static final String AUTOMATIC_INSTALLED_KEY = "kortty.dialogGeometry.automaticInstalled";
 
+    /** Lets the dialog size itself to its contents while still remembering where it was placed. */
+    private static final String RESTORE_POSITION_ONLY_KEY = "kortty.dialogGeometry.restorePositionOnly";
+
     /** Set when another party places the window: the stored geometry is then not applied on show. */
     private static final String SUPPRESS_RESTORE_KEY = "kortty.dialogGeometry.suppressRestore";
 
@@ -161,6 +164,18 @@ public final class DialogGeometrySupport {
         installAutomatic(dialog, automaticKey(dialog.getClass()));
     }
 
+    static void restorePositionOnly(Dialog<?> dialog) {
+        dialog.getDialogPane().getProperties().put(RESTORE_POSITION_ONLY_KEY, Boolean.TRUE);
+    }
+
+    private static boolean shouldRestoreSize(Dialog<?> dialog) {
+        return !restoresPositionOnly(dialog) && uiFontScaleMatchesStoredGeometry();
+    }
+
+    private static boolean restoresPositionOnly(Dialog<?> dialog) {
+        return Boolean.TRUE.equals(dialog.getDialogPane().getProperties().get(RESTORE_POSITION_ONLY_KEY));
+    }
+
     /** Adds automatic persistence to an ad-hoc JavaFX dialog under an explicit stable key. */
     public static void installAutomatic(Dialog<?> dialog, String key) {
         if (dialog == null || key == null || key.isBlank()) {
@@ -179,7 +194,7 @@ public final class DialogGeometrySupport {
                 return;
             }
             WindowGeometry usable = storedUsableGeometry(key);
-            if (usable != null && uiFontScaleMatchesStoredGeometry()) {
+            if (usable != null && shouldRestoreSize(dialog)) {
                 dialog.setWidth(usable.getWidth());
                 dialog.setHeight(usable.getHeight());
             }
@@ -194,15 +209,20 @@ public final class DialogGeometrySupport {
             if (!(window instanceof Stage stage)) {
                 return;
             }
-            boolean applySize = usable != null && uiFontScaleMatchesStoredGeometry();
+            boolean applySize = usable != null && shouldRestoreSize(dialog);
             whenShowing(stage, () -> {
                 if (usable != null) {
+                    WindowGeometry placement = usable;
                     if (applySize) {
                         stage.setWidth(usable.getWidth());
                         stage.setHeight(usable.getHeight());
+                    } else if (restoresPositionOnly(dialog)
+                        && stage.getWidth() >= MIN_USABLE && stage.getHeight() >= MIN_USABLE) {
+                        placement = sanitize(new WindowGeometry(usable.getX(), usable.getY(),
+                            stage.getWidth(), stage.getHeight()), visualScreenBounds());
                     }
-                    stage.setX(usable.getX());
-                    stage.setY(usable.getY());
+                    stage.setX(placement.getX());
+                    stage.setY(placement.getY());
                 }
                 track(dialog, stage);
             });

@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import com.google.gson.JsonParser;
+import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.LanguageManager;
@@ -17,6 +18,7 @@ import de.kortty.core.TerminalLogger;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.TerminalLogConfig;
 import de.kortty.model.TerminalLogKnownFolder;
+import de.kortty.model.WindowGeometry;
 import atlantafx.base.theme.CupertinoDark;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -40,6 +42,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -60,6 +63,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -377,6 +381,7 @@ public final class LogfileManagerDialogSmoke {
                 List.of(tableOf(manager).getItems().get(0)), null);
             dialog.show(); return dialog;
         });
+        checkExportOptionsFit(exportDialog.getDialogPane(), "fresh English export dialog");
         savePng(exportDialog.getDialogPane(), SCREENSHOTS.resolve("logfile-export.png"));
         checkCompactExportDialog(exportDialog);
         LogfileExportDialog germanExport = onFx(() -> {
@@ -384,16 +389,48 @@ public final class LogfileManagerDialogSmoke {
             try {
                 var dialog = new LogfileExportDialog(manager.getDialogPane().getScene().getWindow(),
                     List.of(tableOf(manager).getItems().get(0)), null);
-                dialog.show();
+                showWithCompactSavedGeometry(dialog);
                 return dialog;
             } finally {
                 LanguageManager.getInstance().setLocale(Locale.ENGLISH);
             }
         });
+        checkExportOptionsFit(germanExport.getDialogPane(), "German export dialog with a saved compact size");
         checkCompactExportDialog(germanExport, "Exportieren...", "Abbrechen", "de");
         onFxRun(manager::close);
         checkPureHelpers();
         runViewer();
+    }
+
+    private void showWithCompactSavedGeometry(LogfileExportDialog dialog) throws ReflectiveOperationException {
+        Window owner = dialog.getOwner();
+        settings.getSettings().setWindowGeometry(DialogGeometrySupport.automaticKey(LogfileExportDialog.class),
+            new WindowGeometry(owner.getX(), owner.getY(), 833, 397));
+        KorTTYApplication app = new KorTTYApplication();
+        Field manager = KorTTYApplication.class.getDeclaredField("globalSettingsManager");
+        manager.setAccessible(true);
+        manager.set(app, settings);
+        Field instance = KorTTYApplication.class.getDeclaredField("instance");
+        instance.setAccessible(true);
+        Object previous = instance.get(null);
+        instance.set(null, app);
+        try {
+            dialog.show();
+        } finally {
+            instance.set(null, previous);
+        }
+    }
+
+    private void checkExportOptionsFit(DialogPane pane, String source) throws Exception {
+        check(onFx(() -> {
+            pane.applyCss();
+            pane.layout();
+            ScrollPane scroll = (ScrollPane) pane.getContent();
+            Bounds content = scroll.getContent().getLayoutBounds();
+            Bounds viewport = scroll.getViewportBounds();
+            return content.getHeight() > 0 && content.getHeight() <= viewport.getHeight() + 1
+                && content.getWidth() <= viewport.getWidth() + 1;
+        }), source + " opens with all options visible without scrolling");
     }
 
     private void checkCompactExportDialog(LogfileExportDialog dialog) throws Exception {
@@ -722,11 +759,12 @@ public final class LogfileManagerDialogSmoke {
         check(waitUntil(() -> Window.getWindows().stream().anyMatch(window ->
             window instanceof Stage stage && I18n.get("logfile.export.title").equals(stage.getTitle())), 5_000),
             source + " opens the selection export options");
+        Window window = onFx(() -> Window.getWindows().stream().filter(candidate ->
+            candidate instanceof Stage stage && I18n.get("logfile.export.title").equals(stage.getTitle()))
+            .findFirst().orElseThrow());
+        DialogPane pane = (DialogPane) window.getScene().getRoot();
+        checkExportOptionsFit(pane, source + " selection export");
         onFx(() -> {
-            Window window = Window.getWindows().stream().filter(candidate ->
-                candidate instanceof Stage stage && I18n.get("logfile.export.title").equals(stage.getTitle()))
-                .findFirst().orElseThrow();
-            DialogPane pane = (DialogPane) window.getScene().getRoot();
             check(actionReturned.get(), source + " action finishes before the options are confirmed");
             Button export = (Button) pane.lookupButton(pane.getButtonTypes().get(0));
             check(!export.isDefaultButton(), source + " requires explicit confirmation to open Save as");

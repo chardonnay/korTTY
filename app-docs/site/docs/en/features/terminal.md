@@ -397,6 +397,8 @@ Click a column header to sort by it, and again to flip the direction.
 
 Click **Export…** below the options to open **Save as** for a single log or a selection of lines, or choose a target folder for several logs. **Export…** and **Cancel** stay visible below the scrollable options even when the window is resized.
 
+The export dialog opens at a size that fits all options when the screen has enough room. On smaller screens, scroll to reach the remaining options.
+
 Tick **Export only a time range** to keep entries between *From* and *To* (*To* includes the whole minute). In the viewer, select rows and choose **Export selected lines…** from the toolbar or context menu. To export selected JSON entries as XML, choose **XML** under **Log content format**, then activate **Export…** to open **Save as**. Selecting any part of a structured entry includes its complete original entry, including when viewing formatted JSON or XML. Header-only selections contain no entries and produce no file. Viewer selection exports refuse to replace an existing destination; choose a new name. Live logs remain protected from export until closed.
 
 **Protection.** ZIP optionally uses **Encrypt ZIP with password (AES-256)**, with a repeated password. Every archive can additionally use **Additionally encrypt with GPG** and a public key registered in **GPG Key Management**. This wraps the chosen archive in `.gpg`, including an already password-encrypted ZIP. GPG uses an installed `gpg` executable and an OpenPGP public key/certificate; an unavailable executable, missing key file or unusable recipient fails the export. Plaintext work files are owner-only and cleaned up afterwards; export passwords are not saved.
