@@ -49,8 +49,6 @@ import javafx.util.StringConverter;
 public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDialog.ExportChoice> {
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
-    private static final double CONTENT_WIDTH = 720;
-    private static final double CONTENT_HEIGHT = 440;
 
     /**
      * The answer: the compression of the copies, and the range to cut them to, or {@code null} for
@@ -95,6 +93,9 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         setTitle(I18n.get("logfile.export.title"));
         setHeaderText(I18n.get("logfile.export.header", files.size()));
         setResizable(true);
+        DialogGeometrySupport.restorePositionOnly(this);
+        // Size the first layout to the styled controls, including the rows below the time range.
+        getDialogPane().setMaxWidth(Double.MAX_VALUE);
 
         formatCombo.getItems().setAll(TerminalLogExportOptions.Archive.values());
         formatCombo.setValue(TerminalLogExportOptions.Archive.ZSTD);
@@ -169,10 +170,7 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         if (gpgKeys.getItems().isEmpty()) { grid.add(new Label(I18n.get("export.noGPGKeys")), 1, 10); }
         ScrollPane scroll = new ScrollPane(grid);
         scroll.setFitToWidth(true);
-        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scroll.setPrefViewportWidth(CONTENT_WIDTH);
-        scroll.setPrefViewportHeight(CONTENT_HEIGHT);
-        // A restored small window must shrink the viewport, never push the button bar off-screen.
+        // On a small screen or after a manual resize, keep the buttons visible and allow scrolling.
         scroll.setMinSize(0, 0);
         scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         getDialogPane().setContent(scroll);
