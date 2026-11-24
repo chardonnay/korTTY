@@ -189,7 +189,7 @@ Der überprüfte kanonische Katalog ist `ai-catalog/model-prompt-catalog-v1.json
 
 ### Betten Sie die lokalen KI-Vertrauenswurzeln ein
 
-Jede Anwendungsversion, die Laufzeiten installieren oder den Katalog aktualisieren kann, muss beide Ed25519 **öffentlichen** Verifizierungsschlüssel einbetten. Der Vertrauensstamm des Laufzeitkanals ist öffentlich, überprüfbar und in `config/trust/llama-runtime-ed25519-public.pem` verankert, sodass normale lokale Builds denselben Schlüssel wie offizielle Pakete verwenden. Der Katalogvertrauensstamm wird separat bereitgestellt. Geben Sie niemals einen der signierenden privaten Schlüssel für einen Anwendungsbuild an.
+Die Anwendung bettet für jeden aktivierten Kanal einen **öffentlichen** Ed25519-Prüfschlüssel ein. Der öffentliche Schlüssel für den Laufzeitkanal ist in `config/trust/llama-runtime-ed25519-public.pem` fest hinterlegt. Lokale Builds verwenden daher denselben Schlüssel wie offizielle Pakete. Geben Sie den öffentlichen Katalogschlüssel separat an, um Katalogaktualisierungen zu aktivieren. Verwenden Sie beim Erstellen der Anwendung keine privaten Signaturschlüssel.
 
 | Kanal | Quellstandard | Umgebungsvariable | Gradle-Eigenschaft |
 | --- | --- | --- | --- |
@@ -210,7 +210,7 @@ Die generierten Ressourcen speichern die festen Kanal-URLs und öffentlichen Ver
     .\gradlew.bat generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
     ```
 
-Der offizielle Anwendungsfreigabe-Workflow liest beide Namen aus GitHub Actions-Repository-Variablen, lehnt fehlende Werte oder privates Schlüsselmaterial ab und lässt Gradle die X.509 Ed25519-Schlüssel vor dem Verpacken validieren. Die Laufzeitvariable ist eine redundante CI-Identitätsprüfung und muss denselben öffentlichen Schlüssel wie das verfolgte PEM kodieren. Eine andere Überschreibung lässt den Build fehlschlagen, anstatt den Vertrauensstamm zu ersetzen. Wenn der angeheftete Laufzeitschlüssel oder die generierte Release-Konfiguration fehlt oder fehlerhaft ist, schlägt die Installation/Aktualisierung der Laufzeit vor dem Abrufen des Index fehl. Ohne den Katalogschlüssel stellt korTTY keine Kataloganfrage, ignoriert etwaige Caches und verwendet seinen integrierten Bootstrap.
+Der offizielle Release-Workflow setzt `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY` voraus. `KORTTY_AI_CATALOG_PUBLIC_KEY` ist optional. Beide Werte sind Repository-Variablen in GitHub Actions. Der Workflow weist private Schlüssel zurück. Gradle prüft die öffentlichen Ed25519-Schlüssel im X.509-Format vor dem Paketbau. Der Schlüssel für den Laufzeitkanal muss mit der PEM-Datei im Repository übereinstimmen. Fehlt der fest hinterlegte Laufzeitschlüssel oder die generierte Release-Konfiguration oder ist einer der beiden fehlerhaft, bricht korTTY Installation und Updates der Laufzeit vor dem Abruf des Index ab. Ohne Katalogschlüssel verwendet korTTY die mitgelieferten Katalogdaten, überspringt den Abruf und ignoriert vorhandene Cache-Daten.
 
 ## macOS
 

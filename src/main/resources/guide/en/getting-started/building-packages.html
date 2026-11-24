@@ -1053,7 +1053,7 @@
 <p>The reviewed canonical catalog is <code>ai-catalog/model-prompt-catalog-v1.json</code>. It uses strict schema v1 for local-model recommendations and model-name-to-preset mappings; application code and prompt-contract text are not part of this independently released payload.</p>
 <p><code>.github/workflows/ai-catalog-release.yml</code> is manual-only, accepts dispatches only from <code>main</code>, and has no preview or automatic promotion path. Its dispatch requires the exact reviewed <code>catalogVersion</code> and a release repository, defaulting to <code>chardonnay/kortty-ai-catalog</code>. Before signing, it verifies that the positive catalog sequence is strictly greater than the latest published sequence and runs the authoritative Java schema/trust-chain tests. The <code>ai-catalog-signing</code> GitHub environment must have required reviewers before production secrets are configured; inside it, the workflow checks that <code>KORTTY_AI_CATALOG_PUBLIC_KEY</code> matches the Ed25519 private signing secret, signs the unchanged JSON bytes, verifies the signature, and publishes immutable <code>model-prompt-catalog-v1.json</code> plus <code>model-prompt-catalog-v1.sig</code>. An existing version tag or release is refused. Configure <code>AI_CATALOG_ED25519_PRIVATE_KEY_PEM</code> and <code>AI_CATALOG_RELEASE_TOKEN</code> only as environment-scoped promotion secrets.</p>
 <h3 id="embed-the-local-ai-trust-roots">Embed the local-AI trust roots<a class="headerlink" href="#embed-the-local-ai-trust-roots" title="Permanent link">&para;</a></h3>
-<p>Every application release that may install runtimes or refresh the catalog must embed both Ed25519 <strong>public</strong> verification keys. The runtime-channel trust root is public, auditable, and pinned in <code>config/trust/llama-runtime-ed25519-public.pem</code>, so normal local builds use the same key as official packages. The catalog trust root is supplied separately. Never provide either signing private key to an application build.</p>
+<p>The application embeds an Ed25519 <strong>public</strong> verification key for each enabled channel. The runtime-channel trust root is pinned in <code>config/trust/llama-runtime-ed25519-public.pem</code>, so local builds use the same key as official packages. Supply the catalog trust root separately to enable remote catalog updates. Never provide either signing private key to an application build.</p>
 <table>
 <thead>
 <tr>
@@ -1093,7 +1093,7 @@
 </div>
 </div>
 </div>
-<p>The official application-release workflow reads both names from GitHub Actions repository variables, rejects missing values or private-key material, and lets Gradle validate the X.509 Ed25519 keys before packaging. The runtime variable is a redundant CI identity check and must encode the same public key as the tracked PEM; a different override fails the build instead of replacing the trust root. If the pinned runtime key or generated release configuration is missing or malformed, runtime installation/update fails closed before fetching the index. Without the catalog key, korTTY makes no catalog request, ignores any cache, and uses its built-in bootstrap.</p>
+<p>The official application-release workflow requires <code>KORTTY_LLAMA_RUNTIME_PUBLIC_KEY</code> and accepts an optional <code>KORTTY_AI_CATALOG_PUBLIC_KEY</code>. Both are GitHub Actions repository variables. The workflow rejects private keys, and Gradle validates the supplied X.509 Ed25519 public keys before packaging. The runtime variable must match the tracked PEM. If the pinned runtime key or generated release configuration is missing or malformed, runtime installation and updates stop before fetching the index. Without the catalog key, korTTY makes no catalog request, ignores any cache, and uses its built-in bootstrap.</p>
 <h2 id="macos">macOS<a class="headerlink" href="#macos" title="Permanent link">&para;</a></h2>
 <h3 id="additional-software">Additional software<a class="headerlink" href="#additional-software" title="Permanent link">&para;</a></h3>
 <p>Install the common prerequisites and Apple command-line tooling. The unsigned <code>.app</code> build uses the JDK tools; DMG creation uses <code>hdiutil</code> and the configured custom icon, while signing and notarization additionally use <code>codesign</code>, <code>security</code>, <code>notarytool</code> and <code>stapler</code>. Select a current Xcode installation before a release build.</p>
@@ -1437,7 +1437,7 @@
             <!-- block footer -->
 <footer class="kt-footer">
   <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
-  <div class="kt-footer__line">korTTY <strong>v2.26.2</strong></div>
+  <div class="kt-footer__line">korTTY <strong>v2.26.3</strong></div>
 </footer>
 
             <!-- endblock -->

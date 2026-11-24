@@ -10,7 +10,7 @@
 schema_version: 1
 
 # Mirrored from build.gradle.kts:12 by scripts/sync-version.py.
-version: "2.26.2"
+version: "2.26.3"
 
 coverage:
   i18n_source: src/main/resources/i18n/messages.properties
@@ -66,7 +66,7 @@ pages:
     owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml, .github/workflows/ai-catalog-release.yml, ai-catalog/model-prompt-catalog-v1.json, scripts/package-size-report.py, scripts/check-release-licenses.py, scripts/package-pacman.sh, scripts/verify-pacman-package.sh, scripts/update_release_download_guide.py, package/size-baselines.json, package/arch, package/flatpak]
     diagrams: []
     screenshots: []
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "aae9d26c"
   - path: app-docs/site/docs/en/getting-started/first-launch.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/security/MasterPasswordManager.java]

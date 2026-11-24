@@ -189,7 +189,7 @@ The reviewed canonical catalog is `ai-catalog/model-prompt-catalog-v1.json`. It 
 
 ### Embed the local-AI trust roots
 
-Every application release that may install runtimes or refresh the catalog must embed both Ed25519 **public** verification keys. The runtime-channel trust root is public, auditable, and pinned in `config/trust/llama-runtime-ed25519-public.pem`, so normal local builds use the same key as official packages. The catalog trust root is supplied separately. Never provide either signing private key to an application build.
+The application embeds an Ed25519 **public** verification key for each enabled channel. The runtime-channel trust root is pinned in `config/trust/llama-runtime-ed25519-public.pem`, so local builds use the same key as official packages. Supply the catalog trust root separately to enable remote catalog updates. Never provide either signing private key to an application build.
 
 | Channel | Source default | Environment variable | Gradle property |
 | --- | --- | --- | --- |
@@ -210,7 +210,7 @@ The generated resources store the fixed channel URLs and public trust roots with
     .\gradlew.bat generateLlamaRuntimeReleaseConfig generateAiCatalogReleaseConfig build
     ```
 
-The official application-release workflow reads both names from GitHub Actions repository variables, rejects missing values or private-key material, and lets Gradle validate the X.509 Ed25519 keys before packaging. The runtime variable is a redundant CI identity check and must encode the same public key as the tracked PEM; a different override fails the build instead of replacing the trust root. If the pinned runtime key or generated release configuration is missing or malformed, runtime installation/update fails closed before fetching the index. Without the catalog key, korTTY makes no catalog request, ignores any cache, and uses its built-in bootstrap.
+The official application-release workflow requires `KORTTY_LLAMA_RUNTIME_PUBLIC_KEY` and accepts an optional `KORTTY_AI_CATALOG_PUBLIC_KEY`. Both are GitHub Actions repository variables. The workflow rejects private keys, and Gradle validates the supplied X.509 Ed25519 public keys before packaging. The runtime variable must match the tracked PEM. If the pinned runtime key or generated release configuration is missing or malformed, runtime installation and updates stop before fetching the index. Without the catalog key, korTTY makes no catalog request, ignores any cache, and uses its built-in bootstrap.
 
 ## macOS
 

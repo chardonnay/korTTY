@@ -11,6 +11,17 @@ This file is not part of the documentation site — it is neither published nor 
 Releases older than the ones below are recorded in `RELEASE_NOTES.adoc` next to this file, and
 every version is also listed on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases).
 
+## v2.26.2
+
+### Security
+
+- Updated Guava to 33.7.2-jre and the Monaco build to DOMPurify 3.4.18 and esbuild 0.28.2.
+- The offline guide renders search-result text and status messages as plain text. Documentation tooling handles identifiers safely, and the session process monitor uses a fixed system path.
+
+### Packaging
+
+- Added the model-list message in six languages to pass release translation validation.
+
 ## v2.26.1
 
 The same security fixes are included in v2.26.2.
