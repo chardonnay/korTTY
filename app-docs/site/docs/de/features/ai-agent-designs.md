@@ -4,11 +4,11 @@ title: KI-Agent-Designs
 
 # KI-Agent-Designs
 
-*Plugins → KI-Agent Design* bestimmt, wie die Ausführungen des [KI-Agent](ai-tools.md) im Terminal angezeigt werden: als Zeilen im Terminal selbst, in einer schmalen Leiste darunter oder darüber, auf einer Schiene oder in einer Spalte daneben, als Karte, die darüber schwebt, im klassischen Aktivitäts-Panel oder in einer Kombination davon. Eine **Kombination** wählt für jede Rolle ein Design aus, und Sie können eine Kombination als Standard festlegen und einzelnen Verbindungen eine andere zuweisen.
+*KI → KI-Manager → KI-Agent Design* bestimmt, wie die Ausführungen des [KI-Agent](ai-tools.md) im Terminal angezeigt werden: als Zeilen im Terminal selbst, in einer schmalen Leiste darunter oder darüber, auf einer Schiene oder in einer Spalte daneben, als Karte, die darüber schwebt, im klassischen Aktivitäts-Panel oder in einer Kombination davon. Eine **Kombination** wählt für jede Rolle ein Design aus, und Sie können eine Kombination als Standard festlegen und einzelnen Verbindungen eine andere zuweisen.
 
 ![AI Agent Design with the standard combination: the live preview shows a sample run as a block in the terminal, waiting for an approval, with the metro line and the approval row below](../assets/screenshots/plugins/ai-agent-design.png)
 
-Öffnen Sie es über *Plugins → KI-Agent Design* oder *Ansicht → KI-Agent-Panel → Design...*. Wenn *Tool-Fenster als Tabs öffnen* aktiviert ist, wird es als Tab des Hauptfensters geöffnet. Eine Organisationsrichtlinie, die Plugins nicht zulässt, sperrt beide Einträge.
+Öffnen Sie **KI → KI-Manager → KI-Agent Design**. **Ansicht → KI-Agent-Panel → Design ...** öffnet den KI-Manager und wählt diesen Reiter direkt aus. Wenn **Tool-Fenster als Tabs öffnen** aktiviert ist, öffnet sich der KI-Manager im Hauptfenster. Sperrt eine Organisationsrichtlinie Plugins, sind der Reiter und der Schnellzugriff im Menü Ansicht deaktiviert.
 
 ## Rollen und Designs
 

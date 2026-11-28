@@ -103,7 +103,7 @@ The model answers each turn with one decision, and korTTY carries out only the d
 
 ## Activity panel
 
-How terminal-targeted agent runs are shown is chosen under [*Plugins → AI Agent Design*](ai-agent-designs.md): by default as a block in the terminal with a metro-line bar below it, and per connection on the connection editor's **AI** tab. The **Classic** combination shows them in the inline activity panel described here, at the bottom of the current terminal split.
+How terminal-targeted agent runs are shown is chosen under [*AI → AI Manager → AI Agent Design*](ai-agent-designs.md): by default as a block in the terminal with a metro-line bar below it, and per connection on the connection editor's **AI** tab. The **Classic** combination shows them in the inline activity panel described here, at the bottom of the current terminal split.
 
 ### Panel features
 
@@ -128,7 +128,7 @@ Use **View → AI Agent Panel** to choose where the activity panel appears:
 - **Dock Left / Dock Right** — The panel appears as a resizable side panel docked to the main window (like the file browser). In side mode there is one outer tab per terminal of the active tab, with runs stacked vertically. Dragging the divider resizes the dock; placement and width are remembered across restarts. Switching to another terminal tab swaps the dock to that tab's terminals.
 - **Ask in Spotlight…** — Opens a field in the middle of the focused terminal that asks the agent, with a profile to choose; see [Floating displays](ai-agent-designs.md#floating-displays).
 - **Show or Hide Status Bar** — Shows the [status display](ai-agent-designs.md#more-status-displays) of the focused terminal again after it faded out, or hides it.
-- **Design...** — Opens [*Plugins → AI Agent Design*](ai-agent-designs.md).
+- **Design...** — Opens [*AI → AI Manager → AI Agent Design*](ai-agent-designs.md).
 
 ### Status indicators
 

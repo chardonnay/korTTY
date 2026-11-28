@@ -17,7 +17,7 @@ import java.util.Properties;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * Every text of Plugins → KI-Agent Design — each design's name and description, the roles, the built-in
+ * Every text of KI-Manager → KI-Agent Design — each design's name and description, the roles, the built-in
  * combinations, the texts of the designs themselves and the connection editor — exists in every bundled
  * language.
  */
@@ -34,7 +34,6 @@ class AgentDesignI18nCoverageTest {
         "messages_nl.properties");
 
     private static final List<String> FIXED_KEYS = List.of(
-        "menu.plugins.aiAgentDesign",
         "menu.view.aiAgentPanel.statusBar",
         "menu.view.aiAgentPanel.design",
         "aiAgentDesign.title",

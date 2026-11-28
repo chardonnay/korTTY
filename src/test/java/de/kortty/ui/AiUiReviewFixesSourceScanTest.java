@@ -59,8 +59,8 @@ class AiUiReviewFixesSourceScanTest {
             scrollers++;
         }
 
-        // The skills and memory tabs scroll through the shared scroller, which reveals the focused control.
-        assertWithMessage("scrolling tabs built by the shared scroller").that(scrollers).isEqualTo(2);
+        // Skills, memory, and agent design use the shared scroller, which reveals the focused control.
+        assertWithMessage("scrolling tabs built by the shared scroller").that(scrollers).isEqualTo(3);
         String sections = source("AiManagerSections");
         int scroller = sections.indexOf("static ScrollPane fillingScroller(Region content)");
         assertThat(scroller).isAtLeast(0);

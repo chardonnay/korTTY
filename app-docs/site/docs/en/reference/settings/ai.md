@@ -4,7 +4,7 @@ title: AI
 
 # AI
 
-Every AI setting lives in one place: **AI → AI Manager**. Its first tab, **General**, holds the options that are not part of a profile (feature switches, the terminal agent, defaults for snippet actions, internet tools) on four section tabs; **Profiles** holds the AI profiles with their model, connection, limits and budget; **Local Models**, **Knowledge Stores**, **AI Skills** and **Local AI** the rest. The values are stored in `~/.kortty/global-settings.xml`. The Global Settings window has no AI tab any more.
+Open **AI → AI Manager**. The **General** tab holds feature switches, terminal agent options, snippet defaults and internet tools. **Profiles** holds settings for each profile, including its model, connection, limits and budget. The other tabs cover local models, knowledge stores, skills, memory, the local runtime and [AI Agent Design](../../features/ai-agent-designs.md). Settings are stored in `~/.kortty/global-settings.xml`.
 
 ![AI Manager, General tab](../../assets/screenshots/ai/ai-manager-general.png)
 

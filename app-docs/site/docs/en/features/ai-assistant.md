@@ -299,6 +299,7 @@ The manager combines profile, local-inference, retrieval, and skill management:
 * **AI Skills** - Manage the skill library described under [AI Skills](#ai-skills) and its [statistics](../reference/settings/ai-skills.md#skill-statistics).
 * **Memory** - The korTTY memory that chat and agent requests carry: the global and the per-connection memory, the token budget, learning, clean-up, history and the other memory files. See [AI memory](ai-memory.md).
 * **Local AI** - Three sections: **Profile roles** assigns the Text/translation, Coding, **AI agent profile** and [session journal](session-journal.md#ai-summaries) profiles; **Local runtime** selects the runtime-update policy, the preferred runtime backend and the RAG embedding model; **Hugging Face** stores an encrypted Hugging Face token. **Save** under the sections writes all of them.
+* **AI Agent Design** - Choose and preview how [terminal agent runs are displayed](ai-agent-designs.md). Set a default combination or create your own.
 
 Saved chats are not a tab of the AI Manager. **AI > Saved Chats...** opens them in their own window, with a **Chats** tab for saved AI conversations and a **Swarm Chats** tab for saved [AI Swarm](ai-swarm.md) conversations, including those produced by scheduled swarm jobs. There you can open, rename, refresh, or delete an entry. Chats continued from an agent run are listed in the **Chats** tab as well, see [Chats from AI agent runs](#chats-from-ai-agent-runs).
 
@@ -339,7 +340,7 @@ korTTY supports agent-style workflows for an active terminal session.
 
 ### Activity panel and placement
 
-* **Designs** - How runs are shown is chosen under [*Plugins → AI Agent Design*](ai-agent-designs.md): by default as a block in the terminal with a metro-line bar below it. The points below describe the **Classic** combination's activity panel.
+* **Designs** - How runs are shown is chosen under [*AI → AI Manager → AI Agent Design*](ai-agent-designs.md): by default as a block in the terminal with a metro-line bar below it. The points below describe the **Classic** combination's activity panel.
 * **Split-local activity panel** - Terminal-targeted runs appear at the bottom of the terminal split where the run was started. Each split has its own panel, so different splits can run their own agent tasks in parallel.
 * **Panel placement** - Use **View > AI Agent Panel** to choose **At Bottom** (default), **Dock Left**, or **Dock Right**. Docked mode shows the activity in a resizable side panel attached to the main window; drag its divider to resize. The placement and width are remembered across restarts. In side mode there is one outer tab per terminal of the active terminal tab, and runs are stacked vertically. Switching to another terminal tab swaps the dock to that tab's terminals.
 * **Agent status indicators** - A per-terminal AI-agent status icon appears in the Dashboard tree and prefixed to the terminal's tab title:

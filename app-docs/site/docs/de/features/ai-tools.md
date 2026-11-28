@@ -103,7 +103,7 @@ Das Modell beantwortet jede Runde mit einer Entscheidung, und korTTY führt auss
 
 ## Aktivitätspanel
 
-Wie Terminal-orientierte Agent-Ausführungen angezeigt werden, wird unter [*Plugins → KI-Agent Design*](ai-agent-designs.md) gewählt: standardmäßig als Block im Terminal mit einem Metro-Linienbalken darunter und pro Verbindung auf dem **KI**-Tab des Verbindungseditors. Die **Klassisch**-Kombination zeigt sie im hier beschriebenen Inline-Aktivitäts-Panel am unteren Rand der aktuellen Terminal-Aufteilung.
+Wie Terminal-orientierte Agent-Ausführungen angezeigt werden, wird unter [*KI → KI-Manager → KI-Agent Design*](ai-agent-designs.md) gewählt: standardmäßig als Block im Terminal mit einem Metro-Linienbalken darunter und pro Verbindung auf dem **KI**-Tab des Verbindungseditors. Die **Klassisch**-Kombination zeigt sie im hier beschriebenen Inline-Aktivitäts-Panel am unteren Rand der aktuellen Terminal-Aufteilung.
 
 ### Panel-Funktionen
 
@@ -128,7 +128,7 @@ Verwenden Sie **Ansicht → AI Agent Panel**, um auszuwählen, wo das Aktivität
 - **Links andocken / Rechts andocken** – Das Bedienfeld erscheint als größenveränderbares Seitenfeld, das am Hauptfenster angedockt ist (wie der Dateibrowser). Im Seitenmodus gibt es eine äußere Lasche pro Anschluss der aktiven Lasche, wobei die Läufe vertikal gestapelt sind. Durch Ziehen der Trennlinie wird die Größe des Docks geändert. Platzierung und Breite werden bei jedem Neustart gespeichert. Wenn Sie zu einer anderen Terminal-Registerkarte wechseln, wechselt das Dock zu den Terminals dieser Registerkarte.
 - **In Spotlight fragen …** — Öffnet ein Feld in der Mitte des fokussierten Terminals, das den Agenten mit einem wählbaren Profil abfragt; siehe [Schwebende Anzeigen](ai-agent-designs.md#schwebende-anzeigen).
 - **Statusleiste ein- oder ausblenden** — Blendet die [Statusanzeige](ai-agent-designs.md#weitere-statusanzeigen) des fokussierten Terminals nach dem Ausblenden wieder ein oder blendet sie aus.
-- **Design...** — Öffnet [*Plugins → KI-Agent Design*](ai-agent-designs.md).
+- **Design...** — Öffnet [*KI → KI-Manager → KI-Agent Design*](ai-agent-designs.md).
 
 ### Statusanzeigen
 

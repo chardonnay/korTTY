@@ -4,6 +4,10 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ## v2.26.2
 
+### KI
+
+- **KI-Agent Design** hat jetzt einen eigenen Reiter im **KI-Manager**.
+
 ### Verbindungen
 
 - Schnellverbindung und Connection-Manager unterstützen Telnet-Profile für Netzwerkterminals und ältere Konsolenserver. Der Tab kennzeichnet Telnet als unverschlüsselt. Die Unternehmensrichtlinie kann Telnet sperren.

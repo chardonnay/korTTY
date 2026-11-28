@@ -24,7 +24,7 @@ import java.util.function.Consumer;
 /**
  * What can be done with a KI-Agent run and its steps, whichever design shows it: turn a finished run into
  * a reusable workflow script, export runs to a file, open a step in the Snippet Editor, and the texts a
- * step offers to copy. The classic activity panel and the designs of Plugins → AI Agent Design share it.
+ * step offers to copy. The classic activity panel and the designs of AI Manager → AI Agent Design share it.
  * FX thread.
  */
 final class AgentRunActions {

@@ -241,7 +241,7 @@ public class ServerConnection {
     private String aiProfileId;
 
     /**
-     * KI-Agent design combination agent runs on this connection are shown in (Plugins → KI-Agent Design);
+     * KI-Agent design combination agent runs on this connection are shown in (KI-Manager → KI-Agent Design);
      * null = the global default. Own combinations live in the global settings of this machine, so like
      * the AI profile it is not exported.
      */

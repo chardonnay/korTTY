@@ -44,7 +44,7 @@ import java.util.function.Consumer;
 
 /**
  * Shows the KI-Agent runs of one terminal pane in the design combination each run was started with
- * (Plugins → KI-Agent Design). It sits in the pane's bottom slot and holds the parts the combinations
+ * (KI-Manager → KI-Agent Design). It sits in the pane's bottom slot and holds the parts the combinations
  * need: the classic activity panel, the history panels (02, 06, 07, 09, 13, 16) and status displays
  * (01, 04, 05, 08, 10, 11, 12, 15, 18) in the slots around the terminal or floating over it, the
  * approval row, the approval at the cursor line (14), the picture-in-picture window (19), and the

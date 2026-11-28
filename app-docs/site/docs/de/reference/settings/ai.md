@@ -4,7 +4,7 @@ title: KI
 
 # KI
 
-Jede KI-Einstellung befindet sich an einem Ort: **KI → KI-Manager**. Ihr erster Tab, **Allgemein**, enthält die Optionen, die nicht Teil eines Profils sind (Funktionsschalter, der Terminal-Agent, Vorgaben für Snippet-Aktionen, Internet-Tools) auf vier Abschnitts-Tabs; **Profile** enthält die KI-Profile mit ihrem Modell, ihrer Verbindung, ihren Grenzen und Budget; **Lokale Modelle**, **Wissensspeicher**, **KI-Skills** und **Lokale KI** den Rest. Die Werte werden in `~/.kortty/global-settings.xml` gespeichert. Das Fenster Globale Einstellungen hat keinen KI-Tab mehr.
+Öffnen Sie **KI → KI-Manager**. Der Reiter **Allgemein** enthält Funktionsschalter, Optionen für den Terminal-Agenten, Snippet-Standardeinstellungen und Internet-Tools. Unter **Profile** finden Sie die Einstellungen für jedes Profil, darunter Modell, Verbindung, Limits und Budget. Die übrigen Reiter enthalten lokale Modelle, Wissensspeicher, Skills, den KI-Memory, die lokale Laufzeit und [KI-Agent Design](../../features/ai-agent-designs.md). Die Einstellungen werden in `~/.kortty/global-settings.xml` gespeichert.
 
 ![KI-Manager, General tab](../../assets/screenshots/ai/ai-manager-general.png)
 
