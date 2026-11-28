@@ -98,13 +98,13 @@ The three session-journal items stay visible but are disabled when an [enterpris
 
 | Item | Description |
 | --- | --- |
-| AI Manager… | Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles (++ctrl+shift+y++) |
+| AI Manager… | Manage AI profiles, integrated GGUF models, RAG knowledge stores, AI skills, Text/Coding roles, and [AI Agent Design](../features/ai-agent-designs.md) (++ctrl+shift+y++) |
 | Saved Chats… | Open the saved AI chat conversations directly in their own window; invoking it again brings the existing window to the front |
 | AI Agent… | Open the terminal AI agent Open the terminal AI agent (++ctrl+alt+a++) |
 | AI Planning… | Open the AI planning workflow Open the AI planning workflow (++ctrl+alt+p++) |
 | AI Swarm… | Broadcast one AI task to many servers and compare the answers (++ctrl+alt+s++) |
 
-**AI Manager** opens as a modeless window, so it can remain visible while you use the main window. Invoking it again restores and focuses the same manager for that main window instead of creating a duplicate. Its five sections are **Profiles** (connection mode, model, prompt preset, reasoning, internet access and token budget), **Local Models** (search/download/import GGUF models), **Knowledge Stores** (RAG sources), **AI Skills** (the skill library, moved here from the global settings dialog) and **Local AI** (Text/Coding/embedding roles and the local runtime). The open primary section remains marked by a bold accent underline after you move focus into its tables, fields, or buttons:
+**AI Manager** opens as a modeless window by default, so it can remain visible while you use the main window. Invoking it again focuses the existing manager for that main window. The selected tab remains underlined after you move focus into its controls.
 
 ![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/local-models.png)
 
@@ -113,7 +113,6 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Item | Description |
 | --- | --- |
 | Terminal Effects… | Enable/disable, configure, import/export terminal-effect plugins |
-| AI Agent Design | Choose how terminal AI agent runs are shown: a combination of [designs](../features/ai-agent-designs.md), the default and your own combinations |
 
 ## View
 
@@ -131,7 +130,7 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | AI Agent Panel ▸ At Bottom / Dock Left / Dock Right | | Choose where the AI agent activity panel lives |
 | AI Agent Panel ▸ Ask in Spotlight… | | Open a field in the middle of the focused terminal that asks the AI agent, with a profile to choose (the [Spotlight](../features/ai-agent-designs.md#floating-displays)) |
 | AI Agent Panel ▸ Show or Hide Status Bar | | Show the [status display](../features/ai-agent-designs.md#more-status-displays) of the focused terminal again after it faded out, or hide it |
-| AI Agent Panel ▸ Design... | | Open [*Plugins → AI Agent Design*](../features/ai-agent-designs.md) |
+| AI Agent Panel ▸ Design... | | Open the [AI Agent Design](../features/ai-agent-designs.md) tab in the AI Manager |
 | Live Journal ▸ Dock Left / Dock Right | | Dock the [live journal panel](../features/session-journal.md#the-live-journal-panel) beside the terminal; selecting the active side hides it |
 | Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
 | Coding Agents ▸ Dock Left / Dock Right | | Dock the [Coding Agents panel](../features/coding-agents.md#the-coding-agents-panel) beside the terminal; selecting the active side hides it |

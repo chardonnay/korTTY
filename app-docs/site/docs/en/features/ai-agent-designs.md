@@ -4,11 +4,11 @@ title: AI agent designs
 
 # AI agent designs
 
-*Plugins → AI Agent Design* decides how the runs of the terminal [AI agent](ai-tools.md) are shown: as lines in the terminal itself, in a slim bar below or above it, on a rail or in a column beside it, as a card floating over it, in the classic activity panel, or in a combination of these. A **combination** picks one design for each role, and you can set one combination as the default and give single connections a different one.
+*AI → AI Manager → AI Agent Design* decides how the runs of the terminal [AI agent](ai-tools.md) are shown: as lines in the terminal itself, in a slim bar below or above it, on a rail or in a column beside it, as a card floating over it, in the classic activity panel, or in a combination of these. A **combination** picks one design for each role, and you can set one combination as the default and give single connections a different one.
 
 ![AI Agent Design with the standard combination: the live preview shows a sample run as a block in the terminal, waiting for an approval, with the metro line and the approval row below](../assets/screenshots/plugins/ai-agent-design.png)
 
-Open it from *Plugins → AI Agent Design* or *View → AI Agent Panel → Design...*. With *open tool windows as tabs* turned on it opens as a tab of the main window. An organisation policy that does not allow plugins locks both entries.
+Open **AI → AI Manager → AI Agent Design**. **View → AI Agent Panel → Design...** opens the AI Manager and selects this tab directly. With **Open tool windows as tabs** enabled, the AI Manager opens inside the main window. An organisation policy that disallows plugins disables the design tab and its shortcut in the View menu.
 
 ## Roles and designs
 

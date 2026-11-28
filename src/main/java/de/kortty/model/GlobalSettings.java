@@ -1031,7 +1031,7 @@ public class GlobalSettings {
     @XmlElement
     private Double aiAgentPanelSideWidth;
 
-    // Plugins → KI-Agent Design: the combination agent runs are shown in unless a connection picks its
+    // KI-Manager → KI-Agent Design: the combination agent runs are shown in unless a connection picks its
     // own. Null means the built-in standard combination, so a settings file without it gets the standard.
     @XmlElement
     private String aiAgentDesignDefaultId;

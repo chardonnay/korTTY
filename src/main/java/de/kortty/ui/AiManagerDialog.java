@@ -113,6 +113,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private RagKnowledgeStorePane knowledgeStorePane;
     private AiSkillsPane aiSkillsPane;
     private AiMemoryPane aiMemoryPane;
+    private AgentDesignPane agentDesignPane;
+    private final Tab agentDesignTab;
+    private boolean agentDesignHostActive = true;
     private Tab aiSkillsTab;
     private final javafx.stage.Window paneOwner;
     private Tab localModelsTab;
@@ -295,6 +298,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         tabPane = new TabPane();
         tabPane.getStyleClass().add("ai-manager-primary-navigation");
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        agentDesignTab = buildAgentDesignTab();
         List<Tab> primaryTabs = List.of(
             buildGeneralTab(),
             buildProfilesTab(),
@@ -302,7 +306,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             buildKnowledgeStoresTab(),
             buildAiSkillsTab(),
             buildAiMemoryTab(),
-            buildLocalPreferencesTab());
+            buildLocalPreferencesTab(),
+            agentDesignTab);
         primaryTabs.forEach(tab -> tab.getStyleClass().add("ai-manager-primary-tab"));
         tabPane.getTabs().addAll(primaryTabs);
 
@@ -347,7 +352,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             }
             saveGeometry();
         });
+        setOnShown(event -> setAgentDesignHostActive(true));
         setOnHidden(event -> {
+            setAgentDesignHostActive(false);
             saveGeometry();
             if (localModelManagerPane != null) {
                 localModelManagerPane.close();
@@ -380,6 +387,19 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         });
 
         refreshAll();
+    }
+
+    void selectAgentDesign() {
+        if (!agentDesignTab.isDisable()) {
+            tabPane.getSelectionModel().select(agentDesignTab);
+        }
+    }
+
+    void setAgentDesignHostActive(boolean active) {
+        agentDesignHostActive = active;
+        if (agentDesignPane != null) {
+            agentDesignPane.setActive(active && agentDesignTab.isSelected());
+        }
     }
 
     /** The search line over the tabs; for tests and smokes. */
@@ -939,6 +959,29 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             // The entries and the Markdown editor take the dialog's height; a small dialog scrolls the lower sections
             // (save row, cleanup, external files) instead of squeezing them.
             return AiManagerSections.fillingScroller(aiMemoryPane);
+        });
+        return tab;
+    }
+
+    private Tab buildAgentDesignTab() {
+        Tab tab = new Tab(I18n.get("aiAgentDesign.title"));
+        if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+            tab.setDisable(true);
+            tab.setTooltip(new Tooltip(de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+            return tab;
+        }
+        LazyTabContent.defer(tab, () -> {
+            agentDesignPane = new AgentDesignPane(app != null ? app.getGlobalSettingsManager() : null);
+            return AiManagerSections.fillingScroller(agentDesignPane);
+        });
+        tab.selectedProperty().addListener((obs, wasSelected, selected) -> {
+            if (selected) {
+                de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TOOL_OPENED,
+                    Map.of("tool", "ai_agent_design"));
+            }
+            if (agentDesignPane != null) {
+                agentDesignPane.setActive(selected && agentDesignHostActive);
+            }
         });
         return tab;
     }

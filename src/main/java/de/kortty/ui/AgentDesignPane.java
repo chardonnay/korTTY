@@ -29,11 +29,11 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Window;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -44,14 +44,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Plugins → KI-Agent Design: the user assembles how agent runs are shown, one design per role, and
+ * The AI Manager tab for assembling how agent runs are shown, one design per role, and
  * watches a sample run in the combination. Built-in combinations are fixed; own ones are kept in the
  * global settings and saved on every change. Each connection can pick its own combination in the
- * Connection Manager; this dialog sets the default for the others.
+ * Connection Manager; this tab sets the default for the others.
  */
-final class AgentDesignPluginManagerDialog extends ThemeAwareDialog<Void> {
+final class AgentDesignPane extends VBox {
 
-    private static final Logger logger = LoggerFactory.getLogger(AgentDesignPluginManagerDialog.class);
+    private static final Logger logger = LoggerFactory.getLogger(AgentDesignPane.class);
 
     /** One table row: a module and whether the shown combination uses it. */
     private final class ModuleRow {
@@ -92,28 +92,36 @@ final class AgentDesignPluginManagerDialog extends ThemeAwareDialog<Void> {
     private final Spinner<Integer> autoHideSpinner = new Spinner<>(0, GlobalSettings.AI_AGENT_DESIGN_AUTO_HIDE_MAX_SECONDS, 6);
     private final CheckBox reducedAnimationsCheck = new CheckBox(I18n.get("aiAgentDesign.reducedAnimations"));
     private boolean refreshing;
+    private boolean active;
     private @Nullable AgentDesignCombination previewed;
 
-    AgentDesignPluginManagerDialog(Window owner, GlobalSettingsManager settingsManager) {
+    AgentDesignPane(GlobalSettingsManager settingsManager) {
         this.settingsManager = settingsManager;
-        initOwner(owner);
-        initModality(Modality.APPLICATION_MODAL);
-        setTitle(I18n.get("aiAgentDesign.title"));
-        setHeaderText(null);
-        setResizable(true);
-        getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        getDialogPane().setContent(createContent());
-        reloadCombinations(defaultCombination().id());
-        setOnShown(event -> playPreview());
-        setOnHidden(event -> preview.stop());
+        buildContent();
     }
 
-    @Override
-    protected void onHostedAttached() {
+    void setActive(boolean active) {
+        if (this.active == active) {
+            return;
+        }
+        if (!active) {
+            this.active = false;
+            preview.stop();
+            previewed = null;
+            return;
+        }
+        AgentDesignCombination selected = combinationBox.getValue();
+        reloadCombinations(selected != null ? selected.id() : defaultCombination().id());
+        GlobalSettings settings = settings();
+        if (settings != null) {
+            autoHideSpinner.getValueFactory().setValue(settings.getAiAgentDesignAutoHideSeconds());
+            reducedAnimationsCheck.setSelected(settings.isAiAgentDesignReducedAnimations());
+        }
+        this.active = true;
         playPreview();
     }
 
-    private VBox createContent() {
+    private void buildContent() {
         Label intro = new Label(I18n.get("aiAgentDesign.intro"));
         intro.setWrapText(true);
 
@@ -136,17 +144,17 @@ final class AgentDesignPluginManagerDialog extends ThemeAwareDialog<Void> {
         renameButton.setOnAction(event -> renameCombination());
         deleteButton.setOnAction(event -> deleteCombination());
         defaultButton.setOnAction(event -> makeDefault());
-        HBox top = new HBox(8, new Label(I18n.get("aiAgentDesign.combination")), combinationBox,
+        FlowPane top = new FlowPane(8, 6, new Label(I18n.get("aiAgentDesign.combination")), combinationBox,
             newButton, duplicateButton, renameButton, deleteButton, defaultButton);
         top.setAlignment(Pos.CENTER_LEFT);
         stateLabel.setWrapText(true);
-        stateLabel.setStyle("-fx-text-fill: gray;");
+        stateLabel.setStyle(MutedTextStyle.HINT);
 
         table.setEditable(true);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        table.setPrefSize(600, 420);
-        table.setMinWidth(520);
+        table.setPrefSize(520, 390);
+        table.setMinWidth(420);
         table.setRowFactory(view -> new ModuleTableRow());
         TableColumn<ModuleRow, Boolean> activeColumn = new TableColumn<>(I18n.get("aiAgentDesign.column.active"));
         activeColumn.setCellValueFactory(data -> data.getValue().active);
@@ -192,34 +200,42 @@ final class AgentDesignPluginManagerDialog extends ThemeAwareDialog<Void> {
             previewed = null;
             playPreview();
         });
-        VBox previewBox = new VBox(6, previewTitle, preview, replay);
-        previewBox.setMinWidth(Region.USE_PREF_SIZE);
+        HBox previewHeader = new HBox(10, previewTitle, replay);
+        previewHeader.setAlignment(Pos.CENTER_LEFT);
+        VBox previewBox = new VBox(6, previewHeader, preview);
+        preview.setMinWidth(440);
 
-        HBox center = new HBox(12, table, previewBox);
-        HBox.setHgrow(table, Priority.ALWAYS);
+        GridPane center = new GridPane();
+        center.setHgap(12);
+        center.setVgap(12);
+        center.add(table, 0, 0);
+        center.add(previewBox, 0, 1);
+        GridPane.setHgrow(table, Priority.ALWAYS);
+        GridPane.setVgrow(table, Priority.ALWAYS);
+        center.widthProperty().addListener((obs, oldWidth, width) -> {
+            boolean sideBySide = width.doubleValue() >= table.getMinWidth() + preview.getMinWidth() + center.getHgap();
+            GridPane.setConstraints(previewBox, sideBySide ? 1 : 0, sideBySide ? 0 : 1);
+        });
         VBox.setVgrow(center, Priority.ALWAYS);
 
-        GlobalSettings settings = settings();
-        autoHideSpinner.getValueFactory().setValue(settings != null ? settings.getAiAgentDesignAutoHideSeconds() : 6);
         autoHideSpinner.setEditable(true);
         autoHideSpinner.setPrefWidth(80);
         autoHideSpinner.valueProperty().addListener((obs, oldValue, newValue) -> saveOptions());
-        reducedAnimationsCheck.setSelected(settings != null && settings.isAiAgentDesignReducedAnimations());
         reducedAnimationsCheck.selectedProperty().addListener((obs, oldValue, newValue) -> {
             saveOptions();
             previewed = null;
             playPreview();
         });
-        HBox options = new HBox(10, new Label(I18n.get("aiAgentDesign.autoHide")), autoHideSpinner, reducedAnimationsCheck);
+        FlowPane options = new FlowPane(10, 6,
+            new Label(I18n.get("aiAgentDesign.autoHide")), autoHideSpinner, reducedAnimationsCheck);
         options.setAlignment(Pos.CENTER_LEFT);
         Label hint = new Label(I18n.get("aiAgentDesign.perConnectionHint"));
         hint.setWrapText(true);
-        hint.setStyle("-fx-text-fill: gray;");
+        hint.setStyle(MutedTextStyle.HINT);
 
-        VBox content = new VBox(10, intro, top, stateLabel, center, options, hint);
-        content.setPadding(new Insets(12));
-        content.setPrefWidth(1200);
-        return content;
+        setSpacing(10);
+        setPadding(new Insets(12));
+        getChildren().addAll(intro, top, stateLabel, center, options, hint);
     }
 
     // ------------------------------------------------------------------ combinations
@@ -388,6 +404,9 @@ final class AgentDesignPluginManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void saveOptions() {
+        if (!active) {
+            return;
+        }
         GlobalSettings settings = settings();
         if (settings == null) {
             return;
@@ -410,6 +429,9 @@ final class AgentDesignPluginManagerDialog extends ThemeAwareDialog<Void> {
 
     /** Plays the combination, or, while a module of another choice is selected, the combination with it. */
     private void playPreview() {
+        if (!active) {
+            return;
+        }
         AgentDesignCombination combination = combinationBox.getValue();
         if (combination == null) {
             return;
@@ -446,7 +468,7 @@ final class AgentDesignPluginManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private Window ownerWindow() {
-        return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        return getScene() != null ? getScene().getWindow() : null;
     }
 
     /** Shows a combination by name, the default with a star. */

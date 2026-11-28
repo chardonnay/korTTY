@@ -98,13 +98,13 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 
 | Artikel | Beschreibung |
 | --- | --- |
-| KI-Manager… | Verwalten von KI-Profilen, integrierten GGUF-Modellen, RAG-Wissensspeichern, der KI-Skills-Bibliothek und Text/Coding-Rollen (++ctrl+shift+y++) |
+| KI-Manager… | Verwalten Sie KI-Profile, integrierte GGUF-Modelle, RAG-Wissensspeicher, KI-Skills, Text- und Coding-Rollen sowie [KI-Agent Design](../features/ai-agent-designs.md) (++ctrl+shift+y++) |
 | Gespeicherte Chats… | Öffnen Sie die gespeicherten KI-Chatgespräche direkt in ihrem eigenen Fenster; ein erneutes Aufrufen bringt das vorhandene Fenster nach vorne |
 | KI-Agent… | Öffnen des Terminal-KI-Agents Öffnen des Terminal-KI-Agents (++ctrl+alt+a++) |
 | KI-Planung… | Öffnen des KI-Planungsworkflows Öffnen des KI-Planungsworkflows (++ctrl+alt+p++) |
 | KI-Schwarm… | Senden Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++ctrl+alt+s++) |
 
-**KI-Manager** wird als modales Fenster geöffnet, sodass es sichtbar bleiben kann, während Sie das Hauptfenster verwenden. Durch einen erneuten Aufruf wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu erstellen. Seine fünf Abschnitte sind **Profile** (Verbindungsmodus, Modell, Eingabeaufforderungsvoreinstellung, Reasoning, Internetzugang und Token-Budget), **Lokale Modelle** (Suchen/Herunterladen/Importieren von GGUF-Modellen), **Wissensspeicher** (RAG-Quellen), **KI-Skills** (die Fertigkeitsbibliothek, aus dem globalen Einstellungsdialog hierher verschoben) und **Lokale KI** (Text-/Codierungs-/Einbettungsrollen und die lokale Laufzeit). Der geöffnete primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem Sie den Fokus auf seine Tabellen, Felder oder Schaltflächen verschoben haben:
+Der **KI-Manager** öffnet sich standardmäßig in einem Fenster, das Sie parallel zum Hauptfenster verwenden können. Wenn Sie den KI-Manager erneut aufrufen, erscheint das bereits geöffnete Fenster im Vordergrund. Der ausgewählte Reiter bleibt unterstrichen, wenn Sie den Fokus auf eines seiner Bedienelemente verschieben.
 
 ![KI-Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/local-models.png)
 
@@ -113,7 +113,6 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | Artikel | Beschreibung |
 | --- | --- |
 | Terminal-Effekte… | Terminal-Effekt-Plugins aktivieren/deaktivieren, konfigurieren, importieren/exportieren |
-| KI-Agent Design | Wählen Sie aus, wie Terminal-KI-Agent-Läufe angezeigt werden: eine Kombination aus [Designs](../features/ai-agent-designs.md), dem Standard und Ihren eigenen Kombinationen |
 
 ## Ansicht
 
@@ -131,7 +130,7 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | KI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das KI-Agent-Aktivitätspanel befindet |
 | KI-Agent-Panel ▸ In Spotlight fragen … | | Öffnet ein Feld in der Mitte des fokussierten Terminals, das den KI-Agenten mit einem wählbaren Profil befragt (das [Spotlight](../features/ai-agent-designs.md#schwebende-anzeigen)) |
 | KI-Agent-Panel ▸ Statusleiste ein- oder ausblenden | | Blenden Sie die [Statusanzeige](../features/ai-agent-designs.md#weitere-statusanzeigen) des fokussierten Terminals nach dem Ausblenden erneut ein, oder blenden Sie sie aus |
-| KI-Agent-Panel ▸ Design... | | Öffnen Sie [*Plugins → KI-Agent Design*](../features/ai-agent-designs.md) |
+| KI-Agent-Panel ▸ Design ... | | Öffnen Sie den Reiter [KI-Agent Design](../features/ai-agent-designs.md) im KI-Manager |
 | Live-Journal ▸ Links andocken / Rechts andocken | | Andocken des [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Auswahl der aktiven Seite versteckt es |
 | Live-Journal ▸ Anzeigen/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf seiner zuletzt verwendeten Seite (standardmäßig rechts) |
 | Coding-Agents ▸ Links andocken / Rechts andocken | | Andocken Sie das [Coding-Agents-Panel](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal; die Auswahl der aktiven Seite blendet es aus. |

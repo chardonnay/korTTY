@@ -4,6 +4,10 @@ What changed in the current release. The version this guide was built for is sho
 
 ## v2.26.2
 
+### AI
+
+- **AI Agent Design** is now a tab in the **AI Manager**.
+
 ### Connections
 
 - Quick Connect and the Connection Manager support Telnet profiles for network terminals and legacy console servers. The tab identifies Telnet as unencrypted, and administrators can disable it in enterprise policy.

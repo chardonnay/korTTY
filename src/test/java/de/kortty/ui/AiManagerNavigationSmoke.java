@@ -100,10 +100,12 @@ public final class AiManagerNavigationSmoke {
             check(navigationNode instanceof TabPane,
                 "AI Manager primary navigation style class is missing");
             TabPane navigation = (TabPane) navigationNode;
-            check(navigation.getTabs().size() == 5,
-                "expected five primary AI Manager tabs, got " + navigation.getTabs().size());
+            check(navigation.getTabs().size() == 8,
+                "expected eight primary AI Manager tabs, got " + navigation.getTabs().size());
 
-            Tab localModels = navigation.getTabs().get(1);
+            Tab localModels = navigation.getTabs().stream()
+                .filter(tab -> I18n.get("ai.local.models.tab").equals(tab.getText()))
+                .findFirst().orElseThrow();
             check(localModels.getStyleClass().contains("ai-manager-primary-tab"),
                 "Local Models tab is missing the persistent-marker style class");
             navigation.getSelectionModel().select(localModels);

@@ -1035,7 +1035,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         profileHint.setWrapText(true);
         profileHint.setStyle(MutedTextStyle.HINT);
 
-        // How agent runs in this connection are shown (Plugins → KI-Agent Design); null = the default.
+        // How agent runs in this connection are shown (KI-Manager → KI-Agent Design); null = the default.
         java.util.List<AgentDesignUiSupport.Choice> designChoices =
             AgentDesignUiSupport.connectionChoices(globalSettings, connection.getAiAgentDesignId());
         aiAgentDesignCombo = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(designChoices));

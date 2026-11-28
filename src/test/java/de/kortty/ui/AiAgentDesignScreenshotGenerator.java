@@ -29,8 +29,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Offline generator for the manual's Plugins → AI Agent Design screenshots: the REAL
- * {@link AgentDesignPluginManagerDialog} (isolated {@code user.home}, English, Normal design) while its
+ * Offline generator for the manual's AI Agent Design screenshots: the real tab in
+ * {@link AiManagerDialog} (isolated {@code user.home}, English, Normal design) while its
  * live preview waits for the sample run's approval, and the preview alone after the run collapsed to
  * its answer, and the four status bars and rails (01, 11, 12, 18) beside the in-terminal blocks while the
  * run waits for its approval, and in the same way the history panels, the floating displays, the designs
@@ -106,18 +106,20 @@ public final class AiAgentDesignScreenshotGenerator {
         // The Normal design for every window, as the app sets it up; the grids are windows of their own.
         AppDesignStyleSupport.initializeGlobalStyling(de.kortty.model.AppDesign.NORMAL);
 
-        AgentDesignPluginManagerDialog dialog = new AgentDesignPluginManagerDialog(null, app.getGlobalSettingsManager());
+        AiManagerDialog dialog = new AiManagerDialog(null);
         DialogThemeHelper.applyTheme(dialog);
         String dynamicCss = ThemeCssSupport.getDynamicStylesheetUrl(ThemeCssSupport.resolveThemeColors(settings, null));
         if (dynamicCss != null) {
             dialog.getDialogPane().getStylesheets().add(dynamicCss);
         }
         DialogPane pane = dialog.getDialogPane();
+        pane.setPrefSize(1250, 820);
         dialog.show();
         Stage stage = (Stage) pane.getScene().getWindow();
         stage.setX(-4000);
         stage.setY(-4000); // off-screen: no visible window flash during generation
-        Node preview = (Node) rawField(dialog, "preview");
+        dialog.selectAgentDesign();
+        Node preview = (Node) rawField(rawField(dialog, "agentDesignPane"), "preview");
 
         // The status designs, each beside the blocks in the terminal, in a grid of previews.
         javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();

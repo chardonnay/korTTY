@@ -2381,13 +2381,10 @@ public class MainWindow {
         Menu pluginsMenu = new Menu(I18n.get("menu.plugins"));
         MenuItem terminalEffects = menuItem("menu.plugins.terminalEffects");
         terminalEffects.setOnAction(event -> showTerminalEffectPluginManager());
-        MenuItem aiAgentDesign = menuItem("menu.plugins.aiAgentDesign");
-        aiAgentDesign.setOnAction(event -> showAgentDesignManager());
         if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
             lockByPolicy(terminalEffects);
-            lockByPolicy(aiAgentDesign);
         }
-        pluginsMenu.getItems().addAll(terminalEffects, aiAgentDesign);
+        pluginsMenu.getItems().add(terminalEffects);
         return pluginsMenu;
     }
 
@@ -2546,8 +2543,10 @@ public class MainWindow {
         MenuItem aiAgentSpotlightItem = menuItem("menu.view.aiAgentPanel.spotlight");
         aiAgentSpotlightItem.setOnAction(e -> openAgentSpotlight());
         MenuItem aiAgentDesignItem = menuItem("menu.view.aiAgentPanel.design");
-        aiAgentDesignItem.setOnAction(e -> showAgentDesignManager());
-        if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+        aiAgentDesignItem.setOnAction(e -> showAiManager(AiManagerDialog::selectAgentDesign));
+        if (de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+            toolsAiMenuItems.add(aiAgentDesignItem);
+        } else {
             lockByPolicy(aiAgentDesignItem);
         }
         aiAgentPanelMenu.getItems().addAll(aiAgentBottomItem, aiAgentLeftItem, aiAgentRightItem,
@@ -12886,7 +12885,7 @@ public class MainWindow {
 
     /**
      * The KI-Agent design combination a run on {@code connection} is shown in: the saved connection's own
-     * choice, else the global default (Plugins → KI-Agent Design). Read from the saved connection, so a
+     * choice, else the global default (KI-Manager → KI-Agent Design). Read from the saved connection, so a
      * change in the Connection Manager applies from the next run on.
      */
     private de.kortty.agentdesign.AgentDesignCombination resolveAgentDesignFor(@Nullable ServerConnection connection) {
@@ -14212,28 +14211,6 @@ public class MainWindow {
         }
     }
 
-    /** Plugins → KI-Agent Design: how agent runs are shown in the terminal. */
-    private void showAgentDesignManager() {
-        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ai_agent_design"));
-        try {
-            de.kortty.core.GlobalSettingsManager settingsManager = app.getGlobalSettingsManager();
-            if (settingsManager == null) {
-                showError(I18n.get("error.title"), I18n.get("plugin.initError"));
-                return;
-            }
-            if (toolTabsEnabled()) {
-                if (findAndSelectToolTab("aiAgentDesign") == null) {
-                    hostToolTab("aiAgentDesign", new AgentDesignPluginManagerDialog(stage, settingsManager), () -> { });
-                }
-                return;
-            }
-            new AgentDesignPluginManagerDialog(stage, settingsManager).showAndWait();
-        } catch (Exception e) {
-            logger.error("Failed to show the KI-Agent design manager", e);
-            showError(I18n.get("error.title"), e.getMessage());
-        }
-    }
-
     /**
      * View → AI Agent Panel → Ask in Spotlight: opens KI-Agent design 05's Spotlight in the focused pane,
      * a field that starts a run as {@code agent …} at the shell would.
@@ -14743,52 +14720,49 @@ public class MainWindow {
     }
 
     private void showAiManager() {
+        showAiManager(null);
+    }
+
+    private void showAiManager(Consumer<AiManagerDialog> prepare) {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ai_manager"));
         if (!isAiFeaturesEnabled()) {
             return;
         }
         try {
+            AiManagerDialog dialog;
             if (toolTabsEnabled()) {
-                if (findAndSelectToolTab("aiManager") == null) {
-                    hostToolTab("aiManager", new AiManagerDialog(this), null);
+                DialogHostTab host = findAndSelectToolTab("aiManager");
+                if (host != null) {
+                    dialog = (AiManagerDialog) host.getHostedDialog();
+                } else {
+                    dialog = new AiManagerDialog(this);
+                    host = hostToolTab("aiManager", dialog, null);
+                    host.selectedProperty().addListener((obs, wasSelected, selected) ->
+                        dialog.setAgentDesignHostActive(selected));
                 }
-                return;
+            } else if (aiManagerDialog != null && aiManagerDialog.isShowing()) {
+                dialog = aiManagerDialog;
+            } else {
+                dialog = new AiManagerDialog(this);
+                dialog.initOwner(stage);
+                dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+                    if (aiManagerDialog == dialog) {
+                        aiManagerDialog = null;
+                    }
+                });
+                aiManagerDialog = dialog;
+                dialog.show();
             }
-            if (aiManagerDialog != null) {
-                if (aiManagerDialog.isShowing()) {
-                    bringAiManagerToFront(aiManagerDialog);
-                    return;
-                }
-                aiManagerDialog = null;
+            if (prepare != null) {
+                prepare.accept(dialog);
             }
-
-            AiManagerDialog dialog = new AiManagerDialog(this);
-            dialog.initOwner(stage);
-            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
-                if (aiManagerDialog == dialog) {
-                    aiManagerDialog = null;
-                }
-            });
-            aiManagerDialog = dialog;
-            dialog.show();
-            bringAiManagerToFront(dialog);
+            dialog.revealDialogOrHost();
         } catch (Exception e) {
             if (aiManagerDialog != null && !aiManagerDialog.isShowing()) {
                 aiManagerDialog = null;
             }
             logger.error("Failed to open AI Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
-        }
-    }
-
-    private static void bringAiManagerToFront(AiManagerDialog dialog) {
-        Window window = dialog.getDialogPane().getScene() != null
-            ? dialog.getDialogPane().getScene().getWindow()
-            : null;
-        if (window instanceof Stage managerStage) {
-            managerStage.setIconified(false);
-            managerStage.toFront();
-            managerStage.requestFocus();
         }
     }
 
